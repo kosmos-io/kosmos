@@ -6,7 +6,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	clusterlinkv1alpha1 "cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
+	clusterlinkv1alpha1 "github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
 )
 
 func TestResolveServiceCIDRs(t *testing.T) {

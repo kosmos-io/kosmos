@@ -14,7 +14,7 @@ type ServiceAccountReplace struct {
 }
 
 const clusterlinkManagerDeployment = `
-aapiVersion: apps/v1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ .Name }}
@@ -55,10 +55,8 @@ spec:
               readOnly: true
       volumes:
       - name: proxy-config
-        configMap:
-          defaultMode: 420
-          name: {{ .ProxyConfigMapName }}
-
+        secret:
+          secretName: {{ .ProxyConfigMapName }}
 `
 
 type DeploymentReplace struct {

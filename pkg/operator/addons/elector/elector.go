@@ -3,6 +3,7 @@ package elector
 import (
 	"context"
 	"fmt"
+	utils2 "github.com/kosmos.io/clusterlink/pkg/utils"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -13,14 +14,13 @@ import (
 	clientsetscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/klog/v2"
 
-	"cnp.io/clusterlink/pkg/operator/addons/option"
-	"cnp.io/clusterlink/pkg/operator/addons/utils"
-	cmdutil "cnp.io/clusterlink/pkg/operator/util"
+	"github.com/kosmos.io/clusterlink/pkg/operator/addons/option"
+	"github.com/kosmos.io/clusterlink/pkg/operator/addons/utils"
+	cmdutil "github.com/kosmos.io/clusterlink/pkg/operator/util"
 )
 
 const (
-	ResourceName       = "clusterlink-elector"
-	ProxyConfigMapName = "clusterlink-agent-proxy"
+	ResourceName = "clusterlink-elector"
 )
 
 type ElectorInstaller struct {
@@ -64,7 +64,7 @@ func applyDeployment(opt *option.AddonOption) error {
 		Name:               ResourceName,
 		ClusterName:        opt.GetName(),
 		ImageRepository:    opt.GetImageRepository(),
-		ProxyConfigMapName: ProxyConfigMapName,
+		ProxyConfigMapName: utils2.ProxySecretName,
 		Version:            opt.Version,
 	})
 

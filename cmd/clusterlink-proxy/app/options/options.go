@@ -17,7 +17,7 @@ import (
 	"k8s.io/component-base/logs"
 	logsapi "k8s.io/component-base/logs/api/v1"
 
-	"cnp.io/clusterlink/pkg/proxy"
+	"github.com/kosmos.io/clusterlink/pkg/proxy"
 )
 
 // Options contains command line parameters for clusterlink-proxy

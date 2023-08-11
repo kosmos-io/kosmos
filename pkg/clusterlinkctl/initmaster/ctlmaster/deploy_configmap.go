@@ -9,7 +9,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 
-	apiclient "cnp.io/clusterlink/pkg/clusterlinkctl/util/apiclient"
+	apiclient "github.com/kosmos.io/clusterlink/pkg/clusterlinkctl/util/apiclient"
 )
 
 func (i *CommandInitOption) initClusterlinkConfigmap() error {

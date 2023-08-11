@@ -6,7 +6,7 @@ import (
 	apiserver "k8s.io/apiserver/pkg/server"
 	"k8s.io/component-base/cli"
 
-	"cnp.io/clusterlink/cmd/operator/app"
+	"github.com/kosmos.io/clusterlink/cmd/operator/app"
 )
 
 func main() {

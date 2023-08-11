@@ -27,12 +27,11 @@ import (
 // resourceCache cache one kind resource from single member cluster
 type resourceCache struct {
 	*genericregistry.Store
-	clusterName string
-	resource    schema.GroupVersionResource
+	resource schema.GroupVersionResource
 }
 
 func (c *resourceCache) stop() {
-	klog.Infof("Stop store for %s %s", c.clusterName, c.resource)
+	klog.Infof("Stop store for %s", c.resource)
 	go c.Store.DestroyFunc()
 }
 

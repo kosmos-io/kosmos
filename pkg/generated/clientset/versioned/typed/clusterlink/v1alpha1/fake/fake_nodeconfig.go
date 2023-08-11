@@ -5,7 +5,7 @@ package fake
 import (
 	"context"
 
-	v1alpha1 "cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
+	v1alpha1 "github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"

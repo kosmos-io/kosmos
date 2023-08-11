@@ -114,8 +114,8 @@ spec:
   networkType: "gateway"
 EOF
   kubectl --context="kind-${member_cluster}" apply -f "$ROOT"/deploy/clusterlink-namespace.yml
-  kubectl --context="kind-${member_cluster}" -n clusterlink-system delete configmap clusterlink-proxy || true
-  kubectl --context="kind-${member_cluster}" -n clusterlink-system create configmap clusterlink-proxy --from-file=kubeconfig="${ROOT}/environments/${host_cluster}/kubeconfig"
+  kubectl --context="kind-${member_cluster}" -n clusterlink-system delete secret controlpanel-config || true
+  kubectl --context="kind-${member_cluster}" -n clusterlink-system create secret generic controlpanel-config --from-file=kubeconfig="${ROOT}/environments/${host_cluster}/kubeconfig"
   kubectl --context="kind-${member_cluster}" apply -f "$ROOT"/deploy/clusterlink-datapanel-rbac.yml
   sed -e "s|__VERSION__|$VERSION|g" -e "s|__CLUSTER_NAME__|$member_cluster|g" -e "w ${ROOT}/environments/${member_cluster}/clusterlink-operator.yml" "$ROOT"/deploy/clusterlink-operator.yml
   kubectl --context="kind-${member_cluster}" apply -f "${ROOT}/environments/${member_cluster}/clusterlink-operator.yml"
@@ -144,6 +144,7 @@ function load_clusterlink_images() {
     kind load docker-image -n "$clustername" nexus.cmss.com:8086/cnp/clusterlink/clusterlink-elector:"${VERSION}"
     kind load docker-image -n "$clustername" nexus.cmss.com:8086/cnp/clusterlink/clusterlink-operator:"${VERSION}"
     kind load docker-image -n "$clustername" nexus.cmss.com:8086/cnp/clusterlink/clusterlink-agent:"${VERSION}"
+    kind load docker-image -n "$clustername" nexus.cmss.com:8086/cnp/clusterlink/clusterlink-proxy:"${VERSION}"
 }
 
 function delete_cluster() {

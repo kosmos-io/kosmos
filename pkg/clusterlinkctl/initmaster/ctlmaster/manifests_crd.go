@@ -8,7 +8,7 @@ import (
 	clientsetscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/klog/v2"
 
-	"cnp.io/clusterlink/pkg/operator/addons/utils"
+	"github.com/kosmos.io/clusterlink/pkg/operator/addons/utils"
 )
 
 const (

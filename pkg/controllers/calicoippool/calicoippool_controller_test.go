@@ -8,7 +8,7 @@ import (
 
 	v3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
 
-	"cnp.io/clusterlink/pkg/utils"
+	"github.com/kosmos.io/clusterlink/pkg/utils"
 )
 
 type fakeIPPoolClient struct {

@@ -6,7 +6,7 @@ import (
 	"k8s.io/component-base/cli"
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	"cnp.io/clusterlink/cmd/elector/app"
+	"github.com/kosmos.io/clusterlink/cmd/elector/app"
 )
 
 func main() {

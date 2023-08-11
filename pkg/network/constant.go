@@ -69,6 +69,9 @@ const (
 
 	ClusterLinkPreRoutingChain  = "CLUSTERLINK-PREROUTING"
 	ClusterLinkPostRoutingChain = "CLUSTERLINK-POSTROUTING"
+
+	IPTablesPreRoutingChain  = "PREROUTING"
+	IPTablesPostRoutingChain = "POSTROUTING"
 )
 
 type vxlanAttributes struct {

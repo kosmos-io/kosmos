@@ -50,7 +50,7 @@ linters:
 
 linters-settings:
   goimports:
-    local-prefixes: cnp.io/clusterlink
+    local-prefixes: github.com/kosmos.io/clusterlink
   gocyclo:
     # minimal cyclomatic complexity to report
     min-complexity: 15
@@ -58,7 +58,7 @@ linters-settings:
     sections:
       - Standard
       - Default
-      - Prefix(cnp.io/clusterlink)
+      - Prefix(github.com/kosmos.io/clusterlink)
 
 issues:
   # The list of ids of default excludes to include or disable. By default it's empty.

@@ -9,7 +9,7 @@ import (
 	cliflag "k8s.io/component-base/cli/flag"
 	"k8s.io/component-base/term"
 
-	"cnp.io/clusterlink/cmd/clusterlink-proxy/app/options"
+	"github.com/kosmos.io/clusterlink/cmd/clusterlink-proxy/app/options"
 )
 
 // NewClusterLinkProxyCommand creates a *cobra.Command object with default parameters

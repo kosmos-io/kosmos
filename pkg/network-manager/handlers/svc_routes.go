@@ -5,9 +5,9 @@ import (
 
 	"k8s.io/klog/v2"
 
-	"cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
-	constants "cnp.io/clusterlink/pkg/network"
-	"cnp.io/clusterlink/pkg/network-manager/helpers"
+	"github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
+	constants "github.com/kosmos.io/clusterlink/pkg/network"
+	"github.com/kosmos.io/clusterlink/pkg/network-manager/helpers"
 )
 
 type ServiceRoutes struct {

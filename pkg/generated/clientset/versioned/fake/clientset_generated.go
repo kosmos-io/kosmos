@@ -3,9 +3,9 @@
 package fake
 
 import (
-	clientset "cnp.io/clusterlink/pkg/generated/clientset/versioned"
-	clusterlinkv1alpha1 "cnp.io/clusterlink/pkg/generated/clientset/versioned/typed/clusterlink/v1alpha1"
-	fakeclusterlinkv1alpha1 "cnp.io/clusterlink/pkg/generated/clientset/versioned/typed/clusterlink/v1alpha1/fake"
+	clientset "github.com/kosmos.io/clusterlink/pkg/generated/clientset/versioned"
+	clusterlinkv1alpha1 "github.com/kosmos.io/clusterlink/pkg/generated/clientset/versioned/typed/clusterlink/v1alpha1"
+	fakeclusterlinkv1alpha1 "github.com/kosmos.io/clusterlink/pkg/generated/clientset/versioned/typed/clusterlink/v1alpha1/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"

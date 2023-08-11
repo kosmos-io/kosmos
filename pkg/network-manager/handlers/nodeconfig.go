@@ -6,8 +6,8 @@ import (
 	"encoding/json"
 	"k8s.io/klog/v2"
 
-	"cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
-	"cnp.io/clusterlink/pkg/network-manager/helpers"
+	"github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
+	"github.com/kosmos.io/clusterlink/pkg/network-manager/helpers"
 )
 
 // NodeConfig network configuration of the node

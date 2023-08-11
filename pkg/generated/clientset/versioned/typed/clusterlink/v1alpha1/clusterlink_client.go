@@ -5,8 +5,8 @@ package v1alpha1
 import (
 	"net/http"
 
-	v1alpha1 "cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
-	"cnp.io/clusterlink/pkg/generated/clientset/versioned/scheme"
+	v1alpha1 "github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
+	"github.com/kosmos.io/clusterlink/pkg/generated/clientset/versioned/scheme"
 	rest "k8s.io/client-go/rest"
 )
 

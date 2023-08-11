@@ -11,9 +11,9 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 
-	"cnp.io/clusterlink/pkg/clusterlinkctl/util/apiclient"
-	"cnp.io/clusterlink/pkg/operator/util"
-	"cnp.io/clusterlink/pkg/version"
+	"github.com/kosmos.io/clusterlink/pkg/clusterlinkctl/util/apiclient"
+	"github.com/kosmos.io/clusterlink/pkg/operator/util"
+	"github.com/kosmos.io/clusterlink/pkg/version"
 )
 
 var (

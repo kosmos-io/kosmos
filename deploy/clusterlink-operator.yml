@@ -41,12 +41,13 @@ spec:
           value: __VERSION__
         - name: CLUSTER_NAME
           value: __CLUSTER_NAME__
+        - name: USE_PROXY
+          value: "true"
         volumeMounts:
           - mountPath: /etc/clusterlink
             name: proxy-config
             readOnly: true
       volumes:
         - name: proxy-config
-          configMap:
-            defaultMode: 420
-            name: clusterlink-proxy
+          secret:
+            secretName: controlpanel-config

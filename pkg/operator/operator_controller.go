@@ -2,11 +2,12 @@ package operator
 
 import (
 	"context"
-
-	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
+	"os"
+	"strconv"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -15,11 +16,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	cmdOptions "cnp.io/clusterlink/cmd/operator/app/options"
-	clusterlinkv1alpha1 "cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
-	clusterlinkv1alpha1lister "cnp.io/clusterlink/pkg/generated/listers/clusterlink/v1alpha1"
-	"cnp.io/clusterlink/pkg/operator/addons"
-	"cnp.io/clusterlink/pkg/operator/addons/option"
+	cmdOptions "github.com/kosmos.io/clusterlink/cmd/operator/app/options"
+	clusterlinkv1alpha1 "github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
+	clusterlinkv1alpha1lister "github.com/kosmos.io/clusterlink/pkg/generated/listers/clusterlink/v1alpha1"
+	"github.com/kosmos.io/clusterlink/pkg/operator/addons"
+	"github.com/kosmos.io/clusterlink/pkg/operator/addons/option"
+	"github.com/kosmos.io/clusterlink/pkg/utils"
 )
 
 const (
@@ -52,9 +54,18 @@ func (r *Reconciler) SetupWithManager(mgr manager.Manager) error {
 
 func (r *Reconciler) syncCluster(cluster *clusterlinkv1alpha1.Cluster) (reconcile.Result, error) {
 	klog.Infof("install agent")
+	useProxy := r.Options.UseProxy
+	if value, exist := os.LookupEnv(utils.EnvUseProxy); exist {
+		boo, err := strconv.ParseBool(value)
+		if err != nil {
+			klog.Warningf("parse env %s to bool err: %v", utils.EnvUseProxy, err)
+		}
+		useProxy = boo
+	}
 	opt := &option.AddonOption{
 		Cluster:                *cluster,
 		ControlPanelKubeConfig: r.ControlPanelKubeConfig,
+		UseProxy:               useProxy,
 	}
 
 	if err := opt.Complete(r.Options); err != nil {
@@ -136,7 +147,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 	}
 
 	if !cluster.DeletionTimestamp.IsZero() {
-		return r.removeCluster(cluster)
+		if len(cluster.GetFinalizers()) == 1 {
+			return r.removeCluster(cluster)
+		}
 	}
 
 	return r.syncCluster(cluster)

@@ -9,10 +9,10 @@ import (
 	"github.com/spf13/cobra"
 	apiextensionsclientset "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 
-	"cnp.io/clusterlink/pkg/clusterlinkctl/floaterclient/command"
-	"cnp.io/clusterlink/pkg/clusterlinkctl/floaterclient/netmap"
-	"cnp.io/clusterlink/pkg/clusterlinkctl/util"
-	"cnp.io/clusterlink/pkg/version"
+	"github.com/kosmos.io/clusterlink/pkg/clusterlinkctl/floaterclient/command"
+	"github.com/kosmos.io/clusterlink/pkg/clusterlinkctl/floaterclient/netmap"
+	"github.com/kosmos.io/clusterlink/pkg/clusterlinkctl/util"
+	"github.com/kosmos.io/clusterlink/pkg/version"
 )
 
 type DoctorOptions struct {

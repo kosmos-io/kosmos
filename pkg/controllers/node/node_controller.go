@@ -3,7 +3,6 @@ package node
 import (
 	"context"
 	"fmt"
-	"k8s.io/apimachinery/pkg/util/errors"
 	"net"
 	"time"
 
@@ -11,6 +10,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -21,9 +21,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	clusterlinkv1alpha1 "cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
-	"cnp.io/clusterlink/pkg/generated/clientset/versioned"
-	interfacepolicy "cnp.io/clusterlink/pkg/utils/interface-policy"
+	clusterlinkv1alpha1 "github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
+	"github.com/kosmos.io/clusterlink/pkg/generated/clientset/versioned"
+	interfacepolicy "github.com/kosmos.io/clusterlink/pkg/utils/interface-policy"
 )
 
 const (
@@ -35,7 +35,7 @@ const (
 type Reconciler struct {
 	client.Client
 	Scheme            *runtime.Scheme
-	ClusterLinkClient *versioned.Clientset
+	ClusterLinkClient versioned.Interface
 	ClusterName       string
 }
 
@@ -216,6 +216,29 @@ func (r *Reconciler) SetupWithManager(mgr manager.Manager, stopChan <-chan struc
 		WithOptions(controller.Options{}).
 		For(&corev1.Node{}, builder.WithPredicates(predicatesFunc)).
 		Complete(r)
+}
+
+func (r *Reconciler) CleanResource() error {
+	list, err := r.ClusterLinkClient.ClusterlinkV1alpha1().ClusterNodes().List(context.TODO(), metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("clusterlink.io/cluster=%s", r.ClusterName),
+	})
+	if err != nil {
+
+	}
+	var errs []error
+	for _, node := range list.Items {
+		err := r.ClusterLinkClient.ClusterlinkV1alpha1().ClusterNodes().Delete(context.TODO(), node.GetName(), metav1.DeleteOptions{})
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				continue
+			}
+			errs = append(errs, err)
+		}
+	}
+	if len(errs) > 0 {
+		return fmt.Errorf("node controller failed delete clustersNodes: %v", errors.NewAggregate(errs))
+	}
+	return nil
 }
 
 func ClusterNodeName(clusterName, nodeName string) string {

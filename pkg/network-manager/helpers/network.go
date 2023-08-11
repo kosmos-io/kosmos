@@ -8,8 +8,8 @@ import (
 
 	"k8s.io/klog/v2"
 
-	"cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
-	constants "cnp.io/clusterlink/pkg/network"
+	"github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
+	constants "github.com/kosmos.io/clusterlink/pkg/network"
 )
 
 type IPType int
@@ -40,7 +40,7 @@ func GenerateMac() net.HardwareAddr {
 	}
 
 	// Set the local bit
-	buf[0] |= 2
+	buf[0] = (buf[0] | 2) & 0xfe
 
 	mac = append(mac, buf[0], buf[1], buf[2], buf[3], buf[4], buf[5])
 	return mac

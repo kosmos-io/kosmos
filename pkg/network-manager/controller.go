@@ -22,8 +22,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	clusterlinkv1alpha1 "cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
-	"cnp.io/clusterlink/pkg/network-manager/handlers"
+	clusterlinkv1alpha1 "github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
+	"github.com/kosmos.io/clusterlink/pkg/network-manager/handlers"
 )
 
 const (

@@ -13,14 +13,15 @@ import (
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	"cnp.io/clusterlink/cmd/agent/app/options"
-	"cnp.io/clusterlink/pkg/agent"
-	clusterlinkclientset "cnp.io/clusterlink/pkg/generated/clientset/versioned"
-	clusterlinkinformer "cnp.io/clusterlink/pkg/generated/informers/externalversions"
-	"cnp.io/clusterlink/pkg/network"
-	"cnp.io/clusterlink/pkg/scheme"
-	"cnp.io/clusterlink/pkg/sharedcli"
-	"cnp.io/clusterlink/pkg/sharedcli/klogflag"
+	"github.com/kosmos.io/clusterlink/cmd/agent/app/options"
+	"github.com/kosmos.io/clusterlink/pkg/agent"
+	clusterlinkclientset "github.com/kosmos.io/clusterlink/pkg/generated/clientset/versioned"
+	clusterlinkinformer "github.com/kosmos.io/clusterlink/pkg/generated/informers/externalversions"
+	"github.com/kosmos.io/clusterlink/pkg/network"
+	"github.com/kosmos.io/clusterlink/pkg/scheme"
+	"github.com/kosmos.io/clusterlink/pkg/sharedcli"
+	"github.com/kosmos.io/clusterlink/pkg/sharedcli/klogflag"
+	"github.com/kosmos.io/clusterlink/pkg/utils"
 )
 
 // NewAgentCommand creates a *cobra.Command object with default parameters
@@ -101,7 +102,7 @@ func run(ctx context.Context, opts *options.Options) error {
 		HealthProbeBindAddress: "0",
 	})
 	if err != nil {
-		klog.Errorf("failed to build controller manager: %v", err)
+		klog.Fatalf("failed to build controller manager123: %v", err)
 		return err
 	}
 
@@ -117,8 +118,8 @@ func run(ctx context.Context, opts *options.Options) error {
 	clusterNodeController := agent.Reconciler{
 		Scheme:           mgr.GetScheme(),
 		NodeConfigLister: nodeConfigLister,
-		NodeName:         os.Getenv("NODE_NAME"),
-		ClusterName:      os.Getenv("CLUSTER_NAME"),
+		NodeName:         os.Getenv(utils.EnvNodeName),
+		ClusterName:      os.Getenv(utils.EnvClusterName),
 		NetworkManager:   agent.NetworkManager(),
 		DebounceFunc:     Debounce(5),
 	}

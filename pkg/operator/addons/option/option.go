@@ -9,9 +9,9 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
-	cmdOptions "cnp.io/clusterlink/cmd/operator/app/options"
-	clusterlinkv1alpha1 "cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
-	"cnp.io/clusterlink/pkg/version"
+	cmdOptions "github.com/kosmos.io/clusterlink/cmd/operator/app/options"
+	clusterlinkv1alpha1 "github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
+	"github.com/kosmos.io/clusterlink/pkg/version"
 )
 
 // AddonOption for cluster
@@ -20,6 +20,7 @@ type AddonOption struct {
 	KubeClientSet          *kubernetes.Clientset
 	ControlPanelKubeConfig *clientcmdapi.Config
 	Version                string
+	UseProxy               bool
 }
 
 func (o *AddonOption) buildClusterConfig(opts *cmdOptions.Options) error {

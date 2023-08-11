@@ -12,9 +12,9 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 
-	clusterlinkv1alpha1 "cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
-	"cnp.io/clusterlink/pkg/generated/clientset/versioned"
-	"cnp.io/clusterlink/projectpath"
+	clusterlinkv1alpha1 "github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
+	"github.com/kosmos.io/clusterlink/pkg/generated/clientset/versioned"
+	"github.com/kosmos.io/clusterlink/projectpath"
 )
 
 func FetchClusters(client versioned.Interface) ([]clusterlinkv1alpha1.Cluster, error) {
