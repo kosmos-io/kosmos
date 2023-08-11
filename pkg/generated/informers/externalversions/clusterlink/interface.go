@@ -3,8 +3,8 @@
 package clusterlink
 
 import (
-	v1alpha1 "cnp.io/clusterlink/pkg/generated/informers/externalversions/clusterlink/v1alpha1"
-	internalinterfaces "cnp.io/clusterlink/pkg/generated/informers/externalversions/internalinterfaces"
+	v1alpha1 "github.com/kosmos.io/clusterlink/pkg/generated/informers/externalversions/clusterlink/v1alpha1"
+	internalinterfaces "github.com/kosmos.io/clusterlink/pkg/generated/informers/externalversions/internalinterfaces"
 )
 
 // Interface provides access to each of this group's versions.

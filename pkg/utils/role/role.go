@@ -1,7 +1,7 @@
 package role
 
 import (
-	"cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
+	"github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
 	"k8s.io/apimachinery/pkg/util/sets"
 )
 

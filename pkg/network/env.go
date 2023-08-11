@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"os"
 
-	"cnp.io/clusterlink/pkg/network/iptables"
 	ipt "github.com/coreos/go-iptables/iptables"
+	"github.com/kosmos.io/clusterlink/pkg/network/iptables"
 	"github.com/pkg/errors"
 )
 

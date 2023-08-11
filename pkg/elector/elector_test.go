@@ -8,7 +8,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
+	"github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
 )
 
 func TestEnsureGateWayRole(t *testing.T) {

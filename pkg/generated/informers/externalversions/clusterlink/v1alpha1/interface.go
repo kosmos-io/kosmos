@@ -3,7 +3,7 @@
 package v1alpha1
 
 import (
-	internalinterfaces "cnp.io/clusterlink/pkg/generated/informers/externalversions/internalinterfaces"
+	internalinterfaces "github.com/kosmos.io/clusterlink/pkg/generated/informers/externalversions/internalinterfaces"
 )
 
 // Interface provides access to all the informers in this group version.

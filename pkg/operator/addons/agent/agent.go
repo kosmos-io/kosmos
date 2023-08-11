@@ -15,14 +15,14 @@ import (
 	bootstrapapi "k8s.io/cluster-bootstrap/token/api"
 	"k8s.io/klog/v2"
 
-	"cnp.io/clusterlink/pkg/operator/addons/option"
-	"cnp.io/clusterlink/pkg/operator/addons/utils"
-	cmdutil "cnp.io/clusterlink/pkg/operator/util"
+	"github.com/kosmos.io/clusterlink/pkg/operator/addons/option"
+	"github.com/kosmos.io/clusterlink/pkg/operator/addons/utils"
+	cmdutil "github.com/kosmos.io/clusterlink/pkg/operator/util"
+	utils2 "github.com/kosmos.io/clusterlink/pkg/utils"
 )
 
 const (
-	ResourceName       = "clusterlink-agent"
-	ProxyConfigMapName = "clusterlink-agent-proxy"
+	ResourceName = "clusterlink-agent"
 )
 
 type AgentInstaller struct {
@@ -38,7 +38,7 @@ func applyDaemonSet(opt *option.AddonOption) error {
 		Namespace:          opt.GetSpecNamespace(),
 		Name:               ResourceName,
 		ImageRepository:    opt.GetImageRepository(),
-		ProxyConfigMapName: ProxyConfigMapName,
+		ProxyConfigMapName: utils2.ProxySecretName,
 		Version:            opt.Version,
 		ClusterName:        opt.GetName(),
 	})
@@ -66,7 +66,10 @@ func applyDaemonSet(opt *option.AddonOption) error {
 	return nil
 }
 
-func applyConfigMap(opt *option.AddonOption) error {
+func applySecret(opt *option.AddonOption) error {
+	if opt.UseProxy {
+		return nil
+	}
 	if err := clientcmdapi.FlattenConfig(opt.ControlPanelKubeConfig); err != nil {
 		return err
 	}
@@ -86,15 +89,15 @@ func applyConfigMap(opt *option.AddonOption) error {
 		return err
 	}
 
-	// Create or update the ConfigMap in the kube-public namespace
-	klog.Infof("[bootstrap-token] creating/updating ConfigMap in kube-public namespace")
+	// Create or update the Secret in the kube-public namespace
+	klog.Infof("[bootstrap-token] creating/updating Secret in kube-public namespace")
 
-	return cmdutil.CreateOrUpdateConfigMap(opt.KubeClientSet, &corev1.ConfigMap{
+	return cmdutil.CreateOrUpdateSecret(opt.KubeClientSet, &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      ProxyConfigMapName,
+			Name:      utils2.ProxySecretName,
 			Namespace: opt.GetSpecNamespace(),
 		},
-		Data: map[string]string{
+		StringData: map[string]string{
 			bootstrapapi.KubeConfigKey: string(bootstrapBytes),
 		},
 	})
@@ -102,7 +105,7 @@ func applyConfigMap(opt *option.AddonOption) error {
 
 // Install resources related to CR:cluster
 func (i *AgentInstaller) Install(opt *option.AddonOption) error {
-	if err := applyConfigMap(opt); err != nil {
+	if err := applySecret(opt); err != nil {
 		return err
 	}
 	if err := applyDaemonSet(opt); err != nil {
@@ -121,7 +124,7 @@ func (i *AgentInstaller) Uninstall(opt *option.AddonOption) error {
 	}
 
 	configMapClient := opt.KubeClientSet.CoreV1().ConfigMaps(opt.GetSpecNamespace())
-	if err := configMapClient.Delete(context.TODO(), ProxyConfigMapName, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+	if err := configMapClient.Delete(context.TODO(), utils2.ProxySecretName, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
 

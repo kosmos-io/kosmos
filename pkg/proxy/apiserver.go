@@ -9,8 +9,8 @@ import (
 	"k8s.io/client-go/dynamic"
 	clientrest "k8s.io/client-go/rest"
 
-	"cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
-	"cnp.io/clusterlink/pkg/scheme"
+	"github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
+	"github.com/kosmos.io/clusterlink/pkg/scheme"
 )
 
 var (

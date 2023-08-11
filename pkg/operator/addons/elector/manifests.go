@@ -58,9 +58,8 @@ spec:
         effect: "NoSchedule"
       volumes:
       - name: proxy-config
-        configMap:
-          defaultMode: 420
-          name: {{ .ProxyConfigMapName }}
+        secret:
+          secretName: {{ .ProxyConfigMapName }}
 `
 
 type DeploymentReplace struct {

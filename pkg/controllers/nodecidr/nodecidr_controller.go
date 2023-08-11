@@ -14,14 +14,14 @@ import (
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 
-	clusterlinkv1alpha1 "cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
-	"cnp.io/clusterlink/pkg/generated/clientset/versioned"
-	"cnp.io/clusterlink/pkg/generated/informers/externalversions"
-	clusterinformer "cnp.io/clusterlink/pkg/generated/informers/externalversions/clusterlink/v1alpha1"
-	clusterlister "cnp.io/clusterlink/pkg/generated/listers/clusterlink/v1alpha1"
-	"cnp.io/clusterlink/pkg/utils"
-	"cnp.io/clusterlink/pkg/utils/flags"
-	"cnp.io/clusterlink/pkg/utils/keys"
+	clusterlinkv1alpha1 "github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
+	"github.com/kosmos.io/clusterlink/pkg/generated/clientset/versioned"
+	"github.com/kosmos.io/clusterlink/pkg/generated/informers/externalversions"
+	clusterinformer "github.com/kosmos.io/clusterlink/pkg/generated/informers/externalversions/clusterlink/v1alpha1"
+	clusterlister "github.com/kosmos.io/clusterlink/pkg/generated/listers/clusterlink/v1alpha1"
+	"github.com/kosmos.io/clusterlink/pkg/utils"
+	"github.com/kosmos.io/clusterlink/pkg/utils/flags"
+	"github.com/kosmos.io/clusterlink/pkg/utils/keys"
 )
 
 const (
@@ -34,7 +34,7 @@ type controller struct {
 	clusterName string
 	config      *rest.Config
 
-	clusterLinkClient *versioned.Clientset
+	clusterLinkClient versioned.Interface
 
 	// RateLimiterOptions is the configuration for rate limiter which may significantly influence the performance of
 	// the controller.
@@ -45,15 +45,15 @@ type controller struct {
 
 	cniAdapter cniAdapter
 	sync.RWMutex
-	stopCh <-chan struct{}
+	ctx context.Context
 }
 
-func NewNodeCIDRController(config *rest.Config, clusterName string, clusterLinkClient *versioned.Clientset, RateLimiterOptions flags.Options, stopCh <-chan struct{}) *controller {
+func NewNodeCIDRController(config *rest.Config, clusterName string, clusterLinkClient versioned.Interface, RateLimiterOptions flags.Options, context context.Context) *controller {
 	return &controller{
 		clusterLinkClient:  clusterLinkClient,
 		config:             config,
 		RateLimiterOptions: RateLimiterOptions,
-		stopCh:             stopCh,
+		ctx:                context,
 		clusterName:        clusterName,
 	}
 }
@@ -61,10 +61,6 @@ func NewNodeCIDRController(config *rest.Config, clusterName string, clusterLinkC
 func (c *controller) Start(ctx context.Context) error {
 	klog.Infof("Starting node cidr controller.")
 
-	// first step : init close chan
-	c.stopCh = ctx.Done()
-
-	//second step: init work processor
 	opt := utils.Options{
 		Name:               "node cidr controller",
 		KeyFunc:            ClusterWideKeyFunc,
@@ -101,8 +97,9 @@ func (c *controller) Start(ctx context.Context) error {
 		return err
 	}
 
-	clusterInformerFactory.Start(c.stopCh)
-	clusterInformerFactory.WaitForCacheSync(c.stopCh)
+	stopCh := c.ctx.Done()
+	clusterInformerFactory.Start(stopCh)
+	clusterInformerFactory.WaitForCacheSync(stopCh)
 
 	// third step: init CNI Adapter
 	if cluster.Spec.CNI == calicoCNI {
@@ -110,14 +107,14 @@ func (c *controller) Start(ctx context.Context) error {
 	} else {
 		c.cniAdapter = NewCommonAdapter(c.config, c.clusterNodeLister, c.processor)
 	}
-	err = c.cniAdapter.start(c.stopCh)
+	err = c.cniAdapter.start(stopCh)
 	if err != nil {
 		return err
 	}
 
 	// last step : start processor and waiting for close chan
-	c.processor.Run(workNum, c.stopCh)
-	<-c.stopCh
+	c.processor.Run(workNum, stopCh)
+	<-stopCh
 	klog.Infof("Stop node cidr controller as process done.")
 	return nil
 }

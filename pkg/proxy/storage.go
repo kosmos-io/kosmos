@@ -28,12 +28,12 @@ import (
 	clientrest "k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
-	"cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
-	"cnp.io/clusterlink/pkg/proxy/store"
-	"cnp.io/clusterlink/pkg/utils/lifted"
+	"github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
+	"github.com/kosmos.io/clusterlink/pkg/proxy/store"
+	"github.com/kosmos.io/clusterlink/pkg/utils/lifted"
 )
 
-var supportMethods = []string{"GET", "POST", "PUT", "PATCH", "HEAD", "OPTIONS"}
+var supportMethods = []string{"GET", "DELETE", "POST", "PUT", "PATCH", "HEAD", "OPTIONS"}
 
 type REST struct {
 	store      store.Store
@@ -104,6 +104,12 @@ func (rest *REST) createHandler(ctx context.Context, minRequestTimeout time.Dura
 			Version:  requestInfo.APIVersion,
 			Resource: requestInfo.Resource,
 		}
+
+		if gvr.Group == "" && gvr.Resource == "" {
+			proxyHandler.ServeHTTP(w, req)
+			return
+		}
+
 		r := &rester{
 			store:          rest.store,
 			gvr:            gvr,

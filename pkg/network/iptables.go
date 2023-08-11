@@ -8,8 +8,8 @@ import (
 	"github.com/pkg/errors"
 	"k8s.io/klog/v2"
 
-	clusterlinkv1alpha1 "cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
-	"cnp.io/clusterlink/pkg/network/iptables"
+	clusterlinkv1alpha1 "github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
+	"github.com/kosmos.io/clusterlink/pkg/network/iptables"
 )
 
 type IptablesRecord struct {

@@ -8,7 +8,8 @@ import (
 	"github.com/spf13/pflag"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 
-	"cnp.io/clusterlink/pkg/utils/flags"
+	"github.com/kosmos.io/clusterlink/pkg/utils"
+	"github.com/kosmos.io/clusterlink/pkg/utils/flags"
 )
 
 type ControllerManagerOptions struct {
@@ -39,6 +40,6 @@ func (o *ControllerManagerOptions) AddFlags(fs *pflag.FlagSet, allControllers, d
 		"A list of controllers to enable. '*' enables all on-by-default controllers, 'foo' enables the controller named 'foo', '-foo' disables the controller named 'foo'. \nAll controllers: %s.\nDisabled-by-default controllers: %s",
 		strings.Join(allControllers, ", "), strings.Join(disabledByDefaultControllers, ", "),
 	))
-	fs.StringVar(&o.ClusterName, "cluster", os.Getenv("CLUSTER_NAME"), "current cluster name.")
+	fs.StringVar(&o.ClusterName, "cluster", os.Getenv(utils.EnvClusterName), "current cluster name.")
 	fs.StringVar(&o.ControlPanelConfig, "controlpanelconfig", "", "path to controlpanel kubeconfig file.")
 }

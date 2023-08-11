@@ -15,77 +15,78 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
-		"cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1.Arp":               schema_pkg_apis_clusterlink_v1alpha1_Arp(ref),
-		"cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1.Cluster":           schema_pkg_apis_clusterlink_v1alpha1_Cluster(ref),
-		"cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1.ClusterList":       schema_pkg_apis_clusterlink_v1alpha1_ClusterList(ref),
-		"cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1.ClusterNode":       schema_pkg_apis_clusterlink_v1alpha1_ClusterNode(ref),
-		"cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1.ClusterNodeList":   schema_pkg_apis_clusterlink_v1alpha1_ClusterNodeList(ref),
-		"cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1.ClusterNodeSpec":   schema_pkg_apis_clusterlink_v1alpha1_ClusterNodeSpec(ref),
-		"cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1.ClusterNodeStatus": schema_pkg_apis_clusterlink_v1alpha1_ClusterNodeStatus(ref),
-		"cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1.ClusterSpec":       schema_pkg_apis_clusterlink_v1alpha1_ClusterSpec(ref),
-		"cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1.ClusterStatus":     schema_pkg_apis_clusterlink_v1alpha1_ClusterStatus(ref),
-		"cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1.Device":            schema_pkg_apis_clusterlink_v1alpha1_Device(ref),
-		"cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1.Fdb":               schema_pkg_apis_clusterlink_v1alpha1_Fdb(ref),
-		"cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1.Iptables":          schema_pkg_apis_clusterlink_v1alpha1_Iptables(ref),
-		"cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1.NICNodeNames":      schema_pkg_apis_clusterlink_v1alpha1_NICNodeNames(ref),
-		"cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1.NodeConfig":        schema_pkg_apis_clusterlink_v1alpha1_NodeConfig(ref),
-		"cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1.NodeConfigList":    schema_pkg_apis_clusterlink_v1alpha1_NodeConfigList(ref),
-		"cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1.NodeConfigSpec":    schema_pkg_apis_clusterlink_v1alpha1_NodeConfigSpec(ref),
-		"cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1.NodeConfigStatus":  schema_pkg_apis_clusterlink_v1alpha1_NodeConfigStatus(ref),
-		"cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1.Route":             schema_pkg_apis_clusterlink_v1alpha1_Route(ref),
-		"cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1.VxlanCIDRs":        schema_pkg_apis_clusterlink_v1alpha1_VxlanCIDRs(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.APIGroup":                      schema_pkg_apis_meta_v1_APIGroup(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.APIGroupList":                  schema_pkg_apis_meta_v1_APIGroupList(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.APIResource":                   schema_pkg_apis_meta_v1_APIResource(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.APIResourceList":               schema_pkg_apis_meta_v1_APIResourceList(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.APIVersions":                   schema_pkg_apis_meta_v1_APIVersions(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.ApplyOptions":                  schema_pkg_apis_meta_v1_ApplyOptions(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.Condition":                     schema_pkg_apis_meta_v1_Condition(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.CreateOptions":                 schema_pkg_apis_meta_v1_CreateOptions(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.DeleteOptions":                 schema_pkg_apis_meta_v1_DeleteOptions(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.Duration":                      schema_pkg_apis_meta_v1_Duration(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.FieldsV1":                      schema_pkg_apis_meta_v1_FieldsV1(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.GetOptions":                    schema_pkg_apis_meta_v1_GetOptions(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.GroupKind":                     schema_pkg_apis_meta_v1_GroupKind(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.GroupResource":                 schema_pkg_apis_meta_v1_GroupResource(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.GroupVersion":                  schema_pkg_apis_meta_v1_GroupVersion(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.GroupVersionForDiscovery":      schema_pkg_apis_meta_v1_GroupVersionForDiscovery(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.GroupVersionKind":              schema_pkg_apis_meta_v1_GroupVersionKind(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.GroupVersionResource":          schema_pkg_apis_meta_v1_GroupVersionResource(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.InternalEvent":                 schema_pkg_apis_meta_v1_InternalEvent(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector":                 schema_pkg_apis_meta_v1_LabelSelector(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelectorRequirement":      schema_pkg_apis_meta_v1_LabelSelectorRequirement(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.List":                          schema_pkg_apis_meta_v1_List(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta":                      schema_pkg_apis_meta_v1_ListMeta(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.ListOptions":                   schema_pkg_apis_meta_v1_ListOptions(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.ManagedFieldsEntry":            schema_pkg_apis_meta_v1_ManagedFieldsEntry(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.MicroTime":                     schema_pkg_apis_meta_v1_MicroTime(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta":                    schema_pkg_apis_meta_v1_ObjectMeta(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.OwnerReference":                schema_pkg_apis_meta_v1_OwnerReference(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.PartialObjectMetadata":         schema_pkg_apis_meta_v1_PartialObjectMetadata(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.PartialObjectMetadataList":     schema_pkg_apis_meta_v1_PartialObjectMetadataList(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.Patch":                         schema_pkg_apis_meta_v1_Patch(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.PatchOptions":                  schema_pkg_apis_meta_v1_PatchOptions(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.Preconditions":                 schema_pkg_apis_meta_v1_Preconditions(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.RootPaths":                     schema_pkg_apis_meta_v1_RootPaths(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.ServerAddressByClientCIDR":     schema_pkg_apis_meta_v1_ServerAddressByClientCIDR(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.Status":                        schema_pkg_apis_meta_v1_Status(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.StatusCause":                   schema_pkg_apis_meta_v1_StatusCause(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.StatusDetails":                 schema_pkg_apis_meta_v1_StatusDetails(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.Table":                         schema_pkg_apis_meta_v1_Table(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.TableColumnDefinition":         schema_pkg_apis_meta_v1_TableColumnDefinition(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.TableOptions":                  schema_pkg_apis_meta_v1_TableOptions(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.TableRow":                      schema_pkg_apis_meta_v1_TableRow(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.TableRowCondition":             schema_pkg_apis_meta_v1_TableRowCondition(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.Time":                          schema_pkg_apis_meta_v1_Time(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.Timestamp":                     schema_pkg_apis_meta_v1_Timestamp(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.TypeMeta":                      schema_pkg_apis_meta_v1_TypeMeta(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.UpdateOptions":                 schema_pkg_apis_meta_v1_UpdateOptions(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.WatchEvent":                    schema_pkg_apis_meta_v1_WatchEvent(ref),
-		"k8s.io/apimachinery/pkg/runtime.RawExtension":                       schema_k8sio_apimachinery_pkg_runtime_RawExtension(ref),
-		"k8s.io/apimachinery/pkg/runtime.TypeMeta":                           schema_k8sio_apimachinery_pkg_runtime_TypeMeta(ref),
-		"k8s.io/apimachinery/pkg/runtime.Unknown":                            schema_k8sio_apimachinery_pkg_runtime_Unknown(ref),
-		"k8s.io/apimachinery/pkg/version.Info":                               schema_k8sio_apimachinery_pkg_version_Info(ref),
+		"github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1.Arp":               schema_pkg_apis_clusterlink_v1alpha1_Arp(ref),
+		"github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1.Cluster":           schema_pkg_apis_clusterlink_v1alpha1_Cluster(ref),
+		"github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1.ClusterList":       schema_pkg_apis_clusterlink_v1alpha1_ClusterList(ref),
+		"github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1.ClusterNode":       schema_pkg_apis_clusterlink_v1alpha1_ClusterNode(ref),
+		"github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1.ClusterNodeList":   schema_pkg_apis_clusterlink_v1alpha1_ClusterNodeList(ref),
+		"github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1.ClusterNodeSpec":   schema_pkg_apis_clusterlink_v1alpha1_ClusterNodeSpec(ref),
+		"github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1.ClusterNodeStatus": schema_pkg_apis_clusterlink_v1alpha1_ClusterNodeStatus(ref),
+		"github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1.ClusterSpec":       schema_pkg_apis_clusterlink_v1alpha1_ClusterSpec(ref),
+		"github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1.ClusterStatus":     schema_pkg_apis_clusterlink_v1alpha1_ClusterStatus(ref),
+		"github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1.Device":            schema_pkg_apis_clusterlink_v1alpha1_Device(ref),
+		"github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1.Fdb":               schema_pkg_apis_clusterlink_v1alpha1_Fdb(ref),
+		"github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1.Iptables":          schema_pkg_apis_clusterlink_v1alpha1_Iptables(ref),
+		"github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1.NICNodeNames":      schema_pkg_apis_clusterlink_v1alpha1_NICNodeNames(ref),
+		"github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1.NodeConfig":        schema_pkg_apis_clusterlink_v1alpha1_NodeConfig(ref),
+		"github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1.NodeConfigList":    schema_pkg_apis_clusterlink_v1alpha1_NodeConfigList(ref),
+		"github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1.NodeConfigSpec":    schema_pkg_apis_clusterlink_v1alpha1_NodeConfigSpec(ref),
+		"github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1.NodeConfigStatus":  schema_pkg_apis_clusterlink_v1alpha1_NodeConfigStatus(ref),
+		"github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1.Proxy":             schema_pkg_apis_clusterlink_v1alpha1_Proxy(ref),
+		"github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1.Route":             schema_pkg_apis_clusterlink_v1alpha1_Route(ref),
+		"github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1.VxlanCIDRs":        schema_pkg_apis_clusterlink_v1alpha1_VxlanCIDRs(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.APIGroup":                                    schema_pkg_apis_meta_v1_APIGroup(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.APIGroupList":                                schema_pkg_apis_meta_v1_APIGroupList(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.APIResource":                                 schema_pkg_apis_meta_v1_APIResource(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.APIResourceList":                             schema_pkg_apis_meta_v1_APIResourceList(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.APIVersions":                                 schema_pkg_apis_meta_v1_APIVersions(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.ApplyOptions":                                schema_pkg_apis_meta_v1_ApplyOptions(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.Condition":                                   schema_pkg_apis_meta_v1_Condition(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.CreateOptions":                               schema_pkg_apis_meta_v1_CreateOptions(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.DeleteOptions":                               schema_pkg_apis_meta_v1_DeleteOptions(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.Duration":                                    schema_pkg_apis_meta_v1_Duration(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.FieldsV1":                                    schema_pkg_apis_meta_v1_FieldsV1(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.GetOptions":                                  schema_pkg_apis_meta_v1_GetOptions(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.GroupKind":                                   schema_pkg_apis_meta_v1_GroupKind(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.GroupResource":                               schema_pkg_apis_meta_v1_GroupResource(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.GroupVersion":                                schema_pkg_apis_meta_v1_GroupVersion(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.GroupVersionForDiscovery":                    schema_pkg_apis_meta_v1_GroupVersionForDiscovery(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.GroupVersionKind":                            schema_pkg_apis_meta_v1_GroupVersionKind(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.GroupVersionResource":                        schema_pkg_apis_meta_v1_GroupVersionResource(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.InternalEvent":                               schema_pkg_apis_meta_v1_InternalEvent(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector":                               schema_pkg_apis_meta_v1_LabelSelector(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelectorRequirement":                    schema_pkg_apis_meta_v1_LabelSelectorRequirement(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.List":                                        schema_pkg_apis_meta_v1_List(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta":                                    schema_pkg_apis_meta_v1_ListMeta(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.ListOptions":                                 schema_pkg_apis_meta_v1_ListOptions(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.ManagedFieldsEntry":                          schema_pkg_apis_meta_v1_ManagedFieldsEntry(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.MicroTime":                                   schema_pkg_apis_meta_v1_MicroTime(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta":                                  schema_pkg_apis_meta_v1_ObjectMeta(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.OwnerReference":                              schema_pkg_apis_meta_v1_OwnerReference(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.PartialObjectMetadata":                       schema_pkg_apis_meta_v1_PartialObjectMetadata(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.PartialObjectMetadataList":                   schema_pkg_apis_meta_v1_PartialObjectMetadataList(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.Patch":                                       schema_pkg_apis_meta_v1_Patch(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.PatchOptions":                                schema_pkg_apis_meta_v1_PatchOptions(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.Preconditions":                               schema_pkg_apis_meta_v1_Preconditions(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.RootPaths":                                   schema_pkg_apis_meta_v1_RootPaths(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.ServerAddressByClientCIDR":                   schema_pkg_apis_meta_v1_ServerAddressByClientCIDR(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.Status":                                      schema_pkg_apis_meta_v1_Status(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.StatusCause":                                 schema_pkg_apis_meta_v1_StatusCause(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.StatusDetails":                               schema_pkg_apis_meta_v1_StatusDetails(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.Table":                                       schema_pkg_apis_meta_v1_Table(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.TableColumnDefinition":                       schema_pkg_apis_meta_v1_TableColumnDefinition(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.TableOptions":                                schema_pkg_apis_meta_v1_TableOptions(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.TableRow":                                    schema_pkg_apis_meta_v1_TableRow(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.TableRowCondition":                           schema_pkg_apis_meta_v1_TableRowCondition(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.Time":                                        schema_pkg_apis_meta_v1_Time(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.Timestamp":                                   schema_pkg_apis_meta_v1_Timestamp(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.TypeMeta":                                    schema_pkg_apis_meta_v1_TypeMeta(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.UpdateOptions":                               schema_pkg_apis_meta_v1_UpdateOptions(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.WatchEvent":                                  schema_pkg_apis_meta_v1_WatchEvent(ref),
+		"k8s.io/apimachinery/pkg/runtime.RawExtension":                                     schema_k8sio_apimachinery_pkg_runtime_RawExtension(ref),
+		"k8s.io/apimachinery/pkg/runtime.TypeMeta":                                         schema_k8sio_apimachinery_pkg_runtime_TypeMeta(ref),
+		"k8s.io/apimachinery/pkg/runtime.Unknown":                                          schema_k8sio_apimachinery_pkg_runtime_Unknown(ref),
+		"k8s.io/apimachinery/pkg/version.Info":                                             schema_k8sio_apimachinery_pkg_version_Info(ref),
 	}
 }
 
@@ -153,14 +154,14 @@ func schema_pkg_apis_clusterlink_v1alpha1_Cluster(ref common.ReferenceCallback) 
 						SchemaProps: spec.SchemaProps{
 							Description: "Spec is the specification for the behaviour of the cluster.",
 							Default:     map[string]interface{}{},
-							Ref:         ref("cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1.ClusterSpec"),
+							Ref:         ref("github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1.ClusterSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Status describes the current status of a cluster.",
 							Default:     map[string]interface{}{},
-							Ref:         ref("cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1.ClusterStatus"),
+							Ref:         ref("github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1.ClusterStatus"),
 						},
 					},
 				},
@@ -168,7 +169,7 @@ func schema_pkg_apis_clusterlink_v1alpha1_Cluster(ref common.ReferenceCallback) 
 			},
 		},
 		Dependencies: []string{
-			"cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1.ClusterSpec", "cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1.ClusterStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1.ClusterSpec", "github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1.ClusterStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
@@ -205,7 +206,7 @@ func schema_pkg_apis_clusterlink_v1alpha1_ClusterList(ref common.ReferenceCallba
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1.Cluster"),
+										Ref:     ref("github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1.Cluster"),
 									},
 								},
 							},
@@ -216,7 +217,7 @@ func schema_pkg_apis_clusterlink_v1alpha1_ClusterList(ref common.ReferenceCallba
 			},
 		},
 		Dependencies: []string{
-			"cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1.Cluster", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+			"github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1.Cluster", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 	}
 }
 
@@ -249,13 +250,13 @@ func schema_pkg_apis_clusterlink_v1alpha1_ClusterNode(ref common.ReferenceCallba
 					"spec": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1.ClusterNodeSpec"),
+							Ref:     ref("github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1.ClusterNodeSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1.ClusterNodeStatus"),
+							Ref:     ref("github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1.ClusterNodeStatus"),
 						},
 					},
 				},
@@ -263,7 +264,7 @@ func schema_pkg_apis_clusterlink_v1alpha1_ClusterNode(ref common.ReferenceCallba
 			},
 		},
 		Dependencies: []string{
-			"cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1.ClusterNodeSpec", "cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1.ClusterNodeStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1.ClusterNodeSpec", "github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1.ClusterNodeStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
@@ -300,7 +301,7 @@ func schema_pkg_apis_clusterlink_v1alpha1_ClusterNodeList(ref common.ReferenceCa
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1.ClusterNode"),
+										Ref:     ref("github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1.ClusterNode"),
 									},
 								},
 							},
@@ -311,7 +312,7 @@ func schema_pkg_apis_clusterlink_v1alpha1_ClusterNodeList(ref common.ReferenceCa
 			},
 		},
 		Dependencies: []string{
-			"cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1.ClusterNode", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+			"github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1.ClusterNode", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 	}
 }
 
@@ -445,13 +446,13 @@ func schema_pkg_apis_clusterlink_v1alpha1_ClusterSpec(ref common.ReferenceCallba
 					"localCIDRs": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1.VxlanCIDRs"),
+							Ref:     ref("github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1.VxlanCIDRs"),
 						},
 					},
 					"bridgeCIDRs": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1.VxlanCIDRs"),
+							Ref:     ref("github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1.VxlanCIDRs"),
 						},
 					},
 					"nicNodeNames": {
@@ -461,7 +462,7 @@ func schema_pkg_apis_clusterlink_v1alpha1_ClusterSpec(ref common.ReferenceCallba
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1.NICNodeNames"),
+										Ref:     ref("github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1.NICNodeNames"),
 									},
 								},
 							},
@@ -492,7 +493,7 @@ func schema_pkg_apis_clusterlink_v1alpha1_ClusterSpec(ref common.ReferenceCallba
 			},
 		},
 		Dependencies: []string{
-			"cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1.NICNodeNames", "cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1.VxlanCIDRs"},
+			"github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1.NICNodeNames", "github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1.VxlanCIDRs"},
 	}
 }
 
@@ -729,13 +730,13 @@ func schema_pkg_apis_clusterlink_v1alpha1_NodeConfig(ref common.ReferenceCallbac
 					"spec": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1.NodeConfigSpec"),
+							Ref:     ref("github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1.NodeConfigSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1.NodeConfigStatus"),
+							Ref:     ref("github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1.NodeConfigStatus"),
 						},
 					},
 				},
@@ -743,7 +744,7 @@ func schema_pkg_apis_clusterlink_v1alpha1_NodeConfig(ref common.ReferenceCallbac
 			},
 		},
 		Dependencies: []string{
-			"cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1.NodeConfigSpec", "cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1.NodeConfigStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1.NodeConfigSpec", "github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1.NodeConfigStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
@@ -780,7 +781,7 @@ func schema_pkg_apis_clusterlink_v1alpha1_NodeConfigList(ref common.ReferenceCal
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1.NodeConfig"),
+										Ref:     ref("github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1.NodeConfig"),
 									},
 								},
 							},
@@ -791,7 +792,7 @@ func schema_pkg_apis_clusterlink_v1alpha1_NodeConfigList(ref common.ReferenceCal
 			},
 		},
 		Dependencies: []string{
-			"cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1.NodeConfig", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+			"github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1.NodeConfig", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 	}
 }
 
@@ -808,7 +809,7 @@ func schema_pkg_apis_clusterlink_v1alpha1_NodeConfigSpec(ref common.ReferenceCal
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1.Device"),
+										Ref:     ref("github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1.Device"),
 									},
 								},
 							},
@@ -821,7 +822,7 @@ func schema_pkg_apis_clusterlink_v1alpha1_NodeConfigSpec(ref common.ReferenceCal
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1.Route"),
+										Ref:     ref("github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1.Route"),
 									},
 								},
 							},
@@ -834,7 +835,7 @@ func schema_pkg_apis_clusterlink_v1alpha1_NodeConfigSpec(ref common.ReferenceCal
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1.Iptables"),
+										Ref:     ref("github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1.Iptables"),
 									},
 								},
 							},
@@ -847,7 +848,7 @@ func schema_pkg_apis_clusterlink_v1alpha1_NodeConfigSpec(ref common.ReferenceCal
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1.Fdb"),
+										Ref:     ref("github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1.Fdb"),
 									},
 								},
 							},
@@ -860,7 +861,7 @@ func schema_pkg_apis_clusterlink_v1alpha1_NodeConfigSpec(ref common.ReferenceCal
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1.Arp"),
+										Ref:     ref("github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1.Arp"),
 									},
 								},
 							},
@@ -870,7 +871,7 @@ func schema_pkg_apis_clusterlink_v1alpha1_NodeConfigSpec(ref common.ReferenceCal
 			},
 		},
 		Dependencies: []string{
-			"cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1.Arp", "cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1.Device", "cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1.Fdb", "cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1.Iptables", "cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1.Route"},
+			"github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1.Arp", "github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1.Device", "github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1.Fdb", "github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1.Iptables", "github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1.Route"},
 	}
 }
 
@@ -897,6 +898,27 @@ func schema_pkg_apis_clusterlink_v1alpha1_NodeConfigStatus(ref common.ReferenceC
 		},
 		Dependencies: []string{
 			"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+	}
+}
+
+func schema_pkg_apis_clusterlink_v1alpha1_Proxy(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"TypeMeta": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.TypeMeta"),
+						},
+					},
+				},
+				Required: []string{"TypeMeta"},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.TypeMeta"},
 	}
 }
 

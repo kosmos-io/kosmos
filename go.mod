@@ -1,4 +1,4 @@
-module cnp.io/clusterlink
+module github.com/kosmos.io/clusterlink
 
 go 1.19
 

@@ -13,10 +13,10 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 
-	clusterlinkv1alpha1 "cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
-	"cnp.io/clusterlink/pkg/clusterlinkctl/util/apiclient"
-	"cnp.io/clusterlink/pkg/generated/clientset/versioned"
-	"cnp.io/clusterlink/pkg/generated/clientset/versioned/typed/clusterlink/v1alpha1"
+	clusterlinkv1alpha1 "github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
+	"github.com/kosmos.io/clusterlink/pkg/clusterlinkctl/util/apiclient"
+	"github.com/kosmos.io/clusterlink/pkg/generated/clientset/versioned"
+	"github.com/kosmos.io/clusterlink/pkg/generated/clientset/versioned/typed/clusterlink/v1alpha1"
 )
 
 type CommandMemberOption struct {

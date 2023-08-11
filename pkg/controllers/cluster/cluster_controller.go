@@ -28,11 +28,11 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
-	clusterlinkv1alpha1 "cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
-	"cnp.io/clusterlink/pkg/generated/clientset/versioned"
-	"cnp.io/clusterlink/pkg/utils"
-	"cnp.io/clusterlink/pkg/utils/flags"
-	"cnp.io/clusterlink/pkg/utils/keys"
+	clusterlinkv1alpha1 "github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
+	"github.com/kosmos.io/clusterlink/pkg/generated/clientset/versioned"
+	"github.com/kosmos.io/clusterlink/pkg/utils"
+	"github.com/kosmos.io/clusterlink/pkg/utils/flags"
+	"github.com/kosmos.io/clusterlink/pkg/utils/keys"
 )
 
 type SetClusterPodCIDRFun func(cluster *clusterlinkv1alpha1.Cluster) error
@@ -46,12 +46,12 @@ type Controller struct {
 	kubeClient           *kubernetes.Clientset
 	dynamicClient        *dynamic.DynamicClient
 	podLister            v1.PodLister
-	clusterLinkClient    *versioned.Clientset
+	clusterLinkClient    versioned.Interface
 	setClusterPodCIDRFun SetClusterPodCIDRFun
 	stopCh               <-chan struct{}
 }
 
-func NewController(clusterName string, kubeClient *kubernetes.Clientset, dynamicClient *dynamic.DynamicClient, clusterLinkClient *versioned.Clientset) *Controller {
+func NewController(clusterName string, kubeClient *kubernetes.Clientset, dynamicClient *dynamic.DynamicClient, clusterLinkClient versioned.Interface) *Controller {
 	return &Controller{
 		clusterName:       clusterName,
 		kubeClient:        kubeClient,
@@ -130,6 +130,8 @@ func (c *Controller) Start(ctx context.Context) error {
 	factory.Start(c.stopCh)
 	factory.WaitForCacheSync(c.stopCh)
 	c.processor.Run(1, c.stopCh)
+	<-ctx.Done()
+	klog.Infof("Stop cluster controller as process done.")
 
 	return nil
 }

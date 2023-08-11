@@ -14,6 +14,7 @@ TARGETS :=  clusterlink-controller-manager  \
             clusterlink-elector \
 			clusterlink-floater \
 			clusterlink-network-manager \
+			clusterlink-proxy \
 
 CTL_TARGETS := linkctl
 

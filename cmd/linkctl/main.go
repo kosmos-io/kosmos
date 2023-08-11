@@ -4,7 +4,7 @@ import (
 	"k8s.io/component-base/cli"
 	"k8s.io/kubectl/pkg/cmd/util"
 
-	app "cnp.io/clusterlink/pkg/clusterlinkctl"
+	app "github.com/kosmos.io/clusterlink/pkg/clusterlinkctl"
 )
 
 func main() {

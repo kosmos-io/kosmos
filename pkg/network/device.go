@@ -5,8 +5,8 @@ import (
 	"net"
 	"syscall"
 
-	clusterlinkv1alpha1 "cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
-	"cnp.io/clusterlink/pkg/utils"
+	clusterlinkv1alpha1 "github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
+	"github.com/kosmos.io/clusterlink/pkg/utils"
 	"github.com/pkg/errors"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
@@ -17,7 +17,8 @@ type IfaceInfo struct {
 	MTU  int
 	name string
 	// index int
-	ip string
+	ip  string
+	ip6 string
 }
 
 func getIfaceIPByName(name string) (*IfaceInfo, error) {
@@ -37,21 +38,21 @@ func getIfaceIPByName(name string) (*IfaceInfo, error) {
 		devIface.ip = addrListV4
 	} else {
 		klog.Infof("Try to retrieve addr v4 list of device %s, get error: %v", name, err)
-		addrListV6, err := getFristScopeIPInLink(iface, name, netlink.FAMILY_V6)
-		if err != nil {
-			klog.Errorf("Try to retrieve addr v6 list of device %s, get error: %v", name, err)
-			return nil, fmt.Errorf("cannot get device ip, device name is : %s", name)
-		} else {
-			devIface.ip = addrListV6
-		}
+	}
+
+	addrListV6, err := getFristScopeIPInLink(iface, name, netlink.FAMILY_V6)
+	if err == nil {
+		devIface.ip6 = addrListV6
+	} else {
+		klog.Infof("Try to retrieve addr v6 list of device %s, get error: %v", name, err)
 	}
 	return devIface, nil
 }
 
-func createNewVxlanIface(name string, addrIPWithMask *netlink.Addr, vxlanId int, vxlanPort int, hardwareAddr net.HardwareAddr, rIface *IfaceInfo) error {
-	srcAddr := rIface.ip
+func createNewVxlanIface(name string, addrIPWithMask *netlink.Addr, vxlanId int, vxlanPort int, hardwareAddr net.HardwareAddr, rIface *IfaceInfo, deviceIP string) error {
+	// srcAddr := rIface.ip
 
-	klog.Infof("name %v  ------------------------- %v", name, srcAddr)
+	klog.Infof("name %v  ------------------------- %v", name, deviceIP)
 	iface := &netlink.Vxlan{
 		LinkAttrs: netlink.LinkAttrs{
 			Name:         name,
@@ -59,7 +60,7 @@ func createNewVxlanIface(name string, addrIPWithMask *netlink.Addr, vxlanId int,
 			Flags:        net.FlagUp,
 			HardwareAddr: hardwareAddr,
 		},
-		SrcAddr:  net.ParseIP(srcAddr),
+		SrcAddr:  net.ParseIP(deviceIP),
 		VxlanId:  vxlanId,
 		Port:     vxlanPort,
 		Learning: false,
@@ -77,7 +78,7 @@ func createNewVxlanIface(name string, addrIPWithMask *netlink.Addr, vxlanId int,
 	}
 	// create rule table
 	family := netlink.FAMILY_V4
-	if utils.IsIPv6(srcAddr) {
+	if utils.IsIPv6(deviceIP) {
 		family = netlink.FAMILY_V6
 	}
 	err = ruleAddIfNotPresent(newTableRule(TABLE_ID, family))
@@ -175,7 +176,8 @@ func loadDevices() ([]clusterlinkv1alpha1.Device, error) {
 		}
 
 		if interfaceIndex == -1 {
-			return nil, fmt.Errorf("can not find the dev for vxlan, name: %s", d.name)
+			klog.Warning("can not find the dev for vxlan, name: %s", d.name)
+			continue
 		}
 
 		defaultIface, err := netlink.LinkByIndex(interfaceIndex)
@@ -226,16 +228,18 @@ func addDevice(d clusterlinkv1alpha1.Device) error {
 		return errors.Wrap(err, "add device failed when translate mac")
 	}
 
-	if err = createNewVxlanIface(d.Name, addrIPvWithMask, id, port, hardwareAddr, currentIfaceInfo); err != nil {
+	deviceIP := currentIfaceInfo.ip
+	family := netlink.FAMILY_V4
+	if utils.IsIPv6(cidrip.String()) {
+		deviceIP = currentIfaceInfo.ip6
+		family = netlink.FAMILY_V6
+	}
+
+	if err = createNewVxlanIface(d.Name, addrIPvWithMask, id, port, hardwareAddr, currentIfaceInfo, deviceIP); err != nil {
 		klog.Errorf("ipv4 err: %v", err)
 		return err
 	}
-	klog.Infof("add  vxlan %v  %v", d.Name, currentIfaceInfo.ip)
-
-	family := netlink.FAMILY_V4
-	if utils.IsIPv6(currentIfaceInfo.ip) {
-		family = netlink.FAMILY_V6
-	}
+	klog.Infof("add  vxlan %v  %v", d.Name, deviceIP)
 
 	if err := UpdateDefaultIptablesAndKernalConfig(d.BindDev, family); err != nil {
 		return err

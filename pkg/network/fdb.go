@@ -1,6 +1,6 @@
 package network
 
-import clusterlinkv1alpha1 "cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
+import clusterlinkv1alpha1 "github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
 
 type FDBRecord struct {
 	IP    string

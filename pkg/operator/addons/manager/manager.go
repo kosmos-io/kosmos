@@ -3,6 +3,7 @@ package manager
 import (
 	"context"
 	"fmt"
+	utils2 "github.com/kosmos.io/clusterlink/pkg/utils"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -14,9 +15,9 @@ import (
 	clientsetscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/klog/v2"
 
-	"cnp.io/clusterlink/pkg/operator/addons/option"
-	"cnp.io/clusterlink/pkg/operator/addons/utils"
-	cmdutil "cnp.io/clusterlink/pkg/operator/util"
+	"github.com/kosmos.io/clusterlink/pkg/operator/addons/option"
+	"github.com/kosmos.io/clusterlink/pkg/operator/addons/utils"
+	cmdutil "github.com/kosmos.io/clusterlink/pkg/operator/util"
 )
 
 type ManagerInstaller struct {
@@ -27,43 +28,12 @@ func New() *ManagerInstaller {
 }
 
 const (
-	ResourceName       = "clusterlink-controller-manager"
-	ProxyConfigMapName = "clusterlink-agent-proxy"
+	ResourceName = "clusterlink-controller-manager"
 )
 
 var (
 	clusterClientSet *kubernetes.Clientset
 )
-
-/*
-func getHostClient(opt *option.AddonOption) (*kubernetes.Clientset, error) {
-	// opt.ControlPanelKubeConfig
-	if clusterClientSet == nil {
-		bootstrapBytes, err := clientcmd.Write(*opt.ControlPanelKubeConfig)
-		if err != nil {
-			return nil, err
-		}
-
-		clientconfig, err := clientcmd.NewClientConfigFromBytes(bootstrapBytes)
-		if err != nil {
-			return nil, err
-		}
-
-		config, err := clientconfig.ClientConfig()
-		if err != nil {
-			return nil, err
-		}
-
-		// clientcmd.(*opt.ControlPanelKubeConfig)
-		clusterClientSet, err = kubernetes.NewForConfig(config)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return clusterClientSet, nil
-}
-*/
 
 func applyServiceAccount(opt *option.AddonOption) error {
 	clCtrManagerServiceAccountBytes, err := utils.ParseTemplate(clusterlinkManagerServiceAccount, ServiceAccountReplace{
@@ -93,7 +63,7 @@ func applyDeployment(opt *option.AddonOption) error {
 	clCtrManagerDeploymentBytes, err := utils.ParseTemplate(clusterlinkManagerDeployment, DeploymentReplace{
 		Namespace:          opt.GetSpecNamespace(),
 		Name:               ResourceName,
-		ProxyConfigMapName: ProxyConfigMapName,
+		ProxyConfigMapName: utils2.ProxySecretName,
 		ClusterName:        opt.GetName(),
 		ImageRepository:    opt.GetImageRepository(),
 		Version:            opt.Version,

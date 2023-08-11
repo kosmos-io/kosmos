@@ -16,12 +16,12 @@ import (
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	"cnp.io/clusterlink/cmd/operator/app/options"
-	"cnp.io/clusterlink/pkg/operator"
-	"cnp.io/clusterlink/pkg/scheme"
-	"cnp.io/clusterlink/pkg/sharedcli"
-	"cnp.io/clusterlink/pkg/sharedcli/klogflag"
-	"cnp.io/clusterlink/pkg/utils"
+	"github.com/kosmos.io/clusterlink/cmd/operator/app/options"
+	"github.com/kosmos.io/clusterlink/pkg/operator"
+	"github.com/kosmos.io/clusterlink/pkg/scheme"
+	"github.com/kosmos.io/clusterlink/pkg/sharedcli"
+	"github.com/kosmos.io/clusterlink/pkg/sharedcli/klogflag"
+	"github.com/kosmos.io/clusterlink/pkg/utils"
 )
 
 // NewOperatorCommand creates a *cobra.Command object with default parameters
@@ -119,7 +119,7 @@ func run(ctx context.Context, opts *options.Options) error {
 	clusterNodeController := operator.Reconciler{
 		Scheme:                 mgr.GetScheme(),
 		ControlPanelKubeConfig: controlPanelKubeConfig,
-		ClusterName:            os.Getenv("CLUSTER_NAME"),
+		ClusterName:            os.Getenv(utils.EnvClusterName),
 		Options:                opts,
 	}
 

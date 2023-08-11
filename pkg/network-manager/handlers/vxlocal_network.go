@@ -1,9 +1,9 @@
 package handlers
 
 import (
-	"cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
-	constants "cnp.io/clusterlink/pkg/network"
-	"cnp.io/clusterlink/pkg/network-manager/helpers"
+	"github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
+	constants "github.com/kosmos.io/clusterlink/pkg/network"
+	"github.com/kosmos.io/clusterlink/pkg/network-manager/helpers"
 )
 
 type VxLocalNetwork struct {
@@ -50,7 +50,7 @@ func (h *VxLocalNetwork) needToCreateVxLocal6(c *Context, clusterNode *v1alpha1.
 func (h *VxLocalNetwork) createVxLocal(c *Context, clusterNode *v1alpha1.ClusterNode, cluster *v1alpha1.Cluster) *v1alpha1.Device {
 	devOld := c.Filter.GetDeviceFromNodeConfig(clusterNode.Name, constants.VXLAN_LOCAL_NAME)
 	dev := helpers.BuildVxlanDevice(constants.VXLAN_LOCAL_NAME, clusterNode.Spec.IP, cluster.Spec.LocalCIDRs.IP, clusterNode.Spec.InterfaceName)
-	if devOld.Mac != "" {
+	if devOld != nil && devOld.Mac != "" {
 		dev.Mac = devOld.Mac
 	}
 	return dev
@@ -59,7 +59,7 @@ func (h *VxLocalNetwork) createVxLocal(c *Context, clusterNode *v1alpha1.Cluster
 func (h *VxLocalNetwork) createVxLocal6(c *Context, clusterNode *v1alpha1.ClusterNode, cluster *v1alpha1.Cluster) *v1alpha1.Device {
 	devOld := c.Filter.GetDeviceFromNodeConfig(clusterNode.Name, constants.VXLAN_LOCAL_NAME_6)
 	dev := helpers.BuildVxlanDevice(constants.VXLAN_LOCAL_NAME_6, clusterNode.Spec.IP6, cluster.Spec.LocalCIDRs.IP6, clusterNode.Spec.InterfaceName)
-	if devOld.Mac != "" {
+	if devOld != nil && devOld.Mac != "" {
 		dev.Mac = devOld.Mac
 	}
 	return dev

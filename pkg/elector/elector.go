@@ -7,9 +7,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 
-	"cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
-	"cnp.io/clusterlink/pkg/generated/clientset/versioned"
-	"cnp.io/clusterlink/pkg/utils/role"
+	"github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
+	"github.com/kosmos.io/clusterlink/pkg/generated/clientset/versioned"
+	"github.com/kosmos.io/clusterlink/pkg/utils"
+	"github.com/kosmos.io/clusterlink/pkg/utils/role"
 )
 
 type Elector struct {
@@ -20,8 +21,8 @@ type Elector struct {
 
 func NewElector(controlPanelClient versioned.Interface) *Elector {
 	return &Elector{
-		nodeName:           os.Getenv("NODE_NAME"),
-		clusterName:        os.Getenv("CLUSTER_NAME"),
+		nodeName:           os.Getenv(utils.EnvNodeName),
+		clusterName:        os.Getenv(utils.EnvClusterName),
 		controlPanelClient: controlPanelClient,
 	}
 }

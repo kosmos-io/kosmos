@@ -13,27 +13,27 @@ import (
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	"cnp.io/clusterlink/cmd/controller-manager/app/options"
-	ctrlcontext "cnp.io/clusterlink/pkg/controllers/context"
-	"cnp.io/clusterlink/pkg/controllers/nodecidr"
-	"cnp.io/clusterlink/pkg/generated/clientset/versioned"
-	"cnp.io/clusterlink/pkg/scheme"
-	"cnp.io/clusterlink/pkg/sharedcli/klogflag"
+	"github.com/kosmos.io/clusterlink/cmd/controller-manager/app/options"
+	ctrlcontext "github.com/kosmos.io/clusterlink/pkg/controllers/context"
+	"github.com/kosmos.io/clusterlink/pkg/generated/clientset/versioned"
+	"github.com/kosmos.io/clusterlink/pkg/scheme"
+	"github.com/kosmos.io/clusterlink/pkg/sharedcli/klogflag"
 )
 
 var (
-	controllers = make(ctrlcontext.Initializers)
+	Controllers = make(ctrlcontext.Initializers)
 
-	// controllersDisabledByDefault is the set of controllers which is disabled by default
-	controllersDisabledByDefault = sets.New[string]()
+	// ControllersDisabledByDefault is the set of Controllers which is disabled by default
+	ControllersDisabledByDefault = sets.New[string]()
 
 	stopOnce sync.Once
 )
 
 func init() {
-	controllers["cluster"] = startClusterController
-	controllers["node"] = startNodeController
-	controllers["calicoIPPool"] = startCalicoPoolController
+	Controllers["cluster"] = startClusterController
+	Controllers["node"] = startNodeController
+	Controllers["calicoIPPool"] = startCalicoPoolController
+	Controllers["nodecidr"] = startNodeCIDRController
 }
 
 // NewControllerManagerCommand creates a *cobra.Command object with default parameters
@@ -59,7 +59,7 @@ func NewControllerManagerCommand(ctx context.Context) *cobra.Command {
 	// and update the flag usage.
 	genericFlagSet.AddGoFlagSet(flag.CommandLine)
 	genericFlagSet.Lookup("kubeconfig").Usage = "Path to clusterlink control plane kubeconfig file."
-	opts.AddFlags(genericFlagSet, controllers.ControllerNames(), sets.List(controllersDisabledByDefault))
+	opts.AddFlags(genericFlagSet, Controllers.ControllerNames(), sets.List(ControllersDisabledByDefault))
 
 	logsFlagSet := fss.FlagSet("logs")
 	klogflag.Add(logsFlagSet)
@@ -83,7 +83,6 @@ func Run(ctx context.Context, opts *options.ControllerManagerOptions) error {
 		panic(err)
 	}
 
-	// ToDo 创建Manager时配置好自定义资源Schema、选举配置、存活检查和指标监控
 	controllerManager, err := ctrl.NewManager(config, ctrl.Options{
 		Scheme: scheme.NewSchema(),
 	})
@@ -92,20 +91,38 @@ func Run(ctx context.Context, opts *options.ControllerManagerOptions) error {
 		return err
 	}
 
-	setupControllers(controllerManager, opts, ctx.Done())
+	//TODO 整理这块
+	controlPanelConfig, err := clientcmd.BuildConfigFromFlags("", opts.ControlPanelConfig)
+	if err != nil {
+		klog.Fatalf("build controlpanel config err: %v", err)
+		panic(err)
+	}
 
-	if err := controllerManager.Start(ctx); err != nil {
-		klog.Errorf("controller manager exits unexpectedly: %v", err)
+	clusterLinkClient, err := versioned.NewForConfig(controlPanelConfig)
+	if err != nil {
+		klog.Fatalf("Unable to create clusterlinkClient: %v", err)
+		panic(err)
+	}
+
+	controller := NewController(clusterLinkClient, controllerManager, opts)
+	err = controller.Start(ctx)
+	if err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func setupControllers(mgr ctrl.Manager, opts *options.ControllerManagerOptions, stopChan <-chan struct{}) {
+func setupControllers(mgr ctrl.Manager, opts *options.ControllerManagerOptions, ctx context.Context) []ctrlcontext.CleanFunc {
 	controlPanelConfig, err := clientcmd.BuildConfigFromFlags("", opts.ControlPanelConfig)
 	if err != nil {
 		klog.Fatalf("build controlpanel config err: %v", err)
+		panic(err)
+	}
+
+	clusterLinkClient, err := versioned.NewForConfig(controlPanelConfig)
+	if err != nil {
+		klog.Fatalf("Unable to create clusterlinkClient: %v", err)
 		panic(err)
 	}
 
@@ -115,40 +132,17 @@ func setupControllers(mgr ctrl.Manager, opts *options.ControllerManagerOptions, 
 			Controllers:        opts.Controllers,
 			ControlPanelConfig: controlPanelConfig,
 			ClusterName:        opts.ClusterName,
+			RateLimiterOpts:    opts.RateLimiterOpts,
 		},
-		StopChan: stopChan,
+		Ctx:               ctx,
+		ClusterLinkClient: clusterLinkClient,
 	}
 
-	if err := controllers.StartControllers(controllerContext, controllersDisabledByDefault); err != nil {
-		klog.Fatalf("error starting controllers: %v", err)
-		panic(err)
-	}
-
-	config, err := clientcmd.BuildConfigFromFlags("", opts.ControlPanelConfig)
+	cleanFuns, err := Controllers.StartControllers(controllerContext, ControllersDisabledByDefault)
 	if err != nil {
-		klog.Fatalf("Unable to create controlPanelConfig: %v", err)
-		panic(err)
-	}
-	clusterLinkClient, err := versioned.NewForConfig(config)
-	if err != nil {
-		klog.Fatalf("Unable to create clusterLinkClient: %v", err)
-		panic(err)
-	}
-	nodeCIDRCtl := nodecidr.NewNodeCIDRController(mgr.GetConfig(), opts.ClusterName, clusterLinkClient, opts.RateLimiterOpts, stopChan)
-	if err := mgr.Add(nodeCIDRCtl); err != nil {
-		klog.Fatalf("Failed to setup node CIDR Controller: %v", err)
+		klog.Fatalf("error starting Controllers: %v", err)
 		panic(err)
 	}
 
-	// Ensure the InformerManager stops when the stop channel closes
-	go func() {
-		<-stopChan
-		StopInstance()
-	}()
-}
-
-func StopInstance() {
-	stopOnce.Do(func() {
-		close(make(chan struct{}))
-	})
+	return cleanFuns
 }

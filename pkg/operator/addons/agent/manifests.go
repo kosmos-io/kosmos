@@ -60,9 +60,8 @@ spec:
       hostNetwork: true
       volumes:
       - name: proxy-config
-        configMap:
-          defaultMode: 420
-          name: {{ .ProxyConfigMapName }}
+        secret:
+          secretName: {{ .ProxyConfigMapName }}
 
 `
 

@@ -9,7 +9,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 
-	"cnp.io/clusterlink/pkg/utils/flags"
+	"github.com/kosmos.io/clusterlink/pkg/utils/flags"
 )
 
 // This code is directly lifted from the karmada

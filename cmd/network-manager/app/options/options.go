@@ -5,7 +5,7 @@ import (
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	componentbaseconfig "k8s.io/component-base/config"
 
-	"cnp.io/clusterlink/pkg/utils"
+	"github.com/kosmos.io/clusterlink/pkg/utils"
 )
 
 type Options struct {

@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -16,10 +17,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	networkmanager "cnp.io/clusterlink/pkg/agent/network-manager"
-	clusterlinkv1alpha1 "cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
-	clusterlinkv1alpha1lister "cnp.io/clusterlink/pkg/generated/listers/clusterlink/v1alpha1"
-	"cnp.io/clusterlink/pkg/network"
+	networkmanager "github.com/kosmos.io/clusterlink/pkg/agent/network-manager"
+	clusterlinkv1alpha1 "github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
+	clusterlinkv1alpha1lister "github.com/kosmos.io/clusterlink/pkg/generated/listers/clusterlink/v1alpha1"
+	"github.com/kosmos.io/clusterlink/pkg/network"
 )
 
 const (
@@ -69,6 +70,16 @@ func (r *Reconciler) SetupWithManager(mgr manager.Manager) error {
 		Complete(r)
 }
 
+func (r *Reconciler) logResult(nodeConfigSyncStatus networkmanager.NodeConfigSyncStatus) {
+	if nodeConfigSyncStatus == networkmanager.NodeConfigSyncException {
+		klog.Warning("sync from crd failed!")
+		klog.Warning(r.NetworkManager.GetReason())
+	}
+	if nodeConfigSyncStatus == networkmanager.NodeConfigSyncSuccess {
+		klog.Info("sync from crd successed!")
+	}
+}
+
 func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
 
 	klog.Infof("============ agent starts to reconcile %s ============", request.NamespacedName)
@@ -84,18 +95,16 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 		return reconcile.Result{RequeueAfter: RequeueTime}, nil
 	}
 
-	if reconcileNode.Name != r.NodeName {
+	klog.Infof("reconcile node name: %s, current node name: %s-%s", reconcileNode.Name, r.ClusterName, r.NodeName)
+	if reconcileNode.Name != fmt.Sprintf("%s-%s", r.ClusterName, r.NodeName) {
+		klog.Infof("not match, drop this event.")
 		return reconcile.Result{}, nil
 	}
 
 	r.DebounceFunc(func() {
 		nodeConfigSyncStatus := r.NetworkManager.UpdateFromCRD(&reconcileNode)
-		if nodeConfigSyncStatus == networkmanager.NodeConfigSyncException {
-			klog.Warning("sync from crd failed!")
-		}
-		if nodeConfigSyncStatus == networkmanager.NodeConfigSyncSuccess {
-			klog.Info("sync from crd successed!")
-		}
+		r.logResult(nodeConfigSyncStatus)
+
 	})
 
 	return reconcile.Result{}, nil
@@ -107,7 +116,9 @@ func (r *Reconciler) StartTimer(ctx context.Context) {
 	for {
 		select {
 		case <-timer.C:
-			r.NetworkManager.UpdateFromChecker()
+			klog.Info("###################### start check ######################")
+			nodeConfigSyncStatus := r.NetworkManager.UpdateFromChecker()
+			r.logResult(nodeConfigSyncStatus)
 			timer.Reset(RequeueTime)
 		case <-ctx.Done():
 			klog.Infoln("kill the timer")

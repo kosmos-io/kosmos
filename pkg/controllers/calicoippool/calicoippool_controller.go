@@ -22,14 +22,14 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
-	clusterlinkv1alpha1 "cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
-	clusterhelper "cnp.io/clusterlink/pkg/controllers/cluster"
-	"cnp.io/clusterlink/pkg/generated/clientset/versioned"
-	"cnp.io/clusterlink/pkg/generated/informers/externalversions"
-	"cnp.io/clusterlink/pkg/generated/listers/clusterlink/v1alpha1"
-	"cnp.io/clusterlink/pkg/utils"
-	"cnp.io/clusterlink/pkg/utils/flags"
-	"cnp.io/clusterlink/pkg/utils/keys"
+	clusterlinkv1alpha1 "github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
+	clusterhelper "github.com/kosmos.io/clusterlink/pkg/controllers/cluster"
+	"github.com/kosmos.io/clusterlink/pkg/generated/clientset/versioned"
+	"github.com/kosmos.io/clusterlink/pkg/generated/informers/externalversions"
+	"github.com/kosmos.io/clusterlink/pkg/generated/listers/clusterlink/v1alpha1"
+	"github.com/kosmos.io/clusterlink/pkg/utils"
+	"github.com/kosmos.io/clusterlink/pkg/utils/flags"
+	"github.com/kosmos.io/clusterlink/pkg/utils/keys"
 )
 
 type ExternalIPPoolSet = map[ExternalClusterIPPool]struct{}
@@ -145,10 +145,13 @@ func (k *KubernetesBackend) DeleteIPPool(ipPools []*ExternalClusterIPPool) error
 	for _, ipPool := range ipPools {
 		klog.Infof("prepare delete ippool, %v", ipPool.String())
 		err := k.dynamicClient.Resource(calicoIPPoolGVR).Delete(context.TODO(), genCalicoIPPoolName(ipPool.cluster, ipPool.ipType, ipPool.ipPool), metav1.DeleteOptions{})
-		if apierrors.IsNotFound(err) {
-			continue
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				continue
+			}
+			errs = append(errs, err)
 		}
-		errs = append(errs, err)
+
 	}
 
 	if len(errs) > 0 {
@@ -308,6 +311,8 @@ func (c *Controller) Start(ctx context.Context) error {
 	factory.Start(c.stopCh)
 	factory.WaitForCacheSync(c.stopCh)
 	c.processor.Run(1, c.stopCh)
+	<-ctx.Done()
+	klog.Infof("Stop calicoippool controller as process done.")
 	return nil
 }
 
@@ -454,4 +459,24 @@ func (c *Controller) createIPPoolClient(cluster *clusterlinkv1alpha1.Cluster) (I
 		}
 	}
 	return ippoolClient, nil
+}
+
+func (c *Controller) CleanResource() error {
+	if c.iPPoolClient == nil {
+		cluster, err := c.clusterLinkClient.ClusterlinkV1alpha1().Clusters().Get(context.TODO(), c.clusterName, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		iPPoolClient, err := c.createIPPoolClient(cluster)
+		if err != nil {
+			return err
+		}
+		c.iPPoolClient = iPPoolClient
+	}
+	c.globalExtIPPoolSet = make(ExternalIPPoolSet)
+	err := syncIPPool(c.clusterName, c.globalExtIPPoolSet, c.iPPoolClient)
+	if err != nil {
+		return fmt.Errorf("calicoippool_controller failed to clean resource: %v", err)
+	}
+	return nil
 }

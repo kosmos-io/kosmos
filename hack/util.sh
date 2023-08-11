@@ -6,7 +6,7 @@ set -o pipefail
 
 # This script holds common bash variables and utility functions.
 
-CLUSTERLINK_GO_PACKAGE="cnp.io/clusterlink"
+CLUSTERLINK_GO_PACKAGE="github.com/kosmos.io/clusterlink"
 
 
 
@@ -450,10 +450,10 @@ function util::version_ldflags() {
   fi
   BUILDDATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
   # TODO 弄明白这个地方是干嘛的，然后进行修改
-  LDFLAGS="-X cnp.io/clusterlink/pkg/version.gitVersion=${GIT_VERSION} \
-                        -X cnp.io/clusterlink/pkg/version.gitCommit=${GIT_COMMIT_HASH} \
-                        -X cnp.io/clusterlink/pkg/version.gitTreeState=${GIT_TREESTATE} \
-                        -X cnp.io/clusterlink/pkg/version.buildDate=${BUILDDATE}"
+  LDFLAGS="-X github.com/kosmos.io/clusterlink/pkg/version.gitVersion=${GIT_VERSION} \
+                        -X github.com/kosmos.io/clusterlink/pkg/version.gitCommit=${GIT_COMMIT_HASH} \
+                        -X github.com/kosmos.io/clusterlink/pkg/version.gitTreeState=${GIT_TREESTATE} \
+                        -X github.com/kosmos.io/clusterlink/pkg/version.buildDate=${BUILDDATE}"
   echo $LDFLAGS
 }
 

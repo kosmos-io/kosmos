@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"sync"
 
-	clusterlinkv1alpha1 "cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
-	"cnp.io/clusterlink/pkg/network"
+	clusterlinkv1alpha1 "github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
+	"github.com/kosmos.io/clusterlink/pkg/network"
 	"github.com/pkg/errors"
 	"k8s.io/klog/v2"
 )
@@ -237,6 +237,10 @@ func (e *NetworkManager) UpdateFromCRD(nodeConfig *clusterlinkv1alpha1.NodeConfi
 	// new config
 	e.ToConfig = &nodeConfig.Spec
 	return e.UpdateSync()
+}
+
+func (e *NetworkManager) GetReason() string {
+	return e.Reason
 }
 
 func (e *NetworkManager) UpdateFromChecker() NodeConfigSyncStatus {

@@ -3,7 +3,7 @@ package helpers
 import (
 	"encoding/json"
 
-	"cnp.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
+	"github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
 )
 
 // RouteSorter sorts routes.

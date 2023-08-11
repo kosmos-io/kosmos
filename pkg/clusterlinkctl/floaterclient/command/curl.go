@@ -3,7 +3,7 @@ package command
 import (
 	"fmt"
 
-	"cnp.io/clusterlink/pkg/utils"
+	"github.com/kosmos.io/clusterlink/pkg/utils"
 	"k8s.io/klog/v2"
 )
 

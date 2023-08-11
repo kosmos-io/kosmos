@@ -16,8 +16,8 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
-	clusterlister "cnp.io/clusterlink/pkg/generated/listers/clusterlink/v1alpha1"
-	"cnp.io/clusterlink/pkg/utils"
+	clusterlister "github.com/kosmos.io/clusterlink/pkg/generated/listers/clusterlink/v1alpha1"
+	"github.com/kosmos.io/clusterlink/pkg/utils"
 )
 
 type cniAdapter interface {
