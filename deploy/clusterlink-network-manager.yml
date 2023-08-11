@@ -48,7 +48,7 @@ spec:
       serviceAccountName: clusterlink-network-manager
       containers:
         - name: manager
-          image: nexus.cmss.com:8086/cnp/clusterlink/clusterlink-network-manager:__VERSION__
+          image: ghcr.io/kosmos-io/clusterlink/clusterlink-network-manager:__VERSION__
           imagePullPolicy: IfNotPresent
           command:
             - clusterlink-network-manager
