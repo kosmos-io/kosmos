@@ -23,7 +23,7 @@ spec:
           effect: NoSchedule
       containers:
         - name: clusterlink-agent
-          image: nexus.cmss.com:8086/cnp/clusterlink/clusterlink-agent:__VERSION__
+          image: ghcr.io/kosmos-io/clusterlink/clusterlink-agent:__VERSION__
           imagePullPolicy: IfNotPresent
           command:
             - clusterlink-agent

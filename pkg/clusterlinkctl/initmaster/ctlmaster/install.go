@@ -34,9 +34,9 @@ func init() {
 
 	DefaultCrdURL = fmt.Sprintf("https://github.com/clusterlink-io/clusterlink/releases/download/%s/crds.tar.gz", releaseVer.FirstMinorRelease())
 	DefaultInitImage = "docker.io/alpine:3.15.1"
-	DefaultClusterlinkOperatorImage = "nexus.cmss.com:8086/cnp/clusterlink/clusterlink-operator:0.1.0" // fmt.Sprintf("docker.io/clusterlink/clusterlink-operator:%s", releaseVer.PatchRelease())
+	DefaultClusterlinkOperatorImage = "ghcr.io/kosmos-io/clusterlink/clusterlink-operator:0.1.0" // fmt.Sprintf("docker.io/clusterlink/clusterlink-operator:%s", releaseVer.PatchRelease())
 	DefaultClusterlinkOperatorReplicas = 1
-	DefaultClusterlinkControllerManagerImage = "nexus.cmss.com:8086/cnp/clusterlink/clusterlink-controller-manager:0.1.0" //fmt.Sprintf("docker.io/clusterlink/clusterlink-controller-manager:%s", releaseVer.PatchRelease())
+	DefaultClusterlinkControllerManagerImage = "ghcr.io/kosmos-io/clusterlink/clusterlink-controller-manager:0.1.0" //fmt.Sprintf("docker.io/clusterlink/clusterlink-controller-manager:%s", releaseVer.PatchRelease())
 }
 
 // CommandInitOption holds all flags options for init.

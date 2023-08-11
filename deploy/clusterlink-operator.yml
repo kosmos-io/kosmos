@@ -24,7 +24,7 @@ spec:
       serviceAccountName: clusterlink-operator
       containers:
       - name: operator
-        image: nexus.cmss.com:8086/cnp/clusterlink/clusterlink-operator:__VERSION__
+        image: ghcr.io/kosmos-io/clusterlink/clusterlink-operator:__VERSION__
         imagePullPolicy: IfNotPresent
         command:
           - clusterlink-operator

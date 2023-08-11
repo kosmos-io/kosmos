@@ -85,7 +85,7 @@ func CmdDoctor(parentCommand string) *cobra.Command {
 	flags := cmd.Flags()
 
 	flags.StringVarP(&opts.Namespace, "namespace", "n", "clusterlink-system", "Kubernetes namespace.")
-	flags.StringVarP(&opts.ImageRepository, "image-repository", "r", "nexus.cmss.com:8086/cnp/clusterlink", "Image repository.")
+	flags.StringVarP(&opts.ImageRepository, "image-repository", "r", "ghcr.io/kosmos-io/clusterlink", "Image repository.")
 	flags.StringVarP(&opts.ImageRepositoryDst, "image-repository-dst", "", "", "Image repository.")
 
 	flags.StringVar(&opts.HostKubeConfig, "host-kubeconfig", "", "Absolute path to the host kubeconfig file.")

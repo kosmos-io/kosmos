@@ -24,9 +24,9 @@ var (
 		# Install Clusterlink Operator and Clusterlink Controller Manager by assigned  namespace
 		%[1]s init --namespace NAMESPACE_NAME
 		# Install Clusterlink Operator and Clusterlink Controller Manager by required  image
-		%[1]s init --clusterlink-controller-image nexus.cmss.com:8086/cnp/clusterlink/clusterlink-controller-manager:0.1.0 --clusterlink-operator-image  nexus.cmss.com:8086/cnp/clusterlink/clusterlink-operator:0.1.0
+		%[1]s init --clusterlink-controller-image ghcr.io/kosmos-io/clusterlink/clusterlink-controller-manager:0.1.0 --clusterlink-operator-image  ghcr.io/kosmos-io/clusterlink/clusterlink-operator:0.1.0
 		# Install Clusterlink Operator and Clusterlink Controller Manager by required  registry
-		%[1]s init --private-image-registry nexus.cmss.com:8086/cnp/clusterlink`)
+		%[1]s init --private-image-registry ghcr.io/kosmos-io/clusterlink`)
 
 	deinitExamples = templates.Examples(`
 		# Deinit Clusterlink Operator and Clusterlink Controller Manager in all namespaces
