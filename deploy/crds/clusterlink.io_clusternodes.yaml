@@ -1,0 +1,73 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.11.0
+  creationTimestamp: null
+  name: clusternodes.clusterlink.io
+spec:
+  group: clusterlink.io
+  names:
+    kind: ClusterNode
+    listKind: ClusterNodeList
+    plural: clusternodes
+    singular: clusternode
+  scope: Cluster
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.roles
+      name: ROLES
+      type: string
+    - jsonPath: .spec.interfaceName
+      name: INTERFACE
+      type: string
+    - jsonPath: .spec.ip
+      name: IP
+      type: string
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            properties:
+              clusterName:
+                type: string
+              interfaceName:
+                type: string
+              ip:
+                type: string
+              ip6:
+                type: string
+              nodeName:
+                type: string
+              podCIDRs:
+                items:
+                  type: string
+                type: array
+              roles:
+                items:
+                  type: string
+                type: array
+            type: object
+          status:
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

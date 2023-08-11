@@ -1,0 +1,12 @@
+apiVersion: clusterlink.io/v1alpha1
+kind: Cluster
+metadata:
+  name: cluster-4
+spec:
+  podCIDRs:
+  - "10.202.0.0/18"
+  serviceCIDRs:
+  - "10.213.0.0/18"
+  cni: "calico"
+  imageRepository: "kosmos.io"
+  networkType: "p2p"

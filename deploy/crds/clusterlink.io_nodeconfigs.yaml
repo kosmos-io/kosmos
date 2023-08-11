@@ -1,0 +1,141 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.11.0
+  creationTimestamp: null
+  name: nodeconfigs.clusterlink.io
+spec:
+  group: clusterlink.io
+  names:
+    kind: NodeConfig
+    listKind: NodeConfigList
+    plural: nodeconfigs
+    singular: nodeconfig
+  scope: Cluster
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            properties:
+              arps:
+                items:
+                  properties:
+                    dev:
+                      type: string
+                    ip:
+                      type: string
+                    mac:
+                      type: string
+                  required:
+                  - dev
+                  - ip
+                  - mac
+                  type: object
+                type: array
+              devices:
+                items:
+                  properties:
+                    addr:
+                      type: string
+                    bindDev:
+                      type: string
+                    id:
+                      format: int32
+                      type: integer
+                    mac:
+                      type: string
+                    name:
+                      type: string
+                    port:
+                      format: int32
+                      type: integer
+                    type:
+                      type: string
+                  required:
+                  - addr
+                  - bindDev
+                  - id
+                  - mac
+                  - name
+                  - port
+                  - type
+                  type: object
+                type: array
+              fdbs:
+                items:
+                  properties:
+                    dev:
+                      type: string
+                    ip:
+                      type: string
+                    mac:
+                      type: string
+                  required:
+                  - dev
+                  - ip
+                  - mac
+                  type: object
+                type: array
+              iptables:
+                items:
+                  properties:
+                    chain:
+                      type: string
+                    rule:
+                      type: string
+                    table:
+                      type: string
+                  required:
+                  - chain
+                  - rule
+                  - table
+                  type: object
+                type: array
+              routes:
+                items:
+                  properties:
+                    cidr:
+                      type: string
+                    dev:
+                      type: string
+                    gw:
+                      type: string
+                  required:
+                  - cidr
+                  - dev
+                  - gw
+                  type: object
+                type: array
+            type: object
+          status:
+            properties:
+              lastChangeTime:
+                format: date-time
+                type: string
+              lastSyncTime:
+                format: date-time
+                type: string
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

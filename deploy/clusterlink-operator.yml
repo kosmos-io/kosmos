@@ -1,0 +1,52 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name:  clusterlink-operator
+  namespace: clusterlink-system
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: clusterlink-operator
+  namespace: clusterlink-system
+  labels:
+    app: operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: operator
+  template:
+    metadata:
+      labels:
+        app: operator
+    spec:
+      serviceAccountName: clusterlink-operator
+      containers:
+      - name: operator
+        image: nexus.cmss.com:8086/cnp/clusterlink/clusterlink-operator:__VERSION__
+        imagePullPolicy: IfNotPresent
+        command:
+          - clusterlink-operator
+          - --controlpanelconfig=/etc/clusterlink/kubeconfig
+        resources:
+          limits:
+            memory: 200Mi
+            cpu: 250m
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        env:
+        - name: VERSION
+          value: __VERSION__
+        - name: CLUSTER_NAME
+          value: __CLUSTER_NAME__
+        volumeMounts:
+          - mountPath: /etc/clusterlink
+            name: proxy-config
+            readOnly: true
+      volumes:
+        - name: proxy-config
+          configMap:
+            defaultMode: 420
+            name: clusterlink-proxy
