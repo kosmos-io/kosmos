@@ -1,0 +1,10 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+- role: control-plane
+- role: worker
+networking:
+  ipFamily: __IP_FAMILY__
+  disableDefaultCNI: true # disable kindnet
+  podSubnet: __POD_CIDR__
+  serviceSubnet: __SERVICE_CIDR__
