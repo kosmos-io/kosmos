@@ -8,7 +8,7 @@ ClusterLink 可以快速的打通多个 Kubernetes 集群之间的网络，并�
 
 **主要功能**:
 - **跨集群L3层网络打通**：Pod 可以跨集群访问 PodIP、ServiceIP，就像它们在同一个集群那样
-- **多集群服务发现**：结合 Kosmos-io/multi-cluster-coredns ，可以实现跨集群访问 Service 域名。multi-clusters-coredns 基于 coredns[https://github.com/coredns/coredns]，顾名思义，它能够解析已纳管集群的 Service 域名
+- **多集群服务发现**：结合 Kosmos-io/multi-cluster-coredns ，可以实现跨集群访问 Service 域名。multi-clusters-coredns 基于 [coredns](https://github.com/coredns/coredns)，顾名思义，它能够解析已纳管集群的 Service 域名
 - **支持全局IP分配**：ClusterLink支持配置 PodCIDR/ServiceCIDR 到 GlobalCIDR 的映射，GlobalIP全局唯一，对于存在网段冲突的集群，可以通过 GlobalIP 互访
 - Linkctl：一个配套工具，帮助你快速检查多集群网络
 - **ClusterLink-Operator**：帮助你快速部署 ClusterLink
