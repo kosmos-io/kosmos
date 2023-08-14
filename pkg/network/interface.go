@@ -31,8 +31,12 @@ type NetWork interface {
 	AddIptables([]clusterlinkv1alpha1.Iptables) error
 	AddRoutes([]clusterlinkv1alpha1.Route) error
 	AddDevices([]clusterlinkv1alpha1.Device) error
+
+	InitSys()
 }
 
 func NewNetWork() NetWork {
-	return &DefaultNetWork{}
+	dn := &DefaultNetWork{}
+	dn.InitSys()
+	return dn
 }
