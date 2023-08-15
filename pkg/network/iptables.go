@@ -273,9 +273,3 @@ func deleteIptable(ipts clusterlinkv1alpha1.Iptables) error {
 
 	return nil
 }
-
-func init() {
-	if err := CreateGlobalNetIptablesChains(); err != nil {
-		klog.Warning(err)
-	}
-}

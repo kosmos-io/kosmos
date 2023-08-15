@@ -5,6 +5,7 @@ import (
 
 	clusterlinkv1alpha1 "github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
 	"github.com/pkg/errors"
+	"k8s.io/klog/v2"
 )
 
 type DefaultNetWork struct {
@@ -170,4 +171,10 @@ func (n *DefaultNetWork) AddDevices(devices []clusterlinkv1alpha1.Device) error 
 		}
 	}
 	return errs
+}
+
+func (n *DefaultNetWork) InitSys() {
+	if err := CreateGlobalNetIptablesChains(); err != nil {
+		klog.Warning(err)
+	}
 }
