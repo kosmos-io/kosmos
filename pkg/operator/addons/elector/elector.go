@@ -3,7 +3,6 @@ package elector
 import (
 	"context"
 	"fmt"
-	utils2 "github.com/kosmos.io/clusterlink/pkg/utils"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -17,6 +16,7 @@ import (
 	"github.com/kosmos.io/clusterlink/pkg/operator/addons/option"
 	"github.com/kosmos.io/clusterlink/pkg/operator/addons/utils"
 	cmdutil "github.com/kosmos.io/clusterlink/pkg/operator/util"
+	utils2 "github.com/kosmos.io/clusterlink/pkg/utils"
 )
 
 const (

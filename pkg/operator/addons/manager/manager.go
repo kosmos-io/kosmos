@@ -3,7 +3,6 @@ package manager
 import (
 	"context"
 	"fmt"
-	utils2 "github.com/kosmos.io/clusterlink/pkg/utils"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -11,13 +10,13 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kuberuntime "k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/kubernetes"
 	clientsetscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/klog/v2"
 
 	"github.com/kosmos.io/clusterlink/pkg/operator/addons/option"
 	"github.com/kosmos.io/clusterlink/pkg/operator/addons/utils"
 	cmdutil "github.com/kosmos.io/clusterlink/pkg/operator/util"
+	utils2 "github.com/kosmos.io/clusterlink/pkg/utils"
 )
 
 type ManagerInstaller struct {
@@ -29,10 +28,6 @@ func New() *ManagerInstaller {
 
 const (
 	ResourceName = "clusterlink-controller-manager"
-)
-
-var (
-	clusterClientSet *kubernetes.Clientset
 )
 
 func applyServiceAccount(opt *option.AddonOption) error {

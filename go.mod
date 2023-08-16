@@ -1,6 +1,6 @@
 module github.com/kosmos.io/clusterlink
 
-go 1.19
+go 1.20
 
 require (
 	github.com/coreos/go-iptables v0.6.0
@@ -152,3 +152,5 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.3 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
+
+replace golang.org/x/oauth2 => golang.org/x/oauth2 v0.1.0

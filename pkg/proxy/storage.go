@@ -42,7 +42,6 @@ type REST struct {
 }
 
 func NewREST(config *rest.Config, client dynamic.Interface) *REST {
-
 	restMapper, err := apiutil.NewDynamicRESTMapper(config)
 	if err != nil {
 		panic(err)

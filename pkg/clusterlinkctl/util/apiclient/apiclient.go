@@ -6,7 +6,6 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
-	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -46,26 +45,7 @@ func ContainsInSlice(items []string, item string) bool {
 	return false
 }
 
-func CreateKubeDynamicClient(KubeConfig string) (*dynamic.DynamicClient, error) {
-
-	restConfig, err := RestConfig("", KubeConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	klog.Infof("dynamic client is creating, kubeconfig file: %s, kubernetes: %s", KubeConfigPath(KubeConfig),
-		restConfig.Host)
-
-	clientSet, err := dynamic.NewForConfig(restConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	return clientSet, nil
-}
-
 func CreateKubeClient(KubeConfig string) (*rest.Config, *kubernetes.Clientset, *clientset.Clientset, error) {
-
 	restConfig, err := RestConfig("", KubeConfig)
 	if err != nil {
 		return nil, nil, nil, err

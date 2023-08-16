@@ -385,5 +385,4 @@ func MakeCRD(crdTemplate string) func() (*apiextensionsv1.CustomResourceDefiniti
 		}
 		return crdStruct, nil
 	}
-
 }

@@ -2,11 +2,11 @@ package version
 
 import (
 	"fmt"
-	"k8s.io/klog/v2"
 	"os"
 	"runtime"
 
 	"github.com/spf13/cobra"
+	"k8s.io/klog/v2"
 	"k8s.io/kubectl/pkg/util/templates"
 )
 

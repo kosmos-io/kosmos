@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/projectcalico/api/pkg/apis/projectcalico/v3"
+	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
 	calicoclient "github.com/projectcalico/calico/libcalico-go/lib/clientv3"
 	"github.com/projectcalico/calico/libcalico-go/lib/options"
 	cwatch "github.com/projectcalico/calico/libcalico-go/lib/watch"
@@ -215,7 +215,6 @@ func (c *Controller) initCalicoInformer(context context.Context, cluster *cluste
 			if !strings.HasPrefix(metaInfo.GetName(), utils.ExternalIPPoolNamePrefix) {
 				c.onChange(cluster)
 			}
-
 		},
 		UpdateFunc: func(oldObj, newObj interface{}) {
 			runtimeObject, ok := newObj.(runtime.Object)
@@ -229,7 +228,6 @@ func (c *Controller) initCalicoInformer(context context.Context, cluster *cluste
 			if !strings.HasPrefix(metaInfo.GetName(), utils.ExternalIPPoolNamePrefix) {
 				c.onChange(cluster)
 			}
-
 		},
 		DeleteFunc: func(obj interface{}) {
 			runtimeObject, ok := obj.(runtime.Object)
@@ -321,7 +319,7 @@ func (c *Controller) initCalicoWatcherWithEtcdBackend(ctx context.Context, clust
 				case cwatch.Deleted:
 					c.onChange(cluster)
 				default:
-					ippool, ok := event.Object.(*v3.IPPool)
+					ippool, ok := event.Object.(*calicov3.IPPool)
 					if ok {
 						if validIPPool(ippool) {
 							c.onChange(cluster)
@@ -361,7 +359,7 @@ func createIppoolWatcher(calicoClient calicoclient.Interface, cluster *clusterli
 	return watch, nil
 }
 
-func validIPPool(ippool *v3.IPPool) bool {
+func validIPPool(ippool *calicov3.IPPool) bool {
 	return ippool.Spec.Disabled == false && !strings.HasPrefix(utils.ExternalIPPoolNamePrefix, ippool.Name)
 }
 

@@ -44,7 +44,6 @@ var infoList []ClusterInfo
 
 // InitKubeClient Initialize a kubernetes client
 func (m *CommandMemberOption) InitKubeClient() error {
-
 	kubeconfigPath := apiclient.KubeConfigPath(m.KubeConfig)
 	if !apiclient.Exists(kubeconfigPath) {
 		klog.Fatal("kubeconfig no found")
@@ -105,7 +104,6 @@ func (m *CommandMemberOption) ShowKubeCluster() error {
 
 func (m *CommandMemberOption) GetInfoFromCluster(wg *sync.WaitGroup, mux *sync.Mutex,
 	cluster clusterlinkv1alpha1.Cluster) error {
-
 	/*
 		defer wg.Done()
 		kubeconfigDecode := cluster.Spec.Kubeconfig
@@ -132,7 +130,6 @@ func (m *CommandMemberOption) GetInfoFromCluster(wg *sync.WaitGroup, mux *sync.M
 }
 
 func (m *CommandMemberOption) DelKubeCluster() error {
-
 	_, err := m.KubeClientSet.Get(context.TODO(), m.ClusterName, metav1.GetOptions{})
 	if err != nil {
 		klog.Errorf("the cluster %s does not exit", m.ClusterName)
@@ -166,7 +163,6 @@ func (m *CommandMemberOption) DelKubeCluster() error {
 }
 
 func (m *CommandMemberOption) AddKubeCluster() error {
-
 	if m.NetworkType != "gateway" && m.NetworkType != "p2p" {
 		return fmt.Errorf("strange NetworkType %s,can't recognize", m.NetworkType)
 	}

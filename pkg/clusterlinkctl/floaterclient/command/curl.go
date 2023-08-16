@@ -3,8 +3,9 @@ package command
 import (
 	"fmt"
 
-	"github.com/kosmos.io/clusterlink/pkg/utils"
 	"k8s.io/klog/v2"
+
+	"github.com/kosmos.io/clusterlink/pkg/utils"
 )
 
 type Curl struct {

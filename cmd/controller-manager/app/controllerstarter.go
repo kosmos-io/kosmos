@@ -56,7 +56,7 @@ func (c *Controller) Start(ctx context.Context) error {
 
 	clusterInformerFactory := externalversions.NewSharedInformerFactory(c.clusterLinkClient, 0)
 	clusterInformer := clusterInformerFactory.Clusterlink().V1alpha1().Clusters().Informer()
-	clusterInformer.AddEventHandler(cache.FilteringResourceEventHandler{
+	_, err := clusterInformer.AddEventHandler(cache.FilteringResourceEventHandler{
 		Handler: cache.ResourceEventHandlerFuncs{
 			AddFunc:    c.OnAdd,
 			UpdateFunc: c.OnUpdate,
@@ -70,6 +70,11 @@ func (c *Controller) Start(ctx context.Context) error {
 			return cluster.Name == c.opts.ClusterName
 		},
 	})
+	if err != nil {
+		klog.Fatalf("failed add cluster event handler: %v", err)
+		panic(err)
+	}
+
 	c.clusterLister = clusterInformerFactory.Clusterlink().V1alpha1().Clusters().Lister()
 
 	c.setupControllers()
@@ -180,8 +185,6 @@ func (c *Controller) setupControllers() {
 }
 
 func (c *Controller) startControllers() {
-
-	//mgr的start会block
 	go func() {
 		if err := c.mgr.Start(c.ctx); err != nil {
 			klog.Errorf("controller manager exits unexpectedly: %v", err)

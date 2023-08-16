@@ -11,7 +11,6 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/kosmos.io/clusterlink/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/clusterlink/test/e2e/framework"
@@ -25,13 +24,12 @@ var (
 )
 
 var (
-	kubeconfig         string
-	hostContext        string
-	restConfig         *rest.Config
-	kubeClient         kubernetes.Interface
-	dynamicClient      dynamic.Interface
-	clusterLinkClient  versioned.Interface
-	controlPlaneClient client.Client
+	kubeconfig        string
+	hostContext       string
+	restConfig        *rest.Config
+	kubeClient        kubernetes.Interface
+	dynamicClient     dynamic.Interface
+	clusterLinkClient versioned.Interface
 )
 
 const (

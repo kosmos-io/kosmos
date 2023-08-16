@@ -22,7 +22,6 @@ var deploymentTemplateNameMap = map[string]string{
 }
 
 func (i *CommandInitOption) retriveClusterLinkiDP() ([]KubeResourceInfo, error) {
-
 	DeploymentInK8sList := []KubeResourceInfo{}
 	dpDeployedByCL := []string{}
 	for k := range deploymentTemplateNameMap {
@@ -47,7 +46,6 @@ func (i *CommandInitOption) retriveClusterLinkiDP() ([]KubeResourceInfo, error) 
 }
 
 func (i *CommandInitOption) initClusterlinkDeployment() error {
-
 	dpList, err := i.retriveClusterLinkiDP()
 	if err != nil {
 		return err
@@ -75,9 +73,7 @@ func (i *CommandInitOption) initClusterlinkDeployment() error {
 	return nil
 }
 
-func (i *CommandInitOption) deployClusterlinkDeployment(clusterlinkDeployment string,
-	replace DeploymentReplace) error {
-
+func (i *CommandInitOption) deployClusterlinkDeployment(clusterlinkDeployment string, replace DeploymentReplace) error {
 	klog.Infof("Create Clusterlink %s Deployment", replace.DeploymentName)
 
 	deploymentBytes, err := utils.ParseTemplate(clusterlinkDeployment, replace)
@@ -99,7 +95,6 @@ func (i *CommandInitOption) deployClusterlinkDeployment(clusterlinkDeployment st
 	// create or update
 	if _, err := i.KubeClientSet.AppsV1().Deployments(replace.Namespace).Create(context.TODO(),
 		deploymentStruct, metav1.CreateOptions{}); err != nil {
-
 		if !apierrors.IsAlreadyExists(err) {
 			klog.Errorf("create Deployment error : %v ", err)
 			return fmt.Errorf("create Deployment error : %w", err)

@@ -43,7 +43,6 @@ func (h *HostClusterHelper) Complete() error {
 }
 
 func (h *HostClusterHelper) GetClusterInfo(clusterName string) (*rest.Config, *kubernetes.Clientset, map[string]string, error) {
-
 	gvr := schema.GroupVersionResource{
 		Group:    ClusterGroup,
 		Version:  ClusterVersion,
@@ -80,5 +79,4 @@ func (h *HostClusterHelper) GetClusterInfo(clusterName string) (*rest.Config, *k
 		}
 	*/
 	return nil, nil, nil, fmt.Errorf("cannot find cluster: %s", clusterName)
-
 }
