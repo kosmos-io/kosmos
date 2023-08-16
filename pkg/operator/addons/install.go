@@ -1,14 +1,14 @@
 package addons
 
 import (
-	"github.com/kosmos.io/clusterlink/pkg/operator/addons/global"
-	"github.com/kosmos.io/clusterlink/pkg/operator/addons/proxy"
 	"k8s.io/klog/v2"
 
 	"github.com/kosmos.io/clusterlink/pkg/operator/addons/agent"
 	"github.com/kosmos.io/clusterlink/pkg/operator/addons/elector"
+	"github.com/kosmos.io/clusterlink/pkg/operator/addons/global"
 	"github.com/kosmos.io/clusterlink/pkg/operator/addons/manager"
 	"github.com/kosmos.io/clusterlink/pkg/operator/addons/option"
+	"github.com/kosmos.io/clusterlink/pkg/operator/addons/proxy"
 )
 
 type AddonInstaller interface {

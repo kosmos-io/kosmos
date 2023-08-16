@@ -60,7 +60,6 @@ type CommandInitOption struct {
 
 // InitKubeClient Initialize a kubernetes client
 func (i *CommandInitOption) InitKubeClient() error {
-
 	_, normalClinet, extendClient, err := apiclient.CreateKubeClient(i.KubeConfig)
 	if err != nil {
 		return err
@@ -85,7 +84,6 @@ func MapToString(labels map[string]string) string {
 
 // RunInit Deploy clusterlink in kubernetes
 func (i *CommandInitOption) RunInit(parentCommand string) error {
-
 	// Create ns
 	klog.Infof("Create namespace %s", i.Namespace)
 	if err := util.CreateOrUpdateNamespace(i.KubeClientSet, util.NewNamespace(i.Namespace)); err != nil {
@@ -114,7 +112,6 @@ func (i *CommandInitOption) RunInit(parentCommand string) error {
 
 // get registry
 func (i *CommandInitOption) kubeRegistry() string {
-
 	if i.ImageRegistry != "" {
 		return i.ImageRegistry
 	}
@@ -122,7 +119,6 @@ func (i *CommandInitOption) kubeRegistry() string {
 }
 
 func (i *CommandInitOption) getImageByAppName(appName string) string {
-
 	if i.ImageRegistry != "" {
 		return fmt.Sprintf("%s/%s:%s", i.kubeRegistry(), appName, clusterlinkRelease) // i.ImageRegistry + "/clusterlink-operator:" + clusterlinkRelease
 	}

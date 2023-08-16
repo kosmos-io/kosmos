@@ -104,7 +104,7 @@ func changeIPNetIPV6(ip net.IP, destNet net.IPNet) (net.IPNet, error) {
 
 	targetIP := make(net.IP, len(ipBytes))
 
-	for k, _ := range ipBytes {
+	for k := range ipBytes {
 		invertedMask := maskBytes[k] ^ 0xff
 		targetIP[k] = (invertedMask & ipBytes[k]) | (destIPBytes[k] & maskBytes[k])
 	}

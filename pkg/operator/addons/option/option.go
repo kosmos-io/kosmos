@@ -4,10 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
-
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 
 	cmdOptions "github.com/kosmos.io/clusterlink/cmd/operator/app/options"
 	clusterlinkv1alpha1 "github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
@@ -24,7 +23,6 @@ type AddonOption struct {
 }
 
 func (o *AddonOption) buildClusterConfig(opts *cmdOptions.Options) error {
-
 	restConfig, err := clientcmd.BuildConfigFromFlags("", opts.KubeConfig)
 	if err != nil {
 		return fmt.Errorf("error building kubeconfig: %s", err.Error())

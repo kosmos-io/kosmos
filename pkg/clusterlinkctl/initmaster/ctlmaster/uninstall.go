@@ -14,16 +14,15 @@ type KubeResourceToDel interface {
 }
 
 func (i *CommandInitOption) RunDeInit(parentCommand string) error {
-
 	deployments, err := i.retriveClusterLinkiDP()
 	if err != nil {
-		klog.Errorf("can't retrive deployment from kubernetes")
+		klog.Errorf("can't retrieve deployment from kubernetes")
 		return err
 	}
 
 	serviceaccounts, err := i.retriveClusterLinkSA()
 	if err != nil {
-		klog.Errorf("can't retrive serviceaccounts from kubernetes")
+		klog.Errorf("can't retrieve serviceaccounts from kubernetes")
 		return err
 	}
 

@@ -151,7 +151,6 @@ func (k *KubernetesBackend) DeleteIPPool(ipPools []*ExternalClusterIPPool) error
 			}
 			errs = append(errs, err)
 		}
-
 	}
 
 	if len(errs) > 0 {

@@ -4,8 +4,8 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-CLUSTERLINK_GROUP_PACKAGE="cnp.io"
-CLUSTERLINK_GO_PACKAGE="${CLUSTERLINK_GROUP_PACKAGE}/clusterlink"
+CLUSTERLINK_GROUP_PACKAGE="github.com"
+CLUSTERLINK_GO_PACKAGE="${CLUSTERLINK_GROUP_PACKAGE}/kosmos.io/clusterlink"
 
 # For all commands, the working directory is the parent directory(repo root).
 REPO_ROOT=$(git rev-parse --show-toplevel)

@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"flag"
-	"sync"
 
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -25,8 +24,6 @@ var (
 
 	// ControllersDisabledByDefault is the set of Controllers which is disabled by default
 	ControllersDisabledByDefault = sets.New[string]()
-
-	stopOnce sync.Once
 )
 
 func init() {

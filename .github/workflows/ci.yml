@@ -1,0 +1,68 @@
+name: CI
+on:
+  push:
+  pull_request:
+jobs:
+  golangci:
+    name: lint
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Install Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.20'
+      - name: golint
+        uses: golangci/golangci-lint-action@v3
+        with:
+          version: v1.53.3
+  verify:
+    name: verify
+    runs-on: ubuntu-22.04
+    env:
+      GOPATH: ${{ github.workspace }}
+      WORKSPACE: ${{ github.workspace }}/src/github.com/kosmos-io/clusterlink
+    defaults:
+      run:
+        working-directory: ${{ env.WORKSPACE }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          path: ${{ env.WORKSPACE }}
+      - name: Install Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.20'
+      - run: hack/verify-vendor.sh
+      - run: hack/verify-codegen.sh
+      - run: hack/verify-crds.sh
+  build:
+    name: build
+    needs: verify
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          # https://github.com/actions/checkout#fetch-all-history-for-all-tags-and-branches
+          fetch-depth: 0
+      - name: Install Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.20'
+      - name: Compile
+        run: make all
+  test:
+    name: Unit test
+    needs: build
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Install Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.20'
+      - run: make test

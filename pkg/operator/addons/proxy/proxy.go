@@ -4,21 +4,20 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	utils2 "github.com/kosmos.io/clusterlink/pkg/utils"
-	"k8s.io/client-go/tools/clientcmd"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kuberuntime "k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/kubernetes"
 	clientsetscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 
 	"github.com/kosmos.io/clusterlink/pkg/operator/addons/option"
 	"github.com/kosmos.io/clusterlink/pkg/operator/addons/utils"
 	cmdutil "github.com/kosmos.io/clusterlink/pkg/operator/util"
+	utils2 "github.com/kosmos.io/clusterlink/pkg/utils"
 )
 
 type ProxyInstaller struct {
@@ -30,10 +29,6 @@ func New() *ProxyInstaller {
 
 const (
 	ResourceName = "clusterlink-proxy"
-)
-
-var (
-	clusterClientSet *kubernetes.Clientset
 )
 
 func applySecret(opt *option.AddonOption) error {
@@ -67,7 +62,6 @@ func applySecret(opt *option.AddonOption) error {
 	}
 
 	return nil
-
 }
 
 func applyService(opt *option.AddonOption) error {

@@ -30,14 +30,6 @@ type IPPoolReplace struct {
 	IPPool string
 }
 
-func getIPFlag(ip string) string {
-	if utils.IsIPv6(ip) {
-		return "ipv6"
-	} else {
-		return "ipv4"
-	}
-}
-
 func genCalicoIPPoolName(cluster string, ipType string, ip string) string {
 	suffix := strings.ReplaceAll(ip, ".", "-")
 	suffix = strings.ReplaceAll(suffix, ":", "-")

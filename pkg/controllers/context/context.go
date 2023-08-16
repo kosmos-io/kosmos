@@ -70,7 +70,6 @@ func (i Initializers) ControllerNames() []string {
 
 // StartControllers starts a set of controllers with a specified ControllerContext
 func (i Initializers) StartControllers(ctx Context, controllersDisabledByDefault sets.Set[string]) ([]CleanFunc, error) {
-
 	var cleanFuncs []CleanFunc
 	for controllerName, initFn := range i {
 		if !ctx.IsControllerEnabled(controllerName, controllersDisabledByDefault) {

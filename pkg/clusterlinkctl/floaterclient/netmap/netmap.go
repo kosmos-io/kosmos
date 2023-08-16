@@ -76,7 +76,6 @@ func NetMap(ipStr string, cidrsMap map[string]string) (string, error) {
 }
 
 func changeIPNetIPV4(ip net.IP, destNet net.IPNet) (net.IP, error) {
-
 	ipBytes := ip.To4()
 	destNetBytes := destNet.IP.To4()
 	maskSize, _ := destNet.Mask.Size()
@@ -94,14 +93,13 @@ func changeIPNetIPV4(ip net.IP, destNet net.IPNet) (net.IP, error) {
 }
 
 func changeIPNetIPV6(ip net.IP, destNet net.IPNet) (net.IP, error) {
-
-	ipBytes := []byte(ip)             // 源ip
-	maskBytes := []byte(destNet.Mask) // 掩码
-	destIPBytes := []byte(destNet.IP) // 目标ip
+	ipBytes := []byte(ip)             // source ip
+	maskBytes := []byte(destNet.Mask) // mask
+	destIPBytes := []byte(destNet.IP) // target ip
 
 	targetIP := make(net.IP, len(ipBytes))
 
-	for k, _ := range ipBytes {
+	for k := range ipBytes {
 		// 取掩码反码
 		invertedMask := maskBytes[k] ^ 0xff
 

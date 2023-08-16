@@ -13,7 +13,6 @@ import (
 )
 
 func (i *CommandInitOption) initClusterlinkConfigmap() error {
-
 	configmapName := "external-kubeconfig"
 	klog.Info("Create configmap external-kubeconfig")
 
@@ -36,7 +35,6 @@ func (i *CommandInitOption) initClusterlinkConfigmap() error {
 		configMapKubeconfig, metav1.CreateOptions{})
 
 	if err != nil {
-
 		if !apierrors.IsAlreadyExists(err) {
 			klog.Errorf("Create configmap %s error: %v", configmapName, err)
 			return fmt.Errorf("create configmap %s error: %w", configmapName, err)

@@ -143,7 +143,7 @@ lint-fix: golangci-lint
 
 golangci-lint:
 ifeq (, $(shell which golangci-lint))
-	GO111MODULE=on go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.49.0
+	GO111MODULE=on go install github.com/golangci/golangci-lint/cmd/golangci-lint@1.53.3
 GOLANGLINT_BIN=$(shell go env GOPATH)/bin/golangci-lint
 else
 GOLANGLINT_BIN=$(shell which golangci-lint)

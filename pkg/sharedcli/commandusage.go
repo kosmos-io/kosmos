@@ -2,11 +2,11 @@ package sharedcli
 
 import (
 	"fmt"
-	"k8s.io/klog/v2"
 	"strings"
 
 	"github.com/spf13/cobra"
 	cliflag "k8s.io/component-base/cli/flag"
+	"k8s.io/klog/v2"
 )
 
 const (

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"k8s.io/apiserver/pkg/registry/rest"
 	"sync"
 
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -13,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/apiserver/pkg/registry/rest"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/klog/v2"
 )
@@ -46,9 +46,9 @@ func NewClusterCache(client dynamic.Interface, restMapper meta.RESTMapper) *Cach
 		cache:      map[schema.GroupVersionResource]*resourceCache{},
 	}
 	resources := map[schema.GroupVersionResource]struct{}{
-		schema.GroupVersionResource{Group: "clusterlink.io", Version: "v1alpha1", Resource: "clusters"}:     {},
-		schema.GroupVersionResource{Group: "clusterlink.io", Version: "v1alpha1", Resource: "clusternodes"}: {},
-		schema.GroupVersionResource{Group: "clusterlink.io", Version: "v1alpha1", Resource: "nodeconfigs"}:  {},
+		{Group: "clusterlink.io", Version: "v1alpha1", Resource: "clusters"}:     {},
+		{Group: "clusterlink.io", Version: "v1alpha1", Resource: "clusternodes"}: {},
+		{Group: "clusterlink.io", Version: "v1alpha1", Resource: "nodeconfigs"}:  {},
 	}
 	err := cache.UpdateCache(resources)
 	if err != nil {
@@ -129,7 +129,6 @@ func (c *Cache) Update(ctx context.Context, gvr schema.GroupVersionResource, nam
 		return nil, false, errors.New("can not find gvr")
 	}
 	return rc.Update(ctx, name, objInfo, createValidation, updateValidation, forceAllowCreate, options)
-
 }
 
 func (c *Cache) List(ctx context.Context, gvr schema.GroupVersionResource, options *metainternalversion.ListOptions) (runtime.Object, error) {

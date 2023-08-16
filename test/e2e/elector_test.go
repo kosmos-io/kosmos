@@ -2,9 +2,9 @@ package e2e
 
 import (
 	"context"
-	"github.com/onsi/gomega"
 
 	"github.com/onsi/ginkgo/v2"
+	"github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	clusterlinkv1alpha1 "github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1"

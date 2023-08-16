@@ -291,18 +291,15 @@ func (i *DoctorOptions) RunRange(iPodInfos []*FloaterInfo, jPodInfos []*FloaterI
 						targetIP, err = netmap.NetMap(ip, i.DstFloater.CIDRsMap)
 					} else {
 						targetIP = ip
-
 					}
 					if err != nil {
 						cmdResult = command.ParseError(err)
-
 					} else {
 						// ToDo RunRange和RunNative函数支持多命令，代码待优化@wangqi
 						cmdObj := &command.Ping{
 							TargetIP: targetIP,
 						}
 						cmdResult = i.SrcFloater.CommandExec(iPodInfo, cmdObj)
-
 					}
 					resultData = append(resultData, &PrintData{
 						*cmdResult,

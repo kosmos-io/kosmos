@@ -46,7 +46,6 @@ func (i *Installer) Install(opt *option.AddonOption) error {
 	// TODO: wati
 	klog.Infof("Install clusterlink namespace on cluster successfully")
 	return nil
-
 }
 
 // Uninstall resources related to CR:cluster

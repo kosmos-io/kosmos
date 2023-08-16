@@ -1,8 +1,9 @@
 package role
 
 import (
-	"github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
 	"k8s.io/apimachinery/pkg/util/sets"
+
+	"github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
 )
 
 func AddRole(node *v1alpha1.ClusterNode, role v1alpha1.Role) {

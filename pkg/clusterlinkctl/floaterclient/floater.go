@@ -68,14 +68,12 @@ func (i *Floater) InitKubeClient() error {
 		}
 
 		i.KueResetConfig = restConfig
-
 	}
 	return nil
 }
 
 // RunInit Deploy clusterlink in kubernetes
 func (i *Floater) RunInit() error {
-
 	i.DaemonSetName = "clusterlink-floater"
 
 	// Create ns
@@ -173,7 +171,6 @@ func (i *Floater) applyClusterRoleBinding() error {
 }
 
 func (i *Floater) initFloaterRBAC() error {
-
 	klog.Info("Create Clusterlink RBAC")
 
 	err := i.applyClusterRole()
@@ -192,7 +189,6 @@ func (i *Floater) initFloaterRBAC() error {
 	}
 
 	return nil
-
 }
 
 func (i *Floater) initFloaterDaemonSet() error {
