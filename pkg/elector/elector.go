@@ -38,7 +38,8 @@ func (e *Elector) EnsureGateWayRole() error {
 	}
 	modifyNodes := e.genModifyNode(clusterNodes.Items)
 	klog.Infof("%d node need modify", len(modifyNodes))
-	for _, node := range modifyNodes {
+	for i:= range modifyNodes {
+		node := modifyNodes[i]
 		_, err := e.controlPanelClient.ClusterlinkV1alpha1().ClusterNodes().Update(context.TODO(), &node, metav1.UpdateOptions{})
 		if err != nil {
 			klog.Errorf("update clusterNode %s with role %v err: %v", node.Name, node.Spec.Roles, err)
@@ -51,7 +52,8 @@ func (e *Elector) EnsureGateWayRole() error {
 
 func (e *Elector) genModifyNode(clusterNodes []v1alpha1.ClusterNode) []v1alpha1.ClusterNode {
 	var modifyNodes = make([]v1alpha1.ClusterNode, 0, 5)
-	for _, clusterNode := range clusterNodes {
+	for i := range clusterNodes {
+		clusterNode := clusterNodes[i]
 		isGateWay := clusterNode.IsGateway()
 		isSameCluster := clusterNode.Spec.ClusterName == e.clusterName
 		isCurrentNode := clusterNode.Spec.NodeName == e.nodeName

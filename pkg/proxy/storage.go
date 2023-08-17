@@ -124,6 +124,13 @@ func (rest *REST) createHandler(ctx context.Context, minRequestTimeout time.Dura
 		}
 
 		mapping, err := rest.restMapper.RESTMapping(gvk.GroupKind(), gvk.Version)
+		if err != nil {
+			responsewriters.ErrorNegotiated(
+				apierrors.NewInternalError(err),
+				Codecs, schema.GroupVersion{}, w, req,
+			)
+			return
+		}
 		clusterScoped := mapping.Scope.Name() == meta.RESTScopeNameRoot
 		scope := &handlers.RequestScope{
 			Kind:     gvk,
@@ -161,10 +168,7 @@ func (rest *REST) createProxyHandler(responder k8srest.Responder) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		kubernetes, err := url.Parse(rest.config.Host)
 		if err != nil {
-			responsewriters.ErrorNegotiated(
-				apierrors.NewInternalError(err),
-				Codecs, schema.GroupVersion{}, w, req,
-			)
+			handlerError(w, req, err)
 			return
 		}
 		s := *req.URL
@@ -172,10 +176,21 @@ func (rest *REST) createProxyHandler(responder k8srest.Responder) http.Handler {
 		s.Scheme = kubernetes.Scheme
 		req.Header.Del("Authorization")
 		defaultTransport, err := clientrest.TransportFor(rest.config)
+		if err != nil {
+			handlerError(w, req, err)
+			return
+		}
 		httpProxy := proxy.NewUpgradeAwareHandler(&s, defaultTransport, true, false, proxy.NewErrorResponder(responder))
 		httpProxy.UpgradeTransport = proxy.NewUpgradeRequestRoundTripper(defaultTransport, defaultTransport)
 		httpProxy.ServeHTTP(w, req)
 	})
+}
+
+func handlerError(w http.ResponseWriter, req *http.Request, err error) int {
+	return responsewriters.ErrorNegotiated(
+		apierrors.NewInternalError(err),
+		Codecs, schema.GroupVersion{}, w, req,
+	)
 }
 
 // Destroy cleans up its resources on shutdown.

@@ -24,23 +24,3 @@ func getFristScopeIPInLink(vxlanIface netlink.Link, name string, familyType int)
 	}
 	return "", fmt.Errorf("there is no scop ip for dev: %v", name)
 }
-
-func getFirstGlobalIPByDevName(name string) ([]string, error) {
-	vxlanIface, err := netlink.LinkByName(name)
-	if err != nil {
-		klog.Errorf("Try to find device by name %s, get error : %v", name, err)
-		return nil, err
-	}
-	ipv4, err := getFristScopeIPInLink(vxlanIface, name, netlink.FAMILY_V4)
-	if err != nil {
-		klog.Errorf("Try to retrieve addr v4 list of device %s, get error: %v", name, err)
-		return nil, err
-	}
-	ipv6, err := getFristScopeIPInLink(vxlanIface, name, netlink.FAMILY_V6)
-	if err != nil {
-		klog.Errorf("Try to retrieve addr v6 list of device %s, get error: %v", name, err)
-		return nil, err
-	}
-
-	return []string{ipv4, ipv6}, nil
-}

@@ -172,7 +172,7 @@ func (c *Controller) Reconcile(key utils.QueueKey) error {
 			break
 		}
 	}
-	if serviceCIDRS == nil || len(serviceCIDRS) == 0 {
+	if len(serviceCIDRS) == 0 {
 		klog.Errorf("resolve serviceCIDRS for cluster %s failure", c.clusterName)
 		return err
 	}
@@ -360,7 +360,7 @@ func createIppoolWatcher(calicoClient calicoclient.Interface, cluster *clusterli
 }
 
 func validIPPool(ippool *calicov3.IPPool) bool {
-	return ippool.Spec.Disabled == false && !strings.HasPrefix(utils.ExternalIPPoolNamePrefix, ippool.Name)
+	return !ippool.Spec.Disabled && !strings.HasPrefix(utils.ExternalIPPoolNamePrefix, ippool.Name)
 }
 
 func isApiServer(pod *corev1.Pod) bool {
