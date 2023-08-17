@@ -11,7 +11,7 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 
 	"github.com/kosmos.io/clusterlink/cmd/network-manager/app/options"
-	"github.com/kosmos.io/clusterlink/pkg/network-manager"
+	networkmanager "github.com/kosmos.io/clusterlink/pkg/network-manager"
 	"github.com/kosmos.io/clusterlink/pkg/scheme"
 	"github.com/kosmos.io/clusterlink/pkg/sharedcli/klogflag"
 )
@@ -65,12 +65,12 @@ func run(ctx context.Context, opts *options.Options) error {
 		return fmt.Errorf("failed to build controller manager: %v", err)
 	}
 
-	nodeConfigController := network_manager.Controller{
+	nodeConfigController := networkmanager.Controller{
 		Client:        mgr.GetClient(),
-		EventRecorder: mgr.GetEventRecorderFor(network_manager.ControllerName),
+		EventRecorder: mgr.GetEventRecorderFor(networkmanager.ControllerName),
 	}
 	if err = nodeConfigController.SetupWithManager(mgr); err != nil {
-		return fmt.Errorf("error starting %s: %v", network_manager.ControllerName, err)
+		return fmt.Errorf("error starting %s: %v", networkmanager.ControllerName, err)
 	}
 
 	if err := mgr.Start(ctx); err != nil {

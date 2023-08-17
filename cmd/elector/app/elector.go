@@ -119,16 +119,21 @@ func run(ctx context.Context, opts *options.Options) error {
 			OnStartedLeading: func(ctx context.Context) {
 				klog.Infof("become leader start set gateway role")
 				for {
-					err := elector.EnsureGateWayRole()
-					if err != nil {
-						klog.Errorf("set gateway role failure: %v, retry after 10 sec.", err)
-						time.Sleep(10 * time.Second)
-					} else {
-						klog.V(4).Info("ensure gateway role success, recheck after 60 sec.")
-						time.Sleep(60 * time.Second)
+					select {
+					case <-ctx.Done():
+						klog.Infof("elector stop")
+					default:
+						err := elector.EnsureGateWayRole()
+						if err != nil {
+							klog.Errorf("set gateway role failure: %v, retry after 10 sec.", err)
+							time.Sleep(10 * time.Second)
+						} else {
+							klog.V(4).Info("ensure gateway role success, recheck after 60 sec.")
+							time.Sleep(60 * time.Second)
+						}
+
 					}
 				}
-				<-ctx.Done()
 			},
 			OnStoppedLeading: func() {
 				klog.Fatalf("leaderelection lost")

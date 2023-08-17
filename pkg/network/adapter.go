@@ -3,9 +3,10 @@ package network
 import (
 	"fmt"
 
-	clusterlinkv1alpha1 "github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
 	"github.com/pkg/errors"
 	"k8s.io/klog/v2"
+
+	clusterlinkv1alpha1 "github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
 )
 
 type DefaultNetWork struct {

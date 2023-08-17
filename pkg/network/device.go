@@ -289,7 +289,6 @@ func updateDeviceConfig(name string, ipFamily int) error {
 		}
 	}
 	return nil
-
 }
 
 func UpdateDefaultIptablesAndKernalConfig(name string, ipFamily int) error {

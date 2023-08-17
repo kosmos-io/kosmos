@@ -197,16 +197,17 @@ func (r *Reconciler) SetupWithManager(mgr manager.Manager, stopChan <-chan struc
 		r.Client = mgr.GetClient()
 	}
 
-	ticker := time.Tick(60 * time.Second)
+	ticker := time.NewTicker(60 * time.Second)
 	go func() {
 		for {
 			select {
-			case <-ticker:
+			case <-ticker.C:
 				err := r.CleanOrphan()
 				if err != nil {
 					klog.Warningf("clear orphan err: %v", err)
 				}
 			case <-stopChan:
+				ticker.Stop()
 				return
 			}
 		}
@@ -223,7 +224,8 @@ func (r *Reconciler) CleanResource() error {
 		LabelSelector: fmt.Sprintf("clusterlink.io/cluster=%s", r.ClusterName),
 	})
 	if err != nil {
-
+		klog.Errorf("list clusterNode err: %v", err)
+		return err
 	}
 	var errs []error
 	for _, node := range list.Items {

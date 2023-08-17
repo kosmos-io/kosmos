@@ -111,7 +111,7 @@ func (c *Cache) GetResourceFromCache(ctx context.Context, gvr schema.GroupVersio
 func (c *Cache) Get(ctx context.Context, gvr schema.GroupVersionResource, name string, options *metav1.GetOptions) (runtime.Object, error) {
 	rc := c.cacheForResource(gvr)
 	if rc == nil {
-		return nil, errors.New(fmt.Sprintf("can not find gvr %v", gvr))
+		return nil, fmt.Errorf("can not find gvr %v", gvr)
 	}
 	obj, err := rc.Get(ctx, name, options)
 	if err != nil {
@@ -135,7 +135,7 @@ func (c *Cache) List(ctx context.Context, gvr schema.GroupVersionResource, optio
 	rc := c.cacheForResource(gvr)
 	if rc == nil {
 		// TODO
-		return nil, errors.New(fmt.Sprintf("can not find target gvr %v", gvr))
+		return nil, fmt.Errorf("can not find target gvr %v", gvr)
 	}
 	list, err := rc.List(ctx, options)
 	if err != nil {
@@ -147,7 +147,7 @@ func (c *Cache) List(ctx context.Context, gvr schema.GroupVersionResource, optio
 func (c *Cache) Watch(ctx context.Context, gvr schema.GroupVersionResource, options *metainternalversion.ListOptions) (watch.Interface, error) {
 	rc := c.cacheForResource(gvr)
 	if rc == nil {
-		return nil, errors.New(fmt.Sprintf("can not find target gvr %v", gvr))
+		return nil, fmt.Errorf("can not find target gvr %v", gvr)
 	}
 	w, err := rc.Watch(ctx, options)
 	if err != nil {
