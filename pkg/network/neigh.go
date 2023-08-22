@@ -72,14 +72,14 @@ func addEntryToNeigh(dstIP *net.IP, mac *net.HardwareAddr, vxlanIface *netlink.L
 	if neighType == NEIGH_FDB {
 		klog.Infof("Try to add fdb")
 		if err := netlink.NeighAppend(neighObj); err != nil {
-			klog.Errorf("Adding neigh %s (ip %v mac %v) entry,but encounterd error: %v", NEIGH_TYPE_MAP[neighType], *dstIP, *mac, err)
+			klog.Errorf("Adding neigh %s (ip %v mac %v) entry,but encountered error: %v", NEIGH_TYPE_MAP[neighType], *dstIP, *mac, err)
 			return err
 		}
 	}
 	if neighType == NEIGH_ARP {
 		klog.Infof("Try to add arp")
 		if err := netlink.NeighSet(neighObj); err != nil {
-			klog.Errorf("Adding neigh %s (ip %v mac %v) entry,but encounterd error: %v", NEIGH_TYPE_MAP[neighType], *dstIP, *mac, err)
+			klog.Errorf("Adding neigh %s (ip %v mac %v) entry,but encountered error: %v", NEIGH_TYPE_MAP[neighType], *dstIP, *mac, err)
 			return err
 		}
 	}
@@ -89,7 +89,7 @@ func addEntryToNeigh(dstIP *net.IP, mac *net.HardwareAddr, vxlanIface *netlink.L
 func delEntryToNeigh(dstIP *net.IP, mac *net.HardwareAddr, vxlanIface *netlink.Link, neighType NeighType) error {
 	neigh := getNeighEntry(dstIP, mac, vxlanIface, neighType)
 	if err := netlink.NeighDel(neigh); err != nil {
-		klog.Errorf("Deleting neigh %s (ip %v mac %v) entry,but encounterd error: %v", NEIGH_TYPE_MAP[neighType], *dstIP, *mac, err)
+		klog.Errorf("Deleting neigh %s (ip %v mac %v) entry,but encountered error: %v", NEIGH_TYPE_MAP[neighType], *dstIP, *mac, err)
 		return err
 	}
 	return nil

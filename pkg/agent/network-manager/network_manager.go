@@ -222,7 +222,6 @@ func (e *NetworkManager) WriteSys(configDiff *ConfigDiff) error {
 				errs = errors.Wrap(err, fmt.Sprint(errs))
 			}
 		}
-
 	}
 
 	return errs

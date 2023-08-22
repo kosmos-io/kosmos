@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 	cliflag "k8s.io/component-base/cli/flag"
@@ -73,7 +74,12 @@ func run(_ context.Context, _ *options.Options) error {
 			klog.Errorf("response writer error: %s", err)
 		}
 	})
-	if err := http.ListenAndServeTLS(fmt.Sprintf(":%s", port), "./certificate/file.crt", "./certificate/file.key", nil); err != nil {
+	srv := &http.Server{
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		Addr:         fmt.Sprintf(":%s", port),
+	}
+	if err := srv.ListenAndServeTLS("./certificate/file.crt", "./certificate/file.key"); err != nil {
 		klog.Errorf("lanch server error: %s", err)
 		return err
 	}

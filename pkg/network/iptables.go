@@ -25,7 +25,6 @@ func (i *IptablesRecord) ToString() string {
 
 // CreateGlobalNetIptablesChains 创建clusterLink自定义链
 func CreateGlobalNetIptablesChains() error {
-
 	klog.Infof("start to create globalnet chains")
 
 	ipTypes := []ipt.Protocol{
@@ -63,7 +62,6 @@ func CreateGlobalNetIptablesChains() error {
 
 // ClearGlobalNetIptablesChains 清理clusterLink自定义链
 func ClearGlobalNetIptablesChains(isIpv6 bool) error {
-
 	ipType := ipt.ProtocolIPv4
 	if isIpv6 {
 		ipType = ipt.ProtocolIPv6
@@ -95,7 +93,6 @@ func getRulesFromIptablesRecords(records []IptablesRecord) [][]string {
 
 // updateIptablesWithInterface 将iptables分类并设置到底层
 func updateIptablesWithInterface(i iptables.Interface, records []IptablesRecord) error {
-
 	mapRecords := groupByTableChain(records)
 
 	for key, items := range mapRecords {

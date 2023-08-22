@@ -34,5 +34,4 @@ func Test_GenerateVxlanIP(t *testing.T) {
 			}
 		})
 	}
-
 }
