@@ -1,3 +1,4 @@
+// nolint:dupl
 package util
 
 import (
@@ -11,8 +12,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
-	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
-	aggregator "k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset"
 )
 
 // CreateService creates a Service if the target resource doesn't exist.
@@ -76,78 +75,6 @@ func CreateOrUpdateDeployment(client kubernetes.Interface, deploy *appsv1.Deploy
 	return nil
 }
 
-// CreateOrUpdateAPIService creates a ApiService if the target resource doesn't exist.
-// If the resource exists already, this function will update the resource instead.
-func CreateOrUpdateAPIService(apiRegistrationClient *aggregator.Clientset, apiservice *apiregistrationv1.APIService) error {
-	if _, err := apiRegistrationClient.ApiregistrationV1().APIServices().Create(context.TODO(), apiservice, metav1.CreateOptions{}); err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			return fmt.Errorf("unable to create APIService: %v", err)
-		}
-
-		existAPIService, err := apiRegistrationClient.ApiregistrationV1().APIServices().Get(context.TODO(), apiservice.Name, metav1.GetOptions{})
-		if err != nil {
-			return err
-		}
-
-		apiservice.ResourceVersion = existAPIService.ResourceVersion
-
-		if _, err := apiRegistrationClient.ApiregistrationV1().APIServices().Update(context.TODO(), apiservice, metav1.UpdateOptions{}); err != nil {
-			return fmt.Errorf("unable to update APIService: %v", err)
-		}
-	}
-
-	klog.V(2).Infof("APIService %s has been created or updated.", apiservice.Name)
-	return nil
-}
-
-// CreateOrUpdateRole creates a Role if the target resource doesn't exist.
-// If the resource exists already, this function will update the resource instead.
-func CreateOrUpdateRole(client kubernetes.Interface, role *rbacv1.Role) error {
-	if _, err := client.RbacV1().Roles(role.Namespace).Create(context.TODO(), role, metav1.CreateOptions{}); err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			return fmt.Errorf("unable to create RBAC role: %v", err)
-		}
-
-		existRole, err := client.RbacV1().Roles(role.Namespace).Get(context.TODO(), role.Name, metav1.GetOptions{})
-		if err != nil {
-			return err
-		}
-
-		role.ResourceVersion = existRole.ResourceVersion
-
-		if _, err := client.RbacV1().Roles(role.Namespace).Update(context.TODO(), role, metav1.UpdateOptions{}); err != nil {
-			return fmt.Errorf("unable to update RBAC role: %v", err)
-		}
-	}
-	klog.V(2).Infof("Role %s/%s has been created or updated.", role.Namespace, role.Name)
-
-	return nil
-}
-
-// CreateOrUpdateRoleBinding creates a RoleBinding if the target resource doesn't exist.
-// If the resource exists already, this function will update the resource instead.
-func CreateOrUpdateRoleBinding(client kubernetes.Interface, roleBinding *rbacv1.RoleBinding) error {
-	if _, err := client.RbacV1().RoleBindings(roleBinding.Namespace).Create(context.TODO(), roleBinding, metav1.CreateOptions{}); err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			return fmt.Errorf("unable to create RBAC rolebinding: %v", err)
-		}
-
-		existRoleBinding, err := client.RbacV1().RoleBindings(roleBinding.Namespace).Get(context.TODO(), roleBinding.Name, metav1.GetOptions{})
-		if err != nil {
-			return err
-		}
-
-		roleBinding.ResourceVersion = existRoleBinding.ResourceVersion
-
-		if _, err := client.RbacV1().RoleBindings(roleBinding.Namespace).Update(context.TODO(), roleBinding, metav1.UpdateOptions{}); err != nil {
-			return fmt.Errorf("unable to update RBAC rolebinding: %v", err)
-		}
-	}
-	klog.V(2).Infof("RoleBinding %s/%s has been created or updated.", roleBinding.Namespace, roleBinding.Name)
-
-	return nil
-}
-
 // CreateOrUpdateClusterRole creates a ClusterRole if the target resource doesn't exist.
 // If the resource exists already, this function will update the resource instead.
 func CreateOrUpdateClusterRole(client kubernetes.Interface, clusterRole *rbacv1.ClusterRole) error {
@@ -192,30 +119,6 @@ func CreateOrUpdateClusterRoleBinding(client kubernetes.Interface, clusterRoleBi
 		}
 	}
 	klog.V(2).Infof("ClusterRolebinding %s has been created or updated.", clusterRoleBinding.Name)
-
-	return nil
-}
-
-// CreateOrUpdateConfigMap creates a ConfigMap if the target resource doesn't exist.
-// If the resource exists already, this function will update the resource instead.
-func CreateOrUpdateConfigMap(client *kubernetes.Clientset, cm *corev1.ConfigMap) error {
-	if _, err := client.CoreV1().ConfigMaps(cm.Namespace).Create(context.TODO(), cm, metav1.CreateOptions{}); err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			return fmt.Errorf("unable to create ConfigMap: %v", err)
-		}
-
-		existCm, err := client.CoreV1().ConfigMaps(cm.Namespace).Get(context.TODO(), cm.Name, metav1.GetOptions{})
-		if err != nil {
-			return err
-		}
-
-		cm.ResourceVersion = existCm.ResourceVersion
-
-		if _, err := client.CoreV1().ConfigMaps(cm.Namespace).Update(context.TODO(), cm, metav1.UpdateOptions{}); err != nil {
-			return fmt.Errorf("unable to update ConfigMap: %v", err)
-		}
-	}
-	klog.V(2).Infof("ConfigMap %s/%s has been created or updated.", cm.Namespace, cm.Name)
 
 	return nil
 }
@@ -265,14 +168,11 @@ func CreateOrUpdateService(client kubernetes.Interface, svc *corev1.Service) err
 					return fmt.Errorf("unable to create Service: %v", err)
 				}
 			}
-			// go to end
 		} else {
 			return err
 		}
 	} else {
-		// update
 		svc.ResourceVersion = existSvc.ResourceVersion
-
 		if _, err := client.CoreV1().Services(svc.Namespace).Update(context.TODO(), svc, metav1.UpdateOptions{}); err != nil {
 			return fmt.Errorf("unable to update Service: %v", err)
 		}
