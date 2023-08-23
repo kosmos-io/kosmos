@@ -33,7 +33,7 @@ func (h *PodRoutes) Do(c *Context) (err error) {
 		BuildRoutes(c, target, podCIDRs)
 	}
 
-	return
+	return nil
 }
 
 func BuildRoutes(ctx *Context, target *v1alpha1.ClusterNode, cidrs []string) {

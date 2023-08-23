@@ -15,5 +15,5 @@ func (h *ServiceRoutes) Do(c *Context) (err error) {
 		BuildRoutes(c, target, serviceCIDRs)
 	}
 
-	return
+	return nil
 }

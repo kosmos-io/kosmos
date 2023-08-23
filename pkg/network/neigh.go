@@ -165,8 +165,8 @@ func DeleteNeighByDevice(dev string, neighType NeighType) error {
 		klog.Info("Thers is no %s entry for interface %s", NEIGH_TYPE_MAP[neighType], dev)
 		return nil
 	}
-	for _, neigh := range neighList {
-		err := netlink.NeighDel(&neigh)
+	for i := range neighList {
+		err := netlink.NeighDel(&neighList[i])
 		if err != nil {
 			klog.Errorf("Del %s entry error : %v", NEIGH_TYPE_MAP[neighType], err)
 			return err
