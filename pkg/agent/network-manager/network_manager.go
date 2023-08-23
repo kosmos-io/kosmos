@@ -39,7 +39,6 @@ func NewNetworkManager(network network.NetWork) *NetworkManager {
 		ToConfig:         &clusterlinkv1alpha1.NodeConfigSpec{},
 		FromConfig:       &clusterlinkv1alpha1.NodeConfigSpec{},
 	}
-
 }
 
 /**
@@ -152,6 +151,7 @@ func (e *NetworkManager) LoadSystemConfig() (*clusterlinkv1alpha1.NodeConfigSpec
 	return e.NetworkInterface.LoadSysConfig()
 }
 
+// nolint:dupl
 func (e *NetworkManager) WriteSys(configDiff *ConfigDiff) error {
 	var errs error
 
@@ -222,7 +222,6 @@ func (e *NetworkManager) WriteSys(configDiff *ConfigDiff) error {
 				errs = errors.Wrap(err, fmt.Sprint(errs))
 			}
 		}
-
 	}
 
 	return errs
