@@ -37,6 +37,8 @@ func GenerateMac() net.HardwareAddr {
 
 	_, err := rand.Read(buf)
 	if err != nil {
+		klog.Error("read buf error")
+		return net.HardwareAddr{}
 	}
 
 	// Set the local bit
