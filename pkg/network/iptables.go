@@ -109,7 +109,6 @@ func updateIptablesWithInterface(i iptables.Interface, records []IptablesRecord)
 
 // Delete(table, chain, ruleSpec...)
 func deleteIptablesWithInterface(i iptables.Interface, records []IptablesRecord) error {
-
 	mapRecords := groupByTableChain(records)
 
 	for key, items := range mapRecords {
@@ -146,7 +145,6 @@ func translateChainName(key string, f bool) string {
 }
 
 func groupByTableChain(records []IptablesRecord) map[string][]IptablesRecord {
-
 	results := make(map[string][]IptablesRecord)
 	for _, r := range records {
 		tableChain := fmt.Sprintf("%s/%s", r.Table, translateChainName(r.Chain, true))
@@ -156,7 +154,6 @@ func groupByTableChain(records []IptablesRecord) map[string][]IptablesRecord {
 }
 
 func loadIptables() ([]clusterlinkv1alpha1.Iptables, error) {
-
 	ipts := []clusterlinkv1alpha1.Iptables{}
 
 	ipTypes := []ipt.Protocol{

@@ -15,7 +15,6 @@ type ServiceRoutes struct {
 }
 
 func (h *ServiceRoutes) Do(c *Context) (err error) {
-
 	gwNodes := c.Filter.GetGatewayNodes()
 
 	for _, target := range gwNodes {

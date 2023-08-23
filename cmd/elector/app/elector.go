@@ -131,7 +131,6 @@ func run(ctx context.Context, opts *options.Options) error {
 							klog.V(4).Info("ensure gateway role success, recheck after 60 sec.")
 							time.Sleep(60 * time.Second)
 						}
-
 					}
 				}
 			},

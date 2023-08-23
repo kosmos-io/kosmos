@@ -11,7 +11,6 @@ type VxBridgeNetwork struct {
 }
 
 func (h *VxBridgeNetwork) Do(c *Context) (err error) {
-
 	gwNodes := c.Filter.GetGatewayNodes()
 	epNodes := c.Filter.GetEndpointNodes()
 

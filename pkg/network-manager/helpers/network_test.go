@@ -6,7 +6,6 @@ import (
 )
 
 func Test_GenerateVxlanIP(t *testing.T) {
-
 	tests := []struct {
 		name    string
 		ip      string

@@ -15,7 +15,6 @@ type PodRoutes struct {
 }
 
 func (h *PodRoutes) Do(c *Context) (err error) {
-
 	gwNodes := c.Filter.GetGatewayNodes()
 	epNodes := c.Filter.GetEndpointNodes()
 

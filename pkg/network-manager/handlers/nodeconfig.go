@@ -1,9 +1,9 @@
 package handlers
 
 import (
+	"encoding/json"
 	"sort"
 
-	"encoding/json"
 	"k8s.io/klog/v2"
 
 	"github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1"

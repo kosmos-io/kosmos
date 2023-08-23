@@ -80,7 +80,6 @@ func (c *Controller) newClusterMapFunc() handler.MapFunc {
 }
 
 func (c *Controller) SetupWithManager(mgr manager.Manager) error {
-
 	if c.NetworkManager == nil {
 		c.NetworkManager = NewManager()
 	}
@@ -94,7 +93,6 @@ func (c *Controller) SetupWithManager(mgr manager.Manager) error {
 }
 
 func (c *Controller) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
-
 	c.Lock()
 	defer c.Unlock()
 

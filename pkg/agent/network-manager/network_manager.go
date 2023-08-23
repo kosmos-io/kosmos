@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"sync"
 
-	clusterlinkv1alpha1 "github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
-	"github.com/kosmos.io/clusterlink/pkg/network"
 	"github.com/pkg/errors"
 	"k8s.io/klog/v2"
+
+	clusterlinkv1alpha1 "github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
+	"github.com/kosmos.io/clusterlink/pkg/network"
 )
 
 var lock = &sync.RWMutex{}
@@ -261,7 +262,6 @@ func printNodeConfig(data *clusterlinkv1alpha1.NodeConfigSpec) {
 }
 
 func (e *NetworkManager) UpdateSync() NodeConfigSyncStatus {
-
 	// load sysconfig
 	fromConfig, err := e.LoadSystemConfig()
 	if err != nil {
@@ -295,5 +295,4 @@ func (e *NetworkManager) UpdateSync() NodeConfigSyncStatus {
 	e.Reason = ""
 
 	return NodeConfigSyncSuccess
-
 }

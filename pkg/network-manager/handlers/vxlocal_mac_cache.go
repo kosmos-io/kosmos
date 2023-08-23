@@ -14,7 +14,6 @@ type VxLocalMacCache struct {
 }
 
 func (h *VxLocalMacCache) Do(c *Context) (err error) {
-
 	nodes := c.Filter.GetInternalNodes()
 
 	for _, node := range nodes {
@@ -76,7 +75,6 @@ func (h *VxLocalMacCache) Do(c *Context) (err error) {
 				Mac: gwDev.Mac,
 				Dev: gwDevName,
 			})
-
 		}
 
 		c.Results[node.Name].Fdbs = append(c.Results[node.Name].Fdbs, fdbs...)
