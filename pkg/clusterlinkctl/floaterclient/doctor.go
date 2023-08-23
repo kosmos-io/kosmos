@@ -108,110 +108,72 @@ func (i *DoctorOptions) Complete() error {
 		i.ImageRepositoryDst = i.ImageRepository
 	}
 
+	srcFloater := newFloater(i)
 	if i.SrcCluster != "" {
-		srcFloater := &Floater{
-			Namespace:       i.Namespace,
-			ImageRepository: i.ImageRepository,
-			Version:         i.Version,
-			PodWaitTime:     i.PodWaitTime,
-			Port:            i.Port,
-		}
-
-		hc := &HostClusterHelper{
-			Kubeconfig: i.HostKubeConfig,
-		}
-		if err := hc.Complete(); err != nil {
+		if err := srcFloater.completeFromCluster(i.SrcCluster, i.HostKubeConfig); err != nil {
 			return err
 		}
-
-		ResetConfig, KubeClientSet, CIDRsMap, err := hc.GetClusterInfo(i.SrcCluster)
-		if err != nil {
-			return err
-		}
-		srcFloater.KubeClientSet = KubeClientSet
-		srcFloater.CIDRsMap = CIDRsMap
-		srcFloater.KueResetConfig = ResetConfig
-
-		if i.HostNetwork {
-			srcFloater.EnableHostNetwork = true
-		}
-
-		if err = srcFloater.InitKubeClient(); err != nil {
-			return err
-		}
-		i.SrcFloater = srcFloater
 	} else {
-		srcFloater := &Floater{
-			Namespace:       i.Namespace,
-			ImageRepository: i.ImageRepository,
-			Version:         i.Version,
-			PodWaitTime:     i.PodWaitTime,
-			Port:            i.Port,
-		}
-		srcFloater.KubeConfig = i.SrcKubeConfig
-
-		if i.HostNetwork {
-			srcFloater.EnableHostNetwork = true
-		}
-
-		if err := srcFloater.InitKubeClient(); err != nil {
+		if err := srcFloater.completeFromKubeConfigPath(i.SrcKubeConfig); err != nil {
 			return err
 		}
-		i.SrcFloater = srcFloater
 	}
+	i.SrcFloater = srcFloater
 
+	dstFloater := newFloater(i)
 	if i.DstCluster != "" {
-		dstFloater := &Floater{
-			Namespace:       i.Namespace,
-			ImageRepository: i.ImageRepositoryDst,
-			Version:         i.Version,
-			PodWaitTime:     i.PodWaitTime,
-			Port:            i.Port,
-		}
-
-		hc := &HostClusterHelper{
-			Kubeconfig: i.HostKubeConfig,
-		}
-		if err := hc.Complete(); err != nil {
+		if err := dstFloater.completeFromCluster(i.DstCluster, i.HostKubeConfig); err != nil {
 			return err
 		}
-
-		ResetConfig, KubeClientSet, CIDRsMap, err := hc.GetClusterInfo(i.DstCluster)
-		if err != nil {
-			return err
-		}
-		dstFloater.KubeClientSet = KubeClientSet
-		dstFloater.CIDRsMap = CIDRsMap
-		dstFloater.KueResetConfig = ResetConfig
-
-		if i.HostNetwork {
-			dstFloater.EnableHostNetwork = true
-		}
-
-		if err = dstFloater.InitKubeClient(); err != nil {
-			return err
-		}
-		i.DstFloater = dstFloater
 	} else {
-		dstFloater := &Floater{
-			Namespace:       i.Namespace,
-			ImageRepository: i.ImageRepositoryDst,
-			Version:         i.Version,
-			PodWaitTime:     i.PodWaitTime,
-			Port:            i.Port,
-		}
-		dstFloater.KubeConfig = i.DstKubeConfig
-
-		if i.HostNetwork {
-			dstFloater.EnableHostNetwork = true
-		}
-
-		if err := dstFloater.InitKubeClient(); err != nil {
+		if err := dstFloater.completeFromKubeConfigPath(i.DstKubeConfig); err != nil {
 			return err
 		}
-		i.DstFloater = dstFloater
+	}
+	i.DstFloater = dstFloater
+	return nil
+}
+
+func newFloater(opt *DoctorOptions) *Floater {
+	floater := &Floater{
+		Namespace:       opt.Namespace,
+		ImageRepository: opt.ImageRepositoryDst,
+		Version:         opt.Version,
+		PodWaitTime:     opt.PodWaitTime,
+		Port:            opt.Port,
+	}
+	if opt.HostNetwork {
+		floater.EnableHostNetwork = true
+	}
+	return floater
+}
+
+func (i *Floater) completeFromCluster(cluster, hostKubeConfig string) error {
+	hc := &HostClusterHelper{
+		Kubeconfig: hostKubeConfig,
+	}
+	if err := hc.Complete(); err != nil {
+		return err
 	}
 
+	ResetConfig, KubeClientSet, CIDRsMap, err := hc.GetClusterInfo(cluster)
+	if err != nil {
+		return err
+	}
+	i.KubeClientSet = KubeClientSet
+	i.CIDRsMap = CIDRsMap
+	i.KueResetConfig = ResetConfig
+	if err = i.InitKubeClient(); err != nil {
+		return err
+	}
+	return err
+}
+
+func (i *Floater) completeFromKubeConfigPath(kubeConfig string) error {
+	i.KubeConfig = kubeConfig
+	if err := i.InitKubeClient(); err != nil {
+		return err
+	}
 	return nil
 }
 
