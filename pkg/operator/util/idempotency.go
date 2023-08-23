@@ -1,3 +1,4 @@
+// nolint:dupl
 package util
 
 import (
@@ -15,7 +16,6 @@ import (
 
 // CreateService creates a Service if the target resource doesn't exist.
 // If the resource exists already, return directly
-// nolint:dupl
 func CreateService(client kubernetes.Interface, service *corev1.Service) error {
 	if _, err := client.CoreV1().Services(service.Namespace).Create(context.TODO(), service, metav1.CreateOptions{}); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
@@ -29,7 +29,6 @@ func CreateService(client kubernetes.Interface, service *corev1.Service) error {
 
 // CreateOrUpdateSecret creates a Secret if the target resource doesn't exist.
 // If the resource exists already, this function will update the resource instead.
-// nolint:dupl
 func CreateOrUpdateSecret(client kubernetes.Interface, secret *corev1.Secret) error {
 	if _, err := client.CoreV1().Secrets(secret.Namespace).Create(context.TODO(), secret, metav1.CreateOptions{}); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
@@ -54,7 +53,6 @@ func CreateOrUpdateSecret(client kubernetes.Interface, secret *corev1.Secret) er
 
 // CreateOrUpdateDeployment creates a Deployment if the target resource doesn't exist.
 // If the resource exists already, this function will update the resource instead.
-// nolint:dupl
 func CreateOrUpdateDeployment(client kubernetes.Interface, deploy *appsv1.Deployment) error {
 	if _, err := client.AppsV1().Deployments(deploy.Namespace).Create(context.TODO(), deploy, metav1.CreateOptions{}); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
@@ -79,7 +77,6 @@ func CreateOrUpdateDeployment(client kubernetes.Interface, deploy *appsv1.Deploy
 
 // CreateOrUpdateClusterRole creates a ClusterRole if the target resource doesn't exist.
 // If the resource exists already, this function will update the resource instead.
-// nolint:dupl
 func CreateOrUpdateClusterRole(client kubernetes.Interface, clusterRole *rbacv1.ClusterRole) error {
 	if _, err := client.RbacV1().ClusterRoles().Create(context.TODO(), clusterRole, metav1.CreateOptions{}); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
@@ -104,7 +101,6 @@ func CreateOrUpdateClusterRole(client kubernetes.Interface, clusterRole *rbacv1.
 
 // CreateOrUpdateClusterRoleBinding creates a ClusterRoleBinding if the target resource doesn't exist.
 // If the resource exists already, this function will update the resource instead.
-// nolint:dupl
 func CreateOrUpdateClusterRoleBinding(client kubernetes.Interface, clusterRoleBinding *rbacv1.ClusterRoleBinding) error {
 	if _, err := client.RbacV1().ClusterRoleBindings().Create(context.TODO(), clusterRoleBinding, metav1.CreateOptions{}); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
@@ -138,7 +134,6 @@ func NewNamespace(name string) *corev1.Namespace {
 
 // CreateOrUpdateNamespace creates a Namespaces if the target resource doesn't exist.
 // If the resource exists already, this function will update the resource instead.
-// nolint:dupl
 func CreateOrUpdateNamespace(client kubernetes.Interface, ns *corev1.Namespace) error {
 	if _, err := client.CoreV1().Namespaces().Create(context.TODO(), ns, metav1.CreateOptions{}); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
@@ -190,7 +185,6 @@ func CreateOrUpdateService(client kubernetes.Interface, svc *corev1.Service) err
 
 // CreateOrUpdateDaemonSet creates a DaemonSet if the target resource doesn't exist.
 // If the resource exists already, this function will update the resource instead.
-// nolint:dupl
 func CreateOrUpdateDaemonSet(client kubernetes.Interface, daemonset *appsv1.DaemonSet) error {
 	if _, err := client.AppsV1().DaemonSets(daemonset.Namespace).Create(context.TODO(), daemonset, metav1.CreateOptions{}); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
@@ -213,7 +207,6 @@ func CreateOrUpdateDaemonSet(client kubernetes.Interface, daemonset *appsv1.Daem
 	return nil
 }
 
-// nolint:dupl
 func CreateOrUpdateServiceAccount(client kubernetes.Interface, serviceaccount *corev1.ServiceAccount) error {
 	if _, err := client.CoreV1().ServiceAccounts(serviceaccount.Namespace).Create(context.TODO(), serviceaccount, metav1.CreateOptions{}); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
