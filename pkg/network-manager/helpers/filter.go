@@ -59,29 +59,9 @@ func (f *Filter) GetEndpointNodes() []*v1alpha1.ClusterNode {
 	return results
 }
 
-func (f *Filter) GetClusters() []*v1alpha1.Cluster {
-	var results []*v1alpha1.Cluster
-	for _, cluster := range f.clusters {
-		results = append(results, cluster)
-	}
-	return nil
-}
-
-func (f *Filter) GetGatewayClusters() []*v1alpha1.Cluster {
-	var results []*v1alpha1.Cluster
-	for _, cluster := range f.clusters {
-		if cluster.IsGateway() {
-			results = append(results, cluster)
-		}
-	}
-	return nil
-}
-
 func (f *Filter) GetClusterNodes() []*v1alpha1.ClusterNode {
 	var results []*v1alpha1.ClusterNode
-	for _, node := range f.clusterNodes {
-		results = append(results, node)
-	}
+	results = append(results, f.clusterNodes...)
 	return results
 }
 
