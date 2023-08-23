@@ -12,7 +12,6 @@ type HostNetwork struct {
 }
 
 func (h *HostNetwork) Do(c *Context) (err error) {
-
 	gwNodes := c.Filter.GetGatewayNodes()
 
 	for _, n := range gwNodes {

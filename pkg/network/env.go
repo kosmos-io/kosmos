@@ -5,8 +5,9 @@ import (
 	"os"
 
 	ipt "github.com/coreos/go-iptables/iptables"
-	"github.com/kosmos.io/clusterlink/pkg/network/iptables"
 	"github.com/pkg/errors"
+
+	"github.com/kosmos.io/clusterlink/pkg/network/iptables"
 )
 
 func UpdateDefaultIp6tablesBehavior(ifaceName string) error {

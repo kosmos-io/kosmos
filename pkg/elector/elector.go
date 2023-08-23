@@ -38,7 +38,7 @@ func (e *Elector) EnsureGateWayRole() error {
 	}
 	modifyNodes := e.genModifyNode(clusterNodes.Items)
 	klog.Infof("%d node need modify", len(modifyNodes))
-	for i:= range modifyNodes {
+	for i := range modifyNodes {
 		node := modifyNodes[i]
 		_, err := e.controlPanelClient.ClusterlinkV1alpha1().ClusterNodes().Update(context.TODO(), &node, metav1.UpdateOptions{})
 		if err != nil {

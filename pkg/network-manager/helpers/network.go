@@ -77,7 +77,6 @@ func GenerateVxlanIP(underlayIP string, destNetString string) (string, error) {
 }
 
 func changeIPNetIPV4(ip net.IP, destNet net.IPNet) (net.IPNet, error) {
-
 	ipBytes := ip.To4()
 	destNetBytes := destNet.IP.To4()
 	maskSize, _ := destNet.Mask.Size()
@@ -97,7 +96,6 @@ func changeIPNetIPV4(ip net.IP, destNet net.IPNet) (net.IPNet, error) {
 }
 
 func changeIPNetIPV6(ip net.IP, destNet net.IPNet) (net.IPNet, error) {
-
 	ipBytes := []byte(ip)
 	maskBytes := []byte(destNet.Mask)
 	destIPBytes := []byte(destNet.IP)

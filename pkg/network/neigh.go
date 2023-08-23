@@ -177,7 +177,6 @@ func DeleteNeighByDevice(dev string, neighType NeighType) error {
 }
 
 func ListNeigh(neighType NeighType) []FDBRecord {
-
 	klog.Infof("Listing all %s entry", NEIGH_TYPE_MAP[neighType])
 	// ToDo: list neigh entry by interface
 	devs := []string{VXLAN_BRIDGE_NAME, VXLAN_BRIDGE_NAME_6, VXLAN_LOCAL_NAME, VXLAN_LOCAL_NAME_6}

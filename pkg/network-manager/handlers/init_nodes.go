@@ -5,7 +5,6 @@ type InitNodes struct {
 }
 
 func (h *InitNodes) Do(c *Context) (err error) {
-
 	clusterNodes := c.Filter.GetClusterNodes()
 	results := make(map[string]*NodeConfig)
 	for _, n := range clusterNodes {
