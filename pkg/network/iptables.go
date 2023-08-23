@@ -194,6 +194,7 @@ func loadIptables() ([]clusterlinkv1alpha1.Iptables, error) {
 }
 
 // TODO: struce perfect
+// nolint:dupl
 func addIptables(ipts clusterlinkv1alpha1.Iptables) error {
 	klog.Infof("start to create globanet iptables: %v", ipts)
 
@@ -234,6 +235,7 @@ func addIptables(ipts clusterlinkv1alpha1.Iptables) error {
 	return nil
 }
 
+// nolint:dupl
 func deleteIptable(ipts clusterlinkv1alpha1.Iptables) error {
 	klog.Infof("start to delete globanet iptables: %v", ipts)
 
