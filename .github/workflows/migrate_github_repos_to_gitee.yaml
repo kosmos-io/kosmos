@@ -2,9 +2,8 @@ name: Github repos migrate periodic job
 on:
   push:
     # Runs at every pull requests submitted in master branch
-    branches: main
-  pull_request:
-    branches: main
+    branches: 
+      - 'main'
 jobs:
   repo-sync:
     runs-on: ubuntu-latest
