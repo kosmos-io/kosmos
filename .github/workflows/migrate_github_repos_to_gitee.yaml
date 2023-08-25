@@ -1,0 +1,23 @@
+name: Github repos migrate periodic job
+on:
+  push:
+    # Runs at every pull requests submitted in master branch
+    branches: main
+  pull_request:
+    branches: main
+jobs:
+  repo-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Migrate the Github organization repos to Gitee.
+        uses: Yikun/hub-mirror-action@master
+        with:
+          src: 'github/kosmos-io'
+          dst: 'gitee/kosmos-io'
+          dst_key: ${{ secrets.GITEE_PRIVATE_KEY }}
+          dst_token:  ${{ secrets.GITEE_TOKEN }}
+          timeout: 600
+          debug: true
+          account_type: org
+          force_update: true
+          static_list: 'clusterlink'
