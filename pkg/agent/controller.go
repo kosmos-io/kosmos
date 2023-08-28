@@ -81,7 +81,6 @@ func (r *Reconciler) logResult(nodeConfigSyncStatus networkmanager.NodeConfigSyn
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
-
 	klog.Infof("============ agent starts to reconcile %s ============", request.NamespacedName)
 
 	var reconcileNode clusterlinkv1alpha1.NodeConfig
@@ -104,11 +103,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 	r.DebounceFunc(func() {
 		nodeConfigSyncStatus := r.NetworkManager.UpdateFromCRD(&reconcileNode)
 		r.logResult(nodeConfigSyncStatus)
-
 	})
 
 	return reconcile.Result{}, nil
-
 }
 
 func (r *Reconciler) StartTimer(ctx context.Context) {

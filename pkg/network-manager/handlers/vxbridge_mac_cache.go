@@ -14,7 +14,6 @@ type VxBridgeMacCache struct {
 }
 
 func (h *VxBridgeMacCache) Do(c *Context) (err error) {
-
 	gwNodes := c.Filter.GetGatewayNodes()
 	epNodes := c.Filter.GetEndpointNodes()
 

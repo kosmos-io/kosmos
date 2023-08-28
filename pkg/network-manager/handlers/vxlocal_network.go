@@ -11,7 +11,6 @@ type VxLocalNetwork struct {
 }
 
 func (h *VxLocalNetwork) Do(c *Context) (err error) {
-
 	nodes := c.Filter.GetGatewayClusterNodes()
 
 	for _, node := range nodes {

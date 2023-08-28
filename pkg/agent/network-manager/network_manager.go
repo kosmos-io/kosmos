@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"sync"
 
-	clusterlinkv1alpha1 "github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
-	"github.com/kosmos.io/clusterlink/pkg/network"
 	"github.com/pkg/errors"
 	"k8s.io/klog/v2"
+
+	clusterlinkv1alpha1 "github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
+	"github.com/kosmos.io/clusterlink/pkg/network"
 )
 
 var lock = &sync.RWMutex{}
@@ -39,7 +40,6 @@ func NewNetworkManager(network network.NetWork) *NetworkManager {
 		ToConfig:         &clusterlinkv1alpha1.NodeConfigSpec{},
 		FromConfig:       &clusterlinkv1alpha1.NodeConfigSpec{},
 	}
-
 }
 
 /**
@@ -152,6 +152,7 @@ func (e *NetworkManager) LoadSystemConfig() (*clusterlinkv1alpha1.NodeConfigSpec
 	return e.NetworkInterface.LoadSysConfig()
 }
 
+// nolint:dupl
 func (e *NetworkManager) WriteSys(configDiff *ConfigDiff) error {
 	var errs error
 
@@ -222,7 +223,6 @@ func (e *NetworkManager) WriteSys(configDiff *ConfigDiff) error {
 				errs = errors.Wrap(err, fmt.Sprint(errs))
 			}
 		}
-
 	}
 
 	return errs
@@ -262,7 +262,6 @@ func printNodeConfig(data *clusterlinkv1alpha1.NodeConfigSpec) {
 }
 
 func (e *NetworkManager) UpdateSync() NodeConfigSyncStatus {
-
 	// load sysconfig
 	fromConfig, err := e.LoadSystemConfig()
 	if err != nil {
@@ -296,5 +295,4 @@ func (e *NetworkManager) UpdateSync() NodeConfigSyncStatus {
 	e.Reason = ""
 
 	return NodeConfigSyncSuccess
-
 }

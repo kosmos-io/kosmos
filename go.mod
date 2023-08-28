@@ -18,15 +18,16 @@ require (
 	golang.org/x/time v0.3.0
 	golang.org/x/tools v0.7.0
 	k8s.io/api v0.26.3
-	k8s.io/apiextensions-apiserver v0.26.1
+	k8s.io/apiextensions-apiserver v0.26.3
 	k8s.io/apimachinery v0.26.3
-	k8s.io/apiserver v0.26.2
+	k8s.io/apiserver v0.26.3
+	k8s.io/cli-runtime v0.26.3
 	k8s.io/client-go v0.26.3
-	k8s.io/cluster-bootstrap v0.26.2
-	k8s.io/code-generator v0.26.2
+	k8s.io/cluster-bootstrap v0.26.3
+	k8s.io/code-generator v0.26.3
 	k8s.io/component-base v0.26.3
 	k8s.io/klog/v2 v2.90.0
-	k8s.io/kube-aggregator v0.26.2
+	k8s.io/kube-aggregator v0.26.3
 	k8s.io/kube-openapi v0.0.0-20230303024457-afdc3dddf62d
 	k8s.io/kubectl v0.26.3
 	k8s.io/utils v0.0.0-20221128185143-99ec85e7a448
@@ -53,6 +54,7 @@ require (
 	github.com/exponent-io/jsonpath v0.0.0-20151013193312-d6023ce2651d // indirect
 	github.com/felixge/httpsnoop v1.0.3 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
+	github.com/fvbommel/sortorder v1.0.1 // indirect
 	github.com/go-errors/errors v1.0.1 // indirect
 	github.com/go-logr/logr v1.2.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
@@ -142,10 +144,9 @@ require (
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/cli-runtime v0.26.3 // indirect
 	k8s.io/gengo v0.0.0-20220902162205-c0856e24416d // indirect
-	k8s.io/kms v0.26.2 // indirect
-	sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.0.35 // indirect
+	k8s.io/kms v0.26.3 // indirect
+	sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.0.36 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 	sigs.k8s.io/kustomize/api v0.12.1 // indirect
 	sigs.k8s.io/kustomize/kyaml v0.13.9 // indirect
@@ -153,4 +154,12 @@ require (
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
 
-replace golang.org/x/oauth2 => golang.org/x/oauth2 v0.1.0
+replace (
+	golang.org/x/oauth2 => golang.org/x/oauth2 v0.1.0
+	k8s.io/cri-api => k8s.io/cri-api v0.26.3
+	k8s.io/kube-proxy => k8s.io/kube-proxy v0.26.3
+	k8s.io/kube-scheduler => k8s.io/kube-scheduler v0.26.3
+	k8s.io/kubelet => k8s.io/kubelet v0.26.3
+	k8s.io/kubernetes => k8s.io/kubernetes v0.26.3
+	k8s.io/legacy-cloud-providers => k8s.io/legacy-cloud-providers v0.26.3
+)

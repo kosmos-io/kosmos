@@ -4,10 +4,11 @@ import (
 	"net"
 	"os"
 
-	clusterlinkv1alpha1 "github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
 	"github.com/pkg/errors"
 	"github.com/vishvananda/netlink"
 	"k8s.io/klog/v2"
+
+	clusterlinkv1alpha1 "github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
 )
 
 func newTableRule(tableID, family int) *netlink.Rule {
@@ -89,7 +90,6 @@ func loadRoutes() ([]clusterlinkv1alpha1.Route, error) {
 }
 
 func addRoute(r clusterlinkv1alpha1.Route) error {
-
 	ipAddressList := []string{r.CIDR}
 	gw := r.Gw
 	dev := r.Dev
@@ -104,7 +104,6 @@ func addRoute(r clusterlinkv1alpha1.Route) error {
 	}
 	klog.Infof("Try to add routes")
 	for _, ipAddress := range ipAddressList {
-
 		_, ipNetMask, err := net.ParseCIDR(ipAddress)
 
 		if err != nil {
@@ -136,7 +135,6 @@ func addRoute(r clusterlinkv1alpha1.Route) error {
 }
 
 func deleteRoute(r clusterlinkv1alpha1.Route) error {
-
 	ipAddressList := []string{r.CIDR}
 	gw := r.Gw
 	dev := r.Dev
@@ -151,7 +149,6 @@ func deleteRoute(r clusterlinkv1alpha1.Route) error {
 	}
 	klog.Info("Try to delete routes")
 	for _, ipAddress := range ipAddressList {
-
 		_, ipNetMask, err := net.ParseCIDR(ipAddress)
 
 		if err != nil {

@@ -21,7 +21,6 @@ func NewManager() *Manager {
 
 // CalculateNetworkConfigs Calculate the network configuration required for each node
 func (n *Manager) CalculateNetworkConfigs(clusters []v1alpha1.Cluster, clusterNodes []v1alpha1.ClusterNode, nodeConfigs []v1alpha1.NodeConfig) (map[string]*handlers.NodeConfig, error) {
-
 	filter := helpers.NewFilter(clusterNodes, clusters, nodeConfigs)
 
 	c := &handlers.Context{

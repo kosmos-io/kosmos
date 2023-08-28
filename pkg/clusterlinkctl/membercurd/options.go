@@ -77,6 +77,7 @@ func (m *CommandMemberOption) ShowKubeCluster() error {
 	mux := sync.Mutex{}
 	wg.Add(len(clusterList.Items))
 	for _, cluster := range clusterList.Items {
+		cluster := cluster
 		go func() {
 			err := m.GetInfoFromCluster(&wg, &mux, cluster)
 			if err != nil {

@@ -82,7 +82,7 @@ func main() {
 	code := buf.String()
 	//fmt.Println(code)
 
-	err = os.WriteFile(filename, []byte(code), 0644)
+	err = os.WriteFile(filename, []byte(code), 0600)
 	if err != nil {
 		fmt.Println("update failure", err)
 		return

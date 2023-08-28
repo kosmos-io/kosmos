@@ -25,7 +25,6 @@ func (i *IptablesRecord) ToString() string {
 
 // CreateGlobalNetIptablesChains 创建clusterLink自定义链
 func CreateGlobalNetIptablesChains() error {
-
 	klog.Infof("start to create globalnet chains")
 
 	ipTypes := []ipt.Protocol{
@@ -63,7 +62,6 @@ func CreateGlobalNetIptablesChains() error {
 
 // ClearGlobalNetIptablesChains 清理clusterLink自定义链
 func ClearGlobalNetIptablesChains(isIpv6 bool) error {
-
 	ipType := ipt.ProtocolIPv4
 	if isIpv6 {
 		ipType = ipt.ProtocolIPv6
@@ -95,7 +93,6 @@ func getRulesFromIptablesRecords(records []IptablesRecord) [][]string {
 
 // updateIptablesWithInterface 将iptables分类并设置到底层
 func updateIptablesWithInterface(i iptables.Interface, records []IptablesRecord) error {
-
 	mapRecords := groupByTableChain(records)
 
 	for key, items := range mapRecords {
@@ -112,7 +109,6 @@ func updateIptablesWithInterface(i iptables.Interface, records []IptablesRecord)
 
 // Delete(table, chain, ruleSpec...)
 func deleteIptablesWithInterface(i iptables.Interface, records []IptablesRecord) error {
-
 	mapRecords := groupByTableChain(records)
 
 	for key, items := range mapRecords {
@@ -149,7 +145,6 @@ func translateChainName(key string, f bool) string {
 }
 
 func groupByTableChain(records []IptablesRecord) map[string][]IptablesRecord {
-
 	results := make(map[string][]IptablesRecord)
 	for _, r := range records {
 		tableChain := fmt.Sprintf("%s/%s", r.Table, translateChainName(r.Chain, true))
@@ -159,7 +154,6 @@ func groupByTableChain(records []IptablesRecord) map[string][]IptablesRecord {
 }
 
 func loadIptables() ([]clusterlinkv1alpha1.Iptables, error) {
-
 	ipts := []clusterlinkv1alpha1.Iptables{}
 
 	ipTypes := []ipt.Protocol{
@@ -194,6 +188,7 @@ func loadIptables() ([]clusterlinkv1alpha1.Iptables, error) {
 }
 
 // TODO: struce perfect
+// nolint:dupl
 func addIptables(ipts clusterlinkv1alpha1.Iptables) error {
 	klog.Infof("start to create globanet iptables: %v", ipts)
 
@@ -234,6 +229,7 @@ func addIptables(ipts clusterlinkv1alpha1.Iptables) error {
 	return nil
 }
 
+// nolint:dupl
 func deleteIptable(ipts clusterlinkv1alpha1.Iptables) error {
 	klog.Infof("start to delete globanet iptables: %v", ipts)
 
