@@ -11,6 +11,7 @@ func (h *ServiceRoutes) Do(c *Context) (err error) {
 		cluster := c.Filter.GetClusterByName(target.Spec.ClusterName)
 		serviceCIDRs := cluster.Status.ServiceCIDRs
 
+		serviceCIDRs = ConvertToGlobalCIDRs(serviceCIDRs, cluster.Spec.GlobalCIDRsMap)
 		BuildRoutes(c, target, serviceCIDRs)
 	}
 

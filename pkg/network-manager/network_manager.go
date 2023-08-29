@@ -36,7 +36,6 @@ func (n *Manager) CalculateNetworkConfigs(clusters []v1alpha1.Cluster, clusterNo
 		SetNext(&handlers.PodRoutes{}).
 		SetNext(&handlers.VxLocalMacCache{}).
 		SetNext(&handlers.VxBridgeMacCache{}).
-		SetNext(&handlers.GlobalMap{}).
 		SetNext(&handlers.HostNetwork{})
 
 	if err := rootHandler.Run(c); err != nil {

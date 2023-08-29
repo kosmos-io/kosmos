@@ -29,10 +29,27 @@ func (h *PodRoutes) Do(c *Context) (err error) {
 			podCIDRs = cluster.Status.PodCIDRs
 		}
 
+		podCIDRs = ConvertToGlobalCIDRs(podCIDRs, cluster.Spec.GlobalCIDRsMap)
 		BuildRoutes(c, target, podCIDRs)
 	}
 
 	return nil
+}
+
+func ConvertToGlobalCIDRs(cidrs []string, globalCIDRMap map[string]string) []string {
+	if len(globalCIDRMap) == 0 {
+		return cidrs
+	}
+
+	mappedCIDRs := []string{}
+	for _, cidr := range cidrs {
+		if dst, exists := globalCIDRMap[cidr]; exists {
+			mappedCIDRs = append(mappedCIDRs, dst)
+		} else {
+			mappedCIDRs = append(mappedCIDRs, cidr)
+		}
+	}
+	return mappedCIDRs
 }
 
 func BuildRoutes(ctx *Context, target *v1alpha1.ClusterNode, cidrs []string) {
