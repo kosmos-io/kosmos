@@ -1,8 +1,9 @@
-# ClusterLink
+# KOSMOS
 
-**ClusterLink 致力于提供一套完整的多集群网络解决方案**
+## 网络篇
+**KOSMOS 网络模块 ClusterLink 致力于提供一套完整的多集群网络解决方案**
 
-## 关于
+### 关于
 
 ClusterLink 可以快速的打通多个 Kubernetes 集群之间的网络，并且支持多种 CNI 插件。ClusterLink 可以轻松纳管已经存在的集群而不会影响已有的服务。
 
@@ -14,7 +15,7 @@ ClusterLink 可以快速的打通多个 Kubernetes 集群之间的网络，并�
 - **ClusterLink-Operator**：帮助你快速部署 ClusterLink
 - **IPv6/IPv4 双栈支持**
 
-## 架构
+### 架构
 
 <div><img src="./docs/images/clusterlink-arch.png" style="width:900px;" /></div>
 
@@ -25,9 +26,9 @@ ClusterLink 由以下组件组成，各个组件协同工作以打通多集群�
 - **Controller Manager**：运行在子集群中，负责维护集群`clusters.clusterlink.io`和节点`clusternodes.clusterlink.io`的状态，比如：集群节点新增/删除、集群IPPool变更等
 - **Elector**：负责gateway模式下集群gw节点选择
 
-## 快速开始
+### 快速开始
 
-### 本地启动
+#### 本地启动
 通过以下命令可以快速在本地运行一个实验环境，该命令将基于 kind （因此需要先安装docker）创建两个k8s集群，并部署ClusterLink。
 ```bash
 ./hack/local-up-clusterlink.sh
@@ -41,6 +42,12 @@ kubectl --context=kind-cluster-member1-local get pods -nclusterlink-system
 ```bash
 kubectl --context=kind-cluster-host-local exec -it <any-host-pod> -- ping <any-member1-pod-ip>
 ```
+
+## 编排篇
+TBD
+
+## 调度篇
+TBD
 
 ## 贡献者
 
