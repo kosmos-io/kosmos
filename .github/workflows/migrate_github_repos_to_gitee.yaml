@@ -19,4 +19,4 @@ jobs:
           debug: true
           account_type: org
           force_update: true
-          static_list: 'clusterlink'
+          static_list: 'kosmos'
