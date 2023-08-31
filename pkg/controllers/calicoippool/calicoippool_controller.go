@@ -341,14 +341,21 @@ func (c *Controller) Reconcile(key utils.QueueKey) error {
 			delete(c.globalExtIPPoolSet, ipPool)
 		}
 	}
-
+	getCIDR := func(cidr string, cidrMap map[string]string) string {
+		if c, exist := cidrMap[cidr]; exist {
+			return c
+		} else {
+			return cidr
+		}
+	}
+	cidrMap := cluster.Spec.GlobalCIDRsMap
 	podCIDRS := cluster.Status.PodCIDRs
 	serviceCIDR := cluster.Status.ServiceCIDRs
 	for _, cidr := range podCIDRS {
 		extIPPool := ExternalClusterIPPool{
 			cluster: cluster.Name,
 			ipType:  PODIPType,
-			ipPool:  cidr,
+			ipPool:  getCIDR(cidr, cidrMap),
 		}
 		c.globalExtIPPoolSet[extIPPool] = struct{}{}
 	}
@@ -356,7 +363,7 @@ func (c *Controller) Reconcile(key utils.QueueKey) error {
 		extIPPool := ExternalClusterIPPool{
 			cluster: cluster.Name,
 			ipType:  SERVICEIPType,
-			ipPool:  cidr,
+			ipPool:  getCIDR(cidr, cidrMap),
 		}
 		c.globalExtIPPoolSet[extIPPool] = struct{}{}
 	}
