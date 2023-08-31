@@ -6,7 +6,7 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/kosmos.io/kosmos/pkg/apis/clusterlink/v1alpha1"
-	constants "github.com/kosmos.io/kosmos/pkg/network"
+	"github.com/kosmos.io/kosmos/pkg/constants"
 	"github.com/kosmos.io/kosmos/pkg/network-manager/helpers"
 )
 
@@ -52,6 +52,17 @@ func ConvertToGlobalCIDRs(cidrs []string, globalCIDRMap map[string]string) []str
 	return mappedCIDRs
 }
 
+// ifCIDRConflictWithSelf If the target CIDR conflicts with current CIDR, do not add the route, as it will otherwise
+// impact the single-cluster network.
+func ifCIDRConflictWithSelf(selfCIDRs []string, tarCIDR string) bool {
+	for _, cidr := range selfCIDRs {
+		if helpers.Intersect(cidr, tarCIDR) {
+			return true
+		}
+	}
+	return false
+}
+
 func BuildRoutes(ctx *Context, target *v1alpha1.ClusterNode, cidrs []string) {
 	otherClusterNodes := ctx.Filter.GetAllNodesExceptCluster(target.Spec.ClusterName)
 
@@ -77,6 +88,12 @@ func BuildRoutes(ctx *Context, target *v1alpha1.ClusterNode, cidrs []string) {
 
 		for _, n := range otherClusterNodes {
 			srcCluster := ctx.Filter.GetClusterByName(n.Spec.ClusterName)
+
+			allCIDRs := append(srcCluster.Status.PodCIDRs, srcCluster.Status.ServiceCIDRs...)
+			if ifCIDRConflictWithSelf(allCIDRs, cidr) {
+				continue
+			}
+
 			if n.IsGateway() || srcCluster.IsP2P() {
 				ctx.Results[n.Name].Routes = append(ctx.Results[n.Name].Routes, v1alpha1.Route{
 					CIDR: cidr,
