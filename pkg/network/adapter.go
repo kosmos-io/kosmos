@@ -57,7 +57,7 @@ func (n *DefaultNetWork) LoadSysConfig() (*clusterlinkv1alpha1.NodeConfigSpec, e
 func (n *DefaultNetWork) DeleteArps(arps []clusterlinkv1alpha1.Arp) error {
 	var errs error
 	for _, arp := range arps {
-		if err := deleteArp(arp); err == nil {
+		if err := deleteArp(arp); err != nil {
 			errs = errors.Wrap(err, fmt.Sprintf("delete arp error, fdb: %v", arp))
 		}
 	}
@@ -67,7 +67,7 @@ func (n *DefaultNetWork) DeleteArps(arps []clusterlinkv1alpha1.Arp) error {
 func (n *DefaultNetWork) DeleteFdbs(fdbs []clusterlinkv1alpha1.Fdb) error {
 	var errs error
 	for _, fdb := range fdbs {
-		if err := deleteFdb(fdb); err == nil {
+		if err := deleteFdb(fdb); err != nil {
 			errs = errors.Wrap(err, fmt.Sprintf("delete fdb error, fdb: %v", fdb))
 		}
 	}
@@ -77,7 +77,7 @@ func (n *DefaultNetWork) DeleteFdbs(fdbs []clusterlinkv1alpha1.Fdb) error {
 func (n *DefaultNetWork) DeleteIptables(records []clusterlinkv1alpha1.Iptables) error {
 	var errs error
 	for _, iptable := range records {
-		if err := deleteIptable(iptable); err == nil {
+		if err := deleteIptable(iptable); err != nil {
 			errs = errors.Wrap(err, fmt.Sprintf("delete iptable error, deivce name: %v", iptable))
 		}
 	}
@@ -87,7 +87,7 @@ func (n *DefaultNetWork) DeleteIptables(records []clusterlinkv1alpha1.Iptables) 
 func (n *DefaultNetWork) DeleteRoutes(routes []clusterlinkv1alpha1.Route) error {
 	var errs error
 	for _, route := range routes {
-		if err := deleteRoute(route); err == nil {
+		if err := deleteRoute(route); err != nil {
 			errs = errors.Wrap(err, fmt.Sprintf("delete route error, deivce name: %v", route))
 		}
 	}
@@ -97,7 +97,7 @@ func (n *DefaultNetWork) DeleteRoutes(routes []clusterlinkv1alpha1.Route) error 
 func (n *DefaultNetWork) DeleteDevices(devices []clusterlinkv1alpha1.Device) error {
 	var errs error
 	for _, device := range devices {
-		if err := deleteDevice(device); err == nil {
+		if err := deleteDevice(device); err != nil {
 			errs = errors.Wrap(err, fmt.Sprintf("delete device error, deivce name: %s", device.Name))
 		}
 	}
@@ -127,7 +127,7 @@ func (n *DefaultNetWork) UpdateDevices([]clusterlinkv1alpha1.Device) error {
 func (n *DefaultNetWork) AddArps(arps []clusterlinkv1alpha1.Arp) error {
 	var errs error
 	for _, arp := range arps {
-		if err := addArp(arp); err == nil {
+		if err := addArp(arp); err != nil {
 			errs = errors.Wrap(err, fmt.Sprintf("create arp error : %v", arp))
 		}
 	}
@@ -137,7 +137,7 @@ func (n *DefaultNetWork) AddArps(arps []clusterlinkv1alpha1.Arp) error {
 func (n *DefaultNetWork) AddFdbs(fdbs []clusterlinkv1alpha1.Fdb) error {
 	var errs error
 	for _, fdb := range fdbs {
-		if err := addFdb(fdb); err == nil {
+		if err := addFdb(fdb); err != nil {
 			errs = errors.Wrap(err, fmt.Sprintf("create fdb error, deivce name: %v", fdb))
 		}
 	}
@@ -147,7 +147,7 @@ func (n *DefaultNetWork) AddFdbs(fdbs []clusterlinkv1alpha1.Fdb) error {
 func (n *DefaultNetWork) AddIptables(iptabless []clusterlinkv1alpha1.Iptables) error {
 	var errs error
 	for _, ipts := range iptabless {
-		if err := addIptables(ipts); err == nil {
+		if err := addIptables(ipts); err != nil {
 			errs = errors.Wrap(err, fmt.Sprintf("create iptable error, deivce name: %v", ipts))
 		}
 	}
@@ -157,7 +157,7 @@ func (n *DefaultNetWork) AddIptables(iptabless []clusterlinkv1alpha1.Iptables) e
 func (n *DefaultNetWork) AddRoutes(routes []clusterlinkv1alpha1.Route) error {
 	var errs error
 	for _, route := range routes {
-		if err := addRoute(route); err == nil {
+		if err := addRoute(route); err != nil {
 			errs = errors.Wrap(err, fmt.Sprintf("create route error, deivce name: %v", route))
 		}
 	}
@@ -167,7 +167,7 @@ func (n *DefaultNetWork) AddRoutes(routes []clusterlinkv1alpha1.Route) error {
 func (n *DefaultNetWork) AddDevices(devices []clusterlinkv1alpha1.Device) error {
 	var errs error
 	for _, device := range devices {
-		if err := addDevice(device); err == nil {
+		if err := addDevice(device); err != nil {
 			errs = errors.Wrap(err, fmt.Sprintf("create device error, deivce name: %s", device.Name))
 		}
 	}
@@ -178,4 +178,8 @@ func (n *DefaultNetWork) InitSys() {
 	if err := CreateGlobalNetIptablesChains(); err != nil {
 		klog.Warning(err)
 	}
+}
+
+func (n *DefaultNetWork) UpdateCidrConfig(cluster *clusterlinkv1alpha1.Cluster) {
+	UpdateCidr(cluster.Spec.BridgeCIDRs.IP, cluster.Spec.BridgeCIDRs.IP6, cluster.Spec.LocalCIDRs.IP, cluster.Spec.LocalCIDRs.IP6)
 }

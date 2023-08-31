@@ -157,7 +157,13 @@ func loadDevices() ([]clusterlinkv1alpha1.Device, error) {
 			}
 		}
 
-		routes, err := netlink.RouteList(nil, d.family)
+		if vxlanNet == nil {
+			msg := fmt.Sprintf("Cannot get ip of device: %s", d.name)
+			klog.Error(msg)
+			return nil, fmt.Errorf(msg)
+		}
+
+		addrListAll, err := netlink.AddrList(nil, d.family)
 
 		if err != nil {
 			return nil, err
@@ -166,25 +172,29 @@ func loadDevices() ([]clusterlinkv1alpha1.Device, error) {
 		interfaceIndex := -1
 		vxlanIPAddr := vxlanNet.IP.String()
 
-		for _, r := range routes {
-			internalIP := r.Src.String()
-			if ip, err := CIDRIPGenerator(d.cidr, internalIP); err == nil {
-				if ip.String() == vxlanIPAddr {
-					interfaceIndex = r.LinkIndex
-					break
+		for _, r := range addrListAll {
+			if r.LinkIndex != vxlanIface.Attrs().Index {
+				if ip, err := CIDRIPGenerator(d.cidr, r.IP.String()); err == nil {
+					if ip.String() == vxlanIPAddr {
+						interfaceIndex = r.LinkIndex
+						break
+					}
 				}
 			}
 		}
 
-		if interfaceIndex == -1 {
-			klog.Warning("can not find the dev for vxlan, name: %s", d.name)
-			continue
-		}
+		bindDev := ""
 
-		defaultIface, err := netlink.LinkByIndex(interfaceIndex)
-		if err != nil {
-			klog.Errorf("When we get device by linkinx, get error : %v", err)
-			return nil, err
+		if interfaceIndex == -1 {
+			klog.Warningf("can not find the phys_dev for vxlan, name: %s", d.name)
+		} else {
+			defaultIface, err := netlink.LinkByIndex(interfaceIndex)
+			if err != nil {
+				klog.Errorf("When we get device by linkinx, get error : %v", err)
+				return nil, err
+			} else {
+				bindDev = defaultIface.Attrs().Name
+			}
 		}
 
 		ret = append(ret, clusterlinkv1alpha1.Device{
@@ -192,7 +202,7 @@ func loadDevices() ([]clusterlinkv1alpha1.Device, error) {
 			Name:    vxlan.LinkAttrs.Name,
 			Addr:    vxlanNet.String(),
 			Mac:     vxlan.LinkAttrs.HardwareAddr.String(),
-			BindDev: defaultIface.Attrs().Name,
+			BindDev: bindDev,
 			ID:      int32(vxlan.VxlanId),
 			Port:    int32(vxlan.Port),
 		})
@@ -324,7 +334,7 @@ func UpdateDefaultIptablesAndKernalConfig(name string, ipFamily int) error {
 		}
 	}
 
-	klog.Infof("Get default interface %s, mtu %d, ipv4 %s, ipv6: %s", name)
+	klog.Infof("Get default interface %s", name)
 
 	return nil
 }

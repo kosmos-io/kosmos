@@ -35,6 +35,7 @@ type Reconciler struct {
 	ClusterName      string
 	NetworkManager   *networkmanager.NetworkManager
 	NodeConfigLister clusterlinkv1alpha1lister.NodeConfigLister
+	ClusterLister    clusterlinkv1alpha1lister.ClusterLister
 	DebounceFunc     func(f func())
 }
 
@@ -87,7 +88,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 	if err := r.Get(ctx, request.NamespacedName, &reconcileNode); err != nil {
 		// The resource no longer exists
 		if apierrors.IsNotFound(err) {
-			// TODO: cleanup
+			nodeConfigSyncStatus := r.NetworkManager.UpdateFromCRD(&clusterlinkv1alpha1.NodeConfig{
+				Spec: clusterlinkv1alpha1.NodeConfigSpec{}})
+			r.logResult(nodeConfigSyncStatus)
 			return reconcile.Result{}, nil
 		}
 		klog.Errorf("get clusternode %s error: %v", request.NamespacedName, err)
@@ -99,6 +102,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 		klog.Infof("not match, drop this event.")
 		return reconcile.Result{}, nil
 	}
+
+	localCluster, err := r.ClusterLister.Get(r.ClusterName)
+	if err != nil {
+		klog.Errorf("could not get local cluster, clusterNode: %s, err: %v", r.NodeName, err)
+		return reconcile.Result{}, nil
+	}
+
+	r.NetworkManager.UpdateConfig(localCluster)
 
 	r.DebounceFunc(func() {
 		nodeConfigSyncStatus := r.NetworkManager.UpdateFromCRD(&reconcileNode)
