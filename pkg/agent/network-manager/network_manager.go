@@ -296,3 +296,7 @@ func (e *NetworkManager) UpdateSync() NodeConfigSyncStatus {
 
 	return NodeConfigSyncSuccess
 }
+
+func (e *NetworkManager) UpdateConfig(cluster *clusterlinkv1alpha1.Cluster) {
+	e.NetworkInterface.UpdateCidrConfig(cluster)
+}

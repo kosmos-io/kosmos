@@ -4,6 +4,7 @@ import (
 	"net"
 
 	"github.com/vishvananda/netlink"
+	"k8s.io/klog/v2"
 )
 
 const vxlanOverhead = 50
@@ -41,18 +42,6 @@ const (
 	ALL_ADDR_IPV4 = "0.0.0.0/0"
 	ALL_ADDR_IPV6 = "0.0.0.0.0.0.0.0/0"
 
-	// VXLAN_ADDR_PREFIX_BRIDGE_IPv4 int = 220
-	// VXLAN_ADDR_PREFIX_LOCAL_IPv4  int = 210
-
-	// VXLAN_ADDR_PREFIX_BRIDGE_IPv6 int = 9480 // 0x2508
-	// VXLAN_ADDR_PREFIX_LOCAL_IPv6  int = 9470 // 0x24fe
-
-	VXLAN_BRIDGE_NET_IPV4 = "220.0.0.0/8"
-	VXLAN_BRIDGE_NET_IPV6 = "9480::0/16"
-
-	VXLAN_LOCAL_NET_IPV4 = "210.0.0.0/8"
-	VXLAN_LOCAL_NET_IPV6 = "9470::0/16"
-
 	VXLAN_BRIDGE_ID   = 54
 	VXLAN_BRIDGE_PORT = 4876
 
@@ -84,6 +73,14 @@ type vxlanAttributes struct {
 	cidr     string
 	family   int
 }
+
+var (
+	VXLAN_BRIDGE_NET_IPV4 = "220.0.0.0/8"
+	VXLAN_BRIDGE_NET_IPV6 = "9480::0/16"
+
+	VXLAN_LOCAL_NET_IPV4 = "210.0.0.0/8"
+	VXLAN_LOCAL_NET_IPV6 = "9470::0/16"
+)
 
 var VXLAN_BRIDGE = &vxlanAttributes{
 	name:     VXLAN_BRIDGE_NAME,
@@ -130,3 +127,17 @@ var VXLAN_LOCAL_6 = &vxlanAttributes{
 }
 
 var ALL_DEVICES = []*vxlanAttributes{VXLAN_BRIDGE, VXLAN_LOCAL, VXLAN_BRIDGE_6, VXLAN_LOCAL_6}
+
+func UpdateCidr(bridge4, bridge6, local4, local6 string) {
+	VXLAN_BRIDGE_NET_IPV4 = bridge4
+	VXLAN_BRIDGE_NET_IPV6 = bridge6
+	VXLAN_LOCAL_NET_IPV4 = local4
+	VXLAN_LOCAL_NET_IPV6 = local6
+
+	VXLAN_BRIDGE.cidr = VXLAN_BRIDGE_NET_IPV4
+	VXLAN_LOCAL.cidr = VXLAN_LOCAL_NET_IPV4
+	VXLAN_BRIDGE_6.cidr = VXLAN_BRIDGE_NET_IPV6
+	VXLAN_LOCAL_6.cidr = VXLAN_LOCAL_NET_IPV6
+
+	klog.Infof("update cidr, bridge_v4: %s, bridge_v6: %s, local_v4: %s, local_v: %s", VXLAN_BRIDGE_NET_IPV4, VXLAN_BRIDGE_NET_IPV6, VXLAN_LOCAL_NET_IPV4, VXLAN_LOCAL_NET_IPV6)
+}

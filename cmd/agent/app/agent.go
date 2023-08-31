@@ -114,10 +114,12 @@ func run(ctx context.Context, opts *options.Options) error {
 
 	factory := clusterlinkinformer.NewSharedInformerFactory(clusterlinkClientset, 0)
 	nodeConfigLister := factory.Clusterlink().V1alpha1().NodeConfigs().Lister()
+	clusterLister := factory.Clusterlink().V1alpha1().Clusters().Lister()
 
 	clusterNodeController := agent.Reconciler{
 		Scheme:           mgr.GetScheme(),
 		NodeConfigLister: nodeConfigLister,
+		ClusterLister:    clusterLister,
 		NodeName:         os.Getenv(utils.EnvNodeName),
 		ClusterName:      os.Getenv(utils.EnvClusterName),
 		NetworkManager:   agent.NetworkManager(),

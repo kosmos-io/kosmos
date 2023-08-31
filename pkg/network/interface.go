@@ -33,6 +33,8 @@ type NetWork interface {
 	AddDevices([]clusterlinkv1alpha1.Device) error
 
 	InitSys()
+
+	UpdateCidrConfig(cluster *clusterlinkv1alpha1.Cluster)
 }
 
 func NewNetWork() NetWork {
