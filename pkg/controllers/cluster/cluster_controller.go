@@ -90,7 +90,7 @@ func (c *Controller) Start(ctx context.Context) error {
 		return pod.Labels["component"] == "kube-apiserver"
 	}
 
-	cluster, err := c.clusterLinkClient.ClusterlinkV1alpha1().Clusters().Get(ctx, c.clusterName, metav1.GetOptions{})
+	cluster, err := c.clusterLinkClient.KosmosV1alpha1().Clusters().Get(ctx, c.clusterName, metav1.GetOptions{})
 	if err != nil {
 		klog.Errorf("can not find local cluster %s, err: %v", c.clusterName, err)
 		return err
@@ -146,7 +146,7 @@ func (c *Controller) Reconcile(key utils.QueueKey) error {
 		Name:      clusterWideKey.Name,
 		Namespace: clusterWideKey.Namespace,
 	}
-	reconcileCluster, err := c.clusterLinkClient.ClusterlinkV1alpha1().Clusters().Get(context.Background(), c.clusterName, metav1.GetOptions{})
+	reconcileCluster, err := c.clusterLinkClient.KosmosV1alpha1().Clusters().Get(context.Background(), c.clusterName, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil
@@ -185,7 +185,7 @@ func (c *Controller) Reconcile(key utils.QueueKey) error {
 
 	reconcileCluster.Status.ServiceCIDRs = serviceCIDRS
 	//TODO use sub resource
-	_, err = c.clusterLinkClient.ClusterlinkV1alpha1().Clusters().Update(context.TODO(), reconcileCluster, metav1.UpdateOptions{})
+	_, err = c.clusterLinkClient.KosmosV1alpha1().Clusters().Update(context.TODO(), reconcileCluster, metav1.UpdateOptions{})
 	if err != nil {
 		klog.Errorf("could not update cluster %s, err: %v", reconcileCluster.GetName(), err)
 		return err

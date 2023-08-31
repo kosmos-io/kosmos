@@ -18,7 +18,7 @@ import (
 )
 
 func FetchClusters(client versioned.Interface) ([]clusterlinkv1alpha1.Cluster, error) {
-	clusters, err := client.ClusterlinkV1alpha1().Clusters().List(context.TODO(), metav1.ListOptions{})
+	clusters, err := client.KosmosV1alpha1().Clusters().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}

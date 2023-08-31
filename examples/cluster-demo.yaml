@@ -1,4 +1,4 @@
-apiVersion: clusterlink.io/v1alpha1
+apiVersion: kosmos.io/v1alpha1
 kind: Cluster
 metadata:
   name: cluster-4

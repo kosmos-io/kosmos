@@ -71,7 +71,7 @@ func (c *controller) Start(ctx context.Context) error {
 
 	clusterInformerFactory := externalversions.NewSharedInformerFactory(c.clusterLinkClient, 0)
 
-	c.clusterNodeInformer = clusterInformerFactory.Clusterlink().V1alpha1().ClusterNodes()
+	c.clusterNodeInformer = clusterInformerFactory.Kosmos().V1alpha1().ClusterNodes()
 	_, err := c.clusterNodeInformer.Informer().AddEventHandler(cache.FilteringResourceEventHandler{
 		Handler: cache.ResourceEventHandlerFuncs{
 			AddFunc:    c.OnAdd,
@@ -90,8 +90,8 @@ func (c *controller) Start(ctx context.Context) error {
 		return err
 	}
 
-	c.clusterNodeLister = clusterInformerFactory.Clusterlink().V1alpha1().ClusterNodes().Lister()
-	cluster, err := c.clusterLinkClient.ClusterlinkV1alpha1().Clusters().Get(ctx, c.clusterName, metav1.GetOptions{})
+	c.clusterNodeLister = clusterInformerFactory.Kosmos().V1alpha1().ClusterNodes().Lister()
+	cluster, err := c.clusterLinkClient.KosmosV1alpha1().Clusters().Get(ctx, c.clusterName, metav1.GetOptions{})
 	if err != nil {
 		klog.Errorf("can not find local cluster %s, err: %v", c.clusterName, err)
 		return err
@@ -158,7 +158,7 @@ func (c *controller) Reconcile(key utils.QueueKey) error {
 	clusterNodeCopy.Spec.PodCIDRs = podCIDRs
 
 	return retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
-		_, err = c.clusterLinkClient.ClusterlinkV1alpha1().ClusterNodes().Update(context.TODO(), clusterNodeCopy, metav1.UpdateOptions{})
+		_, err = c.clusterLinkClient.KosmosV1alpha1().ClusterNodes().Update(context.TODO(), clusterNodeCopy, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}

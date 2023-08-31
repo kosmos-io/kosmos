@@ -16,12 +16,12 @@ import (
 
 // FakeNodeConfigs implements NodeConfigInterface
 type FakeNodeConfigs struct {
-	Fake *FakeClusterlinkV1alpha1
+	Fake *FakeKosmosV1alpha1
 }
 
-var nodeconfigsResource = schema.GroupVersionResource{Group: "clusterlink.io", Version: "v1alpha1", Resource: "nodeconfigs"}
+var nodeconfigsResource = schema.GroupVersionResource{Group: "kosmos.io", Version: "v1alpha1", Resource: "nodeconfigs"}
 
-var nodeconfigsKind = schema.GroupVersionKind{Group: "clusterlink.io", Version: "v1alpha1", Kind: "NodeConfig"}
+var nodeconfigsKind = schema.GroupVersionKind{Group: "kosmos.io", Version: "v1alpha1", Kind: "NodeConfig"}
 
 // Get takes name of the nodeConfig, and returns the corresponding nodeConfig object, and an error if there is any.
 func (c *FakeNodeConfigs) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.NodeConfig, err error) {

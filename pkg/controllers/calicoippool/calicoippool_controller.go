@@ -296,8 +296,8 @@ func (c *Controller) Start(ctx context.Context) error {
 	c.processor = utils.NewAsyncWorker(opt)
 
 	factory := externalversions.NewSharedInformerFactory(c.clusterLinkClient, 0)
-	informer := factory.Clusterlink().V1alpha1().Clusters().Informer()
-	c.clusterLister = factory.Clusterlink().V1alpha1().Clusters().Lister()
+	informer := factory.Kosmos().V1alpha1().Clusters().Informer()
+	c.clusterLister = factory.Kosmos().V1alpha1().Clusters().Lister()
 	_, err := informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    c.OnAdd,
 		UpdateFunc: c.OnUpdate,
@@ -469,7 +469,7 @@ func (c *Controller) createIPPoolClient(cluster *clusterlinkv1alpha1.Cluster) (I
 
 func (c *Controller) CleanResource() error {
 	if c.iPPoolClient == nil {
-		cluster, err := c.clusterLinkClient.ClusterlinkV1alpha1().Clusters().Get(context.TODO(), c.clusterName, metav1.GetOptions{})
+		cluster, err := c.clusterLinkClient.KosmosV1alpha1().Clusters().Get(context.TODO(), c.clusterName, metav1.GetOptions{})
 		if err != nil {
 			return err
 		}

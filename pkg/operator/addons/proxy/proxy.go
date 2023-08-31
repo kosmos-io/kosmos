@@ -37,7 +37,7 @@ func applySecret(opt *option.AddonOption) error {
 	}
 
 	c := opt.ControlPanelKubeConfig.DeepCopy()
-	url := fmt.Sprintf("https://%s:443/apis/clusterlink.io/v1alpha1/proxying", ResourceName)
+	url := fmt.Sprintf("https://%s:443/apis/kosmos.io/v1alpha1/proxying", ResourceName)
 	klog.Infof("proxy access url is %s", url)
 	for i := range c.Clusters {
 		c.Clusters[i].Server = url

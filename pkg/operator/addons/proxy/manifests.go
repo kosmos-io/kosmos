@@ -39,8 +39,39 @@ spec:
       labels:
         app: clusterlink-proxy
     spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - elector
+            namespaces:
+            - clusterlink-system
+            topologyKey: kubernetes.io/hostname
       containers:
         - name: manager
+          readinessProbe:
+            exec:
+              command:
+              - cat
+              - /proc/1/cmdline
+            failureThreshold: 30
+            initialDelaySeconds: 3
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            failureThreshold: 30
+            exec:
+              command:
+              - cat
+              - /proc/1/cmdline
+            initialDelaySeconds: 3
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 3
           image: {{ .ImageRepository }}/clusterlink-proxy:{{ .Version }}
           imagePullPolicy: IfNotPresent
           command:

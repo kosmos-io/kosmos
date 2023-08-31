@@ -5,9 +5,9 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.11.0
   creationTimestamp: null
-  name: clusternodes.clusterlink.io
+  name: clusternodes.kosmos.io
 spec:
-  group: clusterlink.io
+  group: kosmos.io
   names:
     kind: ClusterNode
     listKind: ClusterNodeList

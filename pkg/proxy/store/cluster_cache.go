@@ -46,9 +46,9 @@ func NewClusterCache(client dynamic.Interface, restMapper meta.RESTMapper) *Cach
 		cache:      map[schema.GroupVersionResource]*resourceCache{},
 	}
 	resources := map[schema.GroupVersionResource]struct{}{
-		{Group: "clusterlink.io", Version: "v1alpha1", Resource: "clusters"}:     {},
-		{Group: "clusterlink.io", Version: "v1alpha1", Resource: "clusternodes"}: {},
-		{Group: "clusterlink.io", Version: "v1alpha1", Resource: "nodeconfigs"}:  {},
+		{Group: "kosmos.io", Version: "v1alpha1", Resource: "clusters"}:     {},
+		{Group: "kosmos.io", Version: "v1alpha1", Resource: "clusternodes"}: {},
+		{Group: "kosmos.io", Version: "v1alpha1", Resource: "nodeconfigs"}:  {},
 	}
 	err := cache.UpdateCache(resources)
 	if err != nil {

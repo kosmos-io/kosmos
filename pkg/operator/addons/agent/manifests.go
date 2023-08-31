@@ -27,7 +27,7 @@ spec:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
             - matchExpressions:
-              - key: clusterlink.io/exclude
+              - key: kosmos.io/exclude
                 operator: DoesNotExist
       dnsPolicy: ClusterFirstWithHostNet
       containers:

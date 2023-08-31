@@ -29,7 +29,7 @@ import (
 const (
 	controllerName = "node-controller"
 	RequeueTime    = 10 * time.Second
-	clusterLabel   = "clusterlink.io/cluster"
+	clusterLabel   = "kosmos.io/cluster"
 )
 
 type Reconciler struct {
@@ -61,7 +61,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 	var node corev1.Node
 	if err := r.Get(ctx, request.NamespacedName, &node); err != nil {
 		if apierrors.IsNotFound(err) {
-			err := r.ClusterLinkClient.ClusterlinkV1alpha1().ClusterNodes().Delete(ctx, clusterNodeName, metav1.DeleteOptions{})
+			err := r.ClusterLinkClient.KosmosV1alpha1().ClusterNodes().Delete(ctx, clusterNodeName, metav1.DeleteOptions{})
 			if err != nil {
 				klog.Warningf("delete cluster node %s err: %v", clusterNodeName, err)
 			}
@@ -72,7 +72,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 	}
 
 	if !node.GetDeletionTimestamp().IsZero() {
-		err := r.ClusterLinkClient.ClusterlinkV1alpha1().ClusterNodes().Delete(ctx, clusterNodeName, metav1.DeleteOptions{})
+		err := r.ClusterLinkClient.KosmosV1alpha1().ClusterNodes().Delete(ctx, clusterNodeName, metav1.DeleteOptions{})
 		if err != nil {
 			klog.Warningf("delete cluster node %s err: %v", node.Name, err)
 		}
@@ -104,7 +104,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 			},
 		},
 	}
-	cluster, err := r.ClusterLinkClient.ClusterlinkV1alpha1().Clusters().Get(ctx, r.ClusterName, metav1.GetOptions{})
+	cluster, err := r.ClusterLinkClient.KosmosV1alpha1().Clusters().Get(ctx, r.ClusterName, metav1.GetOptions{})
 	if err != nil {
 		klog.Errorf("get cluster %s err: %v", r.ClusterName, err)
 		return reconcile.Result{Requeue: true}, nil
@@ -128,7 +128,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 type MutateClusterNodeFn func(node *clusterlinkv1alpha1.ClusterNode) error
 
 func CreateOrUpdateClusterNode(client versioned.Interface, node *clusterlinkv1alpha1.ClusterNode, f MutateClusterNodeFn) error {
-	clusterNode, err := client.ClusterlinkV1alpha1().ClusterNodes().Get(context.Background(), node.Name, metav1.GetOptions{})
+	clusterNode, err := client.KosmosV1alpha1().ClusterNodes().Get(context.Background(), node.Name, metav1.GetOptions{})
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return err
@@ -136,7 +136,7 @@ func CreateOrUpdateClusterNode(client versioned.Interface, node *clusterlinkv1al
 		if err := f(node); err != nil {
 			return err
 		}
-		_, err := client.ClusterlinkV1alpha1().ClusterNodes().Create(context.Background(), node, metav1.CreateOptions{})
+		_, err := client.KosmosV1alpha1().ClusterNodes().Create(context.Background(), node, metav1.CreateOptions{})
 		if err != nil {
 			return err
 		} else {
@@ -146,7 +146,7 @@ func CreateOrUpdateClusterNode(client versioned.Interface, node *clusterlinkv1al
 	if err := f(clusterNode); err != nil {
 		return err
 	}
-	_, err = client.ClusterlinkV1alpha1().ClusterNodes().Update(context.Background(), clusterNode, metav1.UpdateOptions{})
+	_, err = client.KosmosV1alpha1().ClusterNodes().Update(context.Background(), clusterNode, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
@@ -163,7 +163,7 @@ func (r *Reconciler) CleanOrphan() error {
 		k8sNodeNameSet[node.Name] = struct{}{}
 	}
 
-	clusterNodes, err := r.ClusterLinkClient.ClusterlinkV1alpha1().ClusterNodes().List(context.Background(), metav1.ListOptions{
+	clusterNodes, err := r.ClusterLinkClient.KosmosV1alpha1().ClusterNodes().List(context.Background(), metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("%s=%s", clusterLabel, r.ClusterName),
 	})
 	if err != nil {
@@ -220,8 +220,8 @@ func (r *Reconciler) SetupWithManager(mgr manager.Manager, stopChan <-chan struc
 }
 
 func (r *Reconciler) CleanResource() error {
-	list, err := r.ClusterLinkClient.ClusterlinkV1alpha1().ClusterNodes().List(context.TODO(), metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("clusterlink.io/cluster=%s", r.ClusterName),
+	list, err := r.ClusterLinkClient.KosmosV1alpha1().ClusterNodes().List(context.TODO(), metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("kosmos.io/cluster=%s", r.ClusterName),
 	})
 	if err != nil {
 		klog.Errorf("list clusterNode err: %v", err)
@@ -229,7 +229,7 @@ func (r *Reconciler) CleanResource() error {
 	}
 	var errs []error
 	for _, node := range list.Items {
-		err := r.ClusterLinkClient.ClusterlinkV1alpha1().ClusterNodes().Delete(context.TODO(), node.GetName(), metav1.DeleteOptions{})
+		err := r.ClusterLinkClient.KosmosV1alpha1().ClusterNodes().Delete(context.TODO(), node.GetName(), metav1.DeleteOptions{})
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				continue
