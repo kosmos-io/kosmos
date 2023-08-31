@@ -58,6 +58,6 @@ TBD
 Made with [contrib.rocks](https://contrib.rocks).
 
 ## License
-Copyright 2023 the ClusterLink Authors. All rights reserved.
+Copyright 2023 the KOSMOS Authors. All rights reserved.
 
 Licensed under the Apache License, Version 2.0.
