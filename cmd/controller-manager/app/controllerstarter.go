@@ -11,14 +11,14 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	"github.com/kosmos.io/clusterlink/cmd/controller-manager/app/options"
-	clusterlinkv1alpha1 "github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
-	ctrlcontext "github.com/kosmos.io/clusterlink/pkg/controllers/context"
-	"github.com/kosmos.io/clusterlink/pkg/generated/clientset/versioned"
-	"github.com/kosmos.io/clusterlink/pkg/generated/informers/externalversions"
-	"github.com/kosmos.io/clusterlink/pkg/generated/listers/clusterlink/v1alpha1"
-	"github.com/kosmos.io/clusterlink/pkg/utils"
-	"github.com/kosmos.io/clusterlink/pkg/utils/keys"
+	"github.com/kosmos.io/kosmos/cmd/controller-manager/app/options"
+	clusterlinkv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/clusterlink/v1alpha1"
+	ctrlcontext "github.com/kosmos.io/kosmos/pkg/controllers/context"
+	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
+	"github.com/kosmos.io/kosmos/pkg/generated/informers/externalversions"
+	"github.com/kosmos.io/kosmos/pkg/generated/listers/clusterlink/v1alpha1"
+	"github.com/kosmos.io/kosmos/pkg/utils"
+	"github.com/kosmos.io/kosmos/pkg/utils/keys"
 )
 
 type Controller struct {

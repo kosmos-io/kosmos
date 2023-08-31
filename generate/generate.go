@@ -9,7 +9,7 @@ import (
 	"go/token"
 	"os"
 
-	"github.com/kosmos.io/clusterlink/projectpath"
+	"github.com/kosmos.io/kosmos/projectpath"
 )
 
 func main() {

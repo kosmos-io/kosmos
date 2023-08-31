@@ -16,12 +16,12 @@ import (
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	"github.com/kosmos.io/clusterlink/cmd/operator/app/options"
-	"github.com/kosmos.io/clusterlink/pkg/operator"
-	"github.com/kosmos.io/clusterlink/pkg/scheme"
-	"github.com/kosmos.io/clusterlink/pkg/sharedcli"
-	"github.com/kosmos.io/clusterlink/pkg/sharedcli/klogflag"
-	"github.com/kosmos.io/clusterlink/pkg/utils"
+	"github.com/kosmos.io/kosmos/cmd/operator/app/options"
+	"github.com/kosmos.io/kosmos/pkg/operator"
+	"github.com/kosmos.io/kosmos/pkg/scheme"
+	"github.com/kosmos.io/kosmos/pkg/sharedcli"
+	"github.com/kosmos.io/kosmos/pkg/sharedcli/klogflag"
+	"github.com/kosmos.io/kosmos/pkg/utils"
 )
 
 // NewOperatorCommand creates a *cobra.Command object with default parameters

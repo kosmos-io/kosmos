@@ -13,10 +13,10 @@ import (
 	clientsetscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/klog/v2"
 
-	"github.com/kosmos.io/clusterlink/pkg/operator/addons/option"
-	"github.com/kosmos.io/clusterlink/pkg/operator/addons/utils"
-	cmdutil "github.com/kosmos.io/clusterlink/pkg/operator/util"
-	utils2 "github.com/kosmos.io/clusterlink/pkg/utils"
+	"github.com/kosmos.io/kosmos/pkg/operator/addons/option"
+	"github.com/kosmos.io/kosmos/pkg/operator/addons/utils"
+	cmdutil "github.com/kosmos.io/kosmos/pkg/operator/util"
+	utils2 "github.com/kosmos.io/kosmos/pkg/utils"
 )
 
 type ManagerInstaller struct {

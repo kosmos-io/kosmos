@@ -18,11 +18,11 @@ import (
 	"k8s.io/client-go/tools/remotecommand"
 	"k8s.io/klog/v2"
 
-	"github.com/kosmos.io/clusterlink/pkg/clusterlinkctl/floaterclient/command"
-	"github.com/kosmos.io/clusterlink/pkg/clusterlinkctl/initmaster/ctlmaster"
-	"github.com/kosmos.io/clusterlink/pkg/clusterlinkctl/util/apiclient"
-	"github.com/kosmos.io/clusterlink/pkg/operator/addons/utils"
-	cmdutil "github.com/kosmos.io/clusterlink/pkg/operator/util"
+	"github.com/kosmos.io/kosmos/pkg/clusterlinkctl/floaterclient/command"
+	"github.com/kosmos.io/kosmos/pkg/clusterlinkctl/initmaster/ctlmaster"
+	"github.com/kosmos.io/kosmos/pkg/clusterlinkctl/util/apiclient"
+	"github.com/kosmos.io/kosmos/pkg/operator/addons/utils"
+	cmdutil "github.com/kosmos.io/kosmos/pkg/operator/util"
 )
 
 type FloaterInfo struct {

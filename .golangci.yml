@@ -22,7 +22,7 @@ linters:
     - gosec
 linters-settings:
   goimports:
-    local-prefixes: github.com/kosmos.io/clusterlink
+    local-prefixes: github.com/kosmos.io/kosmos
   misspell:
     ignore-words:
       - creater
@@ -30,7 +30,7 @@ linters-settings:
     sections:
       - Standard
       - Default
-      - Prefix(github.com/kosmos.io/clusterlink)
+      - Prefix(github.com/kosmos.io/kosmos)
 output:
   sort-results: true
 

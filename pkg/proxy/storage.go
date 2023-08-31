@@ -28,9 +28,9 @@ import (
 	clientrest "k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
-	"github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
-	"github.com/kosmos.io/clusterlink/pkg/proxy/store"
-	"github.com/kosmos.io/clusterlink/pkg/utils/lifted"
+	"github.com/kosmos.io/kosmos/pkg/apis/clusterlink/v1alpha1"
+	"github.com/kosmos.io/kosmos/pkg/proxy/store"
+	"github.com/kosmos.io/kosmos/pkg/utils/lifted"
 )
 
 var supportMethods = []string{"GET", "DELETE", "POST", "PUT", "PATCH", "HEAD", "OPTIONS"}

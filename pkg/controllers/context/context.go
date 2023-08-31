@@ -8,9 +8,9 @@ import (
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	"github.com/kosmos.io/clusterlink/pkg/generated/clientset/versioned"
-	"github.com/kosmos.io/clusterlink/pkg/generated/informers/externalversions"
-	"github.com/kosmos.io/clusterlink/pkg/utils/flags"
+	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
+	"github.com/kosmos.io/kosmos/pkg/generated/informers/externalversions"
+	"github.com/kosmos.io/kosmos/pkg/utils/flags"
 )
 
 type Options struct {

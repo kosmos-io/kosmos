@@ -10,7 +10,7 @@ import (
 	ctlutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/i18n"
 
-	"github.com/kosmos.io/clusterlink/pkg/generated/clientset/versioned"
+	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 )
 
 const (

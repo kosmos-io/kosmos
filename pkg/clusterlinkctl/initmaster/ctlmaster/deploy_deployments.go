@@ -11,9 +11,9 @@ import (
 	clientsetscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/klog/v2"
 
-	"github.com/kosmos.io/clusterlink/pkg/clusterlinkctl/util/apiclient"
-	"github.com/kosmos.io/clusterlink/pkg/operator/addons/utils"
-	"github.com/kosmos.io/clusterlink/pkg/version"
+	"github.com/kosmos.io/kosmos/pkg/clusterlinkctl/util/apiclient"
+	"github.com/kosmos.io/kosmos/pkg/operator/addons/utils"
+	"github.com/kosmos.io/kosmos/pkg/version"
 )
 
 var deploymentTemplateNameMap = map[string]string{

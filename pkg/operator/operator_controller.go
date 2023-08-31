@@ -16,12 +16,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	cmdOptions "github.com/kosmos.io/clusterlink/cmd/operator/app/options"
-	clusterlinkv1alpha1 "github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
-	clusterlinkv1alpha1lister "github.com/kosmos.io/clusterlink/pkg/generated/listers/clusterlink/v1alpha1"
-	"github.com/kosmos.io/clusterlink/pkg/operator/addons"
-	"github.com/kosmos.io/clusterlink/pkg/operator/addons/option"
-	"github.com/kosmos.io/clusterlink/pkg/utils"
+	cmdOptions "github.com/kosmos.io/kosmos/cmd/operator/app/options"
+	clusterlinkv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/clusterlink/v1alpha1"
+	clusterlinkv1alpha1lister "github.com/kosmos.io/kosmos/pkg/generated/listers/clusterlink/v1alpha1"
+	"github.com/kosmos.io/kosmos/pkg/operator/addons"
+	"github.com/kosmos.io/kosmos/pkg/operator/addons/option"
+	"github.com/kosmos.io/kosmos/pkg/utils"
 )
 
 const (

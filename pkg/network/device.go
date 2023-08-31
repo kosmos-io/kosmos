@@ -10,8 +10,8 @@ import (
 	"golang.org/x/sys/unix"
 	"k8s.io/klog/v2"
 
-	clusterlinkv1alpha1 "github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
-	"github.com/kosmos.io/clusterlink/pkg/utils"
+	clusterlinkv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/clusterlink/v1alpha1"
+	"github.com/kosmos.io/kosmos/pkg/utils"
 )
 
 type IfaceInfo struct {

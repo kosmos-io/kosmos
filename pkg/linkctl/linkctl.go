@@ -13,7 +13,7 @@ import (
 	"k8s.io/kubectl/pkg/util/i18n"
 	"k8s.io/kubectl/pkg/util/templates"
 
-	"github.com/kosmos.io/clusterlink/pkg/linkctl/get"
+	"github.com/kosmos.io/kosmos/pkg/linkctl/get"
 )
 
 // DefaultConfigFlags It composes the set of values necessary for obtaining a REST client config with default values set.
