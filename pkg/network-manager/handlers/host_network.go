@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/kosmos.io/kosmos/pkg/apis/clusterlink/v1alpha1"
-	constants "github.com/kosmos.io/kosmos/pkg/network"
+	"github.com/kosmos.io/kosmos/pkg/constants"
 )
 
 type HostNetwork struct {

@@ -9,7 +9,7 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/kosmos.io/kosmos/pkg/apis/clusterlink/v1alpha1"
-	constants "github.com/kosmos.io/kosmos/pkg/network"
+	"github.com/kosmos.io/kosmos/pkg/constants"
 )
 
 type IPType int
@@ -158,4 +158,21 @@ func BuildVxlanDevice(devName string, underlayIP string, destNetString string, b
 	dev.Type = v1alpha1.VxlanDevice
 
 	return dev
+}
+
+func Intersect(net1 string, net2 string) bool {
+	_, ipNet1, err1 := net.ParseCIDR(net1)
+	_, ipNet2, err2 := net.ParseCIDR(net2)
+
+	if err1 != nil || err2 != nil {
+		klog.Errorf("the net is invalid, err: %v, %v", err1, err2)
+		// In actual scenarios, true is more secure
+		return true
+	}
+
+	if ipNet1.Contains(ipNet2.IP) || ipNet2.Contains(ipNet1.IP) {
+		return true
+	}
+
+	return false
 }
