@@ -23,5 +23,6 @@ const (
 
 	ALL_ZERO_MAC = "00:00:00:00:00:00"
 
+	IPTablesPreRoutingChain  = "PREROUTING"
 	IPTablesPostRoutingChain = "POSTROUTING"
 )
