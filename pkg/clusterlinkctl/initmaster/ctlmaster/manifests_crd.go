@@ -158,6 +158,9 @@ spec:
               ipFamily:
                 default: all
                 type: string
+              kubeconfig:
+                format: byte
+                type: string
               localCIDRs:
                 default:
                   ip: 210.0.0.0/8
@@ -217,7 +220,6 @@ spec:
     storage: true
     subresources: {}
 `
-
 	NodeConfig = `---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition

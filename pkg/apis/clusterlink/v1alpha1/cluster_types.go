@@ -56,6 +56,9 @@ type ClusterSpec struct {
 
 	// +optional
 	GlobalCIDRsMap map[string]string `json:"globalCIDRsMap,omitempty"`
+
+	// +optional
+	Kubeconfig []byte `json:"kubeconfig,omitempty"`
 }
 
 type ClusterStatus struct {

@@ -489,6 +489,12 @@ func schema_pkg_apis_clusterlink_v1alpha1_ClusterSpec(ref common.ReferenceCallba
 							},
 						},
 					},
+					"kubeconfig": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "byte",
+						},
+					},
 				},
 			},
 		},
