@@ -12,11 +12,11 @@ import (
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	"github.com/kosmos.io/clusterlink/cmd/controller-manager/app/options"
-	ctrlcontext "github.com/kosmos.io/clusterlink/pkg/controllers/context"
-	"github.com/kosmos.io/clusterlink/pkg/generated/clientset/versioned"
-	"github.com/kosmos.io/clusterlink/pkg/scheme"
-	"github.com/kosmos.io/clusterlink/pkg/sharedcli/klogflag"
+	"github.com/kosmos.io/kosmos/cmd/controller-manager/app/options"
+	ctrlcontext "github.com/kosmos.io/kosmos/pkg/controllers/context"
+	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
+	"github.com/kosmos.io/kosmos/pkg/scheme"
+	"github.com/kosmos.io/kosmos/pkg/sharedcli/klogflag"
 )
 
 var (

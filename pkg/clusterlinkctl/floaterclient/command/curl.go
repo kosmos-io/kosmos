@@ -5,7 +5,7 @@ import (
 
 	"k8s.io/klog/v2"
 
-	"github.com/kosmos.io/clusterlink/pkg/utils"
+	"github.com/kosmos.io/kosmos/pkg/utils"
 )
 
 type Curl struct {

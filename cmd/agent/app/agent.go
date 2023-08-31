@@ -13,15 +13,15 @@ import (
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	"github.com/kosmos.io/clusterlink/cmd/agent/app/options"
-	"github.com/kosmos.io/clusterlink/pkg/agent"
-	clusterlinkclientset "github.com/kosmos.io/clusterlink/pkg/generated/clientset/versioned"
-	clusterlinkinformer "github.com/kosmos.io/clusterlink/pkg/generated/informers/externalversions"
-	"github.com/kosmos.io/clusterlink/pkg/network"
-	"github.com/kosmos.io/clusterlink/pkg/scheme"
-	"github.com/kosmos.io/clusterlink/pkg/sharedcli"
-	"github.com/kosmos.io/clusterlink/pkg/sharedcli/klogflag"
-	"github.com/kosmos.io/clusterlink/pkg/utils"
+	"github.com/kosmos.io/kosmos/cmd/agent/app/options"
+	"github.com/kosmos.io/kosmos/pkg/agent"
+	clusterlinkclientset "github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
+	clusterlinkinformer "github.com/kosmos.io/kosmos/pkg/generated/informers/externalversions"
+	"github.com/kosmos.io/kosmos/pkg/network"
+	"github.com/kosmos.io/kosmos/pkg/scheme"
+	"github.com/kosmos.io/kosmos/pkg/sharedcli"
+	"github.com/kosmos.io/kosmos/pkg/sharedcli/klogflag"
+	"github.com/kosmos.io/kosmos/pkg/utils"
 )
 
 // NewAgentCommand creates a *cobra.Command object with default parameters

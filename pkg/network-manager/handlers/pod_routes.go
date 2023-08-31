@@ -5,9 +5,9 @@ import (
 
 	"k8s.io/klog/v2"
 
-	"github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
-	constants "github.com/kosmos.io/clusterlink/pkg/network"
-	"github.com/kosmos.io/clusterlink/pkg/network-manager/helpers"
+	"github.com/kosmos.io/kosmos/pkg/apis/clusterlink/v1alpha1"
+	constants "github.com/kosmos.io/kosmos/pkg/network"
+	"github.com/kosmos.io/kosmos/pkg/network-manager/helpers"
 )
 
 type PodRoutes struct {

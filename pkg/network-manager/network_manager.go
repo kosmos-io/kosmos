@@ -6,9 +6,9 @@ import (
 
 	"k8s.io/klog/v2"
 
-	"github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
-	"github.com/kosmos.io/clusterlink/pkg/network-manager/handlers"
-	"github.com/kosmos.io/clusterlink/pkg/network-manager/helpers"
+	"github.com/kosmos.io/kosmos/pkg/apis/clusterlink/v1alpha1"
+	"github.com/kosmos.io/kosmos/pkg/network-manager/handlers"
+	"github.com/kosmos.io/kosmos/pkg/network-manager/helpers"
 )
 
 type Manager struct {

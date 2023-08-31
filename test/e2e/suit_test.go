@@ -12,8 +12,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
-	"github.com/kosmos.io/clusterlink/pkg/generated/clientset/versioned"
-	"github.com/kosmos.io/clusterlink/test/e2e/framework"
+	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
+	"github.com/kosmos.io/kosmos/test/e2e/framework"
 )
 
 var (

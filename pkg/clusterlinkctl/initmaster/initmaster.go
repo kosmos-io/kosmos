@@ -6,9 +6,9 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/kubectl/pkg/util/templates"
 
-	"github.com/kosmos.io/clusterlink/pkg/clusterlinkctl/initmaster/ctlmaster"
-	"github.com/kosmos.io/clusterlink/pkg/clusterlinkctl/util"
-	"github.com/kosmos.io/clusterlink/pkg/version"
+	"github.com/kosmos.io/kosmos/pkg/clusterlinkctl/initmaster/ctlmaster"
+	"github.com/kosmos.io/kosmos/pkg/clusterlinkctl/util"
+	"github.com/kosmos.io/kosmos/pkg/version"
 )
 
 var (

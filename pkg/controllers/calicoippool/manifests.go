@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/kosmos.io/clusterlink/pkg/utils"
+	"github.com/kosmos.io/kosmos/pkg/utils"
 )
 
 const (

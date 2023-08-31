@@ -10,10 +10,10 @@ import (
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 
-	"github.com/kosmos.io/clusterlink/cmd/network-manager/app/options"
-	networkmanager "github.com/kosmos.io/clusterlink/pkg/network-manager"
-	"github.com/kosmos.io/clusterlink/pkg/scheme"
-	"github.com/kosmos.io/clusterlink/pkg/sharedcli/klogflag"
+	"github.com/kosmos.io/kosmos/cmd/network-manager/app/options"
+	networkmanager "github.com/kosmos.io/kosmos/pkg/network-manager"
+	"github.com/kosmos.io/kosmos/pkg/scheme"
+	"github.com/kosmos.io/kosmos/pkg/sharedcli/klogflag"
 )
 
 func NewAgentCommand(ctx context.Context) *cobra.Command {

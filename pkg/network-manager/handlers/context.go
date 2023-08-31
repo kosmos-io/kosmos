@@ -1,8 +1,8 @@
 package handlers
 
 import (
-	"github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
-	"github.com/kosmos.io/clusterlink/pkg/network-manager/helpers"
+	"github.com/kosmos.io/kosmos/pkg/apis/clusterlink/v1alpha1"
+	"github.com/kosmos.io/kosmos/pkg/network-manager/helpers"
 )
 
 // Context Context

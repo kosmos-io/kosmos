@@ -8,8 +8,8 @@ import (
 	"github.com/spf13/pflag"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 
-	"github.com/kosmos.io/clusterlink/pkg/utils"
-	"github.com/kosmos.io/clusterlink/pkg/utils/flags"
+	"github.com/kosmos.io/kosmos/pkg/utils"
+	"github.com/kosmos.io/kosmos/pkg/utils/flags"
 )
 
 type ControllerManagerOptions struct {

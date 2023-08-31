@@ -3,7 +3,7 @@ package helpers
 import (
 	"reflect"
 
-	"github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
+	"github.com/kosmos.io/kosmos/pkg/apis/clusterlink/v1alpha1"
 )
 
 type Filter struct {

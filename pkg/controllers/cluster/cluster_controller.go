@@ -28,11 +28,11 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
-	clusterlinkv1alpha1 "github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
-	"github.com/kosmos.io/clusterlink/pkg/generated/clientset/versioned"
-	"github.com/kosmos.io/clusterlink/pkg/utils"
-	"github.com/kosmos.io/clusterlink/pkg/utils/flags"
-	"github.com/kosmos.io/clusterlink/pkg/utils/keys"
+	clusterlinkv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/clusterlink/v1alpha1"
+	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
+	"github.com/kosmos.io/kosmos/pkg/utils"
+	"github.com/kosmos.io/kosmos/pkg/utils/flags"
+	"github.com/kosmos.io/kosmos/pkg/utils/keys"
 )
 
 type SetClusterPodCIDRFun func(cluster *clusterlinkv1alpha1.Cluster) error

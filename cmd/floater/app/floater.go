@@ -12,9 +12,9 @@ import (
 	"k8s.io/component-base/term"
 	"k8s.io/klog/v2"
 
-	"github.com/kosmos.io/clusterlink/cmd/floater/app/options"
-	"github.com/kosmos.io/clusterlink/pkg/sharedcli"
-	"github.com/kosmos.io/clusterlink/pkg/sharedcli/klogflag"
+	"github.com/kosmos.io/kosmos/cmd/floater/app/options"
+	"github.com/kosmos.io/kosmos/pkg/sharedcli"
+	"github.com/kosmos.io/kosmos/pkg/sharedcli/klogflag"
 )
 
 func NewFloaterCommand(ctx context.Context) *cobra.Command {

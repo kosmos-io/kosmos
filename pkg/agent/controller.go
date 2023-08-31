@@ -17,10 +17,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	networkmanager "github.com/kosmos.io/clusterlink/pkg/agent/network-manager"
-	clusterlinkv1alpha1 "github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
-	clusterlinkv1alpha1lister "github.com/kosmos.io/clusterlink/pkg/generated/listers/clusterlink/v1alpha1"
-	"github.com/kosmos.io/clusterlink/pkg/network"
+	networkmanager "github.com/kosmos.io/kosmos/pkg/agent/network-manager"
+	clusterlinkv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/clusterlink/v1alpha1"
+	clusterlinkv1alpha1lister "github.com/kosmos.io/kosmos/pkg/generated/listers/clusterlink/v1alpha1"
+	"github.com/kosmos.io/kosmos/pkg/network"
 )
 
 const (

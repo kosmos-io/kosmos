@@ -6,7 +6,7 @@ import (
 	"k8s.io/component-base/cli"
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	"github.com/kosmos.io/clusterlink/cmd/controller-manager/app"
+	"github.com/kosmos.io/kosmos/cmd/controller-manager/app"
 )
 
 func main() {

@@ -1,4 +1,4 @@
-module github.com/kosmos.io/clusterlink
+module github.com/kosmos.io/kosmos
 
 go 1.20
 

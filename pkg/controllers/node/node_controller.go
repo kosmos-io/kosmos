@@ -21,9 +21,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	clusterlinkv1alpha1 "github.com/kosmos.io/clusterlink/pkg/apis/clusterlink/v1alpha1"
-	"github.com/kosmos.io/clusterlink/pkg/generated/clientset/versioned"
-	interfacepolicy "github.com/kosmos.io/clusterlink/pkg/utils/interface-policy"
+	clusterlinkv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/clusterlink/v1alpha1"
+	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
+	interfacepolicy "github.com/kosmos.io/kosmos/pkg/utils/interface-policy"
 )
 
 const (

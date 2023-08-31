@@ -10,10 +10,10 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/kubectl/pkg/util/templates"
 
-	"github.com/kosmos.io/clusterlink/pkg/clusterlinkctl/floaterclient"
-	"github.com/kosmos.io/clusterlink/pkg/clusterlinkctl/initmaster"
-	"github.com/kosmos.io/clusterlink/pkg/clusterlinkctl/membercurd"
-	"github.com/kosmos.io/clusterlink/pkg/version"
+	"github.com/kosmos.io/kosmos/pkg/clusterlinkctl/floaterclient"
+	"github.com/kosmos.io/kosmos/pkg/clusterlinkctl/initmaster"
+	"github.com/kosmos.io/kosmos/pkg/clusterlinkctl/membercurd"
+	"github.com/kosmos.io/kosmos/pkg/version"
 )
 
 var (
