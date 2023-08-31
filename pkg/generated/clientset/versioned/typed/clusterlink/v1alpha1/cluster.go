@@ -40,7 +40,7 @@ type clusters struct {
 }
 
 // newClusters returns a Clusters
-func newClusters(c *ClusterlinkV1alpha1Client) *clusters {
+func newClusters(c *KosmosV1alpha1Client) *clusters {
 	return &clusters{
 		client: c.RESTClient(),
 	}

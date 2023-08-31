@@ -15,7 +15,7 @@ var _ = ginkgo.Describe("elector testing", func() {
 	ginkgo.Context("gateway role add test", func() {
 		ginkgo.It("Check if gateway role gateway role is set correctly", func() {
 			gomega.Eventually(func(g gomega.Gomega) (bool, error) {
-				clusterNodes, err := clusterLinkClient.ClusterlinkV1alpha1().ClusterNodes().List(context.TODO(), metav1.ListOptions{})
+				clusterNodes, err := clusterLinkClient.KosmosV1alpha1().ClusterNodes().List(context.TODO(), metav1.ListOptions{})
 				if err != nil {
 					return false, err
 				}

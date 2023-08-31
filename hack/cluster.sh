@@ -115,7 +115,7 @@ function join_cluster() {
   local member_cluster=$2
   local container_ip_port
   cat <<EOF | kubectl --context="kind-${host_cluster}" apply -f -
-apiVersion: clusterlink.io/v1alpha1
+apiVersion: kosmos.io/v1alpha1
 kind: Cluster
 metadata:
   name: ${member_cluster}
@@ -140,7 +140,7 @@ function deploy_clusterlink() {
 
    kubectl --context="kind-${clustername}" apply -f "$ROOT"/deploy/clusterlink-namespace.yml
    kubectl --context="kind-${clustername}" apply -f "$ROOT"/deploy/crds
-   util::wait_for_crd clusternodes.clusterlink.io clusters.clusterlink.io
+   util::wait_for_crd clusternodes.kosmos.io clusters.kosmos.io
 
    sed -e "s|__VERSION__|$VERSION|g" -e "w ${ROOT}/environments/clusterlink-network-manager.yml" "$ROOT"/deploy/clusterlink-network-manager.yml
    kubectl --context="kind-${clustername}" apply -f "${ROOT}/environments/clusterlink-network-manager.yml"

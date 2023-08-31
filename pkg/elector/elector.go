@@ -28,11 +28,11 @@ func NewElector(controlPanelClient versioned.Interface) *Elector {
 }
 
 func (e *Elector) EnsureGateWayRole() error {
-	clusterNodes, err := e.controlPanelClient.ClusterlinkV1alpha1().ClusterNodes().List(context.TODO(), metav1.ListOptions{})
+	clusterNodes, err := e.controlPanelClient.KosmosV1alpha1().ClusterNodes().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
-	_, err = e.controlPanelClient.ClusterlinkV1alpha1().Clusters().Get(context.TODO(), e.clusterName, metav1.GetOptions{})
+	_, err = e.controlPanelClient.KosmosV1alpha1().Clusters().Get(context.TODO(), e.clusterName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -40,7 +40,7 @@ func (e *Elector) EnsureGateWayRole() error {
 	klog.Infof("%d node need modify", len(modifyNodes))
 	for i := range modifyNodes {
 		node := modifyNodes[i]
-		_, err := e.controlPanelClient.ClusterlinkV1alpha1().ClusterNodes().Update(context.TODO(), &node, metav1.UpdateOptions{})
+		_, err := e.controlPanelClient.KosmosV1alpha1().ClusterNodes().Update(context.TODO(), &node, metav1.UpdateOptions{})
 		if err != nil {
 			klog.Errorf("update clusterNode %s with role %v err: %v", node.Name, node.Spec.Roles, err)
 			return err

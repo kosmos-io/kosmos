@@ -4,8 +4,8 @@ package fake
 
 import (
 	clientset "github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
-	clusterlinkv1alpha1 "github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned/typed/clusterlink/v1alpha1"
-	fakeclusterlinkv1alpha1 "github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned/typed/clusterlink/v1alpha1/fake"
+	kosmosv1alpha1 "github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned/typed/clusterlink/v1alpha1"
+	fakekosmosv1alpha1 "github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned/typed/clusterlink/v1alpha1/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"
@@ -63,7 +63,7 @@ var (
 	_ testing.FakeClient  = &Clientset{}
 )
 
-// ClusterlinkV1alpha1 retrieves the ClusterlinkV1alpha1Client
-func (c *Clientset) ClusterlinkV1alpha1() clusterlinkv1alpha1.ClusterlinkV1alpha1Interface {
-	return &fakeclusterlinkv1alpha1.FakeClusterlinkV1alpha1{Fake: &c.Fake}
+// KosmosV1alpha1 retrieves the KosmosV1alpha1Client
+func (c *Clientset) KosmosV1alpha1() kosmosv1alpha1.KosmosV1alpha1Interface {
+	return &fakekosmosv1alpha1.FakeKosmosV1alpha1{Fake: &c.Fake}
 }

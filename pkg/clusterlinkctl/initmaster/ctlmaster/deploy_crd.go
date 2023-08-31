@@ -42,9 +42,9 @@ func (i *CommandInitOption) deployClusterlinkCRDs(crd *apiextensionsv1.CustomRes
 
 func (i *CommandInitOption) initClusterlinkCRDs() error {
 	crdFuncList := map[string](func() (*apiextensionsv1.CustomResourceDefinition, error)){
-		"clusternodes.clusterlink.io": MakeCRD(ClusterNode),
-		"clusters.clusterlink.io":     MakeCRD(Cluster),
-		"nodeconfigs.clusterlink.io":  MakeCRD(NodeConfig),
+		"clusternodes.kosmos.io": MakeCRD(ClusterNode),
+		"clusters.kosmos.io":     MakeCRD(Cluster),
+		"nodeconfigs.kosmos.io":  MakeCRD(NodeConfig),
 	}
 	for crdName, crdFunc := range crdFuncList {
 		crd, err := crdFunc()

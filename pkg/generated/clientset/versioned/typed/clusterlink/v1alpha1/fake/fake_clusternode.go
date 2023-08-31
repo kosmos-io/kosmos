@@ -16,12 +16,12 @@ import (
 
 // FakeClusterNodes implements ClusterNodeInterface
 type FakeClusterNodes struct {
-	Fake *FakeClusterlinkV1alpha1
+	Fake *FakeKosmosV1alpha1
 }
 
-var clusternodesResource = schema.GroupVersionResource{Group: "clusterlink.io", Version: "v1alpha1", Resource: "clusternodes"}
+var clusternodesResource = schema.GroupVersionResource{Group: "kosmos.io", Version: "v1alpha1", Resource: "clusternodes"}
 
-var clusternodesKind = schema.GroupVersionKind{Group: "clusterlink.io", Version: "v1alpha1", Kind: "ClusterNode"}
+var clusternodesKind = schema.GroupVersionKind{Group: "kosmos.io", Version: "v1alpha1", Kind: "ClusterNode"}
 
 // Get takes name of the clusterNode, and returns the corresponding clusterNode object, and an error if there is any.
 func (c *FakeClusterNodes) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.ClusterNode, err error) {

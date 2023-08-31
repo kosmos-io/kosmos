@@ -45,13 +45,13 @@ func NewFilteredClusterInformer(client versioned.Interface, resyncPeriod time.Du
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.ClusterlinkV1alpha1().Clusters().List(context.TODO(), options)
+				return client.KosmosV1alpha1().Clusters().List(context.TODO(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.ClusterlinkV1alpha1().Clusters().Watch(context.TODO(), options)
+				return client.KosmosV1alpha1().Clusters().Watch(context.TODO(), options)
 			},
 		},
 		&clusterlinkv1alpha1.Cluster{},

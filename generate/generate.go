@@ -13,17 +13,17 @@ import (
 )
 
 func main() {
-	clusterNodeCRD, err := os.ReadFile(fmt.Sprintf("%s/deploy/crds/clusterlink.io_clusternodes.yaml", projectpath.Root))
+	clusterNodeCRD, err := os.ReadFile(fmt.Sprintf("%s/deploy/crds/kosmos.io_clusternodes.yaml", projectpath.Root))
 	if err != nil {
 		fmt.Println("can not read file：", err)
 		return
 	}
-	clusterCRD, err := os.ReadFile(fmt.Sprintf("%s/deploy/crds/clusterlink.io_clusters.yaml", projectpath.Root))
+	clusterCRD, err := os.ReadFile(fmt.Sprintf("%s/deploy/crds/kosmos.io_clusters.yaml", projectpath.Root))
 	if err != nil {
 		fmt.Println("can not read file：", err)
 		return
 	}
-	nodeConfigCRD, err := os.ReadFile(fmt.Sprintf("%s/deploy/crds/clusterlink.io_nodeconfigs.yaml", projectpath.Root))
+	nodeConfigCRD, err := os.ReadFile(fmt.Sprintf("%s/deploy/crds/kosmos.io_nodeconfigs.yaml", projectpath.Root))
 	if err != nil {
 		fmt.Println("can not read file：", err)
 		return

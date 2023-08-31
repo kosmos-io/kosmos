@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	ClusterGroup    = "clusterlink.io"
+	ClusterGroup    = "kosmos.io"
 	ClusterVersion  = "v1alpha1"
 	ClusterResource = "clusters"
 	ClusterKind     = "Cluster"

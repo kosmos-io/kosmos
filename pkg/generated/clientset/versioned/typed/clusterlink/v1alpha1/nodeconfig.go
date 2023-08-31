@@ -40,7 +40,7 @@ type nodeConfigs struct {
 }
 
 // newNodeConfigs returns a NodeConfigs
-func newNodeConfigs(c *ClusterlinkV1alpha1Client) *nodeConfigs {
+func newNodeConfigs(c *KosmosV1alpha1Client) *nodeConfigs {
 	return &nodeConfigs{
 		client: c.RESTClient(),
 	}

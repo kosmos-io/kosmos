@@ -55,7 +55,7 @@ func (c *Controller) Start(ctx context.Context) error {
 	c.processor = utils.NewAsyncWorker(opt)
 
 	clusterInformerFactory := externalversions.NewSharedInformerFactory(c.clusterLinkClient, 0)
-	clusterInformer := clusterInformerFactory.Clusterlink().V1alpha1().Clusters().Informer()
+	clusterInformer := clusterInformerFactory.Kosmos().V1alpha1().Clusters().Informer()
 	_, err := clusterInformer.AddEventHandler(cache.FilteringResourceEventHandler{
 		Handler: cache.ResourceEventHandlerFuncs{
 			AddFunc:    c.OnAdd,
@@ -75,7 +75,7 @@ func (c *Controller) Start(ctx context.Context) error {
 		panic(err)
 	}
 
-	c.clusterLister = clusterInformerFactory.Clusterlink().V1alpha1().Clusters().Lister()
+	c.clusterLister = clusterInformerFactory.Kosmos().V1alpha1().Clusters().Lister()
 
 	c.setupControllers()
 
@@ -156,7 +156,7 @@ func (c *Controller) ensureFinalizer(cluster *clusterlinkv1alpha1.Cluster) error
 	}
 
 	controllerutil.AddFinalizer(cluster, utils.ClusterStartControllerFinalizer)
-	_, err := c.clusterLinkClient.ClusterlinkV1alpha1().Clusters().Update(context.TODO(), cluster, metav1.UpdateOptions{})
+	_, err := c.clusterLinkClient.KosmosV1alpha1().Clusters().Update(context.TODO(), cluster, metav1.UpdateOptions{})
 	if err != nil {
 		klog.Errorf("cluster %s failed add finalizer: %v", cluster.Name, err)
 		return err
@@ -170,7 +170,7 @@ func (c *Controller) removeFinalizer(cluster *clusterlinkv1alpha1.Cluster) error
 		return nil
 	}
 	controllerutil.RemoveFinalizer(cluster, utils.ClusterStartControllerFinalizer)
-	_, err := c.clusterLinkClient.ClusterlinkV1alpha1().Clusters().Update(context.TODO(), cluster, metav1.UpdateOptions{})
+	_, err := c.clusterLinkClient.KosmosV1alpha1().Clusters().Update(context.TODO(), cluster, metav1.UpdateOptions{})
 	if err != nil {
 		klog.Errorf("cluster %s failed remove finalizer: %v", cluster.Name, err)
 		return err

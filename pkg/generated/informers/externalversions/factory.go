@@ -227,9 +227,9 @@ type SharedInformerFactory interface {
 	// client.
 	InformerFor(obj runtime.Object, newFunc internalinterfaces.NewInformerFunc) cache.SharedIndexInformer
 
-	Clusterlink() clusterlink.Interface
+	Kosmos() clusterlink.Interface
 }
 
-func (f *sharedInformerFactory) Clusterlink() clusterlink.Interface {
+func (f *sharedInformerFactory) Kosmos() clusterlink.Interface {
 	return clusterlink.New(f, f.namespace, f.tweakListOptions)
 }

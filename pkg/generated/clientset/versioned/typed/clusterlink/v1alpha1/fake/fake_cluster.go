@@ -16,12 +16,12 @@ import (
 
 // FakeClusters implements ClusterInterface
 type FakeClusters struct {
-	Fake *FakeClusterlinkV1alpha1
+	Fake *FakeKosmosV1alpha1
 }
 
-var clustersResource = schema.GroupVersionResource{Group: "clusterlink.io", Version: "v1alpha1", Resource: "clusters"}
+var clustersResource = schema.GroupVersionResource{Group: "kosmos.io", Version: "v1alpha1", Resource: "clusters"}
 
-var clustersKind = schema.GroupVersionKind{Group: "clusterlink.io", Version: "v1alpha1", Kind: "Cluster"}
+var clustersKind = schema.GroupVersionKind{Group: "kosmos.io", Version: "v1alpha1", Kind: "Cluster"}
 
 // Get takes name of the cluster, and returns the corresponding cluster object, and an error if there is any.
 func (c *FakeClusters) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.Cluster, err error) {

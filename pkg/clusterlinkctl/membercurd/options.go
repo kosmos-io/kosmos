@@ -58,7 +58,7 @@ func (m *CommandMemberOption) InitKubeClient() error {
 	if err != nil {
 		return err
 	}
-	clusterClient := clientSet.ClusterlinkV1alpha1().Clusters()
+	clusterClient := clientSet.KosmosV1alpha1().Clusters()
 	m.KubeClientSet = clusterClient
 
 	return nil

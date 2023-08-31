@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	ClustersGroupResource     = "clusters.clusterlink.io"
-	ClusterNodesGroupResource = "clusternodes.clusterlink.io"
+	ClustersGroupResource     = "clusters.kosmos.io"
+	ClusterNodesGroupResource = "clusternodes.kosmos.io"
 )
 
 type CommandGetOptions struct {
