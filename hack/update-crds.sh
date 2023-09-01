@@ -14,4 +14,4 @@ export PATH=$PATH:$GOPATH/bin
 
 controller-gen crd paths=./pkg/apis/kosmos/... output:crd:dir="${REPO_ROOT}/deploy/crds"
 
-go run "${REPO_ROOT}/generate/generate.go"
+go run "${REPO_ROOT}/hack/generate/generate.go"
