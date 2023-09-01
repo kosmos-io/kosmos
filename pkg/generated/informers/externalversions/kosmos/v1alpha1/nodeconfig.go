@@ -6,10 +6,10 @@ import (
 	"context"
 	time "time"
 
-	clusterlinkv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/clusterlink/v1alpha1"
+	kosmosv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	versioned "github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	internalinterfaces "github.com/kosmos.io/kosmos/pkg/generated/informers/externalversions/internalinterfaces"
-	v1alpha1 "github.com/kosmos.io/kosmos/pkg/generated/listers/clusterlink/v1alpha1"
+	v1alpha1 "github.com/kosmos.io/kosmos/pkg/generated/listers/kosmos/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -54,7 +54,7 @@ func NewFilteredNodeConfigInformer(client versioned.Interface, resyncPeriod time
 				return client.KosmosV1alpha1().NodeConfigs().Watch(context.TODO(), options)
 			},
 		},
-		&clusterlinkv1alpha1.NodeConfig{},
+		&kosmosv1alpha1.NodeConfig{},
 		resyncPeriod,
 		indexers,
 	)
@@ -65,7 +65,7 @@ func (f *nodeConfigInformer) defaultInformer(client versioned.Interface, resyncP
 }
 
 func (f *nodeConfigInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&clusterlinkv1alpha1.NodeConfig{}, f.defaultInformer)
+	return f.factory.InformerFor(&kosmosv1alpha1.NodeConfig{}, f.defaultInformer)
 }
 
 func (f *nodeConfigInformer) Lister() v1alpha1.NodeConfigLister {

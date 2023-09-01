@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net/http"
 
-	kosmosv1alpha1 "github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned/typed/clusterlink/v1alpha1"
+	kosmosv1alpha1 "github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned/typed/kosmos/v1alpha1"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"

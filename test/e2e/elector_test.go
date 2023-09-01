@@ -7,7 +7,7 @@ import (
 	"github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	clusterlinkv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/clusterlink/v1alpha1"
+	clusterlinkv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/utils/role"
 )
 

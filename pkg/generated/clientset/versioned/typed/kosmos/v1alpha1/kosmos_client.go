@@ -5,7 +5,7 @@ package v1alpha1
 import (
 	"net/http"
 
-	v1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/clusterlink/v1alpha1"
+	v1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned/scheme"
 	rest "k8s.io/client-go/rest"
 )

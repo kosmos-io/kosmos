@@ -17,8 +17,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	cmdOptions "github.com/kosmos.io/kosmos/cmd/operator/app/options"
-	clusterlinkv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/clusterlink/v1alpha1"
-	clusterlinkv1alpha1lister "github.com/kosmos.io/kosmos/pkg/generated/listers/clusterlink/v1alpha1"
+	clusterlinkv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
+	clusterlinkv1alpha1lister "github.com/kosmos.io/kosmos/pkg/generated/listers/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/operator/addons"
 	"github.com/kosmos.io/kosmos/pkg/operator/addons/option"
 	"github.com/kosmos.io/kosmos/pkg/utils"

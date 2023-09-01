@@ -3,7 +3,7 @@ package handlers
 import (
 	"fmt"
 
-	"github.com/kosmos.io/kosmos/pkg/apis/clusterlink/v1alpha1"
+	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/constants"
 )
 
