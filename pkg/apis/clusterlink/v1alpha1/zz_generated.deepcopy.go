@@ -208,6 +208,11 @@ func (in *ClusterSpec) DeepCopyInto(out *ClusterSpec) {
 			(*out)[key] = val
 		}
 	}
+	if in.Kubeconfig != nil {
+		in, out := &in.Kubeconfig, &out.Kubeconfig
+		*out = make([]byte, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 
