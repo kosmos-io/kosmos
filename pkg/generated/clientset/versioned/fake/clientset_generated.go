@@ -4,8 +4,8 @@ package fake
 
 import (
 	clientset "github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
-	kosmosv1alpha1 "github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned/typed/clusterlink/v1alpha1"
-	fakekosmosv1alpha1 "github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned/typed/clusterlink/v1alpha1/fake"
+	kosmosv1alpha1 "github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned/typed/kosmos/v1alpha1"
+	fakekosmosv1alpha1 "github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned/typed/kosmos/v1alpha1/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"

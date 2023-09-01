@@ -9,7 +9,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	clientrest "k8s.io/client-go/rest"
 
-	"github.com/kosmos.io/kosmos/pkg/apis/clusterlink/v1alpha1"
+	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/scheme"
 )
 
