@@ -22,6 +22,18 @@ spec:
         app: operator
     spec:
       serviceAccountName: clusterlink-operator
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - operator
+              namespaces:
+                - clusterlink-system
+              topologyKey: kubernetes.io/hostname
       containers:
       - name: operator
         image: ghcr.io/kosmos-io/clusterlink/clusterlink-operator:__VERSION__

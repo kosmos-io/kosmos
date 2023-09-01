@@ -12,6 +12,8 @@ type Interface interface {
 	Clusters() ClusterInformer
 	// ClusterNodes returns a ClusterNodeInformer.
 	ClusterNodes() ClusterNodeInformer
+	// Knodes returns a KnodeInformer.
+	Knodes() KnodeInformer
 	// NodeConfigs returns a NodeConfigInformer.
 	NodeConfigs() NodeConfigInformer
 }
@@ -35,6 +37,11 @@ func (v *version) Clusters() ClusterInformer {
 // ClusterNodes returns a ClusterNodeInformer.
 func (v *version) ClusterNodes() ClusterNodeInformer {
 	return &clusterNodeInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
+}
+
+// Knodes returns a KnodeInformer.
+func (v *version) Knodes() KnodeInformer {
+	return &knodeInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
 }
 
 // NodeConfigs returns a NodeConfigInformer.

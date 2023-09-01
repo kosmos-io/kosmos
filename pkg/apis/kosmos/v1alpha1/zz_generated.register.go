@@ -46,6 +46,8 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&ClusterList{},
 		&ClusterNode{},
 		&ClusterNodeList{},
+		&Knode{},
+		&KnodeList{},
 		&NodeConfig{},
 		&NodeConfigList{},
 		&Proxy{},
