@@ -46,6 +46,18 @@ spec:
         app: clusterlink-network-manager
     spec:
       serviceAccountName: clusterlink-network-manager
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - clusterlink-network-manager
+              namespaces:
+                - clusterlink-system
+              topologyKey: kubernetes.io/hostname
       containers:
         - name: manager
           image: ghcr.io/kosmos-io/clusterlink/clusterlink-network-manager:__VERSION__
