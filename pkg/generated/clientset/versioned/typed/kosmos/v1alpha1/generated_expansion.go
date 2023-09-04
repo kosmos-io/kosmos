@@ -6,4 +6,6 @@ type ClusterExpansion interface{}
 
 type ClusterNodeExpansion interface{}
 
+type KnodeExpansion interface{}
+
 type NodeConfigExpansion interface{}
