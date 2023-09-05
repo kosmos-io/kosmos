@@ -12,9 +12,9 @@ import (
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	"github.com/kosmos.io/kosmos/cmd/controller-manager/app/options"
-	ctrlcontext "github.com/kosmos.io/kosmos/pkg/controllers/context"
+	"github.com/kosmos.io/kosmos/cmd/link-controller-manager/app/options"
 	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
+	ctrlcontext "github.com/kosmos.io/kosmos/pkg/link-controllers/context"
 	"github.com/kosmos.io/kosmos/pkg/scheme"
 	"github.com/kosmos.io/kosmos/pkg/sharedcli/klogflag"
 )

@@ -14,10 +14,10 @@ import (
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	"github.com/kosmos.io/kosmos/cmd/agent/app/options"
-	"github.com/kosmos.io/kosmos/pkg/agent"
-	clusterlinkclientset "github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
-	clusterlinkinformer "github.com/kosmos.io/kosmos/pkg/generated/informers/externalversions"
+	"github.com/kosmos.io/kosmos/cmd/link-agent/app/options"
+	kosmosclientset "github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
+	kosmosinformer "github.com/kosmos.io/kosmos/pkg/generated/informers/externalversions"
+	linkagent "github.com/kosmos.io/kosmos/pkg/link-agent"
 	"github.com/kosmos.io/kosmos/pkg/network"
 	"github.com/kosmos.io/kosmos/pkg/scheme"
 	"github.com/kosmos.io/kosmos/pkg/sharedcli"
@@ -92,23 +92,23 @@ func run(ctx context.Context, opts *options.Options) error {
 		return err
 	}
 
-	clusterlinkClientset, err := clusterlinkclientset.NewForConfig(restConfig)
+	clusterlinkClientset, err := kosmosclientset.NewForConfig(restConfig)
 	if err != nil {
 		klog.Fatalf("Unable to create clusterlink clientset: %v", err)
 		return err
 	}
 
-	factory := clusterlinkinformer.NewSharedInformerFactory(clusterlinkClientset, 0)
+	factory := kosmosinformer.NewSharedInformerFactory(clusterlinkClientset, 0)
 	nodeConfigLister := factory.Kosmos().V1alpha1().NodeConfigs().Lister()
 	clusterLister := factory.Kosmos().V1alpha1().Clusters().Lister()
 
-	clusterNodeController := agent.Reconciler{
+	clusterNodeController := linkagent.Reconciler{
 		Scheme:           mgr.GetScheme(),
 		NodeConfigLister: nodeConfigLister,
 		ClusterLister:    clusterLister,
 		NodeName:         os.Getenv(utils.EnvNodeName),
 		ClusterName:      os.Getenv(utils.EnvClusterName),
-		NetworkManager:   agent.NetworkManager(),
+		NetworkManager:   linkagent.NetworkManager(),
 		DebounceFunc:     debounce.New(5 * time.Second),
 	}
 	if err = clusterNodeController.SetupWithManager(mgr); err != nil {

@@ -1,4 +1,4 @@
-package agent
+package link_agent
 
 import (
 	"context"
@@ -17,9 +17,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	networkmanager "github.com/kosmos.io/kosmos/pkg/agent/network-manager"
-	clusterlinkv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
-	clusterlinkv1alpha1lister "github.com/kosmos.io/kosmos/pkg/generated/listers/kosmos/v1alpha1"
+	kosmosv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
+	kosmosv1alpha1lister "github.com/kosmos.io/kosmos/pkg/generated/listers/kosmos/v1alpha1"
+	networkmanager "github.com/kosmos.io/kosmos/pkg/link-agent/network-manager"
 	"github.com/kosmos.io/kosmos/pkg/network"
 )
 
@@ -34,8 +34,8 @@ type Reconciler struct {
 	NodeName         string
 	ClusterName      string
 	NetworkManager   *networkmanager.NetworkManager
-	NodeConfigLister clusterlinkv1alpha1lister.NodeConfigLister
-	ClusterLister    clusterlinkv1alpha1lister.ClusterLister
+	NodeConfigLister kosmosv1alpha1lister.NodeConfigLister
+	ClusterLister    kosmosv1alpha1lister.ClusterLister
 	DebounceFunc     func(f func())
 }
 
@@ -67,7 +67,7 @@ func (r *Reconciler) SetupWithManager(mgr manager.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(controllerName).
 		WithOptions(controller.Options{}).
-		For(&clusterlinkv1alpha1.NodeConfig{}, builder.WithPredicates(predicatesFunc)).
+		For(&kosmosv1alpha1.NodeConfig{}, builder.WithPredicates(predicatesFunc)).
 		Complete(r)
 }
 
@@ -84,12 +84,12 @@ func (r *Reconciler) logResult(nodeConfigSyncStatus networkmanager.NodeConfigSyn
 func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
 	klog.Infof("============ agent starts to reconcile %s ============", request.NamespacedName)
 
-	var reconcileNode clusterlinkv1alpha1.NodeConfig
+	var reconcileNode kosmosv1alpha1.NodeConfig
 	if err := r.Get(ctx, request.NamespacedName, &reconcileNode); err != nil {
 		// The resource no longer exists
 		if apierrors.IsNotFound(err) {
-			nodeConfigSyncStatus := r.NetworkManager.UpdateFromCRD(&clusterlinkv1alpha1.NodeConfig{
-				Spec: clusterlinkv1alpha1.NodeConfigSpec{}})
+			nodeConfigSyncStatus := r.NetworkManager.UpdateFromCRD(&kosmosv1alpha1.NodeConfig{
+				Spec: kosmosv1alpha1.NodeConfigSpec{}})
 			r.logResult(nodeConfigSyncStatus)
 			return reconcile.Result{}, nil
 		}

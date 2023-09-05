@@ -5,12 +5,12 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 
-	"github.com/kosmos.io/kosmos/pkg/controllers/calicoippool"
-	"github.com/kosmos.io/kosmos/pkg/controllers/cluster"
-	ctrlcontext "github.com/kosmos.io/kosmos/pkg/controllers/context"
-	"github.com/kosmos.io/kosmos/pkg/controllers/node"
-	"github.com/kosmos.io/kosmos/pkg/controllers/nodecidr"
 	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
+	"github.com/kosmos.io/kosmos/pkg/link-controllers/calicoippool"
+	"github.com/kosmos.io/kosmos/pkg/link-controllers/cluster"
+	ctrlcontext "github.com/kosmos.io/kosmos/pkg/link-controllers/context"
+	"github.com/kosmos.io/kosmos/pkg/link-controllers/node"
+	"github.com/kosmos.io/kosmos/pkg/link-controllers/nodecidr"
 )
 
 func startClusterController(ctx ctrlcontext.Context) (bool, ctrlcontext.CleanFunc, error) {
