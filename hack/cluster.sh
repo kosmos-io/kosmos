@@ -7,7 +7,7 @@ set -o pipefail
 CURRENT="$(dirname "${BASH_SOURCE[0]}")"
 ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 DEFAULT_NAMESPACE="clusterlink-system"
-KIND_IMAGE="ghcr.io/kosmos-io/clusterlink/kindest/node:v1.25.3_1"
+KIND_IMAGE="ghcr.io/kosmos-io/kindest/node:v1.25.3_1"
 # true: when cluster is exist, reuse exist one!
 REUSE=${REUSE:-false}
 VERSION=${VERSION:-latest}

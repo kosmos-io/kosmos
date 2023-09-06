@@ -3,6 +3,8 @@ package helpers
 import (
 	"strings"
 	"testing"
+
+	"github.com/kosmos.io/kosmos/pkg/utils/net"
 )
 
 func Test_GenerateVxlanIP(t *testing.T) {
@@ -82,7 +84,7 @@ func Test_Intersect(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := Intersect(tt.cidr1, tt.cidr2); got != tt.want {
+			if got := net.Intersect(tt.cidr1, tt.cidr2); got != tt.want {
 				t.Errorf("helpers.Intersect() = %v, want %v", got, tt.want)
 			}
 		})
