@@ -17,7 +17,7 @@ import (
 	"k8s.io/component-base/term"
 	"k8s.io/klog/v2"
 
-	"github.com/kosmos.io/kosmos/cmd/elector/app/options"
+	"github.com/kosmos.io/kosmos/cmd/link-elector/app/options"
 	"github.com/kosmos.io/kosmos/pkg/elector"
 	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/sharedcli"

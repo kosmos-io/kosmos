@@ -9,7 +9,7 @@ import (
 	"k8s.io/component-base/term"
 	"k8s.io/klog/v2"
 
-	"github.com/kosmos.io/kosmos/cmd/clusterlink-proxy/app/options"
+	"github.com/kosmos.io/kosmos/cmd/link-proxy/app/options"
 )
 
 // NewClusterLinkProxyCommand creates a *cobra.Command object with default parameters

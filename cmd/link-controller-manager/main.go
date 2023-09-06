@@ -6,12 +6,12 @@ import (
 	"k8s.io/component-base/cli"
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	"github.com/kosmos.io/kosmos/cmd/elector/app"
+	"github.com/kosmos.io/kosmos/cmd/link-controller-manager/app"
 )
 
 func main() {
 	ctx := ctrl.SetupSignalHandler()
-	cmd := app.NewElectorCommand(ctx)
+	cmd := app.NewControllerManagerCommand(ctx)
 	code := cli.Run(cmd)
 	os.Exit(code)
 }
