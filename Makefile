@@ -16,7 +16,7 @@ TARGETS :=  clusterlink-controller-manager  \
 			clusterlink-network-manager \
 			clusterlink-proxy \
 
-CTL_TARGETS := linkctl
+CTL_TARGETS := kosmosctl
 
 # Build code.
 #
@@ -114,7 +114,7 @@ endif
 # Build and package binary
 #
 # Example
-#   make release-linkctl
+#   make release-kosmosctl
 RELEASE_TARGET=$(addprefix release-, $(CTL_TARGETS))
 .PHONY: $(RELEASE_TARGET)
 $(RELEASE_TARGET):

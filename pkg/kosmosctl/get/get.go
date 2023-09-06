@@ -9,8 +9,6 @@ import (
 	ctlget "k8s.io/kubectl/pkg/cmd/get"
 	ctlutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/i18n"
-
-	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 )
 
 const (
@@ -23,8 +21,6 @@ type CommandGetOptions struct {
 	ClusterNode string
 
 	GetOptions *ctlget.GetOptions
-
-	clusterLinkClient *versioned.Clientset
 }
 
 // NewCmdGet Display resources from the Clusterlink control plane.
@@ -53,26 +49,16 @@ func NewCmdGet(f ctlutil.Factory, streams genericclioptions.IOStreams) *cobra.Co
 
 // NewCommandGetOptions returns a CommandGetOptions.
 func NewCommandGetOptions(streams genericclioptions.IOStreams) *CommandGetOptions {
-	getOptions := ctlget.NewGetOptions("linkctl", streams)
+	getOptions := ctlget.NewGetOptions("kosmosctl", streams)
 	return &CommandGetOptions{
 		GetOptions: getOptions,
 	}
 }
 
 func (o *CommandGetOptions) Complete(f ctlutil.Factory, cmd *cobra.Command, args []string) error {
-	config, err := f.ToRESTConfig()
+	err := o.GetOptions.Complete(f, cmd, args)
 	if err != nil {
-		return fmt.Errorf("linkctl get complete error, generate rest config failed: %s", err)
-	}
-
-	o.clusterLinkClient, err = versioned.NewForConfig(config)
-	if err != nil {
-		return fmt.Errorf("linkctl get complete error, create clusterlink client failed: %s", err)
-	}
-
-	err = o.GetOptions.Complete(f, cmd, args)
-	if err != nil {
-		return fmt.Errorf("linkctl get complete error, options failed: %s", err)
+		return fmt.Errorf("kosmosctl get complete error, options failed: %s", err)
 	}
 
 	return nil
@@ -81,7 +67,7 @@ func (o *CommandGetOptions) Complete(f ctlutil.Factory, cmd *cobra.Command, args
 func (o *CommandGetOptions) Validate() error {
 	err := o.GetOptions.Validate()
 	if err != nil {
-		return fmt.Errorf("linkctl get validate error, options failed: %s", err)
+		return fmt.Errorf("kosmosctl get validate error, options failed: %s", err)
 	}
 
 	return nil
@@ -99,7 +85,7 @@ func (o *CommandGetOptions) Run(f ctlutil.Factory, cmd *cobra.Command, args []st
 
 	err := o.GetOptions.Run(f, cmd, args)
 	if err != nil {
-		return fmt.Errorf("linkctl get run error, options failed: %s", err)
+		return fmt.Errorf("kosmosctl get run error, options failed: %s", err)
 	}
 
 	return nil
