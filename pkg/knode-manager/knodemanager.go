@@ -18,7 +18,6 @@ import (
 
 	"github.com/kosmos.io/kosmos/cmd/knode-manager/app/config"
 	knodev1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
-	knode2 "github.com/kosmos.io/kosmos/pkg/clusterrouter/knodemanager/knode"
 	crdclientset "github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/generated/informers/externalversions"
 	knLister "github.com/kosmos.io/kosmos/pkg/generated/listers/kosmos/v1alpha1"
@@ -39,7 +38,7 @@ type KnodeManager struct {
 	knInformer cache.SharedIndexInformer
 
 	knlock      sync.RWMutex
-	knodes      map[string]*knode2.Knode
+	knodes      map[string]*Knode
 	knWaitGroup wait.Group
 
 	opts *config.Opts
@@ -58,7 +57,7 @@ func NewManager(c *config.Config) *KnodeManager {
 		queue: workqueue.NewRateLimitingQueue(
 			NewItemExponentialFailureAndJitterSlowRateLimter(2*time.Second, 15*time.Second, 1*time.Minute, 1.0, defaultRetryNum),
 		),
-		knodes: make(map[string]*knode2.Knode),
+		knodes: make(map[string]*Knode),
 		opts:   c.Opts,
 	}
 
@@ -226,14 +225,14 @@ func (km *KnodeManager) reconcileKnode(knode *knodev1alpha1.Knode) Result {
 
 	if kn == nil {
 		opts := *km.opts
-		opts.Plugin = knode.Spec.Type
+		opts.Adapter = knode.Spec.Type
 		opts.NodeName = knode.Spec.NodeName
 		opts.DisableTaint = knode.Spec.DisableTaint
 
 		ctx := context.TODO()
 
 		var err error
-		kn, err = knode2.NewKnode(ctx, nil, &opts)
+		kn, err = NewKnode(ctx, nil, &opts)
 		if err != nil {
 			klogv2.ErrorS(err, "Failed to new knode", "knode", knode.Name)
 			return NoRequeueResult
