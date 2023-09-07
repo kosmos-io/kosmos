@@ -15,7 +15,7 @@ import (
 
 	"github.com/kosmos.io/kosmos/cmd/knode-manager/app/config"
 	"github.com/kosmos.io/kosmos/cmd/knode-manager/app/options"
-	"github.com/kosmos.io/kosmos/pkg/clusterrouter/knodemanager"
+	knodemanager "github.com/kosmos.io/kosmos/pkg/knode-manager"
 )
 
 func NewKosmosNodeManagerCommand(ctx context.Context) *cobra.Command {
