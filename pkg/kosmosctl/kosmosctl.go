@@ -13,6 +13,7 @@ import (
 	"k8s.io/kubectl/pkg/util/i18n"
 	"k8s.io/kubectl/pkg/util/templates"
 
+	"github.com/kosmos.io/kosmos/pkg/kosmosctl/floater"
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/get"
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/install"
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/uninstall"
@@ -64,12 +65,12 @@ func NewKosmosCtlCommand() *cobra.Command {
 		//		unjoin.NewCmdUnJoin(),
 		//	},
 		//},
-		//{
-		//	Message: "Cluster Doctor/Floater Commands:",
-		//	Commands: []*cobra.Command{
-		//		floater.NewCmdDoctor(),
-		//	},
-		//},
+		{
+			Message: "Cluster Doctor/Floater Commands:",
+			Commands: []*cobra.Command{
+				floater.NewCmdDoctor(),
+			},
+		},
 	}
 	groups.Add(cmds)
 

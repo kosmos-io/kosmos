@@ -22,7 +22,7 @@ spec:
       serviceAccountName: clusterlink-network-manager
       containers:
         - name: manager
-          image: {{ .Image }}/clusterlink/clusterlink-network-manager:{{ .Version }}
+          image: {{ .ImageRepository }}/clusterlink/clusterlink-network-manager:{{ .Version }}
           imagePullPolicy: IfNotPresent
           command:
             - clusterlink-network-manager
@@ -38,7 +38,7 @@ spec:
 )
 
 type DeploymentReplace struct {
-	Namespace string
-	Image     string
-	Version   string
+	Namespace       string
+	ImageRepository string
+	Version         string
 }
