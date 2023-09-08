@@ -3,7 +3,7 @@ GOARCH ?= $(shell go env GOARCH)
 VERSION ?= '$(shell hack/version.sh)'
 
 # Images management
-REGISTRY?="ghcr.io/kosmos-io/clusterlink"
+REGISTRY?="ghcr.io/kosmos-io"
 REGISTRY_USER_NAME?=""
 REGISTRY_PASSWORD?=""
 REGISTRY_SERVER_ADDRESS?=""
@@ -109,6 +109,7 @@ endif
 	docker push ${REGISTRY}/clusterlink-operator:${VERSION}
 	docker push ${REGISTRY}/clusterlink-agent:${VERSION}
 	docker push ${REGISTRY}/clusterlink-proxy:${VERSION}
+	docker push ${REGISTRY}/clusterlink-network-manager:${VERSION}
 	docker push ${REGISTRY}/clusterlink-floater:${VERSION}
 
 # Build and package binary
