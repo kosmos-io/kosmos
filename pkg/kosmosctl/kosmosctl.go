@@ -1,4 +1,4 @@
-package linkctl
+package kosmosctl
 
 import (
 	"flag"
@@ -13,18 +13,20 @@ import (
 	"k8s.io/kubectl/pkg/util/i18n"
 	"k8s.io/kubectl/pkg/util/templates"
 
-	"github.com/kosmos.io/kosmos/pkg/linkctl/get"
+	"github.com/kosmos.io/kosmos/pkg/kosmosctl/get"
+	"github.com/kosmos.io/kosmos/pkg/kosmosctl/install"
+	"github.com/kosmos.io/kosmos/pkg/kosmosctl/uninstall"
 )
 
 // DefaultConfigFlags It composes the set of values necessary for obtaining a REST client config with default values set.
 var DefaultConfigFlags = genericclioptions.NewConfigFlags(true).WithDeprecatedPasswordFlag().WithDiscoveryBurst(300).WithDiscoveryQPS(50.0)
 
-// NewLinkCtlCommand creates the `linkctl` command with arguments.
-func NewLinkCtlCommand() *cobra.Command {
+// NewKosmosCtlCommand creates the `kosmosctl` command with arguments.
+func NewKosmosCtlCommand() *cobra.Command {
 	cmds := &cobra.Command{
-		Use:   "linkctl",
-		Short: i18n.T("linkctl controls a Kubernetes cluster network"),
-		Long:  templates.LongDesc(`linkctl controls a Kubernetes cluster network.`),
+		Use:   "kosmosctl",
+		Short: i18n.T("kosmosctl controls a Kubernetes cluster network"),
+		Long:  templates.LongDesc(`kosmosctl controls a Kubernetes cluster network.`),
 		RunE:  runHelp,
 	}
 
@@ -48,13 +50,13 @@ func NewLinkCtlCommand() *cobra.Command {
 				get.NewCmdGet(f, ioStreams),
 			},
 		},
-		//{
-		//	Message: "Install Commands:",
-		//	Commands: []*cobra.Command{
-		//		install.NewCmdInstall(f, ioStreams),
-		//		uninstall.NewCmdUninstall(f, ioStreams),
-		//	},
-		//},
+		{
+			Message: "Install/UnInstall Commands:",
+			Commands: []*cobra.Command{
+				install.NewCmdInstall(f),
+				uninstall.NewCmdUninstall(f, ioStreams),
+			},
+		},
 		//{
 		//	Message: "Cluster Member Join/UnJoin Commands:",
 		//	Commands: []*cobra.Command{
