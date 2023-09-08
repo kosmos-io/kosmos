@@ -1,6 +1,7 @@
-package floaterclient
+package manifest
 
-const clusterlinkFloaterDaemonSet = `
+const (
+	ClusterlinkFloaterDaemonSet = `
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
@@ -44,57 +45,14 @@ spec:
       - effect: NoExecute
         operator: Exists
 `
-
-const clusterlinkClusterRole = `
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: clusterlink-floater
-rules:
-- apiGroups:
-  - '*'
-  resources:
-  - '*'
-  verbs:
-  - '*'
-- nonResourceURLs:
-  - '*'
-  verbs:
-  - get
-`
-const clusterlinkClusterRoleBinding = `
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: clusterlink-floater
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: clusterlink-floater
-subjects:
-  - kind: ServiceAccount
-    name: clusterlink-floater
-    namespace: {{ .Namespace }}
-`
-
-const clusterlinkFloaterServiceAccount = `
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name:  clusterlink-floater
-  namespace: {{ .Namespace }}
-`
+)
 
 type DaemonSetReplace struct {
 	Namespace       string
+	Name            string
 	ImageRepository string
 	Version         string
-	DaemonSetName   string
 	Port            string
 
 	EnableHostNetwork bool `default:"false"`
-}
-
-type RBACReplace struct {
-	Namespace string
 }
