@@ -18,7 +18,7 @@ CLUSTERLINK_TARGET_SOURCE=(
   clusterlink-elector=cmd/link-elector
   clusterlink-agent=cmd/link-agent
   clusterlink-controller-manager=cmd/link-controller-manager
-  linkctl=cmd/linkctl
+  kosmosctl=cmd/kosmosctl
   clusterlink-floater=cmd/floater
   clusterlink-network-manager=cmd/network-manager
 )
