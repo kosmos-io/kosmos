@@ -11,12 +11,10 @@ import (
 )
 
 const (
-	DefaultNodeName             = "kosmos-Node"
 	DefaultInformerResyncPeriod = 1 * time.Minute
 	DefaultListenPort           = 10250
 	DefaultPodSyncWorkers       = 10
 	DefaultKubeNamespace        = corev1.NamespaceAll
-	DefaultKubeClusterDomain    = "cluster.local"
 
 	DefaultTaintEffect = string(corev1.TaintEffectNoSchedule)
 	DefaultTaintKey    = "kosmos-node.io/plugin"
@@ -31,21 +29,14 @@ type Config struct {
 }
 
 type Opts struct {
-	KubeConfigPath    string
-	KubeNamespace     string
-	KubeClusterDomain string
+	KubeConfigPath string
+	KubeNamespace  string
 
 	ListenPort int32
 
-	NodeName string
-
-	Adapter          string
-	PluginConfigPath string
-
-	TaintKey     string
-	TaintEffect  string
-	TaintValue   string
-	DisableTaint bool
+	TaintKey    string
+	TaintEffect string
+	TaintValue  string
 
 	PodSyncWorkers       int
 	InformerResyncPeriod time.Duration
@@ -54,8 +45,8 @@ type Opts struct {
 
 	StartupTimeout time.Duration
 
-	KubeAPIQPS   int32
-	KubeAPIBurst int32
+	KubeAPIQPS   float32
+	KubeAPIBurst int
 
 	Version string
 }
@@ -74,13 +65,11 @@ func FromDefault() (*Opts, error) {
 }
 
 func setDefaults(o *Opts) {
-	o.NodeName = DefaultNodeName
 	o.TaintKey = DefaultTaintKey
 	o.TaintEffect = DefaultTaintEffect
 	o.KubeNamespace = DefaultKubeNamespace
 	o.PodSyncWorkers = DefaultPodSyncWorkers
 	o.ListenPort = DefaultListenPort
 	o.InformerResyncPeriod = DefaultInformerResyncPeriod
-	o.KubeClusterDomain = DefaultKubeClusterDomain
 	o.EnableNodeLease = true
 }

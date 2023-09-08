@@ -2,10 +2,17 @@ package v1alpha1
 
 import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+type AdapterType string
+
+const (
+	K8sAdapter AdapterType = "k8s"
+)
+
 // +genclient
 // +genclient:nonNamespaced
 // +kubebuilder:resource:scope="Cluster"
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
 type Knode struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -24,8 +31,9 @@ type KnodeSpec struct {
 	// +required
 	NodeName string `json:"nodeName,omitempty"`
 
+	// +kubebuilder:default=k8s
 	// +optional
-	Type string `json:"type,omitempty"`
+	Type AdapterType `json:"type,omitempty"`
 
 	// +optional
 	DisableTaint bool `json:"disableTaint,omitempty"`
