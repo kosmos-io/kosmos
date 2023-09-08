@@ -1,8 +1,6 @@
 package options
 
 import (
-	"strings"
-
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
@@ -21,7 +19,6 @@ const (
 var (
 	buildVersion    = "N/A"
 	numberOfWorkers = 50
-	adapterName     = "k8s"
 )
 
 type Options struct {
@@ -51,9 +48,8 @@ func NewKosmosNodeOptions() (*Options, error) {
 	if err != nil {
 		panic(err)
 	}
-	o.Adapter = adapterName
 	o.PodSyncWorkers = numberOfWorkers
-	o.Version = strings.Join([]string{adapterName, buildVersion}, "-")
+	o.Version = buildVersion
 
 	options.Opts = o
 
@@ -86,10 +82,6 @@ func (o *Options) Flags() cliflag.NamedFlagSets {
 	fs := fss.FlagSet("misc")
 	fs.StringVar(&o.Opts.KubeConfigPath, "kubeconfig", o.Opts.KubeConfigPath, "kube config file to use for connecting to the Kubernetes API server")
 	fs.StringVar(&o.Opts.KubeNamespace, "namespace", o.Opts.KubeNamespace, "kubernetes namespace (default is 'all')")
-	fs.StringVar(&o.Opts.KubeClusterDomain, "cluster-domain", o.Opts.KubeClusterDomain, "kubernetes cluster-domain (default is 'cluster.local')")
-	fs.StringVar(&o.Opts.NodeName, "nodename", o.Opts.NodeName, "kubernetes node name")
-	fs.StringVar(&o.Opts.Adapter, "adapter", o.Opts.Adapter, "adapter type")
-	fs.StringVar(&o.Opts.PluginConfigPath, "plugin-config", o.Opts.PluginConfigPath, "plugin configuration file")
 
 	fs.DurationVar(&o.Opts.InformerResyncPeriod, "full-resync-period", o.Opts.InformerResyncPeriod, "how often to perform a full resync of pods between kubernetes and knode")
 	fs.DurationVar(&o.Opts.StartupTimeout, "startup-timeout", o.Opts.StartupTimeout, "How long to wait for the cluster-router to start")
@@ -97,9 +89,9 @@ func (o *Options) Flags() cliflag.NamedFlagSets {
 	fs.IntVar(&o.Opts.PodSyncWorkers, "pod-sync-workers", o.Opts.PodSyncWorkers, `set the number of pod synchronization workers`)
 	fs.BoolVar(&o.Opts.EnableNodeLease, "enable-node-lease", o.Opts.EnableNodeLease, `use node leases (1.13) for node heartbeats`)
 
-	fs.Int32Var(&o.Opts.KubeAPIQPS, "kube-api-qps", o.Opts.KubeAPIQPS,
+	fs.Float32Var(&o.Opts.KubeAPIQPS, "kube-api-qps", o.Opts.KubeAPIQPS,
 		"kubeAPIQPS is the QPS to use while talking with kubernetes apiserver")
-	fs.Int32Var(&o.Opts.KubeAPIBurst, "kube-api-burst", o.Opts.KubeAPIBurst,
+	fs.IntVar(&o.Opts.KubeAPIBurst, "kube-api-burst", o.Opts.KubeAPIBurst,
 		"kubeAPIBurst is the burst to allow while talking with kubernetes apiserver")
 
 	fs.BoolVar(&o.LeaderElection.LeaderElect, "leader-elect", o.LeaderElection.LeaderElect, ""+

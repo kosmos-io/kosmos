@@ -17,7 +17,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/kosmos.io/kosmos/cmd/knode-manager/app/config"
-	knodev1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
+	kosmosv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	crdclientset "github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/generated/informers/externalversions"
 	knLister "github.com/kosmos.io/kosmos/pkg/generated/listers/kosmos/v1alpha1"
@@ -77,8 +77,8 @@ func (km *KnodeManager) addKnode(obj interface{}) {
 }
 
 func (km *KnodeManager) updateKnode(older, newer interface{}) {
-	oldObj := older.(*knodev1alpha1.Knode)
-	newObj := newer.(*knodev1alpha1.Knode)
+	oldObj := older.(*kosmosv1alpha1.Knode)
+	newObj := newer.(*kosmosv1alpha1.Knode)
 	if newObj.DeletionTimestamp.IsZero() && equality.Semantic.DeepEqual(oldObj.Spec, newObj.Spec) {
 		return
 	}
@@ -188,7 +188,7 @@ func (km *KnodeManager) Run(workers int, stopCh <-chan struct{}) {
 }
 
 // if err returned is not nil, cluster will be requeued
-func (km *KnodeManager) reconcileKnode(knode *knodev1alpha1.Knode) Result {
+func (km *KnodeManager) reconcileKnode(knode *kosmosv1alpha1.Knode) Result {
 	if !knode.DeletionTimestamp.IsZero() {
 		klogv2.InfoS("remove knode", "knode", knode.Name)
 		if err := km.removeKnode(knode.Name); err != nil {
@@ -224,21 +224,18 @@ func (km *KnodeManager) reconcileKnode(knode *knodev1alpha1.Knode) Result {
 	km.knlock.RUnlock()
 
 	if kn == nil {
-		opts := *km.opts
-		opts.Adapter = knode.Spec.Type
-		opts.NodeName = knode.Spec.NodeName
-		opts.DisableTaint = knode.Spec.DisableTaint
-
+		opts := km.opts
 		ctx := context.TODO()
+		knodeCopy := knode.DeepCopy()
 
 		var err error
-		kn, err = NewKnode(ctx, nil, &opts)
+		kn, err = NewKnode(ctx, knodeCopy, opts)
 		if err != nil {
 			klogv2.ErrorS(err, "Failed to new knode", "knode", knode.Name)
 			return NoRequeueResult
 		}
 		go func() {
-			kn.Run(ctx, &opts)
+			kn.Run(ctx, opts)
 		}()
 
 		km.knlock.RLock()
