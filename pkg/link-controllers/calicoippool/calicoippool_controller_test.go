@@ -41,8 +41,9 @@ func (f *fakeIPPoolClient) DeleteIPPool(ipPools []*ExternalClusterIPPool) error 
 	f.ippools = newIPPools
 	return nil
 }
-func (f *fakeIPPoolClient) ListExternalIPPools() ([]*ExternalClusterIPPool, error) {
+func (f *fakeIPPoolClient) ListIPPools() ([]*ExternalClusterIPPool, []IPPool, error) {
 	extClusterIpPools := make([]*ExternalClusterIPPool, 0, 5)
+	var ippools []IPPool
 	for _, pool := range f.ippools {
 		if strings.HasPrefix(pool.Name, utils.ExternalIPPoolNamePrefix) {
 			ipType := getIPType(pool.Name)
@@ -52,9 +53,11 @@ func (f *fakeIPPoolClient) ListExternalIPPools() ([]*ExternalClusterIPPool, erro
 				ipType:  pool.Spec.CIDR,
 			}
 			extClusterIpPools = append(extClusterIpPools, extPool)
+		} else {
+			ippools = append(ippools, IPPool(pool.Spec.CIDR))
 		}
 	}
-	return extClusterIpPools, nil
+	return extClusterIpPools, ippools, nil
 }
 
 func TestSyncIPPool(t *testing.T) {
@@ -145,6 +148,113 @@ func TestSyncIPPool(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "do not add overlapped ippool",
+			globalExtIPPools: ExternalIPPoolSet{
+				ExternalClusterIPPool{
+					cluster: remoteCluster,
+					ipType:  PODIPType,
+					ipPool:  "10.232.64.0/18",
+				}: struct{}{},
+				ExternalClusterIPPool{
+					cluster: remoteCluster,
+					ipType:  PODIPType,
+					ipPool:  "10.233.0.0/16",
+				}: struct{}{},
+				ExternalClusterIPPool{
+					cluster: currentCluster,
+					ipType:  PODIPType,
+					ipPool:  "10.233.64.0/18",
+				}: struct{}{},
+			},
+			client: &fakeIPPoolClient{
+				ippools: []calicov3.IPPool{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "default-ipv4",
+						},
+						Spec: calicov3.IPPoolSpec{
+							CIDR:     "10.233.64.0/18",
+							Disabled: false,
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: fmt.Sprintf("clusterlink-%s-pod-10-234-64-0-18", remoteCluster),
+						},
+						Spec: calicov3.IPPoolSpec{
+							CIDR:     "10.230.64.0/18",
+							Disabled: true,
+						},
+					},
+				},
+			},
+			want: []ExternalClusterIPPool{
+				{
+					cluster: remoteCluster,
+					ipType:  PODIPType,
+					ipPool:  "10.232.64.0/18",
+				},
+			},
+		},
+		{
+			name: "delete overlapped ippool",
+			globalExtIPPools: ExternalIPPoolSet{
+				ExternalClusterIPPool{
+					cluster: remoteCluster,
+					ipType:  PODIPType,
+					ipPool:  "10.232.64.0/18",
+				}: struct{}{},
+				ExternalClusterIPPool{
+					cluster: remoteCluster,
+					ipType:  PODIPType,
+					ipPool:  "192.168.100.0/24",
+				}: struct{}{},
+				ExternalClusterIPPool{
+					cluster: currentCluster,
+					ipType:  PODIPType,
+					ipPool:  "10.233.64.0/18",
+				}: struct{}{},
+			},
+			client: &fakeIPPoolClient{
+				ippools: []calicov3.IPPool{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "default-ipv4",
+						},
+						Spec: calicov3.IPPoolSpec{
+							CIDR:     "10.233.64.0/18",
+							Disabled: false,
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "default-ipv4-new",
+						},
+						Spec: calicov3.IPPoolSpec{
+							CIDR:     "192.168.10.0/16",
+							Disabled: false,
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: fmt.Sprintf("clusterlink-%s-pod-192-168-100-0-18", remoteCluster),
+						},
+						Spec: calicov3.IPPoolSpec{
+							CIDR:     "192.168.100.0/24",
+							Disabled: true,
+						},
+					},
+				},
+			},
+			want: []ExternalClusterIPPool{
+				{
+					cluster: remoteCluster,
+					ipType:  PODIPType,
+					ipPool:  "10.232.64.0/18",
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		err := syncIPPool(currentCluster, tt.globalExtIPPools, tt.client)
@@ -165,7 +275,7 @@ func TestSyncIPPool(t *testing.T) {
 				}
 			}
 			if !find {
-				t.Errorf("want does has ippool %v", p1)
+				t.Errorf("want ippool %v", p1)
 			}
 		}
 		for _, p1 := range tt.want {

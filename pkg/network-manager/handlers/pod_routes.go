@@ -8,6 +8,7 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/constants"
 	"github.com/kosmos.io/kosmos/pkg/network-manager/helpers"
+	utilnet "github.com/kosmos.io/kosmos/pkg/utils/net"
 )
 
 type PodRoutes struct {
@@ -56,7 +57,7 @@ func ConvertToGlobalCIDRs(cidrs []string, globalCIDRMap map[string]string) []str
 // impact the single-cluster network.
 func ifCIDRConflictWithSelf(selfCIDRs []string, tarCIDR string) bool {
 	for _, cidr := range selfCIDRs {
-		if helpers.Intersect(cidr, tarCIDR) {
+		if utilnet.Intersect(cidr, tarCIDR) {
 			return true
 		}
 	}

@@ -30,6 +30,7 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/utils"
 	"github.com/kosmos.io/kosmos/pkg/utils/flags"
 	"github.com/kosmos.io/kosmos/pkg/utils/keys"
+	"github.com/kosmos.io/kosmos/pkg/utils/net"
 )
 
 type ExternalIPPoolSet = map[ExternalClusterIPPool]struct{}
@@ -43,33 +44,36 @@ var calicoIPPoolGVR = schema.GroupVersionResource{
 type IPPoolClient interface {
 	CreateOrUpdateCalicoIPPool(ipPools []*ExternalClusterIPPool) error
 	DeleteIPPool(ipPools []*ExternalClusterIPPool) error
-	ListExternalIPPools() ([]*ExternalClusterIPPool, error)
+	ListIPPools() ([]*ExternalClusterIPPool, []IPPool, error)
 }
 
 type KubernetesBackend struct {
 	dynamicClient dynamic.Interface
 }
 
-func (k *KubernetesBackend) ListExternalIPPools() ([]*ExternalClusterIPPool, error) {
+func (k *KubernetesBackend) ListIPPools() ([]*ExternalClusterIPPool, []IPPool, error) {
 	list, err := k.dynamicClient.Resource(calicoIPPoolGVR).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		klog.Infof("list ippool err: %v", err)
-		return nil, err
+		return nil, nil, err
 	}
 	klog.V(4).Infof("cluster has %d ippool", len(list.Items))
 	extIPPools := make([]*ExternalClusterIPPool, 0, 5)
+	var ippools []IPPool
 	for _, unPool := range list.Items {
 		name := unPool.GetName()
+		obj := unPool.Object
 		ipType := getIPType(name)
+		cidr := utils.GetCIDRs(obj)
 		if strings.HasPrefix(name, utils.ExternalIPPoolNamePrefix) {
-			obj := unPool.Object
-			cidr := utils.GetCIDRs(obj)
 			clusterName := getClusterName(name, ipType)
 			extIPPool := &ExternalClusterIPPool{cluster: clusterName, ipType: ipType, ipPool: cidr}
 			extIPPools = append(extIPPools, extIPPool)
+		} else {
+			ippools = append(ippools, IPPool(cidr))
 		}
 	}
-	return extIPPools, nil
+	return extIPPools, ippools, nil
 }
 
 func getClusterName(name string, ipType string) string {
@@ -220,13 +224,14 @@ func (e *EtcdBackend) DeleteIPPool(ipPools []*ExternalClusterIPPool) error {
 	return nil
 }
 
-func (e *EtcdBackend) ListExternalIPPools() ([]*ExternalClusterIPPool, error) {
+func (e *EtcdBackend) ListIPPools() ([]*ExternalClusterIPPool, []IPPool, error) {
 	list, err := e.calicoClient.IPPools().List(context.TODO(), options.ListOptions{})
 	if err != nil {
 		klog.Errorf("list ippool err: %v", err)
-		return nil, err
+		return nil, nil, err
 	}
 	extIPPools := make([]*ExternalClusterIPPool, 0, 5)
+	var ippools []IPPool
 	for _, ippool := range list.Items {
 		if strings.HasPrefix(utils.ExternalIPPoolNamePrefix, ippool.Name) {
 			ipType := getIPType(ippool.Name)
@@ -235,9 +240,11 @@ func (e *EtcdBackend) ListExternalIPPools() ([]*ExternalClusterIPPool, error) {
 				ipType:  ipType,
 				ipPool:  ippool.Spec.CIDR,
 			})
+		} else {
+			ippools = append(ippools, IPPool(ippool.Spec.CIDR))
 		}
 	}
-	return extIPPools, nil
+	return extIPPools, ippools, nil
 }
 
 type Controller struct {
@@ -389,6 +396,8 @@ func (c *Controller) Reconcile(key utils.QueueKey) error {
 	return nil
 }
 
+type IPPool string
+
 type ExternalClusterIPPool struct {
 	cluster string
 	ipType  string
@@ -401,18 +410,42 @@ func (e *ExternalClusterIPPool) String() string {
 
 func syncIPPool(currentClusterName string, globalExtIPPoolSet ExternalIPPoolSet, client IPPoolClient) error {
 	klog.Infof("cluster %s start sync ippool", currentClusterName)
-	extIPPools, err := client.ListExternalIPPools()
+	extIPPools, ippools, err := client.ListIPPools()
 	if err != nil {
 		return err
 	}
+	deleteIPPool := make([]*ExternalClusterIPPool, 0, 5)
+	modifyIPPool := make([]*ExternalClusterIPPool, 0, 5)
+
+	intersection := func(cidr1, cidr2 string) bool {
+		var intersect bool
+		if utils.IsIPv6(cidr1) && utils.IsIPv6(cidr2) {
+			intersect = net.Intersect(cidr1, cidr2)
+		} else {
+			intersect = net.Intersect(cidr1, cidr2)
+		}
+		return intersect
+	}
+
 	klog.V(4).Infof("cluster %s ext ippool: %v", currentClusterName, extIPPools)
 	clusterIPPoolSet := make(ExternalIPPoolSet)
 	for _, pool := range extIPPools {
 		clusterIPPoolSet[*pool] = struct{}{}
 	}
+	for g := range globalExtIPPoolSet {
+		if g.cluster == currentClusterName {
+			continue
+		}
+		for _, p := range ippools {
+			intersect := intersection(g.ipPool, string(p))
+			if intersect {
+				klog.Warningf("%s has intersect with %s skip", g.ipPool, p)
+				delete(globalExtIPPoolSet, g)
+				continue
+			}
+		}
+	}
 
-	deleteIPPool := make([]*ExternalClusterIPPool, 0, 5)
-	modifyIPPool := make([]*ExternalClusterIPPool, 0, 5)
 	for pool := range globalExtIPPoolSet {
 		poolCopy := &ExternalClusterIPPool{
 			cluster: pool.cluster,
@@ -432,6 +465,7 @@ func syncIPPool(currentClusterName string, globalExtIPPoolSet ExternalIPPoolSet,
 			deleteIPPool = append(deleteIPPool, pool)
 		}
 	}
+
 	klog.V(4).Infof("cluster %s has %d ippools to delete, they are", currentClusterName, len(deleteIPPool), deleteIPPool)
 	err = client.DeleteIPPool(deleteIPPool)
 	if err != nil {
