@@ -1,8 +1,10 @@
-package ctlmaster
+package util
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -11,6 +13,34 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 )
+
+// WaitPodReady wait pod ready.
+func WaitPodReady(c kubernetes.Interface, namespace, selector string, timeout int) error {
+	// Wait 3 second
+	time.Sleep(3 * time.Second)
+	pods, err := c.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: selector})
+	if err != nil {
+		return err
+	}
+
+	if len(pods.Items) == 0 {
+		return fmt.Errorf("no pods in %s with selector %s", namespace, selector)
+	}
+
+	for _, pod := range pods.Items {
+		if err = waitPodReady(c, namespace, pod.Name, time.Duration(timeout)*time.Second); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// waitPodReady  Poll up to timeout seconds for pod to enter running state.
+// Returns an error if the pod never enters the running state.
+func waitPodReady(c kubernetes.Interface, namespaces, podName string, timeout time.Duration) error {
+	return wait.PollImmediate(time.Second, timeout, isPodReady(c, namespaces, podName))
+}
 
 func podStatus(pod *corev1.Pod) string {
 	for _, value := range pod.Status.ContainerStatuses {
@@ -59,30 +89,14 @@ func isPodReady(c kubernetes.Interface, n, p string) wait.ConditionFunc {
 	}
 }
 
-// waitPodReady  Poll up to timeout seconds for pod to enter running state.
-// Returns an error if the pod never enters the running state.
-func waitPodReady(c kubernetes.Interface, namespaces, podName string, timeout time.Duration) error {
-	return wait.PollImmediate(time.Second, timeout, isPodReady(c, namespaces, podName))
-}
-
-// WaitPodReady wait pod ready
-func WaitPodReady(c kubernetes.Interface, namespace, selector string, timeout int) error {
-	// Wait 3 second
-	time.Sleep(3 * time.Second)
-	pods, err := c.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: selector})
-	if err != nil {
-		return err
-	}
-
-	if len(pods.Items) == 0 {
-		return fmt.Errorf("no pods in %s with selector %s", namespace, selector)
-	}
-
-	for _, pod := range pods.Items {
-		if err = waitPodReady(c, namespace, pod.Name, time.Duration(timeout)*time.Second); err != nil {
-			return err
+// MapToString  labels to string.
+func MapToString(labels map[string]string) string {
+	v := new(bytes.Buffer)
+	for key, value := range labels {
+		_, err := fmt.Fprintf(v, "%s=%s,", key, value)
+		if err != nil {
+			klog.Errorf("map to string error: %s", err)
 		}
 	}
-
-	return nil
+	return strings.TrimRight(v.String(), ",")
 }
