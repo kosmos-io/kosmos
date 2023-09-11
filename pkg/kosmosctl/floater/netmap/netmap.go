@@ -40,7 +40,7 @@ func NetMap(ipStr string, cidrsMap map[string]string) (string, error) {
 			continue
 		}
 
-		// 不属于 source CIDR
+		// Does not belong to source CIDR
 		if !srcNet.Contains(ip) {
 			continue
 		}
@@ -50,7 +50,7 @@ func NetMap(ipStr string, cidrsMap map[string]string) (string, error) {
 			return "", err
 		}
 
-		// 暂不支持源网段和目标网段大小不一致
+		// Inconsistent sizes between the source network segment and the destination network segment are not currently supported.
 		srcBits, _ := srcNet.Mask.Size()
 		destBits, _ := destNet.Mask.Size()
 		if srcBits != destBits {
@@ -83,7 +83,7 @@ func changeIPNetIPV4(ip net.IP, destNet net.IPNet) (net.IP, error) {
 	ipBits := binary.BigEndian.Uint32(ipBytes)
 	destNetBits := binary.BigEndian.Uint32(destNetBytes)
 
-	// 对应位重置为0，并按位或
+	// The corresponding bit is reset to 0 and bitwise ORed
 	v := ((destNetBits >> (32 - maskSize)) << (32 - maskSize)) | ((ipBits << maskSize) >> maskSize)
 
 	newIP := make(net.IP, 4)
@@ -100,12 +100,12 @@ func changeIPNetIPV6(ip net.IP, destNet net.IPNet) (net.IP, error) {
 	targetIP := make(net.IP, len(ipBytes))
 
 	for k := range ipBytes {
-		// 取掩码反码
+		// Negate the mask
 		invertedMask := maskBytes[k] ^ 0xff
 
-		// 目标ip = 主机号 | 网段号
-		// 主机号 = 掩码反码 & 源ip
-		// 网段号 = 掩码 & 目标ip
+		// target ip = host number | network segment number
+		// host number = mask inverse & source ip
+		// network segment number = mask & target ip
 		targetIP[k] = (invertedMask & ipBytes[k]) | (destIPBytes[k] & maskBytes[k])
 	}
 

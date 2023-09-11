@@ -51,7 +51,7 @@ func NewCmdUninstall(f ctlutil.Factory, streams genericclioptions.IOStreams) *co
 	ctlutil.AddDryRunFlag(cmd)
 
 	flags := cmd.Flags()
-	flags.StringVarP(&o.Namespace, "namespace", "n", clusterlinkSystem, "Kubernetes namespace.")
+	flags.StringVarP(&o.Namespace, "namespace", "n", clusterlinkSystem, "Kosmos namespace.")
 
 	return cmd
 }
