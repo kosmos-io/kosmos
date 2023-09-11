@@ -30,6 +30,23 @@ subjects:
     name: clusterlink-floater
     namespace: {{ .Namespace }}
 `
+	ClusterlinkClusterRoleBinding = `
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: clusterlink
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: clusterlink
+subjects:
+  - kind: ServiceAccount
+    name: clusterlink-controller-manager
+    namespace: clusterlink-system
+  - kind: ServiceAccount
+    name: clusterlink-operator
+    namespace: clusterlink-system
+`
 )
 
 type ClusterRoleBindingReplace struct {
