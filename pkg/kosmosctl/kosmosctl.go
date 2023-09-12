@@ -16,7 +16,9 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/floater"
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/get"
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/install"
+	"github.com/kosmos.io/kosmos/pkg/kosmosctl/join"
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/uninstall"
+	"github.com/kosmos.io/kosmos/pkg/kosmosctl/unjoin"
 )
 
 // DefaultConfigFlags It composes the set of values necessary for obtaining a REST client config with default values set.
@@ -58,13 +60,13 @@ func NewKosmosCtlCommand() *cobra.Command {
 				uninstall.NewCmdUninstall(f, ioStreams),
 			},
 		},
-		//{
-		//	Message: "Cluster Member Join/UnJoin Commands:",
-		//	Commands: []*cobra.Command{
-		//		join.NewCmdJoin(),
-		//		unjoin.NewCmdUnJoin(),
-		//	},
-		//},
+		{
+			Message: "Cluster Member Join/UnJoin Commands:",
+			Commands: []*cobra.Command{
+				join.NewCmdJoin(f),
+				unjoin.NewCmdUnJoin(f),
+			},
+		},
 		{
 			Message: "Cluster Doctor/Floater Commands:",
 			Commands: []*cobra.Command{
