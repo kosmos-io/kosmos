@@ -49,7 +49,7 @@ func NewCmdInstall(f ctlutil.Factory) *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.StringVarP(&o.Namespace, "namespace", "n", util.DefaultNamespace, "Kosmos namespace.")
-	flags.StringVarP(&o.ImageRegistry, "private-image-registry", "", "ghcr.io/kosmos-io", "Private image registry where pull images from. If set, all required images will be downloaded from it, it would be useful in offline installation scenarios.  In addition, you still can use --kube-image-registry to specify the registry for Kubernetes's images.")
+	flags.StringVarP(&o.ImageRegistry, "private-image-registry", "", util.DefaultImageRepository, "Private image registry where pull images from. If set, all required images will be downloaded from it, it would be useful in offline installation scenarios.  In addition, you still can use --kube-image-registry to specify the registry for Kubernetes's images.")
 
 	return cmd
 }
