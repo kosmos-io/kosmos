@@ -26,4 +26,17 @@ rules:
   - nonResourceURLs: ['*']
     verbs: ["get"]
 `
+
+	ClusterlinkClusterRole = `
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: clusterlink
+rules:
+  - apiGroups: ['*']
+    resources: ['*']
+    verbs: ["*"]
+  - nonResourceURLs: ['*']
+    verbs: ["get"]
+`
 )
