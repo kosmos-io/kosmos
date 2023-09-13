@@ -22,7 +22,7 @@ spec:
       serviceAccountName: clusterlink-network-manager
       containers:
         - name: manager
-          image: {{ .ImageRepository }}/clusterlink/clusterlink-network-manager:{{ .Version }}
+          image: {{ .ImageRepository }}/clusterlink-network-manager:{{ .Version }}
           imagePullPolicy: IfNotPresent
           command:
             - clusterlink-network-manager

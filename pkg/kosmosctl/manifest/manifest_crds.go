@@ -8,9 +8,9 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.11.0
   creationTimestamp: null
-  name: clusternodes.clusterlink.io
+  name: clusternodes.kosmos.io
 spec:
-  group: clusterlink.io
+  group: kosmos.io
   names:
     kind: ClusterNode
     listKind: ClusterNodeList
@@ -83,9 +83,9 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.11.0
   creationTimestamp: null
-  name: clusters.clusterlink.io
+  name: clusters.kosmos.io
 spec:
-  group: clusterlink.io
+  group: kosmos.io
   names:
     kind: Cluster
     listKind: ClusterList
@@ -146,6 +146,9 @@ spec:
                 type: string
               ipFamily:
                 default: all
+                type: string
+              kubeconfig:
+                format: byte
                 type: string
               localCIDRs:
                 default:
@@ -214,9 +217,9 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.11.0
   creationTimestamp: null
-  name: nodeconfigs.clusterlink.io
+  name: nodeconfigs.kosmos.io
 spec:
-  group: clusterlink.io
+  group: kosmos.io
   names:
     kind: NodeConfig
     listKind: NodeConfigList
