@@ -35,7 +35,9 @@ func NewKnode(_ context.Context, knode *kosmosv1alpha1.Knode, c *config.Opts) (*
 	var podAdapter adapters.PodHandler
 	var nodeAdapter adapters.NodeHandler
 	if knode.Spec.Type == kosmosv1alpha1.K8sAdapter {
-		podAdapter, err = k8sadapter.NewPodAdapter()
+		initConfig := k8sadapter.PodAdapterConfig{}
+
+		podAdapter, err = k8sadapter.NewPodAdapter(initConfig, "", &k8sadapter.ClientConfig{}, true)
 		if err != nil {
 			return nil, err
 		}
