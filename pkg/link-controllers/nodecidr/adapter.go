@@ -3,7 +3,7 @@ package nodecidr
 import (
 	"strings"
 
-	api "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -85,7 +85,7 @@ func (c *commonAdapter) synced() bool {
 }
 
 func (c *commonAdapter) OnAdd(obj interface{}) {
-	runtimeObj, ok := obj.(api.Node)
+	runtimeObj, ok := obj.(*corev1.Node)
 	if !ok {
 		return
 	}
@@ -94,7 +94,7 @@ func (c *commonAdapter) OnAdd(obj interface{}) {
 
 // OnUpdate handles object update event and push the object to queue.
 func (c *commonAdapter) OnUpdate(oldObj, newObj interface{}) {
-	runtimeObj, ok := newObj.(api.Node)
+	runtimeObj, ok := newObj.(*corev1.Node)
 	if !ok {
 		return
 	}
@@ -103,7 +103,7 @@ func (c *commonAdapter) OnUpdate(oldObj, newObj interface{}) {
 
 // OnDelete handles object delete event and push the object to queue.
 func (c *commonAdapter) OnDelete(obj interface{}) {
-	runtimeObj, ok := obj.(api.Node)
+	runtimeObj, ok := obj.(*corev1.Node)
 	if !ok {
 		return
 	}
