@@ -41,6 +41,8 @@ type AsyncWorker interface {
 	// Run starts a certain number of concurrent workers to reconcile the items and will never stop until 'stopChan'
 	// is closed.
 	Run(workerNumber int, stopChan <-chan struct{})
+
+	Forget(item interface{})
 }
 
 // QueueKey is the item key that stores in queue.
@@ -129,6 +131,10 @@ func (w *asyncWorker) handleError(err error, key interface{}) {
 	}
 
 	klog.V(2).Infof("Dropping resource %q out of the queue: %v", key, err)
+	w.queue.Forget(key)
+}
+
+func (w *asyncWorker) Forget(key interface{}) {
 	w.queue.Forget(key)
 }
 
