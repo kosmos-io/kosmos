@@ -118,6 +118,8 @@ func (o *CommandUnJoinOptions) Run(f ctlutil.Factory, cmd *cobra.Command, args [
 	}
 
 	for {
+		// Wait 3 second
+		time.Sleep(3 * time.Second)
 		_, err := o.DynamicClient.Resource(schema.GroupVersionResource{
 			Group:    "kosmos.io",
 			Version:  "v1alpha1",
@@ -129,8 +131,6 @@ func (o *CommandUnJoinOptions) Run(f ctlutil.Factory, cmd *cobra.Command, args [
 			}
 			return fmt.Errorf("(cluster) kosmosctl unjoin run error, delete cluster failed: %s", err)
 		}
-		// Wait 3 second
-		time.Sleep(3 * time.Second)
 	}
 
 	// delete operator
