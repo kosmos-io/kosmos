@@ -42,7 +42,7 @@ func TrimPod(pod *corev1.Pod, ignoreLabels []string) *corev1.Pod {
 		if err != nil {
 			return podCopy
 		}
-		podCopy.Annotations[TrippedLabels] = string(trippedStr)
+		podCopy.Annotations[KosmosTrippedLabels] = string(trippedStr)
 	}
 
 	return podCopy
@@ -76,7 +76,7 @@ func GetUpdatedPod(orig, update *corev1.Pod, ignoreLabels []string) {
 	if update.Annotations == nil {
 		update.Annotations = make(map[string]string)
 	}
-	if orig.Annotations[SelectorKey] != update.Annotations[SelectorKey] {
+	if orig.Annotations[KosmosSelectorKey] != update.Annotations[KosmosSelectorKey] {
 		if cns := ConvertAnnotations(update.Annotations); cns != nil {
 			orig.Spec.Tolerations = cns.Tolerations
 		}
@@ -97,7 +97,7 @@ func TrimObjectMeta(meta *metav1.ObjectMeta) {
 }
 
 func RecoverLabels(labels map[string]string, annotations map[string]string) {
-	trippedLabels := annotations[TrippedLabels]
+	trippedLabels := annotations[KosmosTrippedLabels]
 	if trippedLabels == "" {
 		return
 	}
@@ -167,7 +167,7 @@ func ConvertAnnotations(annotation map[string]string) *ClustersNodeSelection {
 	if annotation == nil {
 		return nil
 	}
-	val := annotation[SelectorKey]
+	val := annotation[KosmosSelectorKey]
 	if len(val) == 0 {
 		return nil
 	}
