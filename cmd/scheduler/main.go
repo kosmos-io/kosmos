@@ -7,6 +7,7 @@ import (
 	"k8s.io/kubernetes/cmd/kube-scheduler/app"
 
 	"github.com/kosmos.io/kosmos/pkg/scheduler/lifted/plugins/knodetainttoleration"
+	"github.com/kosmos.io/kosmos/pkg/scheduler/lifted/plugins/knodevolumebinding"
 )
 
 func main() {
@@ -15,6 +16,7 @@ func main() {
 	// used by various kinds of workloads.
 	command := app.NewSchedulerCommand(
 		app.WithPlugin(knodetainttoleration.Name, knodetainttoleration.New),
+		app.WithPlugin(knodevolumebinding.Name, knodevolumebinding.New),
 	)
 
 	code := cli.Run(command)
