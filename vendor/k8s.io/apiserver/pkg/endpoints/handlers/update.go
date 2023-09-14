@@ -23,8 +23,6 @@ import (
 	"sync"
 	"time"
 
-	"go.opentelemetry.io/otel/attribute"
-
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metainternalversionscheme "k8s.io/apimachinery/pkg/apis/meta/internalversion/scheme"
@@ -36,23 +34,26 @@ import (
 	"k8s.io/apiserver/pkg/audit"
 	"k8s.io/apiserver/pkg/authorization/authorizer"
 	"k8s.io/apiserver/pkg/endpoints/handlers/fieldmanager"
-	"k8s.io/apiserver/pkg/endpoints/handlers/finisher"
-	requestmetrics "k8s.io/apiserver/pkg/endpoints/handlers/metrics"
 	"k8s.io/apiserver/pkg/endpoints/handlers/negotiation"
 	"k8s.io/apiserver/pkg/endpoints/request"
+	"k8s.io/apiserver/pkg/features"
 	"k8s.io/apiserver/pkg/registry/rest"
 	"k8s.io/apiserver/pkg/util/dryrun"
-	"k8s.io/component-base/tracing"
-	"k8s.io/klog/v2"
+	utilfeature "k8s.io/apiserver/pkg/util/feature"
+	utiltrace "k8s.io/utils/trace"
 )
 
 // UpdateResource returns a function that will handle a resource update
 func UpdateResource(r rest.Updater, scope *RequestScope, admit admission.Interface) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		ctx := req.Context()
 		// For performance tracking purposes.
-		ctx, span := tracing.Start(ctx, "Update", traceFields(req)...)
-		defer span.End(500 * time.Millisecond)
+		trace := utiltrace.New("Update", traceFields(req)...)
+		defer trace.LogIfLong(500 * time.Millisecond)
+
+		if isDryRun(req.URL) && !utilfeature.DefaultFeatureGate.Enabled(features.DryRun) {
+			scope.err(errors.NewBadRequest("the dryRun feature is disabled"), w, req)
+			return
+		}
 
 		namespace, name, err := scope.Namer.Name(req)
 		if err != nil {
@@ -62,7 +63,7 @@ func UpdateResource(r rest.Updater, scope *RequestScope, admit admission.Interfa
 
 		// enforce a timeout of at most requestTimeoutUpperBound (34s) or less if the user-provided
 		// timeout inside the parent context is lower than requestTimeoutUpperBound.
-		ctx, cancel := context.WithTimeout(ctx, requestTimeoutUpperBound)
+		ctx, cancel := context.WithTimeout(req.Context(), requestTimeoutUpperBound)
 		defer cancel()
 
 		ctx = request.WithNamespace(ctx, namespace)
@@ -73,13 +74,11 @@ func UpdateResource(r rest.Updater, scope *RequestScope, admit admission.Interfa
 			return
 		}
 
-		body, err := limitedReadBodyWithRecordMetric(ctx, req, scope.MaxRequestBodyBytes, scope.Resource.GroupResource().String(), requestmetrics.Update)
+		body, err := limitedReadBody(req, scope.MaxRequestBodyBytes)
 		if err != nil {
-			span.AddEvent("limitedReadBody failed", attribute.Int("len", len(body)), attribute.String("err", err.Error()))
 			scope.err(err, w, req)
 			return
 		}
-		span.AddEvent("limitedReadBody succeeded", attribute.Int("len", len(body)))
 
 		options := &metav1.UpdateOptions{}
 		if err := metainternalversionscheme.ParameterCodec.DecodeParameters(req.URL.Query(), scope.MetaGroupVersion, options); err != nil {
@@ -102,49 +101,24 @@ func UpdateResource(r rest.Updater, scope *RequestScope, admit admission.Interfa
 		defaultGVK := scope.Kind
 		original := r.New()
 
-		validationDirective := fieldValidation(options.FieldValidation)
-		decodeSerializer := s.Serializer
-		if validationDirective == metav1.FieldValidationWarn || validationDirective == metav1.FieldValidationStrict {
-			decodeSerializer = s.StrictSerializer
-		}
-
-		decoder := scope.Serializer.DecoderToVersion(decodeSerializer, scope.HubGroupVersion)
-		span.AddEvent("About to convert to expected version")
+		trace.Step("About to convert to expected version")
+		decoder := scope.Serializer.DecoderToVersion(s.Serializer, scope.HubGroupVersion)
 		obj, gvk, err := decoder.Decode(body, &defaultGVK, original)
 		if err != nil {
-			strictError, isStrictError := runtime.AsStrictDecodingError(err)
-			switch {
-			case isStrictError && obj != nil && validationDirective == metav1.FieldValidationWarn:
-				addStrictDecodingWarnings(req.Context(), strictError.Errors())
-			case isStrictError && validationDirective == metav1.FieldValidationIgnore:
-				klog.Warningf("unexpected strict error when field validation is set to ignore")
-				fallthrough
-			default:
-				err = transformDecodeError(scope.Typer, err, original, gvk, body)
-				scope.err(err, w, req)
-				return
-			}
-		}
-
-		objGV := gvk.GroupVersion()
-		if !scope.AcceptsGroupVersion(objGV) {
-			err = errors.NewBadRequest(fmt.Sprintf("the API version in the data (%s) does not match the expected API version (%s)", objGV, defaultGVK.GroupVersion()))
+			err = transformDecodeError(scope.Typer, err, original, gvk, body)
 			scope.err(err, w, req)
 			return
 		}
-		span.AddEvent("Conversion done")
-
-		audit.LogRequestObject(req.Context(), obj, objGV, scope.Resource, scope.Subresource, scope.Serializer)
-		admit = admission.WithAudit(admit)
-
-		// if this object supports namespace info
-		if objectMeta, err := meta.Accessor(obj); err == nil {
-			// ensure namespace on the object is correct, or error if a conflicting namespace was set in the object
-			if err := rest.EnsureObjectNamespaceMatchesRequestNamespace(rest.ExpectedNamespaceForResource(namespace, scope.Resource), objectMeta); err != nil {
-				scope.err(err, w, req)
-				return
-			}
+		if gvk.GroupVersion() != defaultGVK.GroupVersion() {
+			err = errors.NewBadRequest(fmt.Sprintf("the API version in the data (%s) does not match the expected API version (%s)", gvk.GroupVersion(), defaultGVK.GroupVersion()))
+			scope.err(err, w, req)
+			return
 		}
+		trace.Step("Conversion done")
+
+		ae := request.AuditEventFrom(ctx)
+		audit.LogRequestObject(ae, obj, scope.Resource, scope.Subresource, scope.Serializer)
+		admit = admission.WithAudit(admit, ae)
 
 		if err := checkName(obj, name, namespace, scope.Namer); err != nil {
 			scope.err(err, w, req)
@@ -189,15 +163,6 @@ func UpdateResource(r rest.Updater, scope *RequestScope, admit admission.Interfa
 			})
 		}
 
-		// Ignore changes that only affect managed fields
-		// timestamps. FieldManager can't know about changes
-		// like normalized fields, defaulted fields and other
-		// mutations.
-		// Only makes sense when SSA field manager is being used
-		if scope.FieldManager != nil {
-			transformers = append(transformers, fieldmanager.IgnoreManagedFieldsTimestampsTransformer)
-		}
-
 		createAuthorizerAttributes := authorizer.AttributesRecord{
 			User:            userInfo,
 			ResourceRequest: true,
@@ -211,7 +176,7 @@ func UpdateResource(r rest.Updater, scope *RequestScope, admit admission.Interfa
 			Name:            name,
 		}
 
-		span.AddEvent("About to store object in database")
+		trace.Step("About to store object in database")
 		wasCreated := false
 		requestFunc := func() (runtime.Object, error) {
 			obj, created, err := r.Update(
@@ -233,7 +198,7 @@ func UpdateResource(r rest.Updater, scope *RequestScope, admit admission.Interfa
 		}
 		// Dedup owner references before updating managed fields
 		dedupOwnerReferencesAndAddWarning(obj, req.Context(), false)
-		result, err := finisher.FinishRequest(ctx, func() (runtime.Object, error) {
+		result, err := finishRequest(ctx, func() (runtime.Object, error) {
 			result, err := requestFunc()
 			// If the object wasn't committed to storage because it's serialized size was too large,
 			// it is safe to remove managedFields (which can be large) and try again.
@@ -247,20 +212,17 @@ func UpdateResource(r rest.Updater, scope *RequestScope, admit admission.Interfa
 			return result, err
 		})
 		if err != nil {
-			span.AddEvent("Write to database call failed", attribute.Int("len", len(body)), attribute.String("err", err.Error()))
 			scope.err(err, w, req)
 			return
 		}
-		span.AddEvent("Write to database call succeeded", attribute.Int("len", len(body)))
+		trace.Step("Object stored in database")
 
 		status := http.StatusOK
 		if wasCreated {
 			status = http.StatusCreated
 		}
 
-		span.AddEvent("About to write a response")
-		defer span.AddEvent("Writing http response done")
-		transformResponseObject(ctx, scope, req, w, status, outputMediaType, result)
+		transformResponseObject(ctx, scope, trace, req, w, status, outputMediaType, result)
 	}
 }
 
@@ -302,9 +264,8 @@ func updateToCreateOptions(uo *metav1.UpdateOptions) *metav1.CreateOptions {
 		return nil
 	}
 	co := &metav1.CreateOptions{
-		DryRun:          uo.DryRun,
-		FieldManager:    uo.FieldManager,
-		FieldValidation: uo.FieldValidation,
+		DryRun:       uo.DryRun,
+		FieldManager: uo.FieldManager,
 	}
 	co.TypeMeta.SetGroupVersionKind(metav1.SchemeGroupVersion.WithKind("CreateOptions"))
 	return co

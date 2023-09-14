@@ -21,7 +21,6 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apiserver/pkg/endpoints/handlers/fieldmanager/internal"
 	"sigs.k8s.io/structured-merge-diff/v4/fieldpath"
 )
 
@@ -45,6 +44,7 @@ func NewManagedFieldsUpdater(fieldManager Manager) Manager {
 // Update implements Manager.
 func (f *managedFieldsUpdater) Update(liveObj, newObj runtime.Object, managed Managed, manager string) (runtime.Object, Managed, error) {
 	self := "current-operation"
+	formerSet := managed.Fields()[manager]
 	object, managed, err := f.fieldManager.Update(liveObj, newObj, managed, self)
 	if err != nil {
 		return object, managed, err
@@ -60,8 +60,10 @@ func (f *managedFieldsUpdater) Update(liveObj, newObj runtime.Object, managed Ma
 		} else {
 			managed.Fields()[manager] = vs
 		}
-
-		managed.Times()[manager] = &metav1.Time{Time: time.Now().UTC()}
+		// Update the time only if the manager's fieldSet has changed.
+		if formerSet == nil || !managed.Fields()[manager].Set().Equals(formerSet.Set()) {
+			managed.Times()[manager] = &metav1.Time{Time: time.Now().UTC()}
+		}
 	}
 
 	return object, managed, nil
@@ -69,15 +71,16 @@ func (f *managedFieldsUpdater) Update(liveObj, newObj runtime.Object, managed Ma
 
 // Apply implements Manager.
 func (f *managedFieldsUpdater) Apply(liveObj, appliedObj runtime.Object, managed Managed, fieldManager string, force bool) (runtime.Object, Managed, error) {
+	formerManaged := managed.Fields().Copy()
 	object, managed, err := f.fieldManager.Apply(liveObj, appliedObj, managed, fieldManager, force)
 	if err != nil {
 		return object, managed, err
 	}
-	if object != nil {
+	if object != nil || !managed.Fields().Equals(formerManaged) {
 		managed.Times()[fieldManager] = &metav1.Time{Time: time.Now().UTC()}
-	} else {
-		object = liveObj.DeepCopyObject()
-		internal.RemoveObjectManagedFields(object)
+	}
+	if object == nil {
+		object = liveObj
 	}
 	return object, managed, nil
 }

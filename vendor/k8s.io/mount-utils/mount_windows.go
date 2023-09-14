@@ -1,4 +1,3 @@
-//go:build windows
 // +build windows
 
 /*
@@ -217,7 +216,7 @@ func removeSMBMapping(remotepath string) (string, error) {
 
 // Unmount unmounts the target.
 func (mounter *Mounter) Unmount(target string) error {
-	klog.V(4).Infof("Unmount target (%q)", target)
+	klog.V(4).Infof("azureMount: Unmount target (%q)", target)
 	target = NormalizeWindowsPath(target)
 	if output, err := exec.Command("cmd", "/c", "rmdir", target).CombinedOutput(); err != nil {
 		klog.Errorf("rmdir failed: %v, output: %q", err, string(output))
@@ -244,20 +243,6 @@ func (mounter *Mounter) IsLikelyNotMountPoint(file string) (bool, error) {
 	return true, nil
 }
 
-// canSafelySkipMountPointCheck always returns false on Windows
-func (mounter *Mounter) canSafelySkipMountPointCheck() bool {
-	return false
-}
-
-// IsMountPoint: determines if a directory is a mountpoint.
-func (mounter *Mounter) IsMountPoint(file string) (bool, error) {
-	isNotMnt, err := mounter.IsLikelyNotMountPoint(file)
-	if err != nil {
-		return false, err
-	}
-	return !isNotMnt, nil
-}
-
 // GetMountRefs : empty implementation here since there is no place to query all mount points on Windows
 func (mounter *Mounter) GetMountRefs(pathname string) ([]string, error) {
 	windowsPath := NormalizeWindowsPath(pathname)
@@ -273,7 +258,7 @@ func (mounter *Mounter) GetMountRefs(pathname string) ([]string, error) {
 	return []string{pathname}, nil
 }
 
-func (mounter *SafeFormatAndMount) formatAndMountSensitive(source string, target string, fstype string, options []string, sensitiveOptions []string, formatOptions []string) error {
+func (mounter *SafeFormatAndMount) formatAndMountSensitive(source string, target string, fstype string, options []string, sensitiveOptions []string) error {
 	// Try to mount the disk
 	klog.V(4).Infof("Attempting to formatAndMount disk: %s %s %s", fstype, source, target)
 
@@ -288,12 +273,8 @@ func (mounter *SafeFormatAndMount) formatAndMountSensitive(source string, target
 	}
 
 	// format disk if it is unformatted(raw)
-	formatOptionsUnwrapped := ""
-	if len(formatOptions) > 0 {
-		formatOptionsUnwrapped = " " + strings.Join(formatOptions, " ")
-	}
-	cmd := fmt.Sprintf("Get-Disk -Number %s | Where partitionstyle -eq 'raw' | Initialize-Disk -PartitionStyle GPT -PassThru"+
-		" | New-Partition -UseMaximumSize | Format-Volume -FileSystem %s -Confirm:$false%s", source, fstype, formatOptionsUnwrapped)
+	cmd := fmt.Sprintf("Get-Disk -Number %s | Where partitionstyle -eq 'raw' | Initialize-Disk -PartitionStyle MBR -PassThru"+
+		" | New-Partition -UseMaximumSize | Format-Volume -FileSystem %s -Confirm:$false", source, fstype)
 	if output, err := mounter.Exec.Command("powershell", "/c", cmd).CombinedOutput(); err != nil {
 		return fmt.Errorf("diskMount: format disk failed, error: %v, output: %q", err, string(output))
 	}

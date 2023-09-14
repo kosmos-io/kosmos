@@ -29,24 +29,17 @@ import (
 	"strings"
 	"time"
 
-	"go.opentelemetry.io/otel/attribute"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 
 	utilnet "k8s.io/apimachinery/pkg/util/net"
 	"k8s.io/apiserver/pkg/apis/apiserver"
 	egressmetrics "k8s.io/apiserver/pkg/server/egressselector/metrics"
-	"k8s.io/component-base/metrics/legacyregistry"
-	"k8s.io/component-base/tracing"
 	"k8s.io/klog/v2"
+	utiltrace "k8s.io/utils/trace"
 	client "sigs.k8s.io/apiserver-network-proxy/konnectivity-client/pkg/client"
 )
 
 var directDialer utilnet.DialFunc = http.DefaultTransport.(*http.Transport).DialContext
-
-func init() {
-	client.Metrics.RegisterMetrics(legacyregistry.Registerer())
-}
 
 // EgressSelector is the map of network context type to context dialer, for network egress.
 type EgressSelector struct {
@@ -98,6 +91,10 @@ func (s EgressType) AsNetworkContext() NetworkContext {
 
 func lookupServiceName(name string) (EgressType, error) {
 	switch strings.ToLower(name) {
+	// 'master' is deprecated, interpret "master" as controlplane internally until removed in v1.22.
+	case "master":
+		klog.Warning("EgressSelection name 'master' is deprecated, use 'controlplane' instead")
+		return ControlPlane, nil
 	case "controlplane":
 		return ControlPlane, nil
 	case "etcd":
@@ -164,11 +161,7 @@ func (g *grpcProxier) proxy(ctx context.Context, addr string) (net.Conn, error) 
 type proxyServerConnector interface {
 	// connect establishes connection to the proxy server, and returns a
 	// proxier based on the connection.
-	//
-	// The provided Context must be non-nil. The context is used for connecting to the proxy only.
-	// If the context expires before the connection is complete, an error is returned.
-	// Once successfully connected to the proxy, any expiration of the context will not affect the connection.
-	connect(context.Context) (proxier, error)
+	connect() (proxier, error)
 }
 
 type tcpHTTPConnectConnector struct {
@@ -176,11 +169,8 @@ type tcpHTTPConnectConnector struct {
 	tlsConfig    *tls.Config
 }
 
-func (t *tcpHTTPConnectConnector) connect(ctx context.Context) (proxier, error) {
-	d := tls.Dialer{
-		Config: t.tlsConfig,
-	}
-	conn, err := d.DialContext(ctx, "tcp", t.proxyAddress)
+func (t *tcpHTTPConnectConnector) connect() (proxier, error) {
+	conn, err := tls.Dial("tcp", t.proxyAddress, t.tlsConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -191,9 +181,8 @@ type udsHTTPConnectConnector struct {
 	udsName string
 }
 
-func (u *udsHTTPConnectConnector) connect(ctx context.Context) (proxier, error) {
-	var d net.Dialer
-	conn, err := d.DialContext(ctx, "unix", u.udsName)
+func (u *udsHTTPConnectConnector) connect() (proxier, error) {
+	conn, err := net.Dial("unix", u.udsName)
 	if err != nil {
 		return nil, err
 	}
@@ -204,28 +193,18 @@ type udsGRPCConnector struct {
 	udsName string
 }
 
-// connect establishes a connection to a proxy over gRPC.
-// TODO At the moment, it does not use the provided context.
-func (u *udsGRPCConnector) connect(_ context.Context) (proxier, error) {
+func (u *udsGRPCConnector) connect() (proxier, error) {
 	udsName := u.udsName
-	dialOption := grpc.WithContextDialer(func(ctx context.Context, addr string) (net.Conn, error) {
-		var d net.Dialer
-		c, err := d.DialContext(ctx, "unix", udsName)
+	dialOption := grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
+		c, err := net.Dial("unix", udsName)
 		if err != nil {
 			klog.Errorf("failed to create connection to uds name %s, error: %v", udsName, err)
 		}
 		return c, err
 	})
 
-	// CreateSingleUseGrpcTunnel() unfortunately couples dial and connection contexts. Because of that,
-	// we cannot use ctx just for dialing and control the connection lifetime separately.
-	// See https://github.com/kubernetes-sigs/apiserver-network-proxy/issues/357.
-	tunnelCtx := context.TODO()
-	tunnel, err := client.CreateSingleUseGrpcTunnel(tunnelCtx, udsName, dialOption,
-		grpc.WithBlock(),
-		grpc.WithReturnConnectionError(),
-		grpc.WithTimeout(30*time.Second), // matches http.DefaultTransport dial timeout
-		grpc.WithTransportCredentials(insecure.NewCredentials()))
+	ctx := context.TODO()
+	tunnel, err := client.CreateSingleUseGrpcTunnel(ctx, udsName, dialOption, grpc.WithInsecure())
 	if err != nil {
 		return nil, err
 	}
@@ -248,11 +227,10 @@ func (d *dialerCreator) createDialer() utilnet.DialFunc {
 		return directDialer
 	}
 	return func(ctx context.Context, network, addr string) (net.Conn, error) {
-		ctx, span := tracing.Start(ctx, fmt.Sprintf("Proxy via %s protocol over %s", d.options.protocol, d.options.transport), attribute.String("address", addr))
-		defer span.End(500 * time.Millisecond)
+		trace := utiltrace.New(fmt.Sprintf("Proxy via %s protocol over %s", d.options.protocol, d.options.transport), utiltrace.Field{Key: "address", Value: addr})
+		defer trace.LogIfLong(500 * time.Millisecond)
 		start := egressmetrics.Metrics.Clock().Now()
-		egressmetrics.Metrics.ObserveDialStart(d.options.protocol, d.options.transport)
-		proxier, err := d.connector.connect(ctx)
+		proxier, err := d.connector.connect()
 		if err != nil {
 			egressmetrics.Metrics.ObserveDialFailure(d.options.protocol, d.options.transport, egressmetrics.StageConnect)
 			return nil, err

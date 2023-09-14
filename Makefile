@@ -8,15 +8,7 @@ REGISTRY_USER_NAME?=""
 REGISTRY_PASSWORD?=""
 REGISTRY_SERVER_ADDRESS?=""
 
-TARGETS :=  clusterlink-controller-manager  \
-			clusterlink-operator \
-			clusterlink-agent \
-            clusterlink-elector \
-			clusterlink-floater \
-			clusterlink-network-manager \
-			clusterlink-proxy \
-
-CTL_TARGETS := kosmosctl
+TARGETS :=  scheduler
 
 # Build code.
 #
@@ -144,7 +136,7 @@ lint-fix: golangci-lint
 
 golangci-lint:
 ifeq (, $(shell which golangci-lint))
-	GO111MODULE=on go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.54.2
+	GO111MODULE=on go install github.com/golangci/golangci-lint/cmd/golangci-lint
 GOLANGLINT_BIN=$(shell go env GOPATH)/bin/golangci-lint
 else
 GOLANGLINT_BIN=$(shell which golangci-lint)

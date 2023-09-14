@@ -30,6 +30,7 @@ import (
 
 	flag "github.com/spf13/pflag"
 
+	"k8s.io/code-generator/pkg/util"
 	"k8s.io/gengo/args"
 	"k8s.io/gengo/generator"
 	"k8s.io/gengo/namer"
@@ -55,7 +56,8 @@ type Generator struct {
 func New() *Generator {
 	sourceTree := args.DefaultSourceTree()
 	common := args.GeneratorArgs{
-		OutputBase: sourceTree,
+		OutputBase:       sourceTree,
+		GoHeaderFilePath: filepath.Join(sourceTree, util.BoilerplatePath()),
 	}
 	defaultProtoImport := filepath.Join(sourceTree, "k8s.io", "kubernetes", "vendor", "github.com", "gogo", "protobuf", "protobuf")
 	cwd, err := os.Getwd()
@@ -362,12 +364,7 @@ func Run(g *Generator) {
 func deps(c *generator.Context, pkgs []*protobufPackage) map[string][]string {
 	ret := map[string][]string{}
 	for _, p := range pkgs {
-		pkg, ok := c.Universe[p.PackagePath]
-		if !ok {
-			log.Fatalf("Unrecognized package: %s", p.PackagePath)
-		}
-
-		for _, d := range pkg.Imports {
+		for _, d := range c.Universe[p.PackagePath].Imports {
 			ret[p.PackagePath] = append(ret[p.PackagePath], d.Path)
 		}
 	}

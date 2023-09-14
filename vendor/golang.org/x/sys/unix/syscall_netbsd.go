@@ -13,6 +13,7 @@
 package unix
 
 import (
+	"runtime"
 	"syscall"
 	"unsafe"
 )
@@ -109,22 +110,14 @@ func direntNamlen(buf []byte) (uint64, bool) {
 	return readInt(buf, unsafe.Offsetof(Dirent{}.Namlen), unsafe.Sizeof(Dirent{}.Namlen))
 }
 
-func SysctlUvmexp(name string) (*Uvmexp, error) {
-	mib, err := sysctlmib(name)
-	if err != nil {
-		return nil, err
-	}
-
-	n := uintptr(SizeofUvmexp)
-	var u Uvmexp
-	if err := sysctl(mib, (*byte)(unsafe.Pointer(&u)), &n, nil, 0); err != nil {
-		return nil, err
-	}
-	return &u, nil
-}
+//sysnb	pipe() (fd1 int, fd2 int, err error)
 
 func Pipe(p []int) (err error) {
-	return Pipe2(p, 0)
+	if len(p) != 2 {
+		return EINVAL
+	}
+	p[0], p[1], err = pipe()
+	return
 }
 
 //sysnb	pipe2(p *[2]_C_int, flags int) (err error)
@@ -135,10 +128,8 @@ func Pipe2(p []int, flags int) error {
 	}
 	var pp [2]_C_int
 	err := pipe2(&pp, flags)
-	if err == nil {
-		p[0] = int(pp[0])
-		p[1] = int(pp[1])
-	}
+	p[0] = int(pp[0])
+	p[1] = int(pp[1])
 	return err
 }
 
@@ -176,14 +167,19 @@ func sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
 	return -1, ENOSYS
 }
 
+func setattrlistTimes(path string, times []Timespec, flags int) error {
+	// used on Darwin for UtimesNano
+	return ENOSYS
+}
+
 //sys	ioctl(fd int, req uint, arg uintptr) (err error)
-//sys	ioctlPtr(fd int, req uint, arg unsafe.Pointer) (err error) = SYS_IOCTL
 
 //sys	sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (err error) = SYS___SYSCTL
 
 func IoctlGetPtmget(fd int, req uint) (*Ptmget, error) {
 	var value Ptmget
-	err := ioctlPtr(fd, req, unsafe.Pointer(&value))
+	err := ioctl(fd, req, uintptr(unsafe.Pointer(&value)))
+	runtime.KeepAlive(value)
 	return &value, err
 }
 
@@ -258,7 +254,6 @@ func Statvfs(path string, buf *Statvfs_t) (err error) {
 //sys	Chmod(path string, mode uint32) (err error)
 //sys	Chown(path string, uid int, gid int) (err error)
 //sys	Chroot(path string) (err error)
-//sys	ClockGettime(clockid int32, time *Timespec) (err error)
 //sys	Close(fd int) (err error)
 //sys	Dup(fd int) (nfd int, err error)
 //sys	Dup2(from int, to int) (err error)
@@ -322,8 +317,8 @@ func Statvfs(path string, buf *Statvfs_t) (err error) {
 //sys	Open(path string, mode int, perm uint32) (fd int, err error)
 //sys	Openat(dirfd int, path string, mode int, perm uint32) (fd int, err error)
 //sys	Pathconf(path string, name int) (val int, err error)
-//sys	pread(fd int, p []byte, offset int64) (n int, err error)
-//sys	pwrite(fd int, p []byte, offset int64) (n int, err error)
+//sys	Pread(fd int, p []byte, offset int64) (n int, err error)
+//sys	Pwrite(fd int, p []byte, offset int64) (n int, err error)
 //sys	read(fd int, p []byte) (n int, err error)
 //sys	Readlink(path string, buf []byte) (n int, err error)
 //sys	Readlinkat(dirfd int, path string, buf []byte) (n int, err error)
