@@ -5,7 +5,10 @@ go 1.20
 require (
 	github.com/bep/debounce v1.2.1
 	github.com/coreos/go-iptables v0.6.0
+	github.com/evanphx/json-patch v4.12.0+incompatible
 	github.com/gogo/protobuf v1.3.2
+	github.com/google/go-cmp v0.5.9
+	github.com/mattbaird/jsonpatch v0.0.0-20230413205102-771768614e91
 	github.com/olekukonko/tablewriter v0.0.4
 	github.com/onsi/ginkgo/v2 v2.9.2
 	github.com/onsi/gomega v1.27.4
@@ -27,10 +30,12 @@ require (
 	k8s.io/cluster-bootstrap v0.26.3
 	k8s.io/code-generator v0.26.3
 	k8s.io/component-base v0.26.3
+	k8s.io/klog v1.0.0
 	k8s.io/klog/v2 v2.90.0
 	k8s.io/kube-openapi v0.0.0-20230303024457-afdc3dddf62d
 	k8s.io/kubectl v0.26.3
 	k8s.io/kubernetes v0.0.0-00010101000000-000000000000
+	k8s.io/metrics v0.26.3
 	sigs.k8s.io/controller-runtime v0.14.5
 )
 
@@ -51,7 +56,6 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/docker/distribution v2.8.1+incompatible // indirect
 	github.com/emicklei/go-restful/v3 v3.9.0 // indirect
-	github.com/evanphx/json-patch v4.12.0+incompatible // indirect
 	github.com/evanphx/json-patch/v5 v5.6.0 // indirect
 	github.com/exponent-io/jsonpath v0.0.0-20151013193312-d6023ce2651d // indirect
 	github.com/fatih/camelcase v1.0.0 // indirect
@@ -72,7 +76,6 @@ require (
 	github.com/google/btree v1.0.1 // indirect
 	github.com/google/cel-go v0.12.6 // indirect
 	github.com/google/gnostic v0.5.7-v3refs // indirect
-	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/pprof v0.0.0-20211214055906-6f57359322fd // indirect
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
