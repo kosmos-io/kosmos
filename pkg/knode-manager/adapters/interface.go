@@ -23,7 +23,7 @@ type PodHandler interface {
 }
 
 type NodeHandler interface {
-	Trace(context.Context) error
+	Probe(context.Context) error
 
 	NotifyStatus(ctx context.Context, cb func(*corev1.Node))
 

@@ -28,8 +28,25 @@ type KnodeSpec struct {
 	// +optional
 	Kubeconfig []byte `json:"kubeconfig,omitempty"`
 
+	// +kubebuilder:default=50
+	// +optional
+	KubeAPIQPS float32 `json:"kubeAPIQPS,omitempty"`
+
+	// +kubebuilder:default=100
+	// +optional
+	KubeAPIBurst int `json:"kubeAPIBurst,omitempty"`
+
 	// +required
 	NodeName string `json:"nodeName,omitempty"`
+
+	// +optional
+	NodeLabels map[string]string `json:"nodeLabels,omitempty"`
+
+	// optional
+	InternalIP string `json:"internalIP,omitempty"`
+
+	// optional
+	ExternalIP string `json:"externalIP,omitempty"`
 
 	// +kubebuilder:default=k8s
 	// +optional
