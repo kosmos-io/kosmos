@@ -9,7 +9,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
@@ -21,8 +20,8 @@ import (
 )
 
 type NodeAdapter struct {
-	client  kubernetes.Interface
-	mClient kubernetes.Interface
+	client kubernetes.Interface
+	master kubernetes.Interface
 
 	cfg   *config.Opts
 	knode *kosmosv1alpha1.Knode
@@ -35,20 +34,16 @@ type NodeAdapter struct {
 	stopCh <-chan struct{}
 }
 
-func NewNodeAdapter(ctx context.Context, knode *kosmosv1alpha1.Knode, wClient kubernetes.Interface, mClient kubernetes.Interface, c *config.Opts) (*NodeAdapter, error) {
+func NewNodeAdapter(ctx context.Context, cr *kosmosv1alpha1.Knode, ac *AdapterConfig, c *config.Opts) (*NodeAdapter, error) {
 	adapter := &NodeAdapter{
-		client:  wClient,
-		mClient: mClient,
-		cfg:     c,
-		knode:   knode,
-		stopCh:  ctx.Done(),
+		client: ac.Client,
+		master: ac.Master,
+		cfg:    c,
+		knode:  cr,
+		stopCh: ctx.Done(),
 	}
 
-	informerFactory := informers.NewSharedInformerFactory(wClient, 0)
-	nodesInformer := informerFactory.Core().V1().Nodes().Informer()
-	podInformer := informerFactory.Core().V1().Pods().Informer()
-
-	_, err := nodesInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, err := ac.NodeInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    adapter.addNode,
 		UpdateFunc: adapter.updateNode,
 		DeleteFunc: adapter.deleteNode,
@@ -57,7 +52,7 @@ func NewNodeAdapter(ctx context.Context, knode *kosmosv1alpha1.Knode, wClient ku
 		return nil, err
 	}
 
-	_, err = podInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, err = ac.PodInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    adapter.addPod,
 		UpdateFunc: adapter.updatePod,
 		DeleteFunc: adapter.deletePod,
@@ -66,16 +61,11 @@ func NewNodeAdapter(ctx context.Context, knode *kosmosv1alpha1.Knode, wClient ku
 		return nil, err
 	}
 
-	informerFactory.Start(ctx.Done())
-	if !cache.WaitForCacheSync(ctx.Done(), nodesInformer.HasSynced, podInformer.HasSynced) {
-		return nil, fmt.Errorf("nodesInformer waitForCacheSync failed")
-	}
-
 	return adapter, nil
 }
 
 func (n *NodeAdapter) Probe(_ context.Context) error {
-	_, err := n.mClient.Discovery().ServerVersion()
+	_, err := n.master.Discovery().ServerVersion()
 	if err != nil {
 		klog.Error("Failed ping")
 		return fmt.Errorf("could not list master apiserver statuses: %v", err)
