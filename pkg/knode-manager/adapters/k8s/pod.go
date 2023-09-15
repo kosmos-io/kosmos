@@ -24,16 +24,7 @@ import (
 const RooTCAConfigMapName = "kube-root-ca.crt"
 const SATokenPrefix = "kube-api-access"
 const MasterRooTCAName = "master-root-ca.crt"
-
-// ClientConfig defines the configuration of a lower cluster
-type ClientConfig struct {
-	// allowed qps of the kube client
-	KubeClientQPS int
-	// allowed burst of the kube client
-	KubeClientBurst int
-	// config path of the kube client
-	ClientKubeConfig []byte
-}
+const ReservedNS = "kube-system"
 
 type clientCache struct {
 	podLister    v1.PodLister
@@ -41,16 +32,6 @@ type clientCache struct {
 	cmLister     v1.ConfigMapLister
 	secretLister v1.SecretLister
 	nodeLister   v1.NodeLister
-}
-
-type PodAdapterConfig struct {
-	ConfigPath        string
-	NodeName          string
-	OperatingSystem   string
-	InternalIP        string
-	DaemonPort        int32
-	KubeClusterDomain string
-	ResourceManager   *manager.ResourceManager
 }
 
 type PodAdapter struct {
@@ -64,11 +45,8 @@ type PodAdapter struct {
 	stopCh               <-chan struct{}
 }
 
-func NewPodAdapter(ctx context.Context, ac *AdapterConfig, ignoreLabelsStr string, cc *ClientConfig, enableServiceAccount bool) (*PodAdapter, error) {
+func NewPodAdapter(ctx context.Context, ac *AdapterConfig, ignoreLabelsStr string, enableServiceAccount bool) (*PodAdapter, error) {
 	ignoreLabels := strings.Split(ignoreLabelsStr, ",")
-	if len(cc.ClientKubeConfig) == 0 {
-		panic("client kubeconfig path can not be empty")
-	}
 
 	adapter := &PodAdapter{
 		master:               ac.Master,
@@ -88,9 +66,9 @@ func NewPodAdapter(ctx context.Context, ac *AdapterConfig, ignoreLabelsStr strin
 	}
 
 	_, err := ac.PodInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    adapter.addPod,
-		UpdateFunc: adapter.updatePod,
-		DeleteFunc: adapter.deletePod,
+		AddFunc:    adapter.clientAddPod,
+		UpdateFunc: adapter.clientUpdatePod,
+		DeleteFunc: adapter.clientDeletePod,
 	})
 	if err != nil {
 		return nil, err
@@ -99,7 +77,7 @@ func NewPodAdapter(ctx context.Context, ac *AdapterConfig, ignoreLabelsStr strin
 	return adapter, nil
 }
 
-func (p *PodAdapter) addPod(obj interface{}) {
+func (p *PodAdapter) clientAddPod(obj interface{}) {
 	pod, ok := obj.(*corev1.Pod)
 	if !ok {
 		return
@@ -111,7 +89,7 @@ func (p *PodAdapter) addPod(obj interface{}) {
 	}
 }
 
-func (p *PodAdapter) updatePod(oldObj, newObj interface{}) {
+func (p *PodAdapter) clientUpdatePod(oldObj, newObj interface{}) {
 	oldPod, ok1 := oldObj.(*corev1.Pod)
 	newPod, ok2 := newObj.(*corev1.Pod)
 	oldCopy := oldPod.DeepCopy()
@@ -130,7 +108,7 @@ func (p *PodAdapter) updatePod(oldObj, newObj interface{}) {
 	}
 }
 
-func (p *PodAdapter) deletePod(obj interface{}) {
+func (p *PodAdapter) clientDeletePod(obj interface{}) {
 	pod, ok := obj.(*corev1.Pod)
 	if !ok {
 		return
@@ -441,7 +419,7 @@ func (p *PodAdapter) createServiceAccount(ctx context.Context, secret *corev1.Se
 }
 
 func (p *PodAdapter) Create(ctx context.Context, pod *corev1.Pod) error {
-	if pod.Namespace == "kube-system" {
+	if pod.Namespace == ReservedNS {
 		return nil
 	}
 	basicPod := utils.TrimPod(pod, p.ignoreLabels)
@@ -506,7 +484,7 @@ func (p *PodAdapter) Create(ctx context.Context, pod *corev1.Pod) error {
 }
 
 func (p *PodAdapter) Update(ctx context.Context, pod *corev1.Pod) error {
-	if pod.Namespace == "kube-system" {
+	if pod.Namespace == ReservedNS {
 		return nil
 	}
 	klog.Infof("Updating pod %v/%+v", pod.Namespace, pod.Name)
@@ -538,7 +516,7 @@ func (p *PodAdapter) Update(ctx context.Context, pod *corev1.Pod) error {
 }
 
 func (p *PodAdapter) Delete(ctx context.Context, pod *corev1.Pod) error {
-	if pod.Namespace == "kube-system" {
+	if pod.Namespace == ReservedNS {
 		return nil
 	}
 	klog.Infof("Deleting pod %v/%+v", pod.Namespace, pod.Name)
