@@ -77,7 +77,7 @@ func (r *Reconciler) logResult(nodeConfigSyncStatus networkmanager.NodeConfigSyn
 		klog.Warning(r.NetworkManager.GetReason())
 	}
 	if nodeConfigSyncStatus == networkmanager.NodeConfigSyncSuccess {
-		klog.Info("sync from crd successed!")
+		klog.Info("sync from crd successfully!")
 	}
 }
 
