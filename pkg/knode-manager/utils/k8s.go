@@ -16,26 +16,6 @@ import (
 	"k8s.io/metrics/pkg/client/clientset/versioned"
 )
 
-const (
-	GlobalLabel        = "global"
-	SelectorKey        = "clusterSelector"
-	SelectedNodeKey    = "volume.kubernetes.io/selected-node"
-	HostNameKey        = "kubernetes.io/hostname"
-	BetaHostNameKey    = "beta.kubernetes.io/hostname"
-	LabelOSBeta        = "beta.kubernetes.io/os"
-	KosmosPodLabel     = "kosmos-pod"
-	KosmosKubeletLabel = "kosmos-kubelet"
-	TrippedLabels      = "tripped-labels"
-	ClusterID          = "clusterID"
-	NodeType           = "type"
-	BatchPodLabel      = "pod-group.scheduling.sigs.k8s.io"
-	TaintNodeNotReady  = "node.kubernetes.io/not-ready"
-
-	TaintNodeUnreachable = "node.kubernetes.io/unreachable"
-	CreatedbyDescheduler = "create-by-descheduler"
-	DescheduleCount      = "sigs.k8s.io/deschedule-count"
-)
-
 type ClustersNodeSelection struct {
 	NodeSelector map[string]string   `json:"nodeSelector,omitempty"`
 	Affinity     *corev1.Affinity    `json:"affinity,omitempty"`
@@ -154,6 +134,59 @@ func NewClientFromByte(kubeConfig []byte, opts ...Opts) (kubernetes.Interface, e
 	return client, nil
 }
 
+func NewClientFromConfigPath(configPath string, opts ...Opts) (kubernetes.Interface, error) {
+	var (
+		config *rest.Config
+		err    error
+	)
+	config, err = clientcmd.BuildConfigFromFlags("", configPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build config from configpath: %v", err)
+	}
+
+	for _, opt := range opts {
+		if opt == nil {
+			continue
+		}
+		opt(config)
+	}
+
+	client, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return nil, fmt.Errorf("could not create clientset: %v", err)
+	}
+	return client, nil
+}
+
+func NewClientFromBytes(kubeConfig []byte, opts ...Opts) (kubernetes.Interface, error) {
+	var (
+		config *rest.Config
+		err    error
+	)
+
+	clientConfig, err := clientcmd.NewClientConfigFromBytes(kubeConfig)
+	if err != nil {
+		return nil, err
+	}
+	config, err = clientConfig.ClientConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, opt := range opts {
+		if opt == nil {
+			continue
+		}
+		opt(config)
+	}
+
+	client, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return nil, fmt.Errorf("create client failed: %v", err)
+	}
+	return client, nil
+}
+
 func NewMetricClient(configPath string, opts ...Opts) (versioned.Interface, error) {
 	var (
 		config *rest.Config
@@ -214,11 +247,11 @@ func IsVirtualNode(node *corev1.Node) bool {
 	if node == nil {
 		return false
 	}
-	valStr, exist := node.ObjectMeta.Labels[NodeType]
+	valStr, exist := node.ObjectMeta.Labels[KosmosNodeLabel]
 	if !exist {
 		return false
 	}
-	return valStr == KosmosKubeletLabel
+	return valStr == KosmosNodeValue
 }
 
 func IsVirtualPod(pod *corev1.Pod) bool {
@@ -226,17 +259,6 @@ func IsVirtualPod(pod *corev1.Pod) bool {
 		return true
 	}
 	return false
-}
-
-func GetClusterID(node *corev1.Node) string {
-	if node == nil {
-		return ""
-	}
-	clusterName, exist := node.ObjectMeta.Labels[ClusterID]
-	if !exist {
-		return ""
-	}
-	return clusterName
 }
 
 func UpdateConfigMap(old, new *corev1.ConfigMap) {

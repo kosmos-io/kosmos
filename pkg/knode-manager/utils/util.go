@@ -6,5 +6,5 @@ func SetObjectGlobal(obj *metav1.ObjectMeta) {
 	if obj.Annotations == nil {
 		obj.Annotations = map[string]string{}
 	}
-	obj.Annotations[GlobalLabel] = "true"
+	obj.Annotations[KosmosGlobalLabel] = "true"
 }
