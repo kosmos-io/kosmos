@@ -12,10 +12,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
-	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	v1 "k8s.io/client-go/listers/core/v1"
-	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
 	"github.com/kosmos.io/kosmos/pkg/knode-manager/utils"
@@ -65,57 +64,82 @@ type PodAdapter struct {
 	stopCh               <-chan struct{}
 }
 
-func NewPodAdapter(cfg PodAdapterConfig, ignoreLabelsStr string, cc *ClientConfig, enableServiceAccount bool) (*PodAdapter, error) {
+func NewPodAdapter(ctx context.Context, ac *AdapterConfig, ignoreLabelsStr string, cc *ClientConfig, enableServiceAccount bool) (*PodAdapter, error) {
 	ignoreLabels := strings.Split(ignoreLabelsStr, ",")
 	if len(cc.ClientKubeConfig) == 0 {
 		panic("client kubeconfig path can not be empty")
 	}
-	// client config
-	// var clientConfig *rest.Config
-	client, err := utils.NewClientFromByte(cc.ClientKubeConfig, func(config *rest.Config) {
-		config.QPS = float32(cc.KubeClientQPS)
-		config.Burst = cc.KubeClientBurst
-		// Set config for clientConfig
-		// clientConfig = config
-	})
-	if err != nil {
-		return nil, fmt.Errorf("could not build clientset for cluster: %v", err)
-	}
 
-	// master config, maybe a real node or a pod
-	master, err := utils.NewClient(cfg.ConfigPath, func(config *rest.Config) {
-		// config.QPS = float32(opts.KubeAPIQPS)
-		// config.Burst = int(opts.KubeAPIBurst)
-	})
-	if err != nil {
-		return nil, fmt.Errorf("could not build clientset for cluster: %v", err)
-	}
-
-	informer := kubeinformers.NewSharedInformerFactory(client, 0)
-	podInformer := informer.Core().V1().Pods()
-	nsInformer := informer.Core().V1().Namespaces()
-	nodeInformer := informer.Core().V1().Nodes()
-	cmInformer := informer.Core().V1().ConfigMaps()
-	secretInformer := informer.Core().V1().Secrets()
-
-	ctx := context.TODO()
-
-	return &PodAdapter{
-		master:               master,
-		client:               client,
+	adapter := &PodAdapter{
+		master:               ac.Master,
+		client:               ac.Client,
 		ignoreLabels:         ignoreLabels,
 		enableServiceAccount: enableServiceAccount,
 		clientCache: clientCache{
-			podLister:    podInformer.Lister(),
-			nsLister:     nsInformer.Lister(),
-			cmLister:     cmInformer.Lister(),
-			secretLister: secretInformer.Lister(),
-			nodeLister:   nodeInformer.Lister(),
+			podLister:    ac.PodInformer.Lister(),
+			nsLister:     ac.NamespaceInformer.Lister(),
+			cmLister:     ac.ConfigmapInformer.Lister(),
+			secretLister: ac.SecretInformer.Lister(),
+			nodeLister:   ac.NodeInformer.Lister(),
 		},
-		rm:         cfg.ResourceManager,
+		rm:         ac.ResourceManager,
 		updatedPod: make(chan *corev1.Pod, 100000),
 		stopCh:     ctx.Done(),
-	}, nil
+	}
+
+	_, err := ac.PodInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    adapter.addPod,
+		UpdateFunc: adapter.updatePod,
+		DeleteFunc: adapter.deletePod,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return adapter, nil
+}
+
+func (p *PodAdapter) addPod(obj interface{}) {
+	pod, ok := obj.(*corev1.Pod)
+	if !ok {
+		return
+	}
+	podCopy := pod.DeepCopy()
+	utils.TrimObjectMeta(&podCopy.ObjectMeta)
+	if utils.IsVirtualPod(podCopy) {
+		p.updatedPod <- podCopy
+	}
+}
+
+func (p *PodAdapter) updatePod(oldObj, newObj interface{}) {
+	oldPod, ok1 := oldObj.(*corev1.Pod)
+	newPod, ok2 := newObj.(*corev1.Pod)
+	oldCopy := oldPod.DeepCopy()
+	newCopy := newPod.DeepCopy()
+	if !ok1 || !ok2 {
+		return
+	}
+
+	if newCopy.DeletionTimestamp != nil {
+		newCopy.DeletionGracePeriodSeconds = nil
+	}
+
+	if utils.IsVirtualPod(newCopy) && (!reflect.DeepEqual(oldCopy.Status, newCopy.Status) || newCopy.DeletionTimestamp != nil) {
+		utils.TrimObjectMeta(&newCopy.ObjectMeta)
+		p.updatedPod <- newCopy
+	}
+}
+
+func (p *PodAdapter) deletePod(obj interface{}) {
+	pod, ok := obj.(*corev1.Pod)
+	if !ok {
+		return
+	}
+	podCopy := pod.DeepCopy()
+	utils.TrimObjectMeta(&podCopy.ObjectMeta)
+	if utils.IsVirtualPod(podCopy) {
+		p.updatedPod <- podCopy
+	}
 }
 
 func (p *PodAdapter) createConfigMaps(ctx context.Context, configmaps []string, ns string) error {
