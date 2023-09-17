@@ -39,7 +39,7 @@ func IsExtendedResourceName(name v1.ResourceName) bool {
 	}
 	// Ensure it satisfies the rules in IsQualifiedName() after converted into quota resource name
 	nameForQuota := fmt.Sprintf("%s%s", v1.DefaultResourceRequestsPrefix, string(name))
-	if errs := validation.IsQualifiedName(nameForQuota); len(errs) != 0 {
+	if errs := validation.IsQualifiedName(string(nameForQuota)); len(errs) != 0 {
 		return false
 	}
 	return true
@@ -170,21 +170,18 @@ func ingressEqual(lhs, rhs *v1.LoadBalancerIngress) bool {
 }
 
 // GetAccessModesAsString returns a string representation of an array of access modes.
-// modes, when present, are always in the same order: RWO,ROX,RWX,RWOP.
+// modes, when present, are always in the same order: RWO,ROX,RWX.
 func GetAccessModesAsString(modes []v1.PersistentVolumeAccessMode) string {
 	modes = removeDuplicateAccessModes(modes)
 	modesStr := []string{}
-	if ContainsAccessMode(modes, v1.ReadWriteOnce) {
+	if containsAccessMode(modes, v1.ReadWriteOnce) {
 		modesStr = append(modesStr, "RWO")
 	}
-	if ContainsAccessMode(modes, v1.ReadOnlyMany) {
+	if containsAccessMode(modes, v1.ReadOnlyMany) {
 		modesStr = append(modesStr, "ROX")
 	}
-	if ContainsAccessMode(modes, v1.ReadWriteMany) {
+	if containsAccessMode(modes, v1.ReadWriteMany) {
 		modesStr = append(modesStr, "RWX")
-	}
-	if ContainsAccessMode(modes, v1.ReadWriteOncePod) {
-		modesStr = append(modesStr, "RWOP")
 	}
 	return strings.Join(modesStr, ",")
 }
@@ -202,8 +199,6 @@ func GetAccessModesFromString(modes string) []v1.PersistentVolumeAccessMode {
 			accessModes = append(accessModes, v1.ReadOnlyMany)
 		case s == "RWX":
 			accessModes = append(accessModes, v1.ReadWriteMany)
-		case s == "RWOP":
-			accessModes = append(accessModes, v1.ReadWriteOncePod)
 		}
 	}
 	return accessModes
@@ -213,14 +208,14 @@ func GetAccessModesFromString(modes string) []v1.PersistentVolumeAccessMode {
 func removeDuplicateAccessModes(modes []v1.PersistentVolumeAccessMode) []v1.PersistentVolumeAccessMode {
 	accessModes := []v1.PersistentVolumeAccessMode{}
 	for _, m := range modes {
-		if !ContainsAccessMode(accessModes, m) {
+		if !containsAccessMode(accessModes, m) {
 			accessModes = append(accessModes, m)
 		}
 	}
 	return accessModes
 }
 
-func ContainsAccessMode(modes []v1.PersistentVolumeAccessMode, mode v1.PersistentVolumeAccessMode) bool {
+func containsAccessMode(modes []v1.PersistentVolumeAccessMode, mode v1.PersistentVolumeAccessMode) bool {
 	for _, m := range modes {
 		if m == mode {
 			return true
@@ -368,64 +363,5 @@ func ScopedResourceSelectorRequirementsAsSelector(ssr v1.ScopedResourceSelectorR
 		return nil, err
 	}
 	selector = selector.Add(*r)
-	return selector, nil
-}
-
-// nodeSelectorRequirementsAsLabelRequirements converts the NodeSelectorRequirement
-// type to a labels.Requirement type.
-func nodeSelectorRequirementsAsLabelRequirements(nsr v1.NodeSelectorRequirement) (*labels.Requirement, error) {
-	var op selection.Operator
-	switch nsr.Operator {
-	case v1.NodeSelectorOpIn:
-		op = selection.In
-	case v1.NodeSelectorOpNotIn:
-		op = selection.NotIn
-	case v1.NodeSelectorOpExists:
-		op = selection.Exists
-	case v1.NodeSelectorOpDoesNotExist:
-		op = selection.DoesNotExist
-	case v1.NodeSelectorOpGt:
-		op = selection.GreaterThan
-	case v1.NodeSelectorOpLt:
-		op = selection.LessThan
-	default:
-		return nil, fmt.Errorf("%q is not a valid node selector operator", nsr.Operator)
-	}
-	return labels.NewRequirement(nsr.Key, op, nsr.Values)
-}
-
-// NodeSelectorAsSelector converts the NodeSelector api type into a struct that
-// implements labels.Selector
-// Note: This function should be kept in sync with the selector methods in
-// pkg/labels/selector.go
-func NodeSelectorAsSelector(ns *v1.NodeSelector) (labels.Selector, error) {
-	if ns == nil {
-		return labels.Nothing(), nil
-	}
-	if len(ns.NodeSelectorTerms) == 0 {
-		return labels.Everything(), nil
-	}
-	var requirements []labels.Requirement
-
-	for _, nsTerm := range ns.NodeSelectorTerms {
-		for _, expr := range nsTerm.MatchExpressions {
-			req, err := nodeSelectorRequirementsAsLabelRequirements(expr)
-			if err != nil {
-				return nil, err
-			}
-			requirements = append(requirements, *req)
-		}
-
-		for _, field := range nsTerm.MatchFields {
-			req, err := nodeSelectorRequirementsAsLabelRequirements(field)
-			if err != nil {
-				return nil, err
-			}
-			requirements = append(requirements, *req)
-		}
-	}
-
-	selector := labels.NewSelector()
-	selector = selector.Add(requirements...)
 	return selector, nil
 }

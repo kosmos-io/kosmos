@@ -1,4 +1,3 @@
-//go:build !linux && !windows
 // +build !linux,!windows
 
 /*
@@ -93,17 +92,11 @@ func (hu *HostUtil) GetSELinuxSupport(pathname string) (bool, error) {
 	return false, errUnsupported
 }
 
-// GetMode always returns an error on unsupported platforms
+//GetMode always returns an error on unsupported platforms
 func (hu *HostUtil) GetMode(pathname string) (os.FileMode, error) {
 	return 0, errUnsupported
 }
 
 func getDeviceNameFromMount(mounter mount.Interface, mountPath, pluginMountDir string) (string, error) {
-	return "", errUnsupported
-}
-
-// GetSELinuxMountContext returns value of -o context=XYZ mount option on
-// given mount point.
-func (hu *HostUtil) GetSELinuxMountContext(pathname string) (string, error) {
 	return "", errUnsupported
 }

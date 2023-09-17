@@ -25,7 +25,7 @@ import (
 // NameGenerator generates names for objects. Some backends may have more information
 // available to guide selection of new names and this interface hides those details.
 type NameGenerator interface {
-	// GenerateName generates a valid name from the base name, adding a random suffix to
+	// GenerateName generates a valid name from the base name, adding a random suffix to the
 	// the base. If base is valid, the returned name must also be valid. The generator is
 	// responsible for knowing the maximum valid name length.
 	GenerateName(base string) string
@@ -43,12 +43,12 @@ const (
 	// TODO: make this flexible for non-core resources with alternate naming rules.
 	maxNameLength          = 63
 	randomLength           = 5
-	MaxGeneratedNameLength = maxNameLength - randomLength
+	maxGeneratedNameLength = maxNameLength - randomLength
 )
 
 func (simpleNameGenerator) GenerateName(base string) string {
-	if len(base) > MaxGeneratedNameLength {
-		base = base[:MaxGeneratedNameLength]
+	if len(base) > maxGeneratedNameLength {
+		base = base[:maxGeneratedNameLength]
 	}
 	return fmt.Sprintf("%s%s", base, utilrand.String(randomLength))
 }

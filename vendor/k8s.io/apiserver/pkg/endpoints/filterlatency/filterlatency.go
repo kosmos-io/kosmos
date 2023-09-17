@@ -18,25 +18,18 @@ package filterlatency
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"time"
 
-	"go.opentelemetry.io/otel/trace"
-
+	utilclock "k8s.io/apimachinery/pkg/util/clock"
 	"k8s.io/apiserver/pkg/endpoints/metrics"
 	apirequest "k8s.io/apiserver/pkg/endpoints/request"
-	"k8s.io/apiserver/pkg/server/httplog"
-	"k8s.io/klog/v2"
-	"k8s.io/utils/clock"
 )
 
 type requestFilterRecordKeyType int
 
 // requestFilterRecordKey is the context key for a request filter record struct.
 const requestFilterRecordKey requestFilterRecordKeyType = iota
-
-const minFilterLatencyToLog = 100 * time.Millisecond
 
 type requestFilterRecord struct {
 	name             string
@@ -56,25 +49,19 @@ func requestFilterRecordFrom(ctx context.Context) *requestFilterRecord {
 
 // TrackStarted measures the timestamp the given handler has started execution
 // by attaching a handler to the chain.
-func TrackStarted(handler http.Handler, tp trace.TracerProvider, name string) http.Handler {
-	return trackStarted(handler, tp, name, clock.RealClock{})
+func TrackStarted(handler http.Handler, name string) http.Handler {
+	return trackStarted(handler, name, utilclock.RealClock{})
 }
 
 // TrackCompleted measures the timestamp the given handler has completed execution and then
 // it updates the corresponding metric with the filter latency duration.
 func TrackCompleted(handler http.Handler) http.Handler {
-	return trackCompleted(handler, clock.RealClock{}, func(ctx context.Context, fr *requestFilterRecord, completedAt time.Time) {
-		latency := completedAt.Sub(fr.startedTimestamp)
-		metrics.RecordFilterLatency(ctx, fr.name, latency)
-		if klog.V(3).Enabled() && latency > minFilterLatencyToLog {
-			httplog.AddKeyValue(ctx, fmt.Sprintf("fl_%s", fr.name), latency.String())
-		}
+	return trackCompleted(handler, utilclock.RealClock{}, func(ctx context.Context, fr *requestFilterRecord, completedAt time.Time) {
+		metrics.RecordFilterLatency(ctx, fr.name, completedAt.Sub(fr.startedTimestamp))
 	})
 }
 
-func trackStarted(handler http.Handler, tp trace.TracerProvider, name string, clock clock.PassiveClock) http.Handler {
-	// This is a noop if the tracing is disabled, since tp will be a NoopTracerProvider
-	tracer := tp.Tracer("k8s.op/apiserver/pkg/endpoints/filterlatency")
+func trackStarted(handler http.Handler, name string, clock utilclock.PassiveClock) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		if fr := requestFilterRecordFrom(ctx); fr != nil {
@@ -89,13 +76,12 @@ func trackStarted(handler http.Handler, tp trace.TracerProvider, name string, cl
 			name:             name,
 			startedTimestamp: clock.Now(),
 		}
-		ctx, _ = tracer.Start(ctx, name)
 		r = r.WithContext(withRequestFilterRecord(ctx, fr))
 		handler.ServeHTTP(w, r)
 	})
 }
 
-func trackCompleted(handler http.Handler, clock clock.PassiveClock, action func(context.Context, *requestFilterRecord, time.Time)) http.Handler {
+func trackCompleted(handler http.Handler, clock utilclock.PassiveClock, action func(context.Context, *requestFilterRecord, time.Time)) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// The previous filter has just completed.
 		completedAt := clock.Now()
@@ -106,6 +92,5 @@ func trackCompleted(handler http.Handler, clock clock.PassiveClock, action func(
 		if fr := requestFilterRecordFrom(ctx); fr != nil {
 			action(ctx, fr, completedAt)
 		}
-		trace.SpanFromContext(ctx).End()
 	})
 }

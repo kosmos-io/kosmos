@@ -1,9 +1,11 @@
 package main
 
 import (
+	"math/rand"
 	"os"
+	"time"
 
-	"k8s.io/component-base/cli"
+	"k8s.io/component-base/logs"
 	"k8s.io/kubernetes/cmd/kube-scheduler/app"
 
 	"github.com/kosmos.io/kosmos/pkg/scheduler/lifted/plugins/knodetainttoleration"
@@ -11,6 +13,7 @@ import (
 )
 
 func main() {
+	rand.Seed(time.Now().UnixNano())
 	// Register custom plugins to the scheduler framework.
 	// Later they can consist of scheduler profile(s) and hence
 	// used by various kinds of workloads.
@@ -19,6 +22,10 @@ func main() {
 		app.WithPlugin(knodevolumebinding.Name, knodevolumebinding.New),
 	)
 
-	code := cli.Run(command)
-	os.Exit(code)
+	logs.InitLogs()
+	defer logs.FlushLogs()
+
+	if err := command.Execute(); err != nil {
+		os.Exit(1)
+	}
 }

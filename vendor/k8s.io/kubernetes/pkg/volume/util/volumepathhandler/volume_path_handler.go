@@ -30,8 +30,10 @@ import (
 )
 
 const (
-	losetupPath       = "losetup"
-	ErrDeviceNotFound = "device not found"
+	losetupPath           = "losetup"
+	statPath              = "stat"
+	ErrDeviceNotFound     = "device not found"
+	ErrDeviceNotSupported = "device not supported"
 )
 
 // BlockVolumePathHandler defines a set of operations for handling block volume-related operations
@@ -42,9 +44,9 @@ type BlockVolumePathHandler interface {
 	UnmapDevice(mapPath string, linkName string, bindMount bool) error
 	// RemovePath removes a file or directory on specified map path
 	RemoveMapPath(mapPath string) error
-	// IsSymlinkExist returns true if specified symbolic link exists
+	// IsSymlinkExist retruns true if specified symbolic link exists
 	IsSymlinkExist(mapPath string) (bool, error)
-	// IsDeviceBindMountExist returns true if specified bind mount exists
+	// IsDeviceBindMountExist retruns true if specified bind mount exists
 	IsDeviceBindMountExist(mapPath string) (bool, error)
 	// GetDeviceBindMountRefs searches bind mounts under global map path
 	GetDeviceBindMountRefs(devPath string, mapPath string) ([]string, error)

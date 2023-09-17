@@ -23,7 +23,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	v1helper "k8s.io/component-helpers/scheduling/corev1"
 	"k8s.io/kubernetes/pkg/scheduler/framework"
-	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/names"
 )
 
 // NodeUnschedulable plugin filters nodes that set node.Spec.Unschedulable=true unless
@@ -32,10 +31,9 @@ type NodeUnschedulable struct {
 }
 
 var _ framework.FilterPlugin = &NodeUnschedulable{}
-var _ framework.EnqueueExtensions = &NodeUnschedulable{}
 
 // Name is the name of the plugin used in the plugin registry and configurations.
-const Name = names.NodeUnschedulable
+const Name = "NodeUnschedulable"
 
 const (
 	// ErrReasonUnknownCondition is used for NodeUnknownCondition predicate error.
@@ -44,14 +42,6 @@ const (
 	ErrReasonUnschedulable = "node(s) were unschedulable"
 )
 
-// EventsToRegister returns the possible events that may make a Pod
-// failed by this plugin schedulable.
-func (pl *NodeUnschedulable) EventsToRegister() []framework.ClusterEvent {
-	return []framework.ClusterEvent{
-		{Resource: framework.Node, ActionType: framework.Add | framework.UpdateNodeTaint},
-	}
-}
-
 // Name returns name of the plugin. It is used in logs, etc.
 func (pl *NodeUnschedulable) Name() string {
 	return Name
@@ -59,8 +49,7 @@ func (pl *NodeUnschedulable) Name() string {
 
 // Filter invoked at the filter extension point.
 func (pl *NodeUnschedulable) Filter(ctx context.Context, _ *framework.CycleState, pod *v1.Pod, nodeInfo *framework.NodeInfo) *framework.Status {
-	node := nodeInfo.Node()
-	if node == nil {
+	if nodeInfo == nil || nodeInfo.Node() == nil {
 		return framework.NewStatus(framework.UnschedulableAndUnresolvable, ErrReasonUnknownCondition)
 	}
 	// If pod tolerate unschedulable taint, it's also tolerate `node.Spec.Unschedulable`.
@@ -68,7 +57,8 @@ func (pl *NodeUnschedulable) Filter(ctx context.Context, _ *framework.CycleState
 		Key:    v1.TaintNodeUnschedulable,
 		Effect: v1.TaintEffectNoSchedule,
 	})
-	if node.Spec.Unschedulable && !podToleratesUnschedulable {
+	// TODO (k82cn): deprecates `node.Spec.Unschedulable` in 1.13.
+	if nodeInfo.Node().Spec.Unschedulable && !podToleratesUnschedulable {
 		return framework.NewStatus(framework.UnschedulableAndUnresolvable, ErrReasonUnschedulable)
 	}
 	return nil

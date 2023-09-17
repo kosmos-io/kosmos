@@ -60,37 +60,45 @@ func (s *DryRunnableStorage) Watch(ctx context.Context, key string, opts storage
 	return s.Storage.Watch(ctx, key, opts)
 }
 
+func (s *DryRunnableStorage) WatchList(ctx context.Context, key string, opts storage.ListOptions) (watch.Interface, error) {
+	return s.Storage.WatchList(ctx, key, opts)
+}
+
 func (s *DryRunnableStorage) Get(ctx context.Context, key string, opts storage.GetOptions, objPtr runtime.Object) error {
 	return s.Storage.Get(ctx, key, opts, objPtr)
 }
 
-func (s *DryRunnableStorage) GetList(ctx context.Context, key string, opts storage.ListOptions, listObj runtime.Object) error {
-	return s.Storage.GetList(ctx, key, opts, listObj)
+func (s *DryRunnableStorage) GetToList(ctx context.Context, key string, opts storage.ListOptions, listObj runtime.Object) error {
+	return s.Storage.GetToList(ctx, key, opts, listObj)
+}
+
+func (s *DryRunnableStorage) List(ctx context.Context, key string, opts storage.ListOptions, listObj runtime.Object) error {
+	return s.Storage.List(ctx, key, opts, listObj)
 }
 
 func (s *DryRunnableStorage) GuaranteedUpdate(
-	ctx context.Context, key string, destination runtime.Object, ignoreNotFound bool,
+	ctx context.Context, key string, ptrToType runtime.Object, ignoreNotFound bool,
 	preconditions *storage.Preconditions, tryUpdate storage.UpdateFunc, dryRun bool, cachedExistingObject runtime.Object) error {
 	if dryRun {
-		err := s.Storage.Get(ctx, key, storage.GetOptions{IgnoreNotFound: ignoreNotFound}, destination)
+		err := s.Storage.Get(ctx, key, storage.GetOptions{IgnoreNotFound: ignoreNotFound}, ptrToType)
 		if err != nil {
 			return err
 		}
-		err = preconditions.Check(key, destination)
+		err = preconditions.Check(key, ptrToType)
 		if err != nil {
 			return err
 		}
-		rev, err := s.Versioner().ObjectResourceVersion(destination)
+		rev, err := s.Versioner().ObjectResourceVersion(ptrToType)
 		if err != nil {
 			return err
 		}
-		updated, _, err := tryUpdate(destination, storage.ResponseMeta{ResourceVersion: rev})
+		out, _, err := tryUpdate(ptrToType, storage.ResponseMeta{ResourceVersion: rev})
 		if err != nil {
 			return err
 		}
-		return s.copyInto(updated, destination)
+		return s.copyInto(out, ptrToType)
 	}
-	return s.Storage.GuaranteedUpdate(ctx, key, destination, ignoreNotFound, preconditions, tryUpdate, cachedExistingObject)
+	return s.Storage.GuaranteedUpdate(ctx, key, ptrToType, ignoreNotFound, preconditions, tryUpdate, cachedExistingObject)
 }
 
 func (s *DryRunnableStorage) Count(key string) (int64, error) {
@@ -105,5 +113,9 @@ func (s *DryRunnableStorage) copyInto(in, out runtime.Object) error {
 		return err
 	}
 	_, _, err = s.Codec.Decode(data, nil, out)
-	return err
+	if err != nil {
+		return err
+	}
+	return nil
+
 }

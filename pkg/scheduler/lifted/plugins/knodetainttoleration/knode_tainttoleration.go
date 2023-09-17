@@ -23,13 +23,10 @@ package knodetainttoleration
 import (
 	"context"
 	"fmt"
-
+	"github.com/kosmos.io/kosmos/pkg/scheduler/lifted/helpers"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/kubernetes/pkg/scheduler/framework"
-	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/helper"
-
-	"github.com/kosmos.io/kosmos/pkg/scheduler/lifted/helpers"
 )
 
 const Name = "KNodeTaintToleration"
@@ -51,17 +48,22 @@ func (t *TaintToleration) Name() string {
 }
 
 func (t *TaintToleration) Filter(ctx context.Context, state *framework.CycleState, pod *corev1.Pod, nodeInfo *framework.NodeInfo) *framework.Status {
-	node := nodeInfo.Node()
-	if node == nil {
+	if nodeInfo == nil || nodeInfo.Node() == nil {
 		return framework.AsStatus(fmt.Errorf("invalid nodeInfo"))
 	}
 
-	taint, isUntolerated := helpers.FindMatchingUntoleratedTaint(node.Spec.Taints, pod.Spec.Tolerations, helper.DoNotScheduleTaintsFilterFunc())
+	filterPredicate := func(t *corev1.Taint) bool {
+		// PodToleratesNodeTaints is only interested in NoSchedule and NoExecute taints.
+		return t.Effect == corev1.TaintEffectNoSchedule || t.Effect == corev1.TaintEffectNoExecute
+	}
+
+	taint, isUntolerated := helpers.FindMatchingUntoleratedTaint(nodeInfo.Node().Spec.Taints, pod.Spec.Tolerations, filterPredicate)
 	if !isUntolerated {
 		return nil
 	}
 
-	errReason := fmt.Sprintf("node(s) had untolerated taint {%s: %s}", taint.Key, taint.Value)
+	errReason := fmt.Sprintf("node(s) had taint {%s: %s}, that the pod didn't tolerate",
+		taint.Key, taint.Value)
 	return framework.NewStatus(framework.UnschedulableAndUnresolvable, errReason)
 }
 
