@@ -8,6 +8,7 @@ import (
 	componentbaseconfig "k8s.io/component-base/config"
 
 	crdclientset "github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
+	"github.com/kosmos.io/kosmos/pkg/utils/flags"
 )
 
 const (
@@ -49,6 +50,8 @@ type Opts struct {
 	KubeAPIBurst int
 
 	Version string
+
+	RateLimiterOpts flags.Options
 }
 
 func New() *Opts {

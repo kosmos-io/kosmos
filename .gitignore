@@ -25,3 +25,5 @@ environments/**
 e2e-logs
 
 _delete/
+
+kube-config
