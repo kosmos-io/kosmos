@@ -19,6 +19,8 @@ package etcd3
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"path"
@@ -26,33 +28,23 @@ import (
 	"strings"
 	"time"
 
-	clientv3 "go.etcd.io/etcd/client/v3"
-	"go.opentelemetry.io/otel/attribute"
+	"go.etcd.io/etcd/clientv3"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/conversion"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/apiserver/pkg/audit"
 	"k8s.io/apiserver/pkg/features"
 	"k8s.io/apiserver/pkg/storage"
 	"k8s.io/apiserver/pkg/storage/etcd3/metrics"
 	"k8s.io/apiserver/pkg/storage/value"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
-	"k8s.io/component-base/tracing"
 	"k8s.io/klog/v2"
-)
-
-const (
-	// maxLimit is a maximum page limit increase used when fetching objects from etcd.
-	// This limit is used only for increasing page size by kube-apiserver. If request
-	// specifies larger limit initially, it won't be changed.
-	maxLimit = 10000
+	utiltrace "k8s.io/utils/trace"
 )
 
 // authenticatedDataString satisfies the value.Context interface. It uses the key to
@@ -72,16 +64,14 @@ func (d authenticatedDataString) AuthenticatedData() []byte {
 var _ value.Context = authenticatedDataString("")
 
 type store struct {
-	client              *clientv3.Client
-	codec               runtime.Codec
-	versioner           storage.Versioner
-	transformer         value.Transformer
-	pathPrefix          string
-	groupResource       schema.GroupResource
-	groupResourceString string
-	watcher             *watcher
-	pagingEnabled       bool
-	leaseManager        *leaseManager
+	client        *clientv3.Client
+	codec         runtime.Codec
+	versioner     storage.Versioner
+	transformer   value.Transformer
+	pathPrefix    string
+	watcher       *watcher
+	pagingEnabled bool
+	leaseManager  *leaseManager
 }
 
 type objState struct {
@@ -93,31 +83,24 @@ type objState struct {
 }
 
 // New returns an etcd3 implementation of storage.Interface.
-func New(c *clientv3.Client, codec runtime.Codec, newFunc func() runtime.Object, prefix string, groupResource schema.GroupResource, transformer value.Transformer, pagingEnabled bool, leaseManagerConfig LeaseManagerConfig) storage.Interface {
-	return newStore(c, codec, newFunc, prefix, groupResource, transformer, pagingEnabled, leaseManagerConfig)
+func New(c *clientv3.Client, codec runtime.Codec, newFunc func() runtime.Object, prefix string, transformer value.Transformer, pagingEnabled bool, leaseManagerConfig LeaseManagerConfig) storage.Interface {
+	return newStore(c, codec, newFunc, prefix, transformer, pagingEnabled, leaseManagerConfig)
 }
 
-func newStore(c *clientv3.Client, codec runtime.Codec, newFunc func() runtime.Object, prefix string, groupResource schema.GroupResource, transformer value.Transformer, pagingEnabled bool, leaseManagerConfig LeaseManagerConfig) *store {
-	versioner := storage.APIObjectVersioner{}
-	// for compatibility with etcd2 impl.
-	// no-op for default prefix of '/registry'.
-	// keeps compatibility with etcd2 impl for custom prefixes that don't start with '/'
-	pathPrefix := path.Join("/", prefix)
-	if !strings.HasSuffix(pathPrefix, "/") {
-		// Ensure the pathPrefix ends in "/" here to simplify key concatenation later.
-		pathPrefix += "/"
-	}
+func newStore(c *clientv3.Client, codec runtime.Codec, newFunc func() runtime.Object, prefix string, transformer value.Transformer, pagingEnabled bool, leaseManagerConfig LeaseManagerConfig) *store {
+	versioner := APIObjectVersioner{}
 	result := &store{
-		client:              c,
-		codec:               codec,
-		versioner:           versioner,
-		transformer:         transformer,
-		pagingEnabled:       pagingEnabled,
-		pathPrefix:          pathPrefix,
-		groupResource:       groupResource,
-		groupResourceString: groupResource.String(),
-		watcher:             newWatcher(c, codec, groupResource, newFunc, versioner),
-		leaseManager:        newDefaultLeaseManager(c, leaseManagerConfig),
+		client:        c,
+		codec:         codec,
+		versioner:     versioner,
+		transformer:   transformer,
+		pagingEnabled: pagingEnabled,
+		// for compatibility with etcd2 impl.
+		// no-op for default prefix of '/registry'.
+		// keeps compatibility with etcd2 impl for custom prefixes that don't start with '/'
+		pathPrefix:   path.Join("/", prefix),
+		watcher:      newWatcher(c, codec, newFunc, versioner, transformer),
+		leaseManager: newDefaultLeaseManager(c, leaseManagerConfig),
 	}
 	return result
 }
@@ -129,13 +112,10 @@ func (s *store) Versioner() storage.Versioner {
 
 // Get implements storage.Interface.Get.
 func (s *store) Get(ctx context.Context, key string, opts storage.GetOptions, out runtime.Object) error {
-	preparedKey, err := s.prepareKey(key)
-	if err != nil {
-		return err
-	}
+	key = path.Join(s.pathPrefix, key)
 	startTime := time.Now()
-	getResp, err := s.client.KV.Get(ctx, preparedKey)
-	metrics.RecordEtcdRequestLatency("get", s.groupResourceString, startTime)
+	getResp, err := s.client.KV.Get(ctx, key)
+	metrics.RecordEtcdRequestLatency("get", getTypeName(out), startTime)
 	if err != nil {
 		return err
 	}
@@ -147,11 +127,11 @@ func (s *store) Get(ctx context.Context, key string, opts storage.GetOptions, ou
 		if opts.IgnoreNotFound {
 			return runtime.SetZeroValue(out)
 		}
-		return storage.NewKeyNotFoundError(preparedKey, 0)
+		return storage.NewKeyNotFoundError(key, 0)
 	}
 	kv := getResp.Kvs[0]
 
-	data, _, err := s.transformer.TransformFromStorage(ctx, kv.Value, authenticatedDataString(preparedKey))
+	data, _, err := s.transformer.TransformFromStorage(kv.Value, authenticatedDataString(key))
 	if err != nil {
 		return storage.NewInternalError(err.Error())
 	}
@@ -161,68 +141,45 @@ func (s *store) Get(ctx context.Context, key string, opts storage.GetOptions, ou
 
 // Create implements storage.Interface.Create.
 func (s *store) Create(ctx context.Context, key string, obj, out runtime.Object, ttl uint64) error {
-	preparedKey, err := s.prepareKey(key)
-	if err != nil {
-		return err
-	}
-	ctx, span := tracing.Start(ctx, "Create etcd3",
-		attribute.String("audit-id", audit.GetAuditIDTruncated(ctx)),
-		attribute.String("key", key),
-		attribute.String("type", getTypeName(obj)),
-		attribute.String("resource", s.groupResourceString),
-	)
-	defer span.End(500 * time.Millisecond)
 	if version, err := s.versioner.ObjectResourceVersion(obj); err == nil && version != 0 {
 		return errors.New("resourceVersion should not be set on objects to be created")
 	}
 	if err := s.versioner.PrepareObjectForStorage(obj); err != nil {
 		return fmt.Errorf("PrepareObjectForStorage failed: %v", err)
 	}
-	span.AddEvent("About to Encode")
 	data, err := runtime.Encode(s.codec, obj)
 	if err != nil {
-		span.AddEvent("Encode failed", attribute.Int("len", len(data)), attribute.String("err", err.Error()))
 		return err
 	}
-	span.AddEvent("Encode succeeded", attribute.Int("len", len(data)))
+	key = path.Join(s.pathPrefix, key)
 
 	opts, err := s.ttlOpts(ctx, int64(ttl))
 	if err != nil {
 		return err
 	}
 
-	newData, err := s.transformer.TransformToStorage(ctx, data, authenticatedDataString(preparedKey))
+	newData, err := s.transformer.TransformToStorage(data, authenticatedDataString(key))
 	if err != nil {
-		span.AddEvent("TransformToStorage failed", attribute.String("err", err.Error()))
 		return storage.NewInternalError(err.Error())
 	}
-	span.AddEvent("TransformToStorage succeeded")
 
 	startTime := time.Now()
 	txnResp, err := s.client.KV.Txn(ctx).If(
-		notFound(preparedKey),
+		notFound(key),
 	).Then(
-		clientv3.OpPut(preparedKey, string(newData), opts...),
+		clientv3.OpPut(key, string(newData), opts...),
 	).Commit()
-	metrics.RecordEtcdRequestLatency("create", s.groupResourceString, startTime)
+	metrics.RecordEtcdRequestLatency("create", getTypeName(obj), startTime)
 	if err != nil {
-		span.AddEvent("Txn call failed", attribute.String("err", err.Error()))
 		return err
 	}
-	span.AddEvent("Txn call succeeded")
-
 	if !txnResp.Succeeded {
-		return storage.NewKeyExistsError(preparedKey, 0)
+		return storage.NewKeyExistsError(key, 0)
 	}
 
 	if out != nil {
 		putResp := txnResp.Responses[0].GetResponsePut()
-		err = decode(s.codec, s.versioner, data, out, putResp.Header.Revision)
-		if err != nil {
-			span.AddEvent("decode failed", attribute.Int("len", len(data)), attribute.String("err", err.Error()))
-			return err
-		}
-		span.AddEvent("decode succeeded", attribute.Int("len", len(data)))
+		return decode(s.codec, s.versioner, data, out, putResp.Header.Revision)
 	}
 	return nil
 }
@@ -231,15 +188,12 @@ func (s *store) Create(ctx context.Context, key string, obj, out runtime.Object,
 func (s *store) Delete(
 	ctx context.Context, key string, out runtime.Object, preconditions *storage.Preconditions,
 	validateDeletion storage.ValidateObjectFunc, cachedExistingObject runtime.Object) error {
-	preparedKey, err := s.prepareKey(key)
-	if err != nil {
-		return err
-	}
 	v, err := conversion.EnforcePtr(out)
 	if err != nil {
 		return fmt.Errorf("unable to convert output object to pointer: %v", err)
 	}
-	return s.conditionalDelete(ctx, preparedKey, out, v, preconditions, validateDeletion, cachedExistingObject)
+	key = path.Join(s.pathPrefix, key)
+	return s.conditionalDelete(ctx, key, out, v, preconditions, validateDeletion, cachedExistingObject)
 }
 
 func (s *store) conditionalDelete(
@@ -248,11 +202,11 @@ func (s *store) conditionalDelete(
 	getCurrentState := func() (*objState, error) {
 		startTime := time.Now()
 		getResp, err := s.client.KV.Get(ctx, key)
-		metrics.RecordEtcdRequestLatency("get", s.groupResourceString, startTime)
+		metrics.RecordEtcdRequestLatency("get", getTypeName(out), startTime)
 		if err != nil {
 			return nil, err
 		}
-		return s.getState(ctx, getResp, key, v, false)
+		return s.getState(getResp, key, v, false)
 	}
 
 	var origState *objState
@@ -330,60 +284,45 @@ func (s *store) conditionalDelete(
 		).Else(
 			clientv3.OpGet(key),
 		).Commit()
-		metrics.RecordEtcdRequestLatency("delete", s.groupResourceString, startTime)
+		metrics.RecordEtcdRequestLatency("delete", getTypeName(out), startTime)
 		if err != nil {
 			return err
 		}
 		if !txnResp.Succeeded {
 			getResp := (*clientv3.GetResponse)(txnResp.Responses[0].GetResponseRange())
 			klog.V(4).Infof("deletion of %s failed because of a conflict, going to retry", key)
-			origState, err = s.getState(ctx, getResp, key, v, false)
+			origState, err = s.getState(getResp, key, v, false)
 			if err != nil {
 				return err
 			}
 			origStateIsCurrent = true
 			continue
 		}
-
-		if len(txnResp.Responses) == 0 || txnResp.Responses[0].GetResponseDeleteRange() == nil {
-			return errors.New(fmt.Sprintf("invalid DeleteRange response: %v", txnResp.Responses))
-		}
-		deleteResp := txnResp.Responses[0].GetResponseDeleteRange()
-		if deleteResp.Header == nil {
-			return errors.New("invalid DeleteRange response - nil header")
-		}
-		return decode(s.codec, s.versioner, origState.data, out, deleteResp.Header.Revision)
+		return decode(s.codec, s.versioner, origState.data, out, origState.rev)
 	}
 }
 
 // GuaranteedUpdate implements storage.Interface.GuaranteedUpdate.
 func (s *store) GuaranteedUpdate(
-	ctx context.Context, key string, destination runtime.Object, ignoreNotFound bool,
+	ctx context.Context, key string, out runtime.Object, ignoreNotFound bool,
 	preconditions *storage.Preconditions, tryUpdate storage.UpdateFunc, cachedExistingObject runtime.Object) error {
-	preparedKey, err := s.prepareKey(key)
-	if err != nil {
-		return err
-	}
-	ctx, span := tracing.Start(ctx, "GuaranteedUpdate etcd3",
-		attribute.String("audit-id", audit.GetAuditIDTruncated(ctx)),
-		attribute.String("key", key),
-		attribute.String("type", getTypeName(destination)),
-		attribute.String("resource", s.groupResourceString))
-	defer span.End(500 * time.Millisecond)
+	trace := utiltrace.New("GuaranteedUpdate etcd3", utiltrace.Field{"type", getTypeName(out)})
+	defer trace.LogIfLong(500 * time.Millisecond)
 
-	v, err := conversion.EnforcePtr(destination)
+	v, err := conversion.EnforcePtr(out)
 	if err != nil {
 		return fmt.Errorf("unable to convert output object to pointer: %v", err)
 	}
+	key = path.Join(s.pathPrefix, key)
 
 	getCurrentState := func() (*objState, error) {
 		startTime := time.Now()
-		getResp, err := s.client.KV.Get(ctx, preparedKey)
-		metrics.RecordEtcdRequestLatency("get", s.groupResourceString, startTime)
+		getResp, err := s.client.KV.Get(ctx, key)
+		metrics.RecordEtcdRequestLatency("get", getTypeName(out), startTime)
 		if err != nil {
 			return nil, err
 		}
-		return s.getState(ctx, getResp, preparedKey, v, ignoreNotFound)
+		return s.getState(getResp, key, v, ignoreNotFound)
 	}
 
 	var origState *objState
@@ -397,11 +336,11 @@ func (s *store) GuaranteedUpdate(
 	if err != nil {
 		return err
 	}
-	span.AddEvent("initial value restored")
+	trace.Step("initial value restored")
 
-	transformContext := authenticatedDataString(preparedKey)
+	transformContext := authenticatedDataString(key)
 	for {
-		if err := preconditions.Check(preparedKey, origState.obj); err != nil {
+		if err := preconditions.Check(key, origState.obj); err != nil {
 			// If our data is already up to date, return the error
 			if origStateIsCurrent {
 				return err
@@ -446,13 +385,10 @@ func (s *store) GuaranteedUpdate(
 			continue
 		}
 
-		span.AddEvent("About to Encode")
 		data, err := runtime.Encode(s.codec, ret)
 		if err != nil {
-			span.AddEvent("Encode failed", attribute.Int("len", len(data)), attribute.String("err", err.Error()))
 			return err
 		}
-		span.AddEvent("Encode succeeded", attribute.Int("len", len(data)))
 		if !origState.stale && bytes.Equal(data, origState.data) {
 			// if we skipped the original Get in this loop, we must refresh from
 			// etcd in order to be sure the data in the store is equivalent to
@@ -470,59 +406,105 @@ func (s *store) GuaranteedUpdate(
 			}
 			// recheck that the data from etcd is not stale before short-circuiting a write
 			if !origState.stale {
-				return decode(s.codec, s.versioner, origState.data, destination, origState.rev)
+				return decode(s.codec, s.versioner, origState.data, out, origState.rev)
 			}
 		}
 
-		newData, err := s.transformer.TransformToStorage(ctx, data, transformContext)
+		newData, err := s.transformer.TransformToStorage(data, transformContext)
 		if err != nil {
-			span.AddEvent("TransformToStorage failed", attribute.String("err", err.Error()))
 			return storage.NewInternalError(err.Error())
 		}
-		span.AddEvent("TransformToStorage succeeded")
 
 		opts, err := s.ttlOpts(ctx, int64(ttl))
 		if err != nil {
 			return err
 		}
-		span.AddEvent("Transaction prepared")
+		trace.Step("Transaction prepared")
 
 		startTime := time.Now()
 		txnResp, err := s.client.KV.Txn(ctx).If(
-			clientv3.Compare(clientv3.ModRevision(preparedKey), "=", origState.rev),
+			clientv3.Compare(clientv3.ModRevision(key), "=", origState.rev),
 		).Then(
-			clientv3.OpPut(preparedKey, string(newData), opts...),
+			clientv3.OpPut(key, string(newData), opts...),
 		).Else(
-			clientv3.OpGet(preparedKey),
+			clientv3.OpGet(key),
 		).Commit()
-		metrics.RecordEtcdRequestLatency("update", s.groupResourceString, startTime)
+		metrics.RecordEtcdRequestLatency("update", getTypeName(out), startTime)
 		if err != nil {
-			span.AddEvent("Txn call failed", attribute.String("err", err.Error()))
 			return err
 		}
-		span.AddEvent("Txn call completed")
-		span.AddEvent("Transaction committed")
+		trace.Step("Transaction committed")
 		if !txnResp.Succeeded {
 			getResp := (*clientv3.GetResponse)(txnResp.Responses[0].GetResponseRange())
-			klog.V(4).Infof("GuaranteedUpdate of %s failed because of a conflict, going to retry", preparedKey)
-			origState, err = s.getState(ctx, getResp, preparedKey, v, ignoreNotFound)
+			klog.V(4).Infof("GuaranteedUpdate of %s failed because of a conflict, going to retry", key)
+			origState, err = s.getState(getResp, key, v, ignoreNotFound)
 			if err != nil {
 				return err
 			}
-			span.AddEvent("Retry value restored")
+			trace.Step("Retry value restored")
 			origStateIsCurrent = true
 			continue
 		}
 		putResp := txnResp.Responses[0].GetResponsePut()
 
-		err = decode(s.codec, s.versioner, data, destination, putResp.Header.Revision)
+		return decode(s.codec, s.versioner, data, out, putResp.Header.Revision)
+	}
+}
+
+// GetToList implements storage.Interface.GetToList.
+func (s *store) GetToList(ctx context.Context, key string, listOpts storage.ListOptions, listObj runtime.Object) error {
+	resourceVersion := listOpts.ResourceVersion
+	match := listOpts.ResourceVersionMatch
+	pred := listOpts.Predicate
+	trace := utiltrace.New("GetToList etcd3",
+		utiltrace.Field{"key", key},
+		utiltrace.Field{"resourceVersion", resourceVersion},
+		utiltrace.Field{"resourceVersionMatch", match},
+		utiltrace.Field{"limit", pred.Limit},
+		utiltrace.Field{"continue", pred.Continue})
+	defer trace.LogIfLong(500 * time.Millisecond)
+	listPtr, err := meta.GetItemsPtr(listObj)
+	if err != nil {
+		return err
+	}
+	v, err := conversion.EnforcePtr(listPtr)
+	if err != nil || v.Kind() != reflect.Slice {
+		return fmt.Errorf("need ptr to slice: %v", err)
+	}
+
+	newItemFunc := getNewItemFunc(listObj, v)
+
+	key = path.Join(s.pathPrefix, key)
+	startTime := time.Now()
+	var opts []clientv3.OpOption
+	if len(resourceVersion) > 0 && match == metav1.ResourceVersionMatchExact {
+		rv, err := s.versioner.ParseResourceVersion(resourceVersion)
 		if err != nil {
-			span.AddEvent("decode failed", attribute.Int("len", len(data)), attribute.String("err", err.Error()))
+			return apierrors.NewBadRequest(fmt.Sprintf("invalid resource version: %v", err))
+		}
+		opts = append(opts, clientv3.WithRev(int64(rv)))
+	}
+
+	getResp, err := s.client.KV.Get(ctx, key, opts...)
+	metrics.RecordEtcdRequestLatency("get", getTypeName(listPtr), startTime)
+	if err != nil {
+		return err
+	}
+	if err = s.validateMinimumResourceVersion(resourceVersion, uint64(getResp.Header.Revision)); err != nil {
+		return err
+	}
+
+	if len(getResp.Kvs) > 0 {
+		data, _, err := s.transformer.TransformFromStorage(getResp.Kvs[0].Value, authenticatedDataString(key))
+		if err != nil {
+			return storage.NewInternalError(err.Error())
+		}
+		if err := appendListItem(v, data, uint64(getResp.Kvs[0].ModRevision), pred, s.codec, s.versioner, newItemFunc); err != nil {
 			return err
 		}
-		span.AddEvent("decode succeeded", attribute.Int("len", len(data)))
-		return nil
 	}
+	// update version with cluster level revision
+	return s.versioner.UpdateList(listObj, uint64(getResp.Header.Revision), "", nil)
 }
 
 func getNewItemFunc(listObj runtime.Object, v reflect.Value) func() runtime.Object {
@@ -543,45 +525,96 @@ func getNewItemFunc(listObj runtime.Object, v reflect.Value) func() runtime.Obje
 }
 
 func (s *store) Count(key string) (int64, error) {
-	preparedKey, err := s.prepareKey(key)
-	if err != nil {
-		return 0, err
-	}
+	key = path.Join(s.pathPrefix, key)
 
 	// We need to make sure the key ended with "/" so that we only get children "directories".
 	// e.g. if we have key "/a", "/a/b", "/ab", getting keys with prefix "/a" will return all three,
 	// while with prefix "/a/" will return only "/a/b" which is the correct answer.
-	if !strings.HasSuffix(preparedKey, "/") {
-		preparedKey += "/"
+	if !strings.HasSuffix(key, "/") {
+		key += "/"
 	}
 
 	startTime := time.Now()
-	getResp, err := s.client.KV.Get(context.Background(), preparedKey, clientv3.WithRange(clientv3.GetPrefixRangeEnd(preparedKey)), clientv3.WithCountOnly())
-	metrics.RecordEtcdRequestLatency("listWithCount", preparedKey, startTime)
+	getResp, err := s.client.KV.Get(context.Background(), key, clientv3.WithRange(clientv3.GetPrefixRangeEnd(key)), clientv3.WithCountOnly())
+	metrics.RecordEtcdRequestLatency("listWithCount", key, startTime)
 	if err != nil {
 		return 0, err
 	}
 	return getResp.Count, nil
 }
 
-// GetList implements storage.Interface.
-func (s *store) GetList(ctx context.Context, key string, opts storage.ListOptions, listObj runtime.Object) error {
-	preparedKey, err := s.prepareKey(key)
+// continueToken is a simple structured object for encoding the state of a continue token.
+// TODO: if we change the version of the encoded from, we can't start encoding the new version
+// until all other servers are upgraded (i.e. we need to support rolling schema)
+// This is a public API struct and cannot change.
+type continueToken struct {
+	APIVersion      string `json:"v"`
+	ResourceVersion int64  `json:"rv"`
+	StartKey        string `json:"start"`
+}
+
+// parseFrom transforms an encoded predicate from into a versioned struct.
+// TODO: return a typed error that instructs clients that they must relist
+func decodeContinue(continueValue, keyPrefix string) (fromKey string, rv int64, err error) {
+	data, err := base64.RawURLEncoding.DecodeString(continueValue)
 	if err != nil {
-		return err
+		return "", 0, fmt.Errorf("continue key is not valid: %v", err)
 	}
-	recursive := opts.Recursive
+	var c continueToken
+	if err := json.Unmarshal(data, &c); err != nil {
+		return "", 0, fmt.Errorf("continue key is not valid: %v", err)
+	}
+	switch c.APIVersion {
+	case "meta.k8s.io/v1":
+		if c.ResourceVersion == 0 {
+			return "", 0, fmt.Errorf("continue key is not valid: incorrect encoded start resourceVersion (version meta.k8s.io/v1)")
+		}
+		if len(c.StartKey) == 0 {
+			return "", 0, fmt.Errorf("continue key is not valid: encoded start key empty (version meta.k8s.io/v1)")
+		}
+		// defend against path traversal attacks by clients - path.Clean will ensure that startKey cannot
+		// be at a higher level of the hierarchy, and so when we append the key prefix we will end up with
+		// continue start key that is fully qualified and cannot range over anything less specific than
+		// keyPrefix.
+		key := c.StartKey
+		if !strings.HasPrefix(key, "/") {
+			key = "/" + key
+		}
+		cleaned := path.Clean(key)
+		if cleaned != key {
+			return "", 0, fmt.Errorf("continue key is not valid: %s", c.StartKey)
+		}
+		return keyPrefix + cleaned[1:], c.ResourceVersion, nil
+	default:
+		return "", 0, fmt.Errorf("continue key is not valid: server does not recognize this encoded version %q", c.APIVersion)
+	}
+}
+
+// encodeContinue returns a string representing the encoded continuation of the current query.
+func encodeContinue(key, keyPrefix string, resourceVersion int64) (string, error) {
+	nextKey := strings.TrimPrefix(key, keyPrefix)
+	if nextKey == key {
+		return "", fmt.Errorf("unable to encode next field: the key and key prefix do not match")
+	}
+	out, err := json.Marshal(&continueToken{APIVersion: "meta.k8s.io/v1", ResourceVersion: resourceVersion, StartKey: nextKey})
+	if err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(out), nil
+}
+
+// List implements storage.Interface.List.
+func (s *store) List(ctx context.Context, key string, opts storage.ListOptions, listObj runtime.Object) error {
 	resourceVersion := opts.ResourceVersion
 	match := opts.ResourceVersionMatch
 	pred := opts.Predicate
-	ctx, span := tracing.Start(ctx, fmt.Sprintf("List(recursive=%v) etcd3", recursive),
-		attribute.String("audit-id", audit.GetAuditIDTruncated(ctx)),
-		attribute.String("key", key),
-		attribute.String("resourceVersion", resourceVersion),
-		attribute.String("resourceVersionMatch", string(match)),
-		attribute.Int("limit", int(pred.Limit)),
-		attribute.String("continue", pred.Continue))
-	defer span.End(500 * time.Millisecond)
+	trace := utiltrace.New("List etcd3",
+		utiltrace.Field{"key", key},
+		utiltrace.Field{"resourceVersion", resourceVersion},
+		utiltrace.Field{"resourceVersionMatch", match},
+		utiltrace.Field{"limit", pred.Limit},
+		utiltrace.Field{"continue", pred.Continue})
+	defer trace.LogIfLong(500 * time.Millisecond)
 	listPtr, err := meta.GetItemsPtr(listObj)
 	if err != nil {
 		return err
@@ -591,24 +624,23 @@ func (s *store) GetList(ctx context.Context, key string, opts storage.ListOption
 		return fmt.Errorf("need ptr to slice: %v", err)
 	}
 
-	// For recursive lists, we need to make sure the key ended with "/" so that we only
-	// get children "directories". e.g. if we have key "/a", "/a/b", "/ab", getting keys
-	// with prefix "/a" will return all three, while with prefix "/a/" will return only
-	// "/a/b" which is the correct answer.
-	if recursive && !strings.HasSuffix(preparedKey, "/") {
-		preparedKey += "/"
+	if s.pathPrefix != "" {
+		key = path.Join(s.pathPrefix, key)
 	}
-	keyPrefix := preparedKey
+	// We need to make sure the key ended with "/" so that we only get children "directories".
+	// e.g. if we have key "/a", "/a/b", "/ab", getting keys with prefix "/a" will return all three,
+	// while with prefix "/a/" will return only "/a/b" which is the correct answer.
+	if !strings.HasSuffix(key, "/") {
+		key += "/"
+	}
+	keyPrefix := key
 
 	// set the appropriate clientv3 options to filter the returned data set
-	var limitOption *clientv3.OpOption
-	limit := pred.Limit
 	var paging bool
 	options := make([]clientv3.OpOption, 0, 4)
 	if s.pagingEnabled && pred.Limit > 0 {
 		paging = true
-		options = append(options, clientv3.WithLimit(limit))
-		limitOption = &options[len(options)-1]
+		options = append(options, clientv3.WithLimit(pred.Limit))
 	}
 
 	newItemFunc := getNewItemFunc(listObj, v)
@@ -625,8 +657,8 @@ func (s *store) GetList(ctx context.Context, key string, opts storage.ListOption
 	var returnedRV, continueRV, withRev int64
 	var continueKey string
 	switch {
-	case recursive && s.pagingEnabled && len(pred.Continue) > 0:
-		continueKey, continueRV, err = storage.DecodeContinue(pred.Continue, keyPrefix)
+	case s.pagingEnabled && len(pred.Continue) > 0:
+		continueKey, continueRV, err = decodeContinue(pred.Continue, keyPrefix)
 		if err != nil {
 			return apierrors.NewBadRequest(fmt.Sprintf("invalid continue token: %v", err))
 		}
@@ -637,7 +669,7 @@ func (s *store) GetList(ctx context.Context, key string, opts storage.ListOption
 
 		rangeEnd := clientv3.GetPrefixRangeEnd(keyPrefix)
 		options = append(options, clientv3.WithRange(rangeEnd))
-		preparedKey = continueKey
+		key = continueKey
 
 		// If continueRV > 0, the LIST request needs a specific resource version.
 		// continueRV==0 is invalid.
@@ -646,7 +678,7 @@ func (s *store) GetList(ctx context.Context, key string, opts storage.ListOption
 			withRev = continueRV
 			returnedRV = continueRV
 		}
-	case recursive && s.pagingEnabled && pred.Limit > 0:
+	case s.pagingEnabled && pred.Limit > 0:
 		if fromRV != nil {
 			switch match {
 			case metav1.ResourceVersionMatchNotOlderThan:
@@ -682,9 +714,7 @@ func (s *store) GetList(ctx context.Context, key string, opts storage.ListOption
 			}
 		}
 
-		if recursive {
-			options = append(options, clientv3.WithPrefix())
-		}
+		options = append(options, clientv3.WithPrefix())
 	}
 	if withRev != 0 {
 		options = append(options, clientv3.WithRev(withRev))
@@ -694,26 +724,13 @@ func (s *store) GetList(ctx context.Context, key string, opts storage.ListOption
 	var lastKey []byte
 	var hasMore bool
 	var getResp *clientv3.GetResponse
-	var numFetched int
-	var numEvald int
-	// Because these metrics are for understanding the costs of handling LIST requests,
-	// get them recorded even in error cases.
-	defer func() {
-		numReturn := v.Len()
-		metrics.RecordStorageListMetrics(s.groupResourceString, numFetched, numEvald, numReturn)
-	}()
 	for {
 		startTime := time.Now()
-		getResp, err = s.client.KV.Get(ctx, preparedKey, options...)
-		if recursive {
-			metrics.RecordEtcdRequestLatency("list", s.groupResourceString, startTime)
-		} else {
-			metrics.RecordEtcdRequestLatency("get", s.groupResourceString, startTime)
-		}
+		getResp, err = s.client.KV.Get(ctx, key, options...)
+		metrics.RecordEtcdRequestLatency("list", getTypeName(listPtr), startTime)
 		if err != nil {
 			return interpretListError(err, len(pred.Continue) > 0, continueKey, keyPrefix)
 		}
-		numFetched += len(getResp.Kvs)
 		if err = s.validateMinimumResourceVersion(resourceVersion, uint64(getResp.Header.Revision)); err != nil {
 			return err
 		}
@@ -732,14 +749,14 @@ func (s *store) GetList(ctx context.Context, key string, opts storage.ListOption
 		}
 
 		// take items from the response until the bucket is full, filtering as we go
-		for i, kv := range getResp.Kvs {
+		for _, kv := range getResp.Kvs {
 			if paging && int64(v.Len()) >= pred.Limit {
 				hasMore = true
 				break
 			}
 			lastKey = kv.Key
 
-			data, _, err := s.transformer.TransformFromStorage(ctx, kv.Value, authenticatedDataString(kv.Key))
+			data, _, err := s.transformer.TransformFromStorage(kv.Value, authenticatedDataString(kv.Key))
 			if err != nil {
 				return storage.NewInternalErrorf("unable to transform key %q: %v", kv.Key, err)
 			}
@@ -747,10 +764,6 @@ func (s *store) GetList(ctx context.Context, key string, opts storage.ListOption
 			if err := appendListItem(v, data, uint64(kv.ModRevision), pred, s.codec, s.versioner, newItemFunc); err != nil {
 				return err
 			}
-			numEvald++
-
-			// free kv early. Long lists can take O(seconds) to decode.
-			getResp.Kvs[i] = nil
 		}
 
 		// indicate to the client which resource version was returned
@@ -766,17 +779,7 @@ func (s *store) GetList(ctx context.Context, key string, opts storage.ListOption
 		if int64(v.Len()) >= pred.Limit {
 			break
 		}
-
-		if limit < maxLimit {
-			// We got incomplete result due to field/label selector dropping the object.
-			// Double page size to reduce total number of calls to etcd.
-			limit *= 2
-			if limit > maxLimit {
-				limit = maxLimit
-			}
-			*limitOption = clientv3.WithLimit(limit)
-		}
-		preparedKey = string(lastKey) + "\x00"
+		key = string(lastKey) + "\x00"
 		if withRev == 0 {
 			withRev = returnedRV
 			options = append(options, clientv3.WithRev(withRev))
@@ -787,7 +790,7 @@ func (s *store) GetList(ctx context.Context, key string, opts storage.ListOption
 	// we never return a key that the client wouldn't be allowed to see
 	if hasMore {
 		// we want to start immediately after the last key
-		next, err := storage.EncodeContinue(string(lastKey)+"\x00", keyPrefix, returnedRV)
+		next, err := encodeContinue(string(lastKey)+"\x00", keyPrefix, returnedRV)
 		if err != nil {
 			return err
 		}
@@ -830,7 +833,7 @@ func growSlice(v reflect.Value, maxCapacity int, sizes ...int) {
 		return
 	}
 	if v.Len() > 0 {
-		extra := reflect.MakeSlice(v.Type(), v.Len(), max)
+		extra := reflect.MakeSlice(v.Type(), 0, max)
 		reflect.Copy(extra, v)
 		v.Set(extra)
 	} else {
@@ -841,18 +844,24 @@ func growSlice(v reflect.Value, maxCapacity int, sizes ...int) {
 
 // Watch implements storage.Interface.Watch.
 func (s *store) Watch(ctx context.Context, key string, opts storage.ListOptions) (watch.Interface, error) {
-	preparedKey, err := s.prepareKey(key)
-	if err != nil {
-		return nil, err
-	}
+	return s.watch(ctx, key, opts, false)
+}
+
+// WatchList implements storage.Interface.WatchList.
+func (s *store) WatchList(ctx context.Context, key string, opts storage.ListOptions) (watch.Interface, error) {
+	return s.watch(ctx, key, opts, true)
+}
+
+func (s *store) watch(ctx context.Context, key string, opts storage.ListOptions, recursive bool) (watch.Interface, error) {
 	rev, err := s.versioner.ParseResourceVersion(opts.ResourceVersion)
 	if err != nil {
 		return nil, err
 	}
-	return s.watcher.Watch(ctx, preparedKey, int64(rev), opts.Recursive, opts.ProgressNotify, s.transformer, opts.Predicate)
+	key = path.Join(s.pathPrefix, key)
+	return s.watcher.Watch(ctx, key, int64(rev), recursive, opts.ProgressNotify, opts.Predicate)
 }
 
-func (s *store) getState(ctx context.Context, getResp *clientv3.GetResponse, key string, v reflect.Value, ignoreNotFound bool) (*objState, error) {
+func (s *store) getState(getResp *clientv3.GetResponse, key string, v reflect.Value, ignoreNotFound bool) (*objState, error) {
 	state := &objState{
 		meta: &storage.ResponseMeta{},
 	}
@@ -871,7 +880,7 @@ func (s *store) getState(ctx context.Context, getResp *clientv3.GetResponse, key
 			return nil, err
 		}
 	} else {
-		data, stale, err := s.transformer.TransformFromStorage(ctx, getResp.Kvs[0].Value, authenticatedDataString(key))
+		data, stale, err := s.transformer.TransformFromStorage(getResp.Kvs[0].Value, authenticatedDataString(key))
 		if err != nil {
 			return nil, storage.NewInternalError(err.Error())
 		}
@@ -959,30 +968,6 @@ func (s *store) validateMinimumResourceVersion(minimumResourceVersion string, ac
 		return storage.NewTooLargeResourceVersionError(minimumRV, actualRevision, 0)
 	}
 	return nil
-}
-
-func (s *store) prepareKey(key string) (string, error) {
-	if key == ".." ||
-		strings.HasPrefix(key, "../") ||
-		strings.HasSuffix(key, "/..") ||
-		strings.Contains(key, "/../") {
-		return "", fmt.Errorf("invalid key: %q", key)
-	}
-	if key == "." ||
-		strings.HasPrefix(key, "./") ||
-		strings.HasSuffix(key, "/.") ||
-		strings.Contains(key, "/./") {
-		return "", fmt.Errorf("invalid key: %q", key)
-	}
-	if key == "" || key == "/" {
-		return "", fmt.Errorf("empty key: %q", key)
-	}
-	// We ensured that pathPrefix ends in '/' in construction, so skip any leading '/' in the key now.
-	startIndex := 0
-	if key[0] == '/' {
-		startIndex = 1
-	}
-	return s.pathPrefix + key[startIndex:], nil
 }
 
 // decode decodes value of bytes into object. It will also set the object resource version to rev.

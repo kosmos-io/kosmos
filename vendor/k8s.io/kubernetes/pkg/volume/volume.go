@@ -48,14 +48,6 @@ type BlockVolume interface {
 	// and name of a symbolic link associated to a block device.
 	// ex. pods/{podUid}/{DefaultKubeletVolumeDevicesDirName}/{escapeQualifiedPluginName}/, {volumeName}
 	GetPodDeviceMapPath() (string, string)
-
-	// SupportsMetrics should return true if the MetricsProvider is
-	// initialized
-	SupportsMetrics() bool
-
-	// MetricsProvider embeds methods for exposing metrics (e.g.
-	// used, available space).
-	MetricsProvider
 }
 
 // MetricsProvider exposes metrics (e.g. used,available space) related to a
@@ -115,9 +107,9 @@ type Metrics struct {
 
 // Attributes represents the attributes of this mounter.
 type Attributes struct {
-	ReadOnly       bool
-	Managed        bool
-	SELinuxRelabel bool
+	ReadOnly        bool
+	Managed         bool
+	SupportsSELinux bool
 }
 
 // MounterArgs provides more easily extensible arguments to Mounter
@@ -129,13 +121,23 @@ type MounterArgs struct {
 	FsGroup             *int64
 	FSGroupChangePolicy *v1.PodFSGroupChangePolicy
 	DesiredSize         *resource.Quantity
-	SELinuxLabel        string
 }
 
 // Mounter interface provides methods to set up/mount the volume.
 type Mounter interface {
 	// Uses Interface to provide the path for Docker binds.
 	Volume
+
+	// CanMount is called immediately prior to Setup to check if
+	// the required components (binaries, etc.) are available on
+	// the underlying node to complete the subsequent SetUp (mount)
+	// operation. If CanMount returns error, the mount operation is
+	// aborted and an event is generated indicating that the node
+	// does not have the required binaries to complete the mount.
+	// If CanMount succeeds, the mount operation continues
+	// normally. The CanMount check can be enabled or disabled
+	// using the experimental-check-mount-binaries binary flag
+	CanMount() error
 
 	// SetUp prepares and mounts/unpacks the volume to a
 	// self-determined directory path. The mount point and its
@@ -189,7 +191,7 @@ type CustomBlockVolumeMapper interface {
 	// MapPodDevice maps the block device to a path and return the path.
 	// Unique device path across kubelet node reboot is required to avoid
 	// unexpected block volume destruction.
-	// If empty string is returned, the path returned by attacher.Attach() and
+	// If empty string is returned, the path retuned by attacher.Attach() and
 	// attacher.WaitForAttach() will be used.
 	MapPodDevice() (publishPath string, err error)
 
@@ -261,12 +263,6 @@ type Attacher interface {
 	WaitForAttach(spec *Spec, devicePath string, pod *v1.Pod, timeout time.Duration) (string, error)
 }
 
-// DeviceMounterArgs provides auxiliary, optional arguments to DeviceMounter.
-type DeviceMounterArgs struct {
-	FsGroup      *int64
-	SELinuxLabel string
-}
-
 // DeviceMounter can mount a block volume to a global path.
 type DeviceMounter interface {
 	// GetDeviceMountPath returns a path where the device should
@@ -281,12 +277,12 @@ type DeviceMounter interface {
 	//   - TransientOperationFailure
 	//   - UncertainProgressError
 	//   - Error of any other type should be considered a final error
-	MountDevice(spec *Spec, devicePath string, deviceMountPath string, deviceMounterArgs DeviceMounterArgs) error
+	MountDevice(spec *Spec, devicePath string, deviceMountPath string) error
 }
 
 type BulkVolumeVerifier interface {
 	// BulkVerifyVolumes checks whether the list of volumes still attached to the
-	// clusters in the node. It returns a map which maps from the volume spec to the checking result.
+	// the clusters in the node. It returns a map which maps from the volume spec to the checking result.
 	// If an error occurs during check - error should be returned and volume on nodes
 	// should be assumed as still attached.
 	BulkVerifyVolumes(volumesByNode map[types.NodeName][]*Spec) (map[types.NodeName]map[*Spec]bool, error)

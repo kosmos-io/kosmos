@@ -19,7 +19,7 @@ package nodevolumelimits
 import (
 	"strings"
 
-	v1 "k8s.io/api/core/v1"
+	"k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
@@ -38,13 +38,13 @@ func isCSIMigrationOn(csiNode *storagev1.CSINode, pluginName string) bool {
 
 	// In-tree storage to CSI driver migration feature should be enabled,
 	// along with the plugin-specific one
+	if !utilfeature.DefaultFeatureGate.Enabled(features.CSIMigration) {
+		return false
+	}
+
 	switch pluginName {
 	case csilibplugins.AWSEBSInTreePluginName:
 		if !utilfeature.DefaultFeatureGate.Enabled(features.CSIMigrationAWS) {
-			return false
-		}
-	case csilibplugins.PortworxVolumePluginName:
-		if !utilfeature.DefaultFeatureGate.Enabled(features.CSIMigrationPortworx) {
 			return false
 		}
 	case csilibplugins.GCEPDInTreePluginName:
@@ -56,9 +56,7 @@ func isCSIMigrationOn(csiNode *storagev1.CSINode, pluginName string) bool {
 			return false
 		}
 	case csilibplugins.CinderInTreePluginName:
-		return true
-	case csilibplugins.RBDVolumePluginName:
-		if !utilfeature.DefaultFeatureGate.Enabled(features.CSIMigrationRBD) {
+		if !utilfeature.DefaultFeatureGate.Enabled(features.CSIMigrationOpenStack) {
 			return false
 		}
 	default:

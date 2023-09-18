@@ -74,7 +74,6 @@ var unsupportedExtensionVerbs = []string{
 var inputTypeSupportedVerbs = []string{
 	"create",
 	"update",
-	"apply",
 }
 
 // resultTypeSupportedVerbs is a list of verb types that supports overriding the
@@ -85,7 +84,6 @@ var resultTypeSupportedVerbs = []string{
 	"get",
 	"list",
 	"patch",
-	"apply",
 }
 
 // Extensions allows to extend the default set of client verbs
@@ -105,6 +103,7 @@ var resultTypeSupportedVerbs = []string{
 // The 'input' is the input type used for creation (function argument).
 // The 'result' (not needed in this case) is the result type returned from the
 // client function.
+//
 type extension struct {
 	// VerbName is the name of the custom verb (Scale, Instantiate, etc..)
 	VerbName string

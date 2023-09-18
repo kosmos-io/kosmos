@@ -77,10 +77,9 @@ func (g *genClientset) GenerateType(c *generator.Context, t *types.Type, w io.Wr
 		"Config":                               c.Universe.Type(types.Name{Package: "k8s.io/client-go/rest", Name: "Config"}),
 		"DefaultKubernetesUserAgent":           c.Universe.Function(types.Name{Package: "k8s.io/client-go/rest", Name: "DefaultKubernetesUserAgent"}),
 		"RESTClientInterface":                  c.Universe.Type(types.Name{Package: "k8s.io/client-go/rest", Name: "Interface"}),
-		"RESTHTTPClientFor":                    c.Universe.Function(types.Name{Package: "k8s.io/client-go/rest", Name: "HTTPClientFor"}),
 		"DiscoveryInterface":                   c.Universe.Type(types.Name{Package: "k8s.io/client-go/discovery", Name: "DiscoveryInterface"}),
 		"DiscoveryClient":                      c.Universe.Type(types.Name{Package: "k8s.io/client-go/discovery", Name: "DiscoveryClient"}),
-		"NewDiscoveryClientForConfigAndClient": c.Universe.Function(types.Name{Package: "k8s.io/client-go/discovery", Name: "NewDiscoveryClientForConfigAndClient"}),
+		"NewDiscoveryClientForConfig":          c.Universe.Function(types.Name{Package: "k8s.io/client-go/discovery", Name: "NewDiscoveryClientForConfig"}),
 		"NewDiscoveryClientForConfigOrDie":     c.Universe.Function(types.Name{Package: "k8s.io/client-go/discovery", Name: "NewDiscoveryClientForConfigOrDie"}),
 		"NewDiscoveryClient":                   c.Universe.Function(types.Name{Package: "k8s.io/client-go/discovery", Name: "NewDiscoveryClient"}),
 		"flowcontrolNewTokenBucketRateLimiter": c.Universe.Function(types.Name{Package: "k8s.io/client-go/util/flowcontrol", Name: "NewTokenBucketRateLimiter"}),
@@ -92,7 +91,6 @@ func (g *genClientset) GenerateType(c *generator.Context, t *types.Type, w io.Wr
 	}
 	sw.Do(getDiscoveryTemplate, m)
 	sw.Do(newClientsetForConfigTemplate, m)
-	sw.Do(newClientsetForConfigAndClientTemplate, m)
 	sw.Do(newClientsetForConfigOrDieTemplate, m)
 	sw.Do(newClientsetForRESTClientTemplate, m)
 
@@ -108,7 +106,8 @@ type Interface interface {
 `
 
 var clientsetTemplate = `
-// Clientset contains the clients for groups.
+// Clientset contains the clients for groups. Each group has exactly one
+// version included in a Clientset.
 type Clientset struct {
 	*$.DiscoveryClient|raw$
     $range .allGroups$$.LowerCaseGroupGoName$$.Version$ *$.PackageAlias$.$.GroupGoName$$.Version$Client
@@ -137,31 +136,7 @@ var newClientsetForConfigTemplate = `
 // NewForConfig creates a new Clientset for the given config.
 // If config's RateLimiter is not set and QPS and Burst are acceptable, 
 // NewForConfig will generate a rate-limiter in configShallowCopy.
-// NewForConfig is equivalent to NewForConfigAndClient(c, httpClient),
-// where httpClient was generated with rest.HTTPClientFor(c).
 func NewForConfig(c *$.Config|raw$) (*Clientset, error) {
-	configShallowCopy := *c
-
-	if configShallowCopy.UserAgent == "" {
-		configShallowCopy.UserAgent = $.DefaultKubernetesUserAgent|raw$()
-	}
-
-	// share the transport between all clients
-	httpClient, err := $.RESTHTTPClientFor|raw$(&configShallowCopy)
-	if err != nil {
-		return nil, err
-	}
-
-	return NewForConfigAndClient(&configShallowCopy, httpClient)
-}
-`
-
-var newClientsetForConfigAndClientTemplate = `
-// NewForConfigAndClient creates a new Clientset for the given config and http client.
-// Note the http client provided takes precedence over the configured transport values.
-// If config's RateLimiter is not set and QPS and Burst are acceptable,
-// NewForConfigAndClient will generate a rate-limiter in configShallowCopy.
-func NewForConfigAndClient(c *$.Config|raw$, httpClient *http.Client) (*Clientset, error) {
 	configShallowCopy := *c
 	if configShallowCopy.RateLimiter == nil && configShallowCopy.QPS > 0 {
 		if configShallowCopy.Burst <= 0 {
@@ -169,15 +144,14 @@ func NewForConfigAndClient(c *$.Config|raw$, httpClient *http.Client) (*Clientse
 		}
 		configShallowCopy.RateLimiter = $.flowcontrolNewTokenBucketRateLimiter|raw$(configShallowCopy.QPS, configShallowCopy.Burst)
 	}
-
 	var cs Clientset
 	var err error
-$range .allGroups$    cs.$.LowerCaseGroupGoName$$.Version$, err =$.PackageAlias$.NewForConfigAndClient(&configShallowCopy, httpClient)
+$range .allGroups$    cs.$.LowerCaseGroupGoName$$.Version$, err =$.PackageAlias$.NewForConfig(&configShallowCopy)
 	if err!=nil {
 		return nil, err
 	}
 $end$
-	cs.DiscoveryClient, err = $.NewDiscoveryClientForConfigAndClient|raw$(&configShallowCopy, httpClient)
+	cs.DiscoveryClient, err = $.NewDiscoveryClientForConfig|raw$(&configShallowCopy)
 	if err!=nil {
 		return nil, err
 	}
@@ -189,11 +163,11 @@ var newClientsetForConfigOrDieTemplate = `
 // NewForConfigOrDie creates a new Clientset for the given config and
 // panics if there is an error in the config.
 func NewForConfigOrDie(c *$.Config|raw$) *Clientset {
-	cs, err := NewForConfig(c)
-	if err!=nil {
-		panic(err)
-	}
-	return cs
+	var cs Clientset
+$range .allGroups$    cs.$.LowerCaseGroupGoName$$.Version$ =$.PackageAlias$.NewForConfigOrDie(c)
+$end$
+	cs.DiscoveryClient = $.NewDiscoveryClientForConfigOrDie|raw$(c)
+	return &cs
 }
 `
 

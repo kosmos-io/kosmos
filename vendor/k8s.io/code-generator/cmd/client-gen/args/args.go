@@ -29,7 +29,7 @@ import (
 
 var DefaultInputDirs = []string{}
 
-// CustomArgs is a wrapper for arguments to client-gen.
+// ClientGenArgs is a wrapper for arguments to client-gen.
 type CustomArgs struct {
 	// A sorted list of group versions to generate. For each of them the package path is found
 	// in GroupVersionToInputPath.
