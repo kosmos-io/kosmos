@@ -1,0 +1,47 @@
+## Workflow's name
+#name: release kosmosctl for linux&darwin
+#
+## Workflow's trigger
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+# Workflow's jobs
+jobs:
+  # job's id
+  release:
+    # job's name
+    name: release kosmosctl for linux&darwin
+
+    # allow to upload release binary
+    permissions: write-all
+
+    # the type of machine to run the job on
+    runs-on: ubuntu-20.04
+
+    # create steps
+    steps:
+      # step1: check out repository
+      - name: Check out git repository
+        uses: actions/checkout@v3
+
+      # step2: install go env
+      - name: Install Go
+        uses: actions/setup-go@v3
+
+      # step3: make binaries
+      - name: Make binaries
+        run: make release
+
+      # step4: create release
+      - name: release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            _output/release/kosmosctl-linux-amd64
+            _output/release/kosmosctl-linux-arm64
+            _output/release/kosmosctl-darwin-amd64
+            _output/release/kosmosctl-darwin-arm64
+
