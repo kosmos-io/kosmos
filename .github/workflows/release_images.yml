@@ -1,0 +1,24 @@
+name: Upload Images
+on:
+  push:
+    tags:
+      - "v*.*.*"
+jobs:
+  images:
+    runs-on: ubuntu-latest
+    permissions: write-all
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Set up qemu
+        uses: docker/setup-qemu-action@v2
+      - name: Login registry
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      - name: Push images
+        env:
+          ON_PLUGINS: true
+        run: |
+          make upload-images
