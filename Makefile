@@ -89,16 +89,11 @@ update:
 verify:
 	hack/verify-all.sh
 
-.PHONY: release-chart
-release-chart:
-	hack/release-helm-chart.sh $(VERSION)
-
 .PHONY: test
 test:
 	mkdir -p ./_output/coverage/
 	go test --race --v ./pkg/... -coverprofile=./_output/coverage/coverage_pkg.txt -covermode=atomic
 	go test --race --v ./cmd/... -coverprofile=./_output/coverage/coverage_cmd.txt -covermode=atomic
-#   go test --race --v ./examples/... -coverprofile=./_output/coverage/coverage_examples.txt -covermode=atomic
 
 upload-images: images
 	@echo "push images to $(REGISTRY)"
@@ -112,27 +107,15 @@ endif
 	docker push ${REGISTRY}/clusterlink-network-manager:${VERSION}
 	docker push ${REGISTRY}/clusterlink-floater:${VERSION}
 
-# Build and package binary
-#
-# Example
-#   make release-kosmosctl
-RELEASE_TARGET=$(addprefix release-, $(CTL_TARGETS))
-.PHONY: $(RELEASE_TARGET)
-$(RELEASE_TARGET):
-	@set -e;\
-	target=$$(echo $(subst release-,,$@));\
-	make $$target;\
-	hack/release.sh $$target $(GOOS) $(GOARCH)
-
-# Build and package binary for all platforms
-#
-# Example
-#   make release
+.PHONY: release
 release:
-	@make release-linkctl GOOS=linux GOARCH=amd64
-	@make release-linkctl GOOS=linux GOARCH=arm64
-	@make release-linkctl GOOS=darwin GOARCH=amd64
-	@make release-linkctl GOOS=darwin GOARCH=arm64
+	@make release-kosmosctl GOOS=linux GOARCH=amd64
+	@make release-kosmosctl GOOS=linux GOARCH=arm64
+	@make release-kosmosctl GOOS=darwin GOARCH=amd64
+	@make release-kosmosctl GOOS=darwin GOARCH=arm64
+
+release-kosmosctl:
+	hack/release.sh kosmosctl ${GOOS} ${GOARCH}
 
 .PHONY: lint
 lint: golangci-lint
