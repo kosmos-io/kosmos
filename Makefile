@@ -97,9 +97,6 @@ test:
 
 upload-images: images
 	@echo "push images to $(REGISTRY)"
-ifneq ($(REGISTRY_USER_NAME), "")
-	docker login -u ${REGISTRY_USER_NAME} -p ${REGISTRY_PASSWORD} ${REGISTRY_SERVER_ADDRESS}
-endif
 	docker push ${REGISTRY}/clusterlink-controller-manager:${VERSION}
 	docker push ${REGISTRY}/clusterlink-operator:${VERSION}
 	docker push ${REGISTRY}/clusterlink-agent:${VERSION}
