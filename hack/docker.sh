@@ -109,4 +109,4 @@ function isCross() {
   fi
 }
 
-build_images $@ 
+build_images "$@"
