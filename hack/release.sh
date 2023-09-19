@@ -21,13 +21,13 @@ function release_binary_for_platform() {
   local -r target=$1
   local -r os=$2
   local -r arch=$3
-  local -r platform="${os}/${arch}"
+  local -r platform="${os}-${arch}"
 
   local target_pkg="${CLUSTERLINK_GO_PACKAGE}/$(util::get_target_source "$target")"
   set -x
   CGO_ENABLED=0 GOOS=${os} GOARCH=${arch} go build \
       -ldflags "${LDFLAGS:-}" \
-      -o "_output/release/${platform}/$target" \
+      -o "_output/release/$target-${platform}" \
       "${target_pkg}"
   set +x
 }
