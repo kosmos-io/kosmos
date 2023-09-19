@@ -29,3 +29,21 @@ type NodeHandler interface {
 
 	Configure(context.Context, *corev1.Node)
 }
+
+type PVCHandler interface {
+	Get(ctx context.Context, namespace, name string) (*corev1.PersistentVolumeClaim, error)
+
+	Delete(ctx context.Context, pvc *corev1.PersistentVolumeClaim) error
+
+	Notify(context.Context, func(*corev1.PersistentVolumeClaim))
+}
+
+type PVHandler interface {
+	Get(ctx context.Context, name string) (*corev1.PersistentVolume, error)
+
+	Patch(ctx context.Context, old, new *corev1.PersistentVolume) (*corev1.PersistentVolume, error)
+
+	Delete(ctx context.Context, pv *corev1.PersistentVolume) error
+
+	Notify(context.Context, func(*corev1.PersistentVolume))
+}
