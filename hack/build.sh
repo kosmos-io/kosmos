@@ -45,12 +45,12 @@ function build_binary_for_platform() {
   local -r os=${platform%/*}
   local -r arch=${platform##*/}
 
-  local gopkg="${CLUSTERLINK_GO_PACKAGE}/$(util::get_target_source $target)"
+  local target_pkg="${CLUSTERLINK_GO_PACKAGE}/$(util::get_target_source "$target")"
   set -x
   CGO_ENABLED=0 GOOS=${os} GOARCH=${arch} go build \
       -ldflags "${LDFLAGS:-}" \
       -o "_output/bin/${platform}/$target" \
-      "${gopkg}"
+      "${target_pkg}"
   set +x
 
   if [[ "${target}" == "clusterlink-floater" ]]; then
