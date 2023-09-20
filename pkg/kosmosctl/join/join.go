@@ -2,7 +2,6 @@ package join
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 	"os"
 
@@ -28,11 +27,8 @@ import (
 )
 
 var joinExample = templates.Examples(i18n.T(`
-		# join member1-cluster to master control plane
-		kosmosctl join --cluster-kubeconfig=[member-kubeconfig] -f member1-cluster.yaml --master-kubeconfig=[master-kubeconfig]
-
-		# join member1-cluster to current master control plane
-		kosmosctl join --cluster-kubeconfig=[member-kubeconfig] -f member1-cluster.yaml
+		# join member-cluster to master control plane
+		kosmosctl join -f member-cluster.yaml --master-kubeconfig=[master-kubeconfig] --cluster-kubeconfig=[member-kubeconfig] 
 `))
 
 type CommandJoinOptions struct {
@@ -69,6 +65,10 @@ func NewCmdJoin(f ctlutil.Factory) *cobra.Command {
 		fmt.Printf("kosmosctl join cmd error, MarkFlagRequired failed: %s", err)
 	}
 	cmd.Flags().StringVarP(&o.MasterKubeConfig, "master-kubeconfig", "", "", "master-kubeconfig")
+	err = cmd.MarkFlagRequired("master-kubeconfig")
+	if err != nil {
+		fmt.Printf("kosmosctl join cmd error, MarkFlagRequired failed: %s", err)
+	}
 	cmd.Flags().StringVarP(&o.ClusterKubeConfig, "cluster-kubeconfig", "", "", "cluster-kubeconfig")
 	err = cmd.MarkFlagRequired("cluster-kubeconfig")
 	if err != nil {
@@ -82,16 +82,9 @@ func (o *CommandJoinOptions) Complete(f ctlutil.Factory, cmd *cobra.Command, arg
 	var masterConfig *restclient.Config
 	var err error
 
-	if o.MasterKubeConfig != "" {
-		masterConfig, err = clientcmd.BuildConfigFromFlags("", o.MasterKubeConfig)
-		if err != nil {
-			return fmt.Errorf("kosmosctl join complete error, generate masterConfig failed: %s", err)
-		}
-	} else {
-		masterConfig, err = f.ToRESTConfig()
-		if err != nil {
-			return fmt.Errorf("kosmosctl join complete error, get current masterConfig failed: %s", err)
-		}
+	masterConfig, err = clientcmd.BuildConfigFromFlags("", o.MasterKubeConfig)
+	if err != nil {
+		return fmt.Errorf("kosmosctl join complete error, generate masterConfig failed: %s", err)
 	}
 
 	clusterConfig, err := clientcmd.BuildConfigFromFlags("", o.ClusterKubeConfig)
@@ -146,9 +139,9 @@ func (o *CommandJoinOptions) Run(f ctlutil.Factory, cmd *cobra.Command, args []s
 	}
 
 	// 3. create secret in member
-	memberFile, err := os.ReadFile(o.ClusterKubeConfig)
-	if err != nil {
-		return fmt.Errorf("(secret) kosmosctl join run warning, read memberconfig failed: %s", err)
+	masterKubeConfig, err := os.ReadFile(o.MasterKubeConfig)
+	if err != nil && !apierrors.IsAlreadyExists(err) {
+		return fmt.Errorf("(secret) kosmosctl join run warning, read masterconfig failed: %s", err)
 	}
 	secret := &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{},
@@ -157,7 +150,8 @@ func (o *CommandJoinOptions) Run(f ctlutil.Factory, cmd *cobra.Command, args []s
 			Namespace: utils.NamespaceClusterLinksystem,
 		},
 		Data: map[string][]byte{
-			"kubeconfig": []byte(base64.StdEncoding.EncodeToString(memberFile))},
+			"kubeconfig": masterKubeConfig,
+		},
 	}
 	_, err = o.Client.CoreV1().Secrets(secret.Namespace).Create(context.TODO(), secret, metav1.CreateOptions{})
 	if err != nil && !apierrors.IsAlreadyExists(err) {

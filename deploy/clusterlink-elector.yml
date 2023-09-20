@@ -34,7 +34,7 @@ spec:
                 fieldRef:
                   apiVersion: v1
                   fieldPath: spec.nodeName
-          image: ghcr.io/kosmos-io/clusterlink/clusterlink-elector:__VERSION__
+          image: ghcr.io/kosmos-io/clusterlink-elector:__VERSION__
           imagePullPolicy: IfNotPresent
           name: elector
           resources:

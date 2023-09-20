@@ -22,7 +22,7 @@ spec:
       serviceAccountName: clusterlink-network-manager
       containers:
         - name: manager
-          image: {{ .ImageRepository }}/clusterlink-network-manager:{{ .Version }}
+          image: {{ .ImageRepository }}/clusterlink-network-manager:v{{ .Version }}
           imagePullPolicy: IfNotPresent
           command:
             - clusterlink-network-manager
@@ -68,7 +68,7 @@ spec:
               topologyKey: kubernetes.io/hostname
       containers:
       - name: operator
-        image: ghcr.io/kosmos-io/clusterlink-operator:__VERSION__
+        image: ghcr.io/kosmos-io/clusterlink-operator:v{{ .Version }}
         imagePullPolicy: IfNotPresent
         command:
           - clusterlink-operator
@@ -82,7 +82,7 @@ spec:
             memory: 200Mi
         env:
         - name: VERSION
-          value: {{ .Version }}
+          value: v{{ .Version }}
         - name: CLUSTER_NAME
           value: {{ .ClusterName }}
         - name: USE_PROXY
