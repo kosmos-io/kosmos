@@ -60,7 +60,7 @@ spec:
               topologyKey: kubernetes.io/hostname
       containers:
         - name: manager
-          image: ghcr.io/kosmos-io/clusterlink/clusterlink-network-manager:__VERSION__
+          image: ghcr.io/kosmos-io/clusterlink-network-manager:__VERSION__
           imagePullPolicy: IfNotPresent
           command:
             - clusterlink-network-manager

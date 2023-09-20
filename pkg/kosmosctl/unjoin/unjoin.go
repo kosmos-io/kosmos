@@ -27,10 +27,10 @@ const (
 
 var unjoinExample = templates.Examples(i18n.T(`
 		# unjoin member1-cluster in master control plane
-		kosmosctl unjoin member1-cluster --cluster-kubeconfig=[member-kubeconfig] --master-kubeconfig=[master-kubeconfig]
+		kosmosctl unjoin member-cluster --cluster-kubeconfig=[member-kubeconfig] --master-kubeconfig=[master-kubeconfig]
 
 		# unjoin member1-cluster in current master control plane
-		kosmosctl unjoin member1-cluster --cluster-kubeconfig=[member-kubeconfig]
+		kosmosctl unjoin member-cluster --cluster-kubeconfig=[member-kubeconfig]
 `))
 
 type CommandUnJoinOptions struct {
@@ -108,33 +108,23 @@ func (o *CommandUnJoinOptions) Validate() error {
 
 func (o *CommandUnJoinOptions) Run(f ctlutil.Factory, cmd *cobra.Command, args []string) error {
 	//delete cluster
-	err := o.DynamicClient.Resource(schema.GroupVersionResource{
-		Group:    "kosmos.io",
-		Version:  "v1alpha1",
-		Resource: "clusters",
-	}).Namespace("").Delete(context.TODO(), args[0], metav1.DeleteOptions{})
-	if err != nil && !apierrors.IsNotFound(err) {
-		return fmt.Errorf("(cluster) kosmosctl unjoin run error, delete cluster failed: %s", err)
-	}
-
 	for {
-		// Wait 3 second
-		time.Sleep(3 * time.Second)
-		_, err := o.DynamicClient.Resource(schema.GroupVersionResource{
+		err := o.DynamicClient.Resource(schema.GroupVersionResource{
 			Group:    "kosmos.io",
 			Version:  "v1alpha1",
 			Resource: "clusters",
-		}).Namespace("").Get(context.TODO(), args[0], metav1.GetOptions{})
+		}).Namespace("").Delete(context.TODO(), args[0], metav1.DeleteOptions{})
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				break
 			}
 			return fmt.Errorf("(cluster) kosmosctl unjoin run error, delete cluster failed: %s", err)
 		}
+		time.Sleep(3 * time.Second)
 	}
 
 	// delete operator
-	err = o.Client.CoreV1().ServiceAccounts(util.DefaultNamespace).Delete(context.TODO(), ClusterlinkOperator, metav1.DeleteOptions{})
+	err := o.Client.CoreV1().ServiceAccounts(util.DefaultNamespace).Delete(context.TODO(), ClusterlinkOperator, metav1.DeleteOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		return fmt.Errorf("(operator) kosmosctl unjoin run error, delete serviceaccout failed: %s", err)
 	}

@@ -103,6 +103,7 @@ upload-images: images
 	docker push ${REGISTRY}/clusterlink-proxy:${VERSION}
 	docker push ${REGISTRY}/clusterlink-network-manager:${VERSION}
 	docker push ${REGISTRY}/clusterlink-floater:${VERSION}
+	docker push ${REGISTRY}/clusterlink-elector:${VERSION}
 
 .PHONY: release
 release:
