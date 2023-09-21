@@ -13,12 +13,13 @@ const (
 	KosmosSelectorKey     = "kosmos.io/cluster-selector"
 	KosmosTrippedLabels   = "kosmos-io/tripped"
 
-	NodeRoleLabel       = "kubernetes.io/role"
-	NodeRoleValue       = "agent"
-	NodeOSLabelBeta     = "beta.kubernetes.io/os"
-	NodeHostnameValue   = corev1.LabelHostname
-	NodeOSLabelStable   = corev1.LabelOSStable
-	NodeArchLabelStable = corev1.LabelArchStable
+	NodeRoleLabel         = "kubernetes.io/role"
+	NodeRoleValue         = "agent"
+	NodeOSLabelBeta       = "beta.kubernetes.io/os"
+	NodeHostnameValue     = corev1.LabelHostname
+	NodeHostnameValueBeta = "beta.kubernetes.io/hostname"
+	NodeOSLabelStable     = corev1.LabelOSStable
+	NodeArchLabelStable   = corev1.LabelArchStable
 
 	DefaultK8sOS   = "linux"
 	DefaultK8sArch = "amd64"
