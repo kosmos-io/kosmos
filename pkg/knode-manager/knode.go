@@ -38,6 +38,8 @@ type Knode struct {
 
 	podController  *controllers.PodController
 	nodeController *controllers.NodeController
+	pvcController  *controllers.PVCController
+	pvController   *controllers.PVController
 
 	informerFactory kubeinformers.SharedInformerFactory
 
@@ -109,12 +111,22 @@ func NewKnode(ctx context.Context, knode *kosmosv1alpha1.Knode, cmdConfig *confi
 
 	var podAdapter adapters.PodHandler
 	var nodeAdapter adapters.NodeHandler
+	var pvcAdapter adapters.PVCHandler
+	var pvAdapter adapters.PVHandler
 	if knode.Spec.Type == kosmosv1alpha1.K8sAdapter {
 		podAdapter, err = k8sadapter.NewPodAdapter(ctx, ac, "", true)
 		if err != nil {
 			return nil, err
 		}
 		nodeAdapter, err = k8sadapter.NewNodeAdapter(ctx, knode, ac, cmdConfig)
+		if err != nil {
+			return nil, err
+		}
+		pvcAdapter, err = k8sadapter.NewPVCAdapter(ctx, ac)
+		if err != nil {
+			return nil, err
+		}
+		pvAdapter, err = k8sadapter.NewPVAdapter(ctx, ac)
 		if err != nil {
 			return nil, err
 		}
@@ -154,6 +166,16 @@ func NewKnode(ctx context.Context, knode *kosmosv1alpha1.Knode, cmdConfig *confi
 		return nil, err
 	}
 
+	pvcController, err := controllers.NewPVCController(pvcAdapter, master, knode.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	pvController, err := controllers.NewPVController(pvAdapter, master, knode.Name)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Knode{
 		client:          client,
 		master:          master,
@@ -161,6 +183,8 @@ func NewKnode(ctx context.Context, knode *kosmosv1alpha1.Knode, cmdConfig *confi
 		ac:              ac,
 		podController:   pc,
 		nodeController:  nc,
+		pvcController:   pvcController,
+		pvController:    pvController,
 	}, nil
 }
 
@@ -173,6 +197,8 @@ func (kn *Knode) Run(ctx context.Context, c *config.Opts) {
 		kn.ac.ConfigmapInformer.Informer().HasSynced,
 		kn.ac.NamespaceInformer.Informer().HasSynced,
 		kn.ac.SecretInformer.Informer().HasSynced,
+		kn.ac.PersistentVolumeClaimInformer.Informer().HasSynced,
+		kn.ac.PersistentVolumeInformer.Informer().HasSynced,
 	) {
 		klogv2.Fatal("nodesInformer waitForCacheSync failed")
 	}
@@ -185,6 +211,18 @@ func (kn *Knode) Run(ctx context.Context, c *config.Opts) {
 
 	go func() {
 		if err := kn.nodeController.Run(ctx); err != nil {
+			klogv2.Fatal(err)
+		}
+	}()
+
+	go func() {
+		if err := kn.pvcController.Run(ctx); err != nil {
+			klogv2.Fatal(err)
+		}
+	}()
+
+	go func() {
+		if err := kn.pvController.Run(ctx); err != nil {
 			klogv2.Fatal(err)
 		}
 	}()
