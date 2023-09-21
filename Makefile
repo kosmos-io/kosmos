@@ -19,9 +19,8 @@ TARGETS :=  scheduler
 # Example:
 #   make
 #   make all
-#   make clusterlink-controller-manager
-#   make clusterlink-controller-manager GOOS=linux
-CMD_TARGET=$(TARGETS) $(CTL_TARGETS)
+#   make scheduler
+CMD_TARGET=$(TARGETS)
 
 .PHONY: all
 all: $(CMD_TARGET)
@@ -38,8 +37,8 @@ $(CMD_TARGET):
 #
 # Example:
 #   make images
-#   make make image-clusterlink-controller-manager
-#   make make image-clusterlink-controller-manager GOARCH=arm64
+#   make image-scheduler
+#   make image-scheduler GOARCH=arm64
 IMAGE_TARGET=$(addprefix image-, $(TARGETS))
 .PHONY: $(IMAGE_TARGET)
 $(IMAGE_TARGET):
@@ -54,7 +53,7 @@ images: $(IMAGE_TARGET)
 #
 # Example
 #   make multi-platform-images
-#   make mp-image-clusterlink-controller-manager
+#   make mp-image-scheduler
 MP_TARGET=$(addprefix mp-image-, $(TARGETS))
 .PHONY: $(MP_TARGET)
 $(MP_TARGET):
@@ -97,12 +96,7 @@ upload-images: images
 ifneq ($(REGISTRY_USER_NAME), "")
 	docker login -u ${REGISTRY_USER_NAME} -p ${REGISTRY_PASSWORD} ${REGISTRY_SERVER_ADDRESS}
 endif
-	docker push ${REGISTRY}/clusterlink-controller-manager:${VERSION}
-	docker push ${REGISTRY}/clusterlink-operator:${VERSION}
-	docker push ${REGISTRY}/clusterlink-agent:${VERSION}
-	docker push ${REGISTRY}/clusterlink-proxy:${VERSION}
-	docker push ${REGISTRY}/clusterlink-network-manager:${VERSION}
-	docker push ${REGISTRY}/clusterlink-floater:${VERSION}
+	docker push ${REGISTRY}/scheduler:${VERSION}
 
 # Build and package binary
 #

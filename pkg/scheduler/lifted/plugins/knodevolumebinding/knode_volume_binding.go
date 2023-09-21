@@ -34,9 +34,9 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/kubernetes/pkg/controller/volume/scheduling"
 	"k8s.io/kubernetes/pkg/features"
-	"k8s.io/kubernetes/pkg/scheduler/apis/config"
 	"k8s.io/kubernetes/pkg/scheduler/framework"
 
+	"github.com/kosmos.io/kosmos/pkg/apis/config"
 	"github.com/kosmos.io/kosmos/pkg/scheduler/lifted/helpers"
 )
 
@@ -220,7 +220,7 @@ func (pl *VolumeBinding) Name() string {
 
 // New initializes a new plugin and returns it.
 func New(plArgs runtime.Object, fh framework.Handle) (framework.Plugin, error) {
-	args, ok := plArgs.(*config.VolumeBindingArgs)
+	args, ok := plArgs.(*config.KnodeVolumeBindingArgs)
 	if !ok {
 		return nil, fmt.Errorf("want args to be of type VolumeBindingArgs, got %T", plArgs)
 	}

@@ -36,7 +36,7 @@ require (
 	k8s.io/component-base v0.21.6
 	k8s.io/klog/v2 v2.9.0
 	k8s.io/kube-openapi v0.0.0-20210305001622-591a79e4bda7
-	k8s.io/kube-scheduler v0.21.6 // indirect
+	k8s.io/kube-scheduler v0.21.6
 	k8s.io/kubectl v0.0.0
 	k8s.io/kubernetes v1.21.6
 )
