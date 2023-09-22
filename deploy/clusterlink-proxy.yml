@@ -37,7 +37,7 @@ spec:
             name: clusterlink-agent-proxy
       containers:
         - name: manager
-          image: ghcr.io/kosmos-io/clusterlink/clusterlink-proxy:__VERSION__
+          image: ghcr.io/kosmos-io/clusterlink-proxy:__VERSION__
           imagePullPolicy: IfNotPresent
           command:
             - clusterlink-proxy

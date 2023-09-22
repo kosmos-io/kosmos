@@ -30,7 +30,7 @@ spec:
                 operator: DoesNotExist
       containers:
       - name: floater
-        image: {{ .ImageRepository }}/clusterlink-floater:{{ .Version }}
+        image: {{ .ImageRepository }}/clusterlink-floater:v{{ .Version }}
         imagePullPolicy: IfNotPresent
         command:
           - clusterlink-floater
