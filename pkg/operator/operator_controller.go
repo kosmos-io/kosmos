@@ -26,7 +26,7 @@ import (
 
 const (
 	controllerName             = "operator-controller"
-	ClusterControllerFinalizer = "cnp.io/operator-controller"
+	ClusterControllerFinalizer = "kosmos.io/operator-controller"
 )
 
 // nolint

@@ -47,7 +47,7 @@ spec:
               - key: app
                 operator: In
                 values:
-                - elector
+                - clusterlink-proxy
             namespaces:
             - clusterlink-system
             topologyKey: kubernetes.io/hostname
