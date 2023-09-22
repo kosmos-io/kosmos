@@ -9,7 +9,9 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
+	v1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
@@ -28,6 +30,9 @@ type NodeAdapter struct {
 
 	nodeResource resources.NodeResource
 
+	clientNodeLister v1.NodeLister
+	clientPodLister  v1.PodLister
+
 	updatedNode chan *corev1.Node
 	updatedPod  chan *corev1.Pod
 
@@ -36,11 +41,13 @@ type NodeAdapter struct {
 
 func NewNodeAdapter(ctx context.Context, cr *kosmosv1alpha1.Knode, ac *AdapterConfig, c *config.Opts) (*NodeAdapter, error) {
 	adapter := &NodeAdapter{
-		client: ac.Client,
-		master: ac.Master,
-		cfg:    c,
-		knode:  cr,
-		stopCh: ctx.Done(),
+		client:           ac.Client,
+		master:           ac.Master,
+		cfg:              c,
+		knode:            cr,
+		stopCh:           ctx.Done(),
+		clientNodeLister: ac.NodeInformer.Lister(),
+		clientPodLister:  ac.PodInformer.Lister(),
 	}
 
 	_, err := ac.NodeInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -101,18 +108,18 @@ func (n *NodeAdapter) Configure(ctx context.Context, node *corev1.Node) {
 		return
 	}
 
-	nodes, err := n.client.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
+	nodes, err := n.clientNodeLister.List(labels.Everything())
 	if err != nil {
 		return
 	}
 
 	nodeResource := resources.NewResource()
-	for _, n := range nodes.Items {
+	for _, n := range nodes {
 		if n.Spec.Unschedulable {
 			continue
 		}
-		if !checkNodeStatusReady(node) {
-			klog.Infof("Node %v not ready", node.Name)
+		if !checkNodeStatusReady(n) {
+			klog.Infof("Node %v not ready", n.Name)
 			continue
 		}
 		nc := resources.ConvertToResource(n.Status.Capacity)
@@ -339,12 +346,11 @@ func (n *NodeAdapter) updatePodResources(old, new *corev1.Pod) {
 
 func (n *NodeAdapter) getResourceFromPods(ctx context.Context) *resources.Resource {
 	podResource := resources.NewResource()
-	pods, err := n.client.CoreV1().Pods("").List(ctx, metav1.ListOptions{})
+	pods, err := n.clientPodLister.List(labels.Everything())
 	if err != nil {
 		return podResource
 	}
-	for _, pod := range pods.Items {
-		pod := pod
+	for _, pod := range pods {
 		if pod.Status.Phase == corev1.PodPending && pod.Spec.NodeName != "" ||
 			pod.Status.Phase == corev1.PodRunning {
 			nodeName := pod.Spec.NodeName
@@ -356,7 +362,7 @@ func (n *NodeAdapter) getResourceFromPods(ctx context.Context) *resources.Resour
 			if node.Spec.Unschedulable || !checkNodeStatusReady(node) {
 				continue
 			}
-			res := GetRequestFromPod(&pod)
+			res := GetRequestFromPod(pod)
 			res.Pods = resource.MustParse("1")
 			podResource.Add(res)
 		}

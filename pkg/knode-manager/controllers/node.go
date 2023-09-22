@@ -99,6 +99,7 @@ func NewNodeController(adapter adapters.NodeHandler, client kubernetes.Interface
 }
 
 func (n *NodeController) Run(ctx context.Context) error {
+	n.group.StartWithContext(ctx, n.nodeProbeController.Run)
 	err := n.applyNode(ctx)
 	if err != nil {
 		return err
@@ -109,7 +110,6 @@ func (n *NodeController) Run(ctx context.Context) error {
 		n.statusUpdateChan <- node
 	})
 
-	n.group.StartWithContext(ctx, n.nodeProbeController.Run)
 	n.group.StartWithContext(ctx, n.leaseController.Run)
 
 	return n.sync(ctx)

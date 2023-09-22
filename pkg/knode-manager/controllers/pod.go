@@ -148,14 +148,13 @@ func NewPodController(cfg PodConfig) (*PodController, error) {
 }
 
 func (pc *PodController) Run(ctx context.Context, podSyncWorkers int) (retErr error) {
-	ctx, cancel := context.WithCancel(ctx)
+	pc.ctx = ctx
+	ctx, cancel := context.WithCancel(pc.ctx)
 	defer cancel()
 
 	pc.podHandler.Notify(ctx, func(pod *corev1.Pod) {
 		pc.enqueuePodStatusUpdate(ctx, pod.DeepCopy())
 	})
-
-	pc.asyncPodFromKubeWorker.Run(1, ctx.Done())
 
 	var eventHandler cache.ResourceEventHandler = cache.ResourceEventHandlerFuncs{
 		AddFunc: func(pod interface{}) {
@@ -180,20 +179,22 @@ func (pc *PodController) Run(ctx context.Context, podSyncWorkers int) (retErr er
 
 				aPod := obj.(*attendPod)
 				aPod.Lock()
-				defer aPod.Unlock()
-				tmpPod := &corev1.Pod{
-					Status: aPod.lastPodStatusReceivedFromAdapter.Status,
-					ObjectMeta: metav1.ObjectMeta{
-						Annotations: aPod.lastPodStatusReceivedFromAdapter.Annotations,
-						Labels:      aPod.lastPodStatusReceivedFromAdapter.Labels,
-						Finalizers:  aPod.lastPodStatusReceivedFromAdapter.Finalizers,
-					},
+				if aPod.lastPodStatusReceivedFromAdapter != nil {
+					tmpPod := &corev1.Pod{
+						Status: aPod.lastPodStatusReceivedFromAdapter.Status,
+						ObjectMeta: metav1.ObjectMeta{
+							Annotations: aPod.lastPodStatusReceivedFromAdapter.Annotations,
+							Labels:      aPod.lastPodStatusReceivedFromAdapter.Labels,
+							Finalizers:  aPod.lastPodStatusReceivedFromAdapter.Finalizers,
+						},
+					}
+					if aPod.lastPodStatusUpdateSkipped && podutils.IsChange(newPod, tmpPod) {
+						pc.asyncPodFromKubeWorker.Add(key)
+						// TODO: Reset this to avoid re-adding it continuously
+						aPod.lastPodStatusUpdateSkipped = false
+					}
 				}
-				if aPod.lastPodStatusUpdateSkipped && podutils.IsChange(newPod, tmpPod) {
-					pc.asyncPodFromKubeWorker.Add(key)
-					// TODO: Reset this to avoid re-adding it continuously
-					aPod.lastPodStatusUpdateSkipped = false
-				}
+				aPod.Unlock()
 
 				if podutils.ShouldEnqueue(oldPod, newPod) {
 					pc.asyncPodFromKubeWorker.Add(key)
@@ -221,6 +222,10 @@ func (pc *PodController) Run(ctx context.Context, podSyncWorkers int) (retErr er
 		return err
 	}
 
+	pc.asyncPodFromKubeWorker.Run(1, ctx.Done())
+	pc.deletePodFromKubeWorker.Run(1, ctx.Done())
+	pc.asyncPodStatusFromAdapterWorker.Run(1, ctx.Done())
+
 	<-ctx.Done()
 
 	return nil
@@ -234,7 +239,6 @@ func (pc *PodController) asyncPodFromKube(key utils.QueueKey) error {
 	}
 
 	pod, err := pc.podsLister.Pods(namespace).Get(name)
-
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			// TODO: miss event
@@ -295,21 +299,21 @@ func (pc *PodController) createOrUpdatePod(ctx context.Context, pod *corev1.Pod)
 			klog.Infof("Pod %s exists, updating pod in adapter", podFromAdapter.Name)
 			if origErr := pc.podHandler.Update(ctx, podForAdapter); origErr != nil {
 				pc.handleAdapterError(ctx, origErr, pod)
-				pc.recorder.Event(pod, corev1.EventTypeWarning, podEventUpdateFailed, origErr.Error())
+				//pc.recorder.Event(pod, corev1.EventTypeWarning, podEventUpdateFailed, origErr.Error())
 
 				return origErr
 			}
 			klog.Info("Updated pod in adapter")
-			pc.recorder.Event(pod, corev1.EventTypeNormal, podEventUpdateSuccess, "Update pod in adapter successfully")
+			//pc.recorder.Event(pod, corev1.EventTypeNormal, podEventUpdateSuccess, "Update pod in adapter successfully")
 		}
 	} else {
 		if origErr := pc.podHandler.Create(ctx, podForAdapter); origErr != nil {
 			pc.handleAdapterError(ctx, origErr, pod)
-			pc.recorder.Event(pod, corev1.EventTypeWarning, podEventCreateFailed, origErr.Error())
+			//pc.recorder.Event(pod, corev1.EventTypeWarning, podEventCreateFailed, origErr.Error())
 			return origErr
 		}
 		klog.Info("Created pod in adapter")
-		pc.recorder.Event(pod, corev1.EventTypeNormal, podEventCreateSuccess, "Create pod in adapter successfully")
+		//pc.recorder.Event(pod, corev1.EventTypeNormal, podEventCreateSuccess, "Create pod in adapter successfully")
 	}
 	return nil
 }
