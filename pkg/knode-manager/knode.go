@@ -16,7 +16,6 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog"
 	klogv2 "k8s.io/klog/v2"
@@ -38,10 +37,12 @@ type Knode struct {
 
 	podController  *controllers.PodController
 	nodeController *controllers.NodeController
-	pvcController  *controllers.PVCController
-	pvController   *controllers.PVController
+	/*	pvcController  *controllers.PVCController
+		pvController   *controllers.PVController*/
 
-	informerFactory kubeinformers.SharedInformerFactory
+	clientInformerFactory kubeinformers.SharedInformerFactory
+	masterInformerFactory kubeinformers.SharedInformerFactory
+	podInformerFactory    kubeinformers.SharedInformerFactory
 
 	ac *k8sadapter.AdapterConfig
 }
@@ -111,8 +112,8 @@ func NewKnode(ctx context.Context, knode *kosmosv1alpha1.Knode, cmdConfig *confi
 
 	var podAdapter adapters.PodHandler
 	var nodeAdapter adapters.NodeHandler
-	var pvcAdapter adapters.PVCHandler
-	var pvAdapter adapters.PVHandler
+	/*	var pvcAdapter adapters.PVCHandler
+		var pvAdapter adapters.PVHandler*/
 	if knode.Spec.Type == kosmosv1alpha1.K8sAdapter {
 		podAdapter, err = k8sadapter.NewPodAdapter(ctx, ac, "", true)
 		if err != nil {
@@ -122,14 +123,14 @@ func NewKnode(ctx context.Context, knode *kosmosv1alpha1.Knode, cmdConfig *confi
 		if err != nil {
 			return nil, err
 		}
-		pvcAdapter, err = k8sadapter.NewPVCAdapter(ctx, ac)
-		if err != nil {
-			return nil, err
-		}
-		pvAdapter, err = k8sadapter.NewPVAdapter(ctx, ac)
-		if err != nil {
-			return nil, err
-		}
+		/*		pvcAdapter, err = k8sadapter.NewPVCAdapter(ctx, ac)
+				if err != nil {
+					return nil, err
+				}
+				pvAdapter, err = k8sadapter.NewPVAdapter(ctx, ac)
+				if err != nil {
+					return nil, err
+				}*/
 	}
 
 	dummyNode := controllers.BuildDummyNode(ctx, knode, nodeAdapter)
@@ -166,43 +167,31 @@ func NewKnode(ctx context.Context, knode *kosmosv1alpha1.Knode, cmdConfig *confi
 		return nil, err
 	}
 
-	pvcController, err := controllers.NewPVCController(pvcAdapter, master, knode.Name)
-	if err != nil {
-		return nil, err
-	}
+	/*	pvcController, err := controllers.NewPVCController(pvcAdapter, master, knode.Name)
+		if err != nil {
+			return nil, err
+		}
 
-	pvController, err := controllers.NewPVController(pvAdapter, master, knode.Name)
-	if err != nil {
-		return nil, err
-	}
+		pvController, err := controllers.NewPVController(pvAdapter, master, knode.Name)
+		if err != nil {
+			return nil, err
+		}*/
 
 	return &Knode{
-		client:          client,
-		master:          master,
-		informerFactory: clientInformers.informer,
-		ac:              ac,
-		podController:   pc,
-		nodeController:  nc,
-		pvcController:   pvcController,
-		pvController:    pvController,
+		client:                client,
+		master:                master,
+		clientInformerFactory: clientInformers.informer,
+		masterInformerFactory: masterInformers.informer,
+		podInformerFactory:    podInformerForNode,
+		ac:                    ac,
+		podController:         pc,
+		nodeController:        nc,
+		/*		pvcController:   pvcController,
+				pvController:    pvController,*/
 	}, nil
 }
 
 func (kn *Knode) Run(ctx context.Context, c *config.Opts) {
-	kn.informerFactory.Start(ctx.Done())
-
-	if !cache.WaitForCacheSync(ctx.Done(),
-		kn.ac.NodeInformer.Informer().HasSynced,
-		kn.ac.PodInformer.Informer().HasSynced,
-		kn.ac.ConfigmapInformer.Informer().HasSynced,
-		kn.ac.NamespaceInformer.Informer().HasSynced,
-		kn.ac.SecretInformer.Informer().HasSynced,
-		kn.ac.PersistentVolumeClaimInformer.Informer().HasSynced,
-		kn.ac.PersistentVolumeInformer.Informer().HasSynced,
-	) {
-		klogv2.Fatal("nodesInformer waitForCacheSync failed")
-	}
-
 	go func() {
 		if err := kn.podController.Run(ctx, c.PodSyncWorkers); err != nil && !errors.Is(errors.Cause(err), context.Canceled) {
 			klogv2.Fatal(err)
@@ -215,17 +204,21 @@ func (kn *Knode) Run(ctx context.Context, c *config.Opts) {
 		}
 	}()
 
-	go func() {
-		if err := kn.pvcController.Run(ctx); err != nil {
-			klogv2.Fatal(err)
-		}
-	}()
+	/*	go func() {
+			if err := kn.pvcController.Run(ctx); err != nil {
+				klogv2.Fatal(err)
+			}
+		}()
 
-	go func() {
-		if err := kn.pvController.Run(ctx); err != nil {
-			klogv2.Fatal(err)
-		}
-	}()
+		go func() {
+			if err := kn.pvController.Run(ctx); err != nil {
+				klogv2.Fatal(err)
+			}
+		}()*/
+
+	kn.clientInformerFactory.Start(ctx.Done())
+	kn.masterInformerFactory.Start(ctx.Done())
+	kn.podInformerFactory.Start(ctx.Done())
 
 	<-ctx.Done()
 }
