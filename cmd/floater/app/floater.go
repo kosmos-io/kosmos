@@ -79,7 +79,7 @@ func run(_ context.Context, _ *options.Options) error {
 		WriteTimeout: 10 * time.Second,
 		Addr:         fmt.Sprintf(":%s", port),
 	}
-	if err := srv.ListenAndServeTLS("./certificate/file.crt", "./certificate/file.key"); err != nil {
+	if err := srv.ListenAndServeTLS("/bin/certificate/file.crt", "/bin/certificate/file.key"); err != nil {
 		klog.Errorf("lanch server error: %s", err)
 		return err
 	}
