@@ -8,6 +8,7 @@ import (
 	"k8s.io/component-base/logs"
 	"k8s.io/kubernetes/cmd/kube-scheduler/app"
 
+	_ "github.com/kosmos.io/kosmos/pkg/apis/config/scheme"
 	"github.com/kosmos.io/kosmos/pkg/scheduler/lifted/plugins/knodetainttoleration"
 	"github.com/kosmos.io/kosmos/pkg/scheduler/lifted/plugins/knodevolumebinding"
 )

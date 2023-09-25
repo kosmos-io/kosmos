@@ -23,7 +23,7 @@ package helpers
 import v1 "k8s.io/api/core/v1"
 
 var KnodeTaint = &v1.Taint{
-	Key:    "kosmos.io/knode",
+	Key:    "kosmos.io/node",
 	Value:  "true",
 	Effect: v1.TaintEffectNoSchedule,
 }

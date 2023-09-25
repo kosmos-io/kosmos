@@ -437,7 +437,7 @@ function util::add_routes() {
 }
 
 function util::get_version() {
-  git describe --tags --dirty
+  git describe --tags --dirty --always
 }
 
 function util::version_ldflags() {
