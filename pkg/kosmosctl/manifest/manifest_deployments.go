@@ -35,6 +35,7 @@ spec:
               cpu: 500m
               memory: 500Mi
 `
+
 	ClusterlinkDeployment = `
 apiVersion: apps/v1
 kind: Deployment
@@ -96,6 +97,49 @@ spec:
           secret:
             secretName: controlpanel-config
 
+`
+
+	ClusterRouterKnodeDeployment = `---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: knode
+  namespace: {{ .Namespace }}
+  labels:
+    app: clusterrouter-controller-manager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: knode
+  template:
+    metadata:
+      labels:
+        app: knode
+    spec:
+      serviceAccountName: clusterrouter-knode
+      containers:
+        - name: manager
+          image: {{ .ImageRepository }}/knode:v{{ .Version }}
+          imagePullPolicy: Always
+          command:
+            - /clusterrouter
+            - --kube-api-qps=500
+            - --kube-api-burst=1000
+            - --kubeconfig=/etc/kube/config
+            - --leader-elect=false
+          volumeMounts:
+            - mountPath: /etc/kube
+              name: config-volume
+              readOnly: true
+      volumes:
+        - configMap:
+            defaultMode: 420
+            items:
+              - key: Kubeconfig
+                path: Kubeconfig
+            name: host-kubeconfig
+          name: config-volume
 `
 )
 

@@ -14,8 +14,9 @@ import (
 )
 
 const (
-	DefaultNamespace       = "clusterlink-system"
+	DefaultNamespace       = "kosmos-system"
 	DefaultImageRepository = "ghcr.io/kosmos-io"
+	DefaultInstallModule   = "all"
 )
 
 func GenerateDeployment(deployTemplate string, obj interface{}) (*appsv1.Deployment, error) {
