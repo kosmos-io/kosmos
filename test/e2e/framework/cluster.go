@@ -7,13 +7,16 @@ import (
 	"log"
 	"os/exec"
 
+	"github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 
 	"github.com/kosmos.io/kosmos/hack/projectpath"
 	clusterlinkv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
+	"github.com/kosmos.io/kosmos/pkg/clustertree/knode-manager/utils"
 	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 )
 
@@ -107,4 +110,18 @@ func runCmd(command string, args ...string) error {
 	}
 
 	return nil
+}
+
+// GetKnodeClient get knode client
+func GetKnodeClient(client versioned.Interface, knodeName string) kubernetes.Interface {
+	knode, err := client.KosmosV1alpha1().Knodes().Get(context.TODO(), knodeName, metav1.GetOptions{})
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	knodeClient, err := utils.NewClientFromBytes(knode.Spec.Kubeconfig, func(config *rest.Config) {
+		config.QPS = knode.Spec.KubeAPIQPS
+		config.Burst = knode.Spec.KubeAPIBurst
+	})
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	return knodeClient
 }
