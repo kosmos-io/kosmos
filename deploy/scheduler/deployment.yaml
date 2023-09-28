@@ -76,6 +76,7 @@ data:
           filter:
             disabled:
               - name: "VolumeBinding"
+              - name: "TaintToleration"
             enabled:
               - name: "KNodeTaintToleration"
               - name: "KnodeVolumeBinding"
