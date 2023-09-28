@@ -27,3 +27,5 @@ e2e-logs
 _delete/
 
 kube-config
+
+__debug_bin*
