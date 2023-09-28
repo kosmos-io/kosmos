@@ -75,6 +75,7 @@ func NewKnode(ctx context.Context, knode *kosmosv1alpha1.Knode, cmdConfig *confi
 		return nil, fmt.Errorf("kubeconfig of knode %s is empty", knode.Name)
 	}
 
+	// init master client
 	master, err := utils.NewClientFromConfigPath(cmdConfig.KubeConfigPath, func(config *rest.Config) {
 		config.QPS = cmdConfig.KubeAPIQPS
 		config.Burst = cmdConfig.KubeAPIBurst
@@ -83,6 +84,24 @@ func NewKnode(ctx context.Context, knode *kosmosv1alpha1.Knode, cmdConfig *confi
 		return nil, fmt.Errorf("could not build clientset for master cluster: %v", err)
 	}
 
+	masterInformers := NewInformers(master, cmdConfig.InformerResyncPeriod)
+
+	podInformerForNodeFactory := kubeinformers.NewSharedInformerFactoryWithOptions(
+		master,
+		cmdConfig.InformerResyncPeriod,
+		kubeinformers.WithNamespace(cmdConfig.KubeNamespace),
+		kubeinformers.WithTweakListOptions(func(options *metav1.ListOptions) {
+			options.FieldSelector = fields.OneTermEqualSelector("spec.nodeName", knode.Spec.NodeName).String()
+		}))
+
+	podInformerForNode := podInformerForNodeFactory.Core().V1().Pods()
+
+	rm, err := manager.NewResourceManager(podInformerForNode.Lister(), masterInformers.secretInformer.Lister(), masterInformers.cmInformer.Lister(), masterInformers.serviceInformer.Lister())
+	if err != nil {
+		return nil, errors.Wrap(err, "could not create resource manager")
+	}
+
+	// init adapter client
 	client, err := utils.NewClientFromBytes(knode.Spec.Kubeconfig, func(config *rest.Config) {
 		config.QPS = knode.Spec.KubeAPIQPS
 		config.Burst = knode.Spec.KubeAPIBurst
@@ -92,11 +111,6 @@ func NewKnode(ctx context.Context, knode *kosmosv1alpha1.Knode, cmdConfig *confi
 	}
 
 	clientInformers := NewInformers(client, cmdConfig.InformerResyncPeriod)
-
-	rm, err := manager.NewResourceManager(clientInformers.podInformer.Lister(), clientInformers.secretInformer.Lister(), clientInformers.cmInformer.Lister(), clientInformers.serviceInformer.Lister())
-	if err != nil {
-		return nil, errors.Wrap(err, "could not create resource manager")
-	}
 
 	ac := &k8sadapter.AdapterConfig{
 		Client:            client,
@@ -143,19 +157,9 @@ func NewKnode(ctx context.Context, knode *kosmosv1alpha1.Knode, cmdConfig *confi
 	eb.StartLogging(klog.Infof)
 	eb.StartRecordingToSink(&corev1client.EventSinkImpl{Interface: master.CoreV1().Events(cmdConfig.KubeNamespace)})
 
-	masterInformers := NewInformers(master, cmdConfig.InformerResyncPeriod)
-
-	podInformerForNode := kubeinformers.NewSharedInformerFactoryWithOptions(
-		master,
-		cmdConfig.InformerResyncPeriod,
-		kubeinformers.WithNamespace(cmdConfig.KubeNamespace),
-		kubeinformers.WithTweakListOptions(func(options *metav1.ListOptions) {
-			options.FieldSelector = fields.OneTermEqualSelector("spec.nodeName", knode.Spec.NodeName).String()
-		}))
-
 	pc, err := controllers.NewPodController(controllers.PodConfig{
 		PodClient:         master.CoreV1(),
-		PodInformer:       podInformerForNode.Core().V1().Pods(),
+		PodInformer:       podInformerForNode,
 		EventRecorder:     eb.NewRecorder(scheme.Scheme, corev1.EventSource{Component: path.Join(dummyNode.Name, ComponentName)}),
 		PodHandler:        podAdapter,
 		ConfigMapInformer: masterInformers.cmInformer,
@@ -182,7 +186,7 @@ func NewKnode(ctx context.Context, knode *kosmosv1alpha1.Knode, cmdConfig *confi
 		master:                master,
 		clientInformerFactory: clientInformers.informer,
 		masterInformerFactory: masterInformers.informer,
-		podInformerFactory:    podInformerForNode,
+		podInformerFactory:    podInformerForNodeFactory,
 		ac:                    ac,
 		podController:         pc,
 		nodeController:        nc,
