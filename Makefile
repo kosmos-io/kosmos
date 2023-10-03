@@ -46,8 +46,8 @@ $(CMD_TARGET):
 #
 # Example:
 #   make images
-#   make make image-clusterlink-controller-manager
-#   make make image-clusterlink-controller-manager GOARCH=arm64
+#   make image-clusterlink-controller-manager
+#   make image-clusterlink-controller-manager GOARCH=arm64
 IMAGE_TARGET=$(addprefix image-, $(TARGETS))
 .PHONY: $(IMAGE_TARGET)
 $(IMAGE_TARGET):
