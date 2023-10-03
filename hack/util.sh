@@ -13,14 +13,14 @@ CLUSTERLINK_GO_PACKAGE="github.com/kosmos.io/kosmos"
 MIN_Go_VERSION=go1.19.0
 
 CLUSTERLINK_TARGET_SOURCE=(
-  clusterlink-proxy=cmd/link-proxy
-  clusterlink-operator=cmd/operator
-  clusterlink-elector=cmd/link-elector
-  clusterlink-agent=cmd/link-agent
-  clusterlink-controller-manager=cmd/link-controller-manager
+  clusterlink-proxy=cmd/clusterlink/proxy
+  clusterlink-operator=cmd/clusterlink/operator
+  clusterlink-elector=cmd/clusterlink/elector
+  clusterlink-agent=cmd/clusterlink/agent
+  clusterlink-floater=cmd/clusterlink/floater
+  clusterlink-network-manager=cmd/clusterlink/network-manager
+  clusterlink-controller-manager=cmd/clusterlink/controller-manager
   kosmosctl=cmd/kosmosctl
-  clusterlink-floater=cmd/floater
-  clusterlink-network-manager=cmd/network-manager
 )
 
 #https://textkool.com/en/ascii-art-generator?hl=default&vl=default&font=DOS%20Rebel&text=KOSMOS
