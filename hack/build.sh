@@ -54,7 +54,7 @@ function build_binary_for_platform() {
   set +x
 
   if [[ "${target}" == "clusterlink-floater" ]]; then
-    cp -r "cmd/floater/certificate" "_output/bin/${platform}/"
+    cp -r "cmd/clusterlink/floater/certificate" "_output/bin/${platform}/"
   fi
 }
 
