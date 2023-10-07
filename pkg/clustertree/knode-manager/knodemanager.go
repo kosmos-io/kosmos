@@ -16,7 +16,7 @@ import (
 	klogv2 "k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	"github.com/kosmos.io/kosmos/cmd/knode-manager/app/config"
+	"github.com/kosmos.io/kosmos/cmd/clustertree/knode-manager/app/config"
 	kosmosv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	crdclientset "github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/generated/informers/externalversions"

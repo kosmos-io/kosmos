@@ -15,10 +15,10 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
-	"github.com/kosmos.io/kosmos/cmd/knode-manager/app/config"
+	"github.com/kosmos.io/kosmos/cmd/clustertree/knode-manager/app/config"
 	kosmosv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
-	"github.com/kosmos.io/kosmos/pkg/knode-manager/utils"
-	"github.com/kosmos.io/kosmos/pkg/knode-manager/utils/resources"
+	"github.com/kosmos.io/kosmos/pkg/clustertree/knode-manager/utils"
+	"github.com/kosmos.io/kosmos/pkg/clustertree/knode-manager/utils/resources"
 )
 
 type NodeAdapter struct {

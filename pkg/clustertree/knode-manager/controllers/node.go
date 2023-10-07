@@ -20,8 +20,8 @@ import (
 	"k8s.io/klog/v2"
 
 	kosmosv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
-	"github.com/kosmos.io/kosmos/pkg/knode-manager/adapters"
-	"github.com/kosmos.io/kosmos/pkg/knode-manager/utils"
+	"github.com/kosmos.io/kosmos/pkg/clustertree/knode-manager/adapters"
+	"github.com/kosmos.io/kosmos/pkg/clustertree/knode-manager/utils"
 )
 
 const (

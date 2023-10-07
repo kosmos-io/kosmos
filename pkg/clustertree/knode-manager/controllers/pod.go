@@ -19,9 +19,9 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 
-	"github.com/kosmos.io/kosmos/pkg/knode-manager/adapters"
-	"github.com/kosmos.io/kosmos/pkg/knode-manager/utils/manager"
-	"github.com/kosmos.io/kosmos/pkg/knode-manager/utils/podutils"
+	"github.com/kosmos.io/kosmos/pkg/clustertree/knode-manager/adapters"
+	"github.com/kosmos.io/kosmos/pkg/clustertree/knode-manager/utils/manager"
+	"github.com/kosmos.io/kosmos/pkg/clustertree/knode-manager/utils/podutils"
 	"github.com/kosmos.io/kosmos/pkg/utils"
 	"github.com/kosmos.io/kosmos/pkg/utils/flags"
 )

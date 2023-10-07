@@ -4,7 +4,7 @@ import (
 	v1 "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/kosmos.io/kosmos/pkg/knode-manager/utils/manager"
+	"github.com/kosmos.io/kosmos/pkg/clustertree/knode-manager/utils/manager"
 )
 
 type AdapterConfig struct {

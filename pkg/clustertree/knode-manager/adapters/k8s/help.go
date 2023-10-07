@@ -8,7 +8,7 @@ import (
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	"k8s.io/klog"
 
-	"github.com/kosmos.io/kosmos/pkg/knode-manager/utils/resources"
+	"github.com/kosmos.io/kosmos/pkg/clustertree/knode-manager/utils/resources"
 )
 
 func getSecrets(pod *corev1.Pod) []string {
