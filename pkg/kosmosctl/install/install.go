@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
@@ -12,20 +13,33 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/util/homedir"
+	"k8s.io/klog/v2"
 	ctlutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/i18n"
+	"k8s.io/kubectl/pkg/util/templates"
 
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/manifest"
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/util"
 	"github.com/kosmos.io/kosmos/pkg/version"
 )
 
+var installExample = templates.Examples(i18n.T(`
+        # Install all module to Kosmos control plane, e.g: 
+        kosmosctl install
+
+        # Install clusterlink module to Kosmos control plane, e.g: 
+        kosmosctl install -m clusterlink
+
+        # Install clustertree module to Kosmos control plane, e.g: 
+        kosmosctl install -m clustertree --host-kubeconfig=[host-kubeconfig]
+`))
+
 type CommandInstallOptions struct {
-	Namespace      string
-	ImageRegistry  string
-	Version        string
-	Module         string
-	HostKubeConfig string
+	Namespace     string
+	ImageRegistry string
+	Version       string
+	Module        string
 
 	Client           kubernetes.Interface
 	ExtensionsClient extensionsclient.Interface
@@ -39,7 +53,7 @@ func NewCmdInstall(f ctlutil.Factory) *cobra.Command {
 		Use:                   "install",
 		Short:                 i18n.T("Install the Kosmos control plane in a Kubernetes cluster"),
 		Long:                  "",
-		Example:               "",
+		Example:               installExample,
 		SilenceUsage:          true,
 		DisableFlagsInUseLine: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -54,7 +68,6 @@ func NewCmdInstall(f ctlutil.Factory) *cobra.Command {
 	flags.StringVarP(&o.Namespace, "namespace", "n", util.DefaultNamespace, "Kosmos namespace.")
 	flags.StringVarP(&o.ImageRegistry, "private-image-registry", "", util.DefaultImageRepository, "Private image registry where pull images from. If set, all required images will be downloaded from it, it would be useful in offline installation scenarios.  In addition, you still can use --kube-image-registry to specify the registry for Kubernetes's images.")
 	flags.StringVarP(&o.Module, "module", "m", util.DefaultInstallModule, "Kosmos specify the module to install.")
-	flags.StringVar(&o.HostKubeConfig, "host-kubeconfig", "", "Absolute path to the host kubeconfig file.")
 
 	return cmd
 }
@@ -83,40 +96,41 @@ func (o *CommandInstallOptions) Validate() error {
 		return fmt.Errorf("namespace must be specified")
 	}
 
-	if o.Module != "clusterlink" && o.HostKubeConfig == "" {
-		return fmt.Errorf("host-kubeconfig must be specified")
-	}
-
 	return nil
 }
 
 func (o *CommandInstallOptions) Run() error {
+	klog.Info("Kosmos starts installing.")
 	switch o.Module {
 	case "clusterlink":
 		err := o.runClusterlink()
 		if err != nil {
 			return err
 		}
-	case "clusterrouter":
-		err := o.runClusterrouter()
+		util.CheckInstall("Clusterlink")
+	case "clustertree":
+		err := o.runClustertree()
 		if err != nil {
 			return err
 		}
+		util.CheckInstall("Clustertree")
 	case "all":
 		err := o.runClusterlink()
 		if err != nil {
 			return err
 		}
-		err = o.runClusterrouter()
+		err = o.runClustertree()
 		if err != nil {
 			return err
 		}
+		util.CheckInstall("Clusterlink && Clustertree")
 	}
 
 	return nil
 }
 
 func (o *CommandInstallOptions) runClusterlink() error {
+	klog.Info("Start creating kosmos-clusterlink...")
 	namespace := &corev1.Namespace{}
 	namespace.Name = o.Namespace
 	_, err := o.Client.CoreV1().Namespaces().Create(context.TODO(), namespace, metav1.CreateOptions{})
@@ -125,7 +139,9 @@ func (o *CommandInstallOptions) runClusterlink() error {
 			return fmt.Errorf("kosmosctl install clusterlink run error, namespace options failed: %v", err)
 		}
 	}
+	klog.Info("Namespace kosmos-system has been created.")
 
+	klog.Info("Start creating kosmos-clusterlink ServiceAccount...")
 	clusterlinkServiceAccount, err := util.GenerateServiceAccount(manifest.ClusterlinkNetworkManagerServiceAccount, manifest.ServiceAccountReplace{
 		Namespace: o.Namespace,
 	})
@@ -138,7 +154,9 @@ func (o *CommandInstallOptions) runClusterlink() error {
 			return fmt.Errorf("kosmosctl install clusterlink run error, serviceaccount options failed: %v", err)
 		}
 	}
+	klog.Info("ServiceAccount clusterlink-network-manager has been created.")
 
+	klog.Info("Start creating kosmos-clusterlink ClusterRole...")
 	clusterlinkClusterRole, err := util.GenerateClusterRole(manifest.ClusterlinkNetworkManagerClusterRole, nil)
 	if err != nil {
 		return err
@@ -149,7 +167,9 @@ func (o *CommandInstallOptions) runClusterlink() error {
 			return fmt.Errorf("kosmosctl install clusterlink run error, clusterrole options failed: %v", err)
 		}
 	}
+	klog.Info("ClusterRole clusterlink-network-manager has been created.")
 
+	klog.Info("Start creating kosmos-clusterlink ClusterRoleBinding...")
 	clusterlinkClusterRoleBinding, err := util.GenerateClusterRoleBinding(manifest.ClusterlinkNetworkManagerClusterRoleBinding, manifest.ClusterRoleBindingReplace{
 		Namespace: o.Namespace,
 	})
@@ -162,8 +182,9 @@ func (o *CommandInstallOptions) runClusterlink() error {
 			return fmt.Errorf("kosmosctl install clusterlink run error, clusterrolebinding options failed: %v", err)
 		}
 	}
+	klog.Info("ClusterRoleBinding clusterlink-network-manager has been created.")
 
-	//ToDo CRD manifest parameters are configurable, through obj
+	klog.Info("Attempting to create kosmos-clusterlink knode CRDs...")
 	crds := apiextensionsv1.CustomResourceDefinitionList{}
 	clusterlinkCluster, err := util.GenerateCustomResourceDefinition(manifest.ClusterlinkCluster, nil)
 	if err != nil {
@@ -185,9 +206,11 @@ func (o *CommandInstallOptions) runClusterlink() error {
 				return fmt.Errorf("kosmosctl install clusterlink run error, crd options failed: %v", err)
 			}
 		}
+		klog.Info("Create CRD " + crds.Items[i].Name + " successful.")
 	}
 
-	deployment, err := util.GenerateDeployment(manifest.ClusterlinkNetworkManagerDeployment, manifest.DeploymentReplace{
+	klog.Info("Start creating kosmos-clusterlink Deployment...")
+	clusterlinkDeployment, err := util.GenerateDeployment(manifest.ClusterlinkNetworkManagerDeployment, manifest.DeploymentReplace{
 		Namespace:       o.Namespace,
 		ImageRepository: o.ImageRegistry,
 		Version:         version.GetReleaseVersion().PatchRelease(),
@@ -195,31 +218,95 @@ func (o *CommandInstallOptions) runClusterlink() error {
 	if err != nil {
 		return err
 	}
-	_, err = o.Client.AppsV1().Deployments(o.Namespace).Create(context.Background(), deployment, metav1.CreateOptions{})
+	_, err = o.Client.AppsV1().Deployments(o.Namespace).Create(context.Background(), clusterlinkDeployment, metav1.CreateOptions{})
 	if err != nil {
 		if !apierrors.IsAlreadyExists(err) {
 			return fmt.Errorf("kosmosctl install clusterlink run error, deployment options failed: %v", err)
 		}
 	}
+	if err = util.WaitDeploymentReady(o.Client, clusterlinkDeployment, 120); err != nil {
+		return fmt.Errorf("kosmosctl install clusterlink run error, deployment options failed: %v", err)
+	} else {
+		klog.Info("Deployment clusterlink-network-manager has been created.")
+	}
 
 	return nil
 }
 
-func (o *CommandInstallOptions) runClusterrouter() error {
+func (o *CommandInstallOptions) runClustertree() error {
+	klog.Info("Start creating kosmos-clustertree...")
 	namespace := &corev1.Namespace{}
 	namespace.Name = o.Namespace
 	_, err := o.Client.CoreV1().Namespaces().Create(context.TODO(), namespace, metav1.CreateOptions{})
 	if err != nil {
 		if !apierrors.IsAlreadyExists(err) {
-			return fmt.Errorf("kosmosctl install clusterrouter run error, namespace options failed: %v", err)
+			return fmt.Errorf("kosmosctl install clustertree run error, namespace options failed: %v", err)
 		}
 	}
+	klog.Info("Namespace kosmos-system has been created.")
 
-	hostKubeconfig, err := os.ReadFile(o.HostKubeConfig)
+	klog.Info("Start creating kosmos-clustertree ServiceAccount...")
+	clustertreeServiceAccount, err := util.GenerateServiceAccount(manifest.ClusterTreeKnodeManagerServiceAccount, manifest.ServiceAccountReplace{
+		Namespace: o.Namespace,
+	})
 	if err != nil {
-		return fmt.Errorf("kosmosctl install clusterrouter run error, host-kubeconfig read failed: %v", err)
+		return err
 	}
-	clusterRouterConfigMap := &corev1.ConfigMap{
+	_, err = o.Client.CoreV1().ServiceAccounts(o.Namespace).Create(context.TODO(), clustertreeServiceAccount, metav1.CreateOptions{})
+	if err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return fmt.Errorf("kosmosctl install clustertree run error, serviceaccount options failed: %v", err)
+		}
+	}
+	klog.Info("ServiceAccount clustertree-knode-manager has been created.")
+
+	klog.Info("Start creating kosmos-clustertree ClusterRole...")
+	clustertreeClusterRole, err := util.GenerateClusterRole(manifest.ClusterTreeKnodeManagerClusterRole, nil)
+	if err != nil {
+		return err
+	}
+	_, err = o.Client.RbacV1().ClusterRoles().Create(context.TODO(), clustertreeClusterRole, metav1.CreateOptions{})
+	if err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return fmt.Errorf("kosmosctl install clustertree run error, clusterrole options failed: %v", err)
+		}
+	}
+	klog.Info("ClusterRole clustertree-knode has been created.")
+
+	klog.Info("Start creating kosmos-clustertree ClusterRoleBinding...")
+	clustertreeClusterRoleBinding, err := util.GenerateClusterRoleBinding(manifest.ClusterTreeKnodeManagerClusterRoleBinding, manifest.ClusterRoleBindingReplace{
+		Namespace: o.Namespace,
+	})
+	if err != nil {
+		return err
+	}
+	_, err = o.Client.RbacV1().ClusterRoleBindings().Create(context.TODO(), clustertreeClusterRoleBinding, metav1.CreateOptions{})
+	if err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return fmt.Errorf("kosmosctl install clustertree run error, clusterrolebinding options failed: %v", err)
+		}
+	}
+	klog.Info("ClusterRoleBinding clustertree-knode has been created.")
+
+	klog.Info("Attempting to create kosmos-clustertree knode CRDs...")
+	clustertreeKnode, err := util.GenerateCustomResourceDefinition(manifest.ClusterTreeKnode, nil)
+	if err != nil {
+		return err
+	}
+	_, err = o.ExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Create(context.Background(), clustertreeKnode, metav1.CreateOptions{})
+	if err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return fmt.Errorf("kosmosctl install clustertree run error, crd options failed: %v", err)
+		}
+	}
+	klog.Info("Create CRD " + clustertreeKnode.Name + " successful.")
+
+	klog.Info("Start creating kosmos-clustertree ConfigMap...")
+	hostKubeconfig, err := os.ReadFile(filepath.Join(homedir.HomeDir(), ".kube", "config"))
+	if err != nil {
+		return fmt.Errorf("kosmosctl install clustertree run error, host-kubeconfig read failed: %v", err)
+	}
+	clustertreeConfigMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "host-kubeconfig",
 			Namespace: o.Namespace,
@@ -228,62 +315,16 @@ func (o *CommandInstallOptions) runClusterrouter() error {
 			"kubeconfig": string(hostKubeconfig),
 		},
 	}
-	_, err = o.Client.CoreV1().ConfigMaps(o.Namespace).Create(context.TODO(), clusterRouterConfigMap, metav1.CreateOptions{})
+	_, err = o.Client.CoreV1().ConfigMaps(o.Namespace).Create(context.TODO(), clustertreeConfigMap, metav1.CreateOptions{})
 	if err != nil {
 		if !apierrors.IsAlreadyExists(err) {
-			return fmt.Errorf("kosmosctl install clusterrouter run error, configmap options failed: %v", err)
+			return fmt.Errorf("kosmosctl install clustertree run error, configmap options failed: %v", err)
 		}
 	}
+	klog.Info("ConfigMap host-kubeconfig has been created.")
 
-	clusterRouterServiceAccount, err := util.GenerateServiceAccount(manifest.ClusterRouterKnodeServiceAccount, manifest.ServiceAccountReplace{
-		Namespace: o.Namespace,
-	})
-	if err != nil {
-		return err
-	}
-	_, err = o.Client.CoreV1().ServiceAccounts(o.Namespace).Create(context.TODO(), clusterRouterServiceAccount, metav1.CreateOptions{})
-	if err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			return fmt.Errorf("kosmosctl install clusterrouter run error, serviceaccount options failed: %v", err)
-		}
-	}
-
-	clusterRouterClusterRole, err := util.GenerateClusterRole(manifest.ClusterRouterKnodeClusterRole, nil)
-	if err != nil {
-		return err
-	}
-	_, err = o.Client.RbacV1().ClusterRoles().Create(context.TODO(), clusterRouterClusterRole, metav1.CreateOptions{})
-	if err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			return fmt.Errorf("kosmosctl install clusterrouter run error, clusterrole options failed: %v", err)
-		}
-	}
-
-	clusterRouterClusterRoleBinding, err := util.GenerateClusterRoleBinding(manifest.ClusterRouterKnodeClusterRoleBinding, manifest.ClusterRoleBindingReplace{
-		Namespace: o.Namespace,
-	})
-	if err != nil {
-		return err
-	}
-	_, err = o.Client.RbacV1().ClusterRoleBindings().Create(context.TODO(), clusterRouterClusterRoleBinding, metav1.CreateOptions{})
-	if err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			return fmt.Errorf("kosmosctl install clusterrouter run error, clusterrolebinding options failed: %v", err)
-		}
-	}
-
-	clusterRouterKnode, err := util.GenerateCustomResourceDefinition(manifest.ClusterRouterKnode, nil)
-	if err != nil {
-		return err
-	}
-	_, err = o.ExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Create(context.Background(), clusterRouterKnode, metav1.CreateOptions{})
-	if err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			return fmt.Errorf("kosmosctl install clusterrouter run error, crd options failed: %v", err)
-		}
-	}
-
-	deployment, err := util.GenerateDeployment(manifest.ClusterRouterKnodeDeployment, manifest.DeploymentReplace{
+	klog.Info("Start creating kosmos-clustertree Deployment...")
+	clustertreeDeployment, err := util.GenerateDeployment(manifest.ClusterTreeKnodeManagerDeployment, manifest.DeploymentReplace{
 		Namespace:       o.Namespace,
 		ImageRepository: o.ImageRegistry,
 		Version:         version.GetReleaseVersion().PatchRelease(),
@@ -291,11 +332,16 @@ func (o *CommandInstallOptions) runClusterrouter() error {
 	if err != nil {
 		return err
 	}
-	_, err = o.Client.AppsV1().Deployments(o.Namespace).Create(context.Background(), deployment, metav1.CreateOptions{})
+	_, err = o.Client.AppsV1().Deployments(o.Namespace).Create(context.Background(), clustertreeDeployment, metav1.CreateOptions{})
 	if err != nil {
 		if !apierrors.IsAlreadyExists(err) {
-			return fmt.Errorf("kosmosctl install clusterrouter run error, deployment options failed: %v", err)
+			return fmt.Errorf("kosmosctl install clustertree run error, deployment options failed: %v", err)
 		}
+	}
+	if err = util.WaitDeploymentReady(o.Client, clustertreeDeployment, 120); err != nil {
+		return fmt.Errorf("kosmosctl install clustertree run error, deployment options failed: %v", err)
+	} else {
+		klog.Info("Deployment clustertree-knode-manager has been created.")
 	}
 
 	return nil

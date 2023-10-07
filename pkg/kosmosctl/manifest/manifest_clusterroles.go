@@ -40,12 +40,12 @@ rules:
     verbs: ["get"]
 `
 
-	ClusterRouterKnodeClusterRole = `
+	ClusterTreeKnodeManagerClusterRole = `
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: clusterrouter-knode
+  name: clustertree-knode-manager
 rules:
   - apiGroups: ['*']
     resources: ['*']

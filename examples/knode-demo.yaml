@@ -1,0 +1,8 @@
+apiVersion: kosmos.io/v1alpha1
+kind: Knode
+metadata:
+  name: knode-worker1
+spec:
+  nodeName: knode-worker1
+  type: k8s
+  kubeconfig: {{ .cluster-kubeconfig }}
