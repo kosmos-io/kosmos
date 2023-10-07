@@ -20,13 +20,13 @@ import (
 	"k8s.io/klog"
 	klogv2 "k8s.io/klog/v2"
 
-	"github.com/kosmos.io/kosmos/cmd/knode-manager/app/config"
+	"github.com/kosmos.io/kosmos/cmd/clustertree/knode-manager/app/config"
 	kosmosv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
-	"github.com/kosmos.io/kosmos/pkg/knode-manager/adapters"
-	k8sadapter "github.com/kosmos.io/kosmos/pkg/knode-manager/adapters/k8s"
-	"github.com/kosmos.io/kosmos/pkg/knode-manager/controllers"
-	"github.com/kosmos.io/kosmos/pkg/knode-manager/utils"
-	"github.com/kosmos.io/kosmos/pkg/knode-manager/utils/manager"
+	"github.com/kosmos.io/kosmos/pkg/clustertree/knode-manager/adapters"
+	k8sadapter "github.com/kosmos.io/kosmos/pkg/clustertree/knode-manager/adapters/k8s"
+	"github.com/kosmos.io/kosmos/pkg/clustertree/knode-manager/controllers"
+	"github.com/kosmos.io/kosmos/pkg/clustertree/knode-manager/utils"
+	"github.com/kosmos.io/kosmos/pkg/clustertree/knode-manager/utils/manager"
 )
 
 const ComponentName = "pod-controller"

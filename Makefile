@@ -15,6 +15,7 @@ TARGETS :=  clusterlink-controller-manager  \
 			clusterlink-floater \
 			clusterlink-network-manager \
 			clusterlink-proxy \
+			clustertree-knode-manager \
 
 CTL_TARGETS := kosmosctl
 
@@ -104,6 +105,7 @@ upload-images: images
 	docker push ${REGISTRY}/clusterlink-network-manager:${VERSION}
 	docker push ${REGISTRY}/clusterlink-floater:${VERSION}
 	docker push ${REGISTRY}/clusterlink-elector:${VERSION}
+	docker push ${REGISTRY}/clustertree-knode-manager:${VERSION}
 
 .PHONY: release
 release:

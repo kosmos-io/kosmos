@@ -13,9 +13,9 @@ import (
 	"k8s.io/component-base/term"
 	klogv3 "k8s.io/klog/v2"
 
-	"github.com/kosmos.io/kosmos/cmd/knode-manager/app/config"
-	"github.com/kosmos.io/kosmos/cmd/knode-manager/app/options"
-	knodemanager "github.com/kosmos.io/kosmos/pkg/knode-manager"
+	"github.com/kosmos.io/kosmos/cmd/clustertree/knode-manager/app/config"
+	"github.com/kosmos.io/kosmos/cmd/clustertree/knode-manager/app/options"
+	knodemanager "github.com/kosmos.io/kosmos/pkg/clustertree/knode-manager"
 )
 
 func NewKosmosNodeManagerCommand(ctx context.Context) *cobra.Command {
