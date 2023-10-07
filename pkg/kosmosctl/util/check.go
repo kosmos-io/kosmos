@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -89,6 +90,41 @@ func isPodReady(c kubernetes.Interface, n, p string) wait.ConditionFunc {
 	}
 }
 
+// WaitDeploymentReady  wait deployment ready or timeout.
+func WaitDeploymentReady(c kubernetes.Interface, d *appsv1.Deployment, timeoutSeconds int) error {
+	var lastErr error
+
+	pollError := wait.PollImmediate(time.Second, time.Duration(timeoutSeconds)*time.Second, func() (bool, error) {
+		deploy, err := c.AppsV1().Deployments(d.GetNamespace()).Get(context.TODO(), d.GetName(), metav1.GetOptions{})
+		if err != nil {
+			lastErr = err
+			return false, nil
+		}
+		if deploy.Generation != deploy.Status.ObservedGeneration {
+			lastErr = fmt.Errorf("current generation %d, observed generation %d",
+				deploy.Generation, deploy.Status.ObservedGeneration)
+			return false, nil
+		}
+		if (deploy.Spec.Replicas != nil) && (deploy.Status.UpdatedReplicas < *d.Spec.Replicas) {
+			lastErr = fmt.Errorf("the number of pods targeted by the deployment (%d pods) is different "+
+				"from the number of pods targeted by the deployment that have the desired template spec (%d pods)",
+				*deploy.Spec.Replicas, deploy.Status.UpdatedReplicas)
+			return false, nil
+		}
+		if deploy.Status.AvailableReplicas < deploy.Status.UpdatedReplicas {
+			lastErr = fmt.Errorf("expected %d replicas, got %d available replicas",
+				deploy.Status.UpdatedReplicas, deploy.Status.AvailableReplicas)
+			return false, nil
+		}
+		return true, nil
+	})
+	if pollError != nil {
+		return fmt.Errorf("wait for Deployment(%s/%s) ready: %v: %v", d.GetNamespace(), d.GetName(), pollError, lastErr)
+	}
+
+	return nil
+}
+
 // MapToString  labels to string.
 func MapToString(labels map[string]string) string {
 	v := new(bytes.Buffer)
@@ -99,4 +135,21 @@ func MapToString(labels map[string]string) string {
 		}
 	}
 	return strings.TrimRight(v.String(), ",")
+}
+
+func CheckInstall(modules string) {
+	fmt.Printf(`
+--------------------------------------------------------------------------------------
+ █████   ████    ███████     █████████  ██████   ██████    ███████     █████████
+░░███   ███░   ███░░░░░███  ███░░░░░███░░██████ ██████   ███░░░░░███  ███░░░░░███
+ ░███  ███    ███     ░░███░███    ░░░  ░███░█████░███  ███     ░░███░███    ░░░
+ ░███████    ░███      ░███░░█████████  ░███░░███ ░███ ░███      ░███░░█████████
+ ░███░░███   ░███      ░███ ░░░░░░░░███ ░███ ░░░  ░███ ░███      ░███ ░░░░░░░░███
+ ░███ ░░███  ░░███     ███  ███    ░███ ░███      ░███ ░░███     ███  ███    ░███
+ █████ ░░████ ░░░███████░  ░░█████████  █████     █████ ░░░███████░  ░░█████████
+░░░░░   ░░░░    ░░░░░░░     ░░░░░░░░░  ░░░░░     ░░░░░    ░░░░░░░     ░░░░░░░░░
+---------------------------------------------------------------------------------------
+Kosmos has been installed successfully. The module %[1]s is installed.
+
+`, modules)
 }

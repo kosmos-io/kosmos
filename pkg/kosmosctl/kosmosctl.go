@@ -28,8 +28,8 @@ var DefaultConfigFlags = genericclioptions.NewConfigFlags(true).WithDeprecatedPa
 func NewKosmosCtlCommand() *cobra.Command {
 	cmds := &cobra.Command{
 		Use:   "kosmosctl",
-		Short: i18n.T("kosmosctl controls a Kubernetes cluster network"),
-		Long:  templates.LongDesc(`kosmosctl controls a Kubernetes cluster network.`),
+		Short: i18n.T("kosmosctl controls the Kosmos cluster manager"),
+		Long:  templates.LongDesc(`kosmosctl controls the Kosmos cluster manager.`),
 		RunE:  runHelp,
 	}
 

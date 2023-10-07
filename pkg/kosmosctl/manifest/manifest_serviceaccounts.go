@@ -17,19 +17,19 @@ metadata:
   namespace: {{ .Namespace }}
 `
 
-	ClusterlinkServiceAccount = `
+	ClusterlinkOperatorServiceAccount = `
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name:  clusterlink-operator
-  namespace: clusterlink-system
+  namespace: {{ .Namespace }}
 `
 
-	ClusterRouterKnodeServiceAccount = `
+	ClusterTreeKnodeManagerServiceAccount = `
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: clusterrouter-knode
+  name: clustertree-knode-manager
   namespace: {{ .Namespace }}
 `
 )
