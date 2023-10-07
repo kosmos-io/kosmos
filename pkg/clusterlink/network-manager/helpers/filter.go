@@ -74,6 +74,16 @@ func (f *Filter) GetGatewayNodeByClusterName(clusterName string) *v1alpha1.Clust
 	return nil
 }
 
+func (f *Filter) GetInternalNodesByClusterName(clusterName string) []*v1alpha1.ClusterNode {
+	var results []*v1alpha1.ClusterNode
+	for _, node := range f.clusterNodes {
+		if node.Spec.ClusterName == clusterName && !node.IsGateway() {
+			results = append(results, node)
+		}
+	}
+	return results
+}
+
 func (f *Filter) GetAllNodesByClusterName(name string) []*v1alpha1.ClusterNode {
 	var results []*v1alpha1.ClusterNode
 	for _, node := range f.clusterNodes {
