@@ -57,7 +57,7 @@ func NewKosmosCtlCommand() *cobra.Command {
 			Message: "Install/UnInstall Commands:",
 			Commands: []*cobra.Command{
 				install.NewCmdInstall(f),
-				uninstall.NewCmdUninstall(f, ioStreams),
+				uninstall.NewCmdUninstall(f),
 			},
 		},
 		{

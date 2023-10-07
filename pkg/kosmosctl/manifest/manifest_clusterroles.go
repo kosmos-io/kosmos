@@ -39,4 +39,18 @@ rules:
   - nonResourceURLs: ['*']
     verbs: ["get"]
 `
+
+	ClusterRouterKnodeClusterRole = `
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: clusterrouter-knode
+rules:
+  - apiGroups: ['*']
+    resources: ['*']
+    verbs: ["*"]
+  - nonResourceURLs: ['*']
+    verbs: ["get"]
+`
 )
