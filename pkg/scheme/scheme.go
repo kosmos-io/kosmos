@@ -5,6 +5,7 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	mcsv1alpha1 "sigs.k8s.io/mcs-api/pkg/apis/v1alpha1"
 
 	clusterlinkv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 )
@@ -18,6 +19,10 @@ func init() {
 		panic(err)
 	}
 	err = clusterlinkv1alpha1.AddToScheme(aggregatedScheme) // add clusterlink schemes
+	if err != nil {
+		panic(err)
+	}
+	err = mcsv1alpha1.AddToScheme(aggregatedScheme) // add clusterlink schemes
 	if err != nil {
 		panic(err)
 	}
