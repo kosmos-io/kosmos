@@ -50,7 +50,7 @@ var _ = ginkgo.Describe("pod testing in kosmos", func() {
 		})
 	})
 
-	ginkgo.When("deleting a pod in kosmos-apiserver", func() {
+	ginkgo.When("deleting a pod in kosmos-apiserver ", func() {
 		ginkgo.BeforeEach(func() {
 			podName = "pod-e2e-ns-" + rand.String(3)
 			pod = helper.NewPod(knodeName, namespaceName, podName)
