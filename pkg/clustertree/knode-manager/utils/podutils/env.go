@@ -17,8 +17,8 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 
-	"github.com/kosmos.io/kosmos/pkg/knode-manager/utils/expansion"
-	"github.com/kosmos.io/kosmos/pkg/knode-manager/utils/manager"
+	"github.com/kosmos.io/kosmos/pkg/clustertree/knode-manager/utils/expansion"
+	"github.com/kosmos.io/kosmos/pkg/clustertree/knode-manager/utils/manager"
 )
 
 const (

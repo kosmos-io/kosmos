@@ -8,8 +8,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 
-	"github.com/kosmos.io/kosmos/pkg/knode-manager/adapters"
-	"github.com/kosmos.io/kosmos/pkg/knode-manager/utils/lock"
+	"github.com/kosmos.io/kosmos/pkg/clustertree/knode-manager/adapters"
+	"github.com/kosmos.io/kosmos/pkg/clustertree/knode-manager/utils/lock"
 )
 
 const key = "key"

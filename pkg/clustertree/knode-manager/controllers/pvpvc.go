@@ -24,7 +24,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog"
 
-	"github.com/kosmos.io/kosmos/pkg/knode-manager/utils"
+	"github.com/kosmos.io/kosmos/pkg/clustertree/knode-manager/utils"
 )
 
 const ComponentName = "pv-pvc-controller"

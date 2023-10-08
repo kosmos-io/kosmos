@@ -8,7 +8,7 @@ import (
 	componentbaseconfig "k8s.io/component-base/config"
 	componentbaseconfigv1alpha1 "k8s.io/component-base/config/v1alpha1"
 
-	"github.com/kosmos.io/kosmos/cmd/knode-manager/app/config"
+	"github.com/kosmos.io/kosmos/cmd/clustertree/knode-manager/app/config"
 	crdclientset "github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 )
 
