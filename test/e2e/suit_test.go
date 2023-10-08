@@ -24,12 +24,12 @@ var (
 )
 
 var (
-	kubeconfig        string
-	hostContext       string
-	restConfig        *rest.Config
-	kubeClient        kubernetes.Interface
-	dynamicClient     dynamic.Interface
-	clusterLinkClient versioned.Interface
+	kubeconfig    string
+	hostContext   string
+	restConfig    *rest.Config
+	kubeClient    kubernetes.Interface
+	dynamicClient dynamic.Interface
+	kosmosClient  versioned.Interface
 )
 
 const (
@@ -42,9 +42,9 @@ func init() {
 	// eg. ginkgo -v --race --trace --fail-fast -p --randomize-all ./test/e2e/ -- --poll-interval=5s --pollTimeout=5m
 	flag.DurationVar(&pollInterval, "poll-interval", 5*time.Second, "poll-interval defines the interval time for a poll operation")
 	flag.DurationVar(&pollTimeout, "poll-timeout", 300*time.Second, "poll-timeout defines the time which the poll operation times out")
-	flag.StringVar(&hostContext, "host-context", "kind-cluster-host", "name of the host cluster context in kubeconfig file.")
 }
 
+// TestE2E starts e2e test
 func TestE2E(t *testing.T) {
 	gomega.RegisterFailHandler(ginkgo.Fail)
 	ginkgo.RunSpecs(t, "E2E Suite")
@@ -55,13 +55,18 @@ var _ = ginkgo.SynchronizedBeforeSuite(func() []byte {
 }, func(bytes []byte) {
 	kubeconfig = os.Getenv("KUBECONFIG")
 	gomega.Expect(kubeconfig).ShouldNot(gomega.BeEmpty())
+
 	config, err := framework.LoadRESTClientConfig(kubeconfig, hostContext)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
 	restConfig = config
 	kubeClient, err = kubernetes.NewForConfig(restConfig)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-	clusterLinkClient, err = versioned.NewForConfig(restConfig)
-	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
 	dynamicClient, err = dynamic.NewForConfig(restConfig)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	kosmosClient, err = versioned.NewForConfig(restConfig)
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
 })
