@@ -10,6 +10,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/scheme"
 )
 
@@ -17,6 +18,14 @@ const (
 	DefaultNamespace       = "kosmos-system"
 	DefaultImageRepository = "ghcr.io/kosmos-io"
 	DefaultInstallModule   = "all"
+
+	ExternalIPPoolNamePrefix = "clusterlink"
+	ControlPanelSecretName   = "controlpanel-config"
+)
+
+var (
+	ClusterGVR = schema.GroupVersionResource{Group: "kosmos.io", Version: "v1alpha1", Resource: "clusters"}
+	KnodeGVR   = schema.GroupVersionResource{Group: "kosmos.io", Version: "v1alpha1", Resource: "knodes"}
 )
 
 func GenerateDeployment(deployTemplate string, obj interface{}) (*appsv1.Deployment, error) {

@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/klog/v2"
 	ctlutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/i18n"
 
@@ -14,9 +15,8 @@ import (
 )
 
 const (
-	clusterlinkNetworkManager  = "clusterlink-network-manager"
-	clusterrouterKnode         = "knode"
-	clusterrouterKnodeResource = "clusterrouter-knode"
+	clusterlinkNetworkManager = "clusterlink-network-manager"
+	clustertreeKnodeManager   = "clustertree-knode-manager"
 )
 
 type CommandUninstallOptions struct {
@@ -75,14 +75,15 @@ func (o *CommandUninstallOptions) Validate() error {
 }
 
 func (o *CommandUninstallOptions) Run() error {
+	klog.Info("Kosmos starts uninstalling.")
 	switch o.Module {
 	case "clusterlink":
 		err := o.runClusterlink()
 		if err != nil {
 			return err
 		}
-	case "clusterrouter":
-		err := o.runClusterrouter()
+	case "clustertree":
+		err := o.runClustertree()
 		if err != nil {
 			return err
 		}
@@ -91,7 +92,7 @@ func (o *CommandUninstallOptions) Run() error {
 		if err != nil {
 			return err
 		}
-		err = o.runClusterrouter()
+		err = o.runClustertree()
 		if err != nil {
 			return err
 		}
@@ -105,6 +106,7 @@ func (o *CommandUninstallOptions) Run() error {
 }
 
 func (o *CommandUninstallOptions) runClusterlink() error {
+	klog.Info("Start uninstalling clusterlink from kosmos control plane...")
 	err := o.Client.AppsV1().Deployments(util.DefaultNamespace).Delete(context.TODO(), clusterlinkNetworkManager, metav1.DeleteOptions{})
 	if err != nil {
 		return fmt.Errorf("kosmosctl uninstall clusterlink run error, deployment options failed: %v", err)
@@ -115,19 +117,22 @@ func (o *CommandUninstallOptions) runClusterlink() error {
 		return fmt.Errorf("kosmosctl uninstall clusterlink run error, serviceaccount options failed: %v", err)
 	}
 
+	klog.Info("Clusterlink was uninstalled.")
 	return nil
 }
 
-func (o *CommandUninstallOptions) runClusterrouter() error {
-	err := o.Client.AppsV1().Deployments(util.DefaultNamespace).Delete(context.TODO(), clusterrouterKnode, metav1.DeleteOptions{})
+func (o *CommandUninstallOptions) runClustertree() error {
+	klog.Info("Start uninstalling clustertree from kosmos control plane...")
+	err := o.Client.AppsV1().Deployments(util.DefaultNamespace).Delete(context.TODO(), clustertreeKnodeManager, metav1.DeleteOptions{})
 	if err != nil {
 		return fmt.Errorf("kosmosctl uninstall clusterrouter run error, deployment options failed: %v", err)
 	}
 
-	err = o.Client.CoreV1().ServiceAccounts(util.DefaultNamespace).Delete(context.TODO(), clusterrouterKnodeResource, metav1.DeleteOptions{})
+	err = o.Client.CoreV1().ServiceAccounts(util.DefaultNamespace).Delete(context.TODO(), clustertreeKnodeManager, metav1.DeleteOptions{})
 	if err != nil {
 		return fmt.Errorf("kosmosctl uninstall clusterrouter run error, serviceaccount options failed: %v", err)
 	}
 
+	klog.Info("Clustertree was uninstalled.")
 	return nil
 }
