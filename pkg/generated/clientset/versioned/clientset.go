@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 
+	multiclusterv1alpha1 "github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned/typed/apis/v1alpha1"
 	kosmosv1alpha1 "github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned/typed/kosmos/v1alpha1"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
@@ -14,13 +15,20 @@ import (
 
 type Interface interface {
 	Discovery() discovery.DiscoveryInterface
+	MulticlusterV1alpha1() multiclusterv1alpha1.MulticlusterV1alpha1Interface
 	KosmosV1alpha1() kosmosv1alpha1.KosmosV1alpha1Interface
 }
 
 // Clientset contains the clients for groups.
 type Clientset struct {
 	*discovery.DiscoveryClient
-	kosmosV1alpha1 *kosmosv1alpha1.KosmosV1alpha1Client
+	multiclusterV1alpha1 *multiclusterv1alpha1.MulticlusterV1alpha1Client
+	kosmosV1alpha1       *kosmosv1alpha1.KosmosV1alpha1Client
+}
+
+// MulticlusterV1alpha1 retrieves the MulticlusterV1alpha1Client
+func (c *Clientset) MulticlusterV1alpha1() multiclusterv1alpha1.MulticlusterV1alpha1Interface {
+	return c.multiclusterV1alpha1
 }
 
 // KosmosV1alpha1 retrieves the KosmosV1alpha1Client
@@ -72,6 +80,10 @@ func NewForConfigAndClient(c *rest.Config, httpClient *http.Client) (*Clientset,
 
 	var cs Clientset
 	var err error
+	cs.multiclusterV1alpha1, err = multiclusterv1alpha1.NewForConfigAndClient(&configShallowCopy, httpClient)
+	if err != nil {
+		return nil, err
+	}
 	cs.kosmosV1alpha1, err = kosmosv1alpha1.NewForConfigAndClient(&configShallowCopy, httpClient)
 	if err != nil {
 		return nil, err
@@ -97,6 +109,7 @@ func NewForConfigOrDie(c *rest.Config) *Clientset {
 // New creates a new Clientset for the given RESTClient.
 func New(c rest.Interface) *Clientset {
 	var cs Clientset
+	cs.multiclusterV1alpha1 = multiclusterv1alpha1.New(c)
 	cs.kosmosV1alpha1 = kosmosv1alpha1.New(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClient(c)

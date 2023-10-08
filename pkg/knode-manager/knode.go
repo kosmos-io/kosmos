@@ -12,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	kubeinformers "k8s.io/client-go/informers"
 	corev1informers "k8s.io/client-go/informers/core/v1"
+	discoveryv1 "k8s.io/client-go/informers/discovery/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -20,13 +21,16 @@ import (
 	"k8s.io/klog"
 	klogv2 "k8s.io/klog/v2"
 
-	"github.com/kosmos.io/kosmos/cmd/knode-manager/app/config"
+	"github.com/kosmos.io/kosmos/cmd/clustertree/knode-manager/app/config"
 	kosmosv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
-	"github.com/kosmos.io/kosmos/pkg/knode-manager/adapters"
-	k8sadapter "github.com/kosmos.io/kosmos/pkg/knode-manager/adapters/k8s"
-	"github.com/kosmos.io/kosmos/pkg/knode-manager/controllers"
-	"github.com/kosmos.io/kosmos/pkg/knode-manager/utils"
-	"github.com/kosmos.io/kosmos/pkg/knode-manager/utils/manager"
+	"github.com/kosmos.io/kosmos/pkg/clustertree/knode-manager/adapters"
+	k8sadapter "github.com/kosmos.io/kosmos/pkg/clustertree/knode-manager/adapters/k8s"
+	"github.com/kosmos.io/kosmos/pkg/clustertree/knode-manager/controllers"
+	"github.com/kosmos.io/kosmos/pkg/clustertree/knode-manager/utils"
+	"github.com/kosmos.io/kosmos/pkg/clustertree/knode-manager/utils/manager"
+	kosmosversioned "github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
+	"github.com/kosmos.io/kosmos/pkg/generated/informers/externalversions"
+	kosmosinformers "github.com/kosmos.io/kosmos/pkg/generated/informers/externalversions/apis/v1alpha1"
 )
 
 const ComponentName = "pod-controller"
@@ -38,34 +42,42 @@ type Knode struct {
 	podController  *controllers.PodController
 	nodeController *controllers.NodeController
 	pvController   *controllers.PVPVCController
+	mcsController  *controllers.MCSController
 
 	clientInformerFactory kubeinformers.SharedInformerFactory
 	masterInformerFactory kubeinformers.SharedInformerFactory
 	podInformerFactory    kubeinformers.SharedInformerFactory
-
-	ac *k8sadapter.AdapterConfig
 }
 
 type Informers struct {
-	informer        kubeinformers.SharedInformerFactory
-	podInformer     corev1informers.PodInformer
-	nsInformer      corev1informers.NamespaceInformer
-	nodeInformer    corev1informers.NodeInformer
-	cmInformer      corev1informers.ConfigMapInformer
-	secretInformer  corev1informers.SecretInformer
-	serviceInformer corev1informers.ServiceInformer
+	informer              kubeinformers.SharedInformerFactory
+	kosmosInformer        externalversions.SharedInformerFactory
+	podInformer           corev1informers.PodInformer
+	nsInformer            corev1informers.NamespaceInformer
+	nodeInformer          corev1informers.NodeInformer
+	cmInformer            corev1informers.ConfigMapInformer
+	secretInformer        corev1informers.SecretInformer
+	serviceInformer       corev1informers.ServiceInformer
+	endpointSliceInformer discoveryv1.EndpointSliceInformer
+	serviceExportInformer kosmosinformers.ServiceExportInformer
+	serviceImportInformer kosmosinformers.ServiceImportInformer
 }
 
-func NewInformers(client kubernetes.Interface, defaultResync time.Duration) *Informers {
+func NewInformers(client kubernetes.Interface, kosmosClient kosmosversioned.Interface, defaultResync time.Duration) *Informers {
 	informer := kubeinformers.NewSharedInformerFactory(client, defaultResync)
+	kosmosInformer := externalversions.NewSharedInformerFactory(kosmosClient, defaultResync)
 	return &Informers{
-		informer:        informer,
-		podInformer:     informer.Core().V1().Pods(),
-		nsInformer:      informer.Core().V1().Namespaces(),
-		nodeInformer:    informer.Core().V1().Nodes(),
-		cmInformer:      informer.Core().V1().ConfigMaps(),
-		secretInformer:  informer.Core().V1().Secrets(),
-		serviceInformer: informer.Core().V1().Services(),
+		informer:              informer,
+		kosmosInformer:        kosmosInformer,
+		podInformer:           informer.Core().V1().Pods(),
+		nsInformer:            informer.Core().V1().Namespaces(),
+		nodeInformer:          informer.Core().V1().Nodes(),
+		cmInformer:            informer.Core().V1().ConfigMaps(),
+		secretInformer:        informer.Core().V1().Secrets(),
+		serviceInformer:       informer.Core().V1().Services(),
+		endpointSliceInformer: informer.Discovery().V1().EndpointSlices(),
+		serviceExportInformer: kosmosInformer.Multicluster().V1alpha1().ServiceExports(),
+		serviceImportInformer: kosmosInformer.Multicluster().V1alpha1().ServiceImports(),
 	}
 }
 
@@ -83,7 +95,16 @@ func NewKnode(ctx context.Context, knode *kosmosv1alpha1.Knode, cmdConfig *confi
 		return nil, fmt.Errorf("could not build clientset for master cluster: %v", err)
 	}
 
-	masterInformers := NewInformers(master, cmdConfig.InformerResyncPeriod)
+	// init Kosmos client
+	kosmosMaster, err := utils.NewKosmosClientFromConfigPath(cmdConfig.KubeConfigPath, func(config *rest.Config) {
+		config.QPS = cmdConfig.KubeAPIQPS
+		config.Burst = cmdConfig.KubeAPIBurst
+	})
+	if err != nil {
+		return nil, fmt.Errorf("could not build kosmos clientset for master cluster: %v", err)
+	}
+
+	masterInformers := NewInformers(master, kosmosMaster, cmdConfig.InformerResyncPeriod)
 
 	podInformerForNodeFactory := kubeinformers.NewSharedInformerFactoryWithOptions(
 		master,
@@ -109,7 +130,16 @@ func NewKnode(ctx context.Context, knode *kosmosv1alpha1.Knode, cmdConfig *confi
 		return nil, fmt.Errorf("could not build clientset for worker cluster %s: %v", knode.Name, err)
 	}
 
-	clientInformers := NewInformers(client, cmdConfig.InformerResyncPeriod)
+	// init Kosmos adapter client
+	kosmosClient, err := utils.NewKosmosClientFromBytes(knode.Spec.Kubeconfig, func(config *rest.Config) {
+		config.QPS = knode.Spec.KubeAPIQPS
+		config.Burst = knode.Spec.KubeAPIBurst
+	})
+	if err != nil {
+		return nil, fmt.Errorf("could not build kosmos clientset for worker cluster %s: %v", knode.Name, err)
+	}
+
+	clientInformers := NewInformers(client, kosmosClient, cmdConfig.InformerResyncPeriod)
 
 	ac := &k8sadapter.AdapterConfig{
 		Client:            client,
@@ -165,16 +195,21 @@ func NewKnode(ctx context.Context, knode *kosmosv1alpha1.Knode, cmdConfig *confi
 		return nil, err
 	}
 
+	serviceImportController, err := controllers.NewServiceImportController(master, client, kosmosMaster, kosmosClient, masterInformers.informer, clientInformers.informer, masterInformers.kosmosInformer, clientInformers.kosmosInformer)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Knode{
 		client:                client,
 		master:                master,
 		clientInformerFactory: clientInformers.informer,
 		masterInformerFactory: masterInformers.informer,
 		podInformerFactory:    podInformerForNodeFactory,
-		ac:                    ac,
 		podController:         pc,
 		nodeController:        nc,
 		pvController:          pvController,
+		mcsController:         serviceImportController,
 	}, nil
 }
 
@@ -193,6 +228,12 @@ func (kn *Knode) Run(ctx context.Context, c *config.Opts) {
 
 	go func() {
 		if err := kn.pvController.Run(ctx); err != nil {
+			klogv2.Error(err)
+		}
+	}()
+
+	go func() {
+		if err := kn.mcsController.Run(ctx); err != nil {
 			klogv2.Error(err)
 		}
 	}()

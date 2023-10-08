@@ -22,7 +22,7 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-	err = mcsv1alpha1.AddToScheme(aggregatedScheme) // add clusterlink schemes
+	err = mcsv1alpha1.AddToScheme(aggregatedScheme) // add mcs schemes
 	if err != nil {
 		panic(err)
 	}
