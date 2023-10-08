@@ -36,12 +36,12 @@ spec:
               memory: 500Mi
 `
 
-	ClusterlinkDeployment = `
+	ClusterlinkOperatorDeployment = `
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: clusterlink-operator
-  namespace: clusterlink-system
+  namespace: {{ .Namespace }}
   labels:
     app: operator
 spec:
@@ -99,31 +99,31 @@ spec:
 
 `
 
-	ClusterRouterKnodeDeployment = `---
+	ClusterTreeKnodeManagerDeployment = `---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: knode
+  name: clustertree-knode-manager
   namespace: {{ .Namespace }}
   labels:
-    app: clusterrouter-controller-manager
+    app: clustertree-knode-manager
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: knode
+      app: clustertree-knode-manager
   template:
     metadata:
       labels:
-        app: knode
+        app: clustertree-knode-manager
     spec:
-      serviceAccountName: clusterrouter-knode
+      serviceAccountName: clustertree-knode-manager
       containers:
         - name: manager
-          image: {{ .ImageRepository }}/knode:v{{ .Version }}
+          image: {{ .ImageRepository }}/clustertree-knode-manager:v{{ .Version }}
           imagePullPolicy: Always
           command:
-            - /clusterrouter
+            - clustertree-knode-manager
             - --kube-api-qps=500
             - --kube-api-burst=1000
             - --kubeconfig=/etc/kube/config
@@ -136,8 +136,8 @@ spec:
         - configMap:
             defaultMode: 420
             items:
-              - key: Kubeconfig
-                path: Kubeconfig
+              - key: kubeconfig
+                path: kubeconfig
             name: host-kubeconfig
           name: config-volume
 `
