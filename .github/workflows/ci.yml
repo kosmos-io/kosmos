@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-22.04
     env:
       GOPATH: ${{ github.workspace }}
-      WORKSPACE: ${{ github.workspace }}/src/github.com/kosmos-io/clusterlink
+      WORKSPACE: ${{ github.workspace }}/src/github.com/kosmos-io/kosmos
     defaults:
       run:
         working-directory: ${{ env.WORKSPACE }}
