@@ -4,6 +4,8 @@ package fake
 
 import (
 	clientset "github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
+	multiclusterv1alpha1 "github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned/typed/apis/v1alpha1"
+	fakemulticlusterv1alpha1 "github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned/typed/apis/v1alpha1/fake"
 	kosmosv1alpha1 "github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned/typed/kosmos/v1alpha1"
 	fakekosmosv1alpha1 "github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned/typed/kosmos/v1alpha1/fake"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -62,6 +64,11 @@ var (
 	_ clientset.Interface = &Clientset{}
 	_ testing.FakeClient  = &Clientset{}
 )
+
+// MulticlusterV1alpha1 retrieves the MulticlusterV1alpha1Client
+func (c *Clientset) MulticlusterV1alpha1() multiclusterv1alpha1.MulticlusterV1alpha1Interface {
+	return &fakemulticlusterv1alpha1.FakeMulticlusterV1alpha1{Fake: &c.Fake}
+}
 
 // KosmosV1alpha1 retrieves the KosmosV1alpha1Client
 func (c *Clientset) KosmosV1alpha1() kosmosv1alpha1.KosmosV1alpha1Interface {
