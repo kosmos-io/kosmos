@@ -648,7 +648,8 @@ func (c *PVPVCController) gc(ctx context.Context) {
 		klog.Error(err)
 		return
 	}
-	for _, pvc := range pvcs {
+	for _, pvcItem := range pvcs {
+		pvc := pvcItem
 		if pvc == nil {
 			continue
 		}
