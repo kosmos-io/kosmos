@@ -20,6 +20,7 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/kosmos.io/kosmos/pkg/clustertree/knode-manager/adapters"
+	k8sadapter "github.com/kosmos.io/kosmos/pkg/clustertree/knode-manager/adapters/k8s"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/knode-manager/utils/manager"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/knode-manager/utils/podutils"
 	"github.com/kosmos.io/kosmos/pkg/utils"
@@ -117,6 +118,7 @@ func NewPodController(cfg PodConfig) (*PodController, error) {
 		podsLister:      cfg.PodInformer.Lister(),
 		podHandler:      cfg.PodHandler,
 		resourceManager: rm,
+		recorder:        cfg.EventRecorder,
 	}
 
 	keyFunc := func(obj interface{}) (utils.QueueKey, error) {
@@ -158,6 +160,11 @@ func (pc *PodController) Run(ctx context.Context, podSyncWorkers int) (retErr er
 
 	var eventHandler cache.ResourceEventHandler = cache.ResourceEventHandlerFuncs{
 		AddFunc: func(pod interface{}) {
+			podInstance := pod.(*corev1.Pod)
+			if podInstance.Namespace == k8sadapter.ReservedNS {
+				return
+			}
+
 			if key, err := cache.MetaNamespaceKeyFunc(pod); err != nil {
 				klog.Error(err)
 			} else {
@@ -168,6 +175,10 @@ func (pc *PodController) Run(ctx context.Context, podSyncWorkers int) (retErr er
 		UpdateFunc: func(oldObj, newObj interface{}) {
 			oldPod := oldObj.(*corev1.Pod)
 			newPod := newObj.(*corev1.Pod)
+
+			if newPod.Namespace == k8sadapter.ReservedNS {
+				return
+			}
 
 			if key, err := cache.MetaNamespaceKeyFunc(newPod); err != nil {
 				klog.Error(err)
@@ -202,6 +213,11 @@ func (pc *PodController) Run(ctx context.Context, podSyncWorkers int) (retErr er
 			}
 		},
 		DeleteFunc: func(pod interface{}) {
+			podInstance := pod.(*corev1.Pod)
+
+			if podInstance.Namespace == k8sadapter.ReservedNS {
+				return
+			}
 			if key, err := cache.MetaNamespaceKeyFunc(pod); err != nil {
 				klog.Error(err)
 			} else {
@@ -299,21 +315,21 @@ func (pc *PodController) createOrUpdatePod(ctx context.Context, pod *corev1.Pod)
 			klog.Infof("Pod %s exists, updating pod in adapter", podFromAdapter.Name)
 			if origErr := pc.podHandler.Update(ctx, podForAdapter); origErr != nil {
 				pc.handleAdapterError(ctx, origErr, pod)
-				//pc.recorder.Event(pod, corev1.EventTypeWarning, podEventUpdateFailed, origErr.Error())
+				pc.recorder.Event(pod, corev1.EventTypeWarning, podEventUpdateFailed, origErr.Error())
 
 				return origErr
 			}
 			klog.Info("Updated pod in adapter")
-			//pc.recorder.Event(pod, corev1.EventTypeNormal, podEventUpdateSuccess, "Update pod in adapter successfully")
+			pc.recorder.Event(pod, corev1.EventTypeNormal, podEventUpdateSuccess, "Update pod in adapter successfully")
 		}
 	} else {
 		if origErr := pc.podHandler.Create(ctx, podForAdapter); origErr != nil {
 			pc.handleAdapterError(ctx, origErr, pod)
-			//pc.recorder.Event(pod, corev1.EventTypeWarning, podEventCreateFailed, origErr.Error())
+			pc.recorder.Event(pod, corev1.EventTypeWarning, podEventCreateFailed, origErr.Error())
 			return origErr
 		}
 		klog.Info("Created pod in adapter")
-		//pc.recorder.Event(pod, corev1.EventTypeNormal, podEventCreateSuccess, "Create pod in adapter successfully")
+		pc.recorder.Event(pod, corev1.EventTypeNormal, podEventCreateSuccess, "Create pod in adapter successfully")
 	}
 	return nil
 }
