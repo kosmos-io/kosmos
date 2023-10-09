@@ -70,7 +70,7 @@ func (c *leaseController) sync(ctx context.Context) {
 		return
 	}
 
-	klog.Infof("Successfully updated lease")
+	klog.V(4).Infof("Successfully updated lease")
 }
 
 func (c *leaseController) createLeaseIfNotExistsWithRetry(ctx context.Context, node *corev1.Node) (*coordinationv1.Lease, error) {

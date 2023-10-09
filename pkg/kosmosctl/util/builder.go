@@ -16,11 +16,13 @@ import (
 
 const (
 	DefaultNamespace       = "kosmos-system"
+	ClusterlinkNamespace   = "clusterlink-system"
 	DefaultImageRepository = "ghcr.io/kosmos-io"
 	DefaultInstallModule   = "all"
 
 	ExternalIPPoolNamePrefix = "clusterlink"
 	ControlPanelSecretName   = "controlpanel-config"
+	HostKubeConfigName       = "host-kubeconfig"
 )
 
 var (
@@ -128,6 +130,17 @@ func GenerateCustomResourceDefinition(crdTemplate string, obj interface{}) (*api
 	}
 
 	return crdStruct, nil
+}
+
+func GenerateCustomResource(crdTemplate string, obj interface{}) ([]byte, error) {
+	crBytes, err := parseTemplate(crdTemplate, obj)
+	if err != nil {
+		return nil, fmt.Errorf("kosmosctl parsing CustomResource template exception, error: %v", err)
+	} else if crBytes == nil {
+		return nil, fmt.Errorf("kosmosctl get CustomResource template exception, value is empty")
+	}
+
+	return crBytes, nil
 }
 
 func parseTemplate(strTmpl string, obj interface{}) ([]byte, error) {
