@@ -137,7 +137,7 @@ spec:
             defaultMode: 420
             items:
               - key: kubeconfig
-                path: kubeconfig
+                path: config
             name: host-kubeconfig
           name: config-volume
 `
