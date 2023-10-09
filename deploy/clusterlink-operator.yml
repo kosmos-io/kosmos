@@ -54,7 +54,7 @@ spec:
         - name: CLUSTER_NAME
           value: __CLUSTER_NAME__
         - name: USE_PROXY
-          value: "true"
+          value: "false"
         volumeMounts:
           - mountPath: /etc/clusterlink
             name: proxy-config

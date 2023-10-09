@@ -128,6 +128,11 @@ func (o *CommandUninstallOptions) runClustertree() error {
 		return fmt.Errorf("kosmosctl uninstall clusterrouter run error, deployment options failed: %v", err)
 	}
 
+	err = o.Client.CoreV1().ConfigMaps(util.DefaultNamespace).Delete(context.TODO(), util.HostKubeConfigName, metav1.DeleteOptions{})
+	if err != nil {
+		return fmt.Errorf("kosmosctl uninstall clusterrouter run error, configmap options failed: %v", err)
+	}
+
 	err = o.Client.CoreV1().ServiceAccounts(util.DefaultNamespace).Delete(context.TODO(), clustertreeKnodeManager, metav1.DeleteOptions{})
 	if err != nil {
 		return fmt.Errorf("kosmosctl uninstall clusterrouter run error, serviceaccount options failed: %v", err)

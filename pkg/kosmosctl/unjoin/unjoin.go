@@ -162,17 +162,17 @@ func (o *CommandUnJoinOptions) runCluster(clusterName string) error {
 	}
 
 	// 2. delete operator
-	err := o.Client.CoreV1().ServiceAccounts(util.DefaultNamespace).Delete(context.TODO(), clusterlinkOperator, metav1.DeleteOptions{})
+	err := o.Client.CoreV1().ServiceAccounts(util.ClusterlinkNamespace).Delete(context.TODO(), clusterlinkOperator, metav1.DeleteOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		return fmt.Errorf("(operator) kosmosctl unjoin run error, delete serviceaccout failed: %s", err)
 	}
-	err = o.Client.AppsV1().Deployments(util.DefaultNamespace).Delete(context.TODO(), clusterlinkOperator, metav1.DeleteOptions{})
+	err = o.Client.AppsV1().Deployments(util.ClusterlinkNamespace).Delete(context.TODO(), clusterlinkOperator, metav1.DeleteOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		return fmt.Errorf("(operator) kosmosctl unjoin run error, delete deployment failed: %s", err)
 	}
 
 	// 3. delete secret
-	err = o.Client.CoreV1().Secrets(util.DefaultNamespace).Delete(context.TODO(), util.ControlPanelSecretName, metav1.DeleteOptions{})
+	err = o.Client.CoreV1().Secrets(util.ClusterlinkNamespace).Delete(context.TODO(), util.ControlPanelSecretName, metav1.DeleteOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		return fmt.Errorf("(secret) kosmosctl unjoin run error, delete secret failed: %s", err)
 	}
@@ -188,7 +188,7 @@ func (o *CommandUnJoinOptions) runCluster(clusterName string) error {
 	}
 
 	// 5. delete namespace
-	err = o.Client.CoreV1().Namespaces().Delete(context.TODO(), util.DefaultNamespace, metav1.DeleteOptions{})
+	err = o.Client.CoreV1().Namespaces().Delete(context.TODO(), util.ClusterlinkNamespace, metav1.DeleteOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		return fmt.Errorf("(namespace) kosmosctl unjoin run error, delete namespace failed: %s", err)
 	}
