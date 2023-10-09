@@ -68,7 +68,7 @@ GO111MODULE=on go install k8s.io/code-generator/cmd/client-gen
 client-gen \
   --go-header-file hack/boilerplate/boilerplate.go.txt \
   --input-base="" \
-  --input=github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1 \
+  --input=github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1,sigs.k8s.io/mcs-api/pkg/apis/v1alpha1 \
   --output-base="${REPO_ROOT}" \
   --output-package=github.com/kosmos.io/kosmos/pkg/generated/clientset \
   --clientset-name=versioned
@@ -77,7 +77,7 @@ echo "Generating with lister-gen"
 GO111MODULE=on go install k8s.io/code-generator/cmd/lister-gen
 lister-gen \
   --go-header-file hack/boilerplate/boilerplate.go.txt \
-  --input-dirs=github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1 \
+  --input-dirs=github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1,sigs.k8s.io/mcs-api/pkg/apis/v1alpha1 \
   --output-base="${REPO_ROOT}" \
   --output-package=github.com/kosmos.io/kosmos/pkg/generated/listers
 
@@ -85,7 +85,7 @@ echo "Generating with informer-gen"
 GO111MODULE=on go install k8s.io/code-generator/cmd/informer-gen
 informer-gen \
   --go-header-file hack/boilerplate/boilerplate.go.txt \
-  --input-dirs=github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1 \
+  --input-dirs=github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1,sigs.k8s.io/mcs-api/pkg/apis/v1alpha1 \
   --versioned-clientset-package=github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned \
   --listers-package=github.com/kosmos.io/kosmos/pkg/generated/listers \
   --output-base="${REPO_ROOT}" \
