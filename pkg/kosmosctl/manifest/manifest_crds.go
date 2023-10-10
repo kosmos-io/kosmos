@@ -164,7 +164,7 @@ spec:
                 - ip6
                 type: object
               namespace:
-                default: clusterlink-system
+                default: {{ .Namespace }}
                 type: string
               networkType:
                 default: p2p
@@ -473,3 +473,7 @@ spec:
     storage: true
 `
 )
+
+type ClusterlinkReplace struct {
+	Namespace string
+}

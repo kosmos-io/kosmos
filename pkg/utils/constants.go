@@ -1,8 +1,9 @@
 package utils
 
 const (
-	// NamespaceClusterLinksystem is the clusterlink system namespace.
-	NamespaceClusterLinksystem = "clusterlink-system"
+	DefaultNamespace       = "kosmos-system"
+	DefaultImageRepository = "ghcr.io/kosmos-io"
+	DefaultInstallModule   = "all"
 )
 
 const ExternalIPPoolNamePrefix = "clusterlink"
@@ -12,6 +13,7 @@ const CNITypeCalico = "calico"
 const (
 	ProxySecretName        = "clusterlink-agent-proxy"
 	ControlPanelSecretName = "controlpanel-config"
+	HostKubeConfigName     = "host-kubeconfig"
 )
 
 const (

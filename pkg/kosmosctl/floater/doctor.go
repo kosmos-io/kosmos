@@ -13,7 +13,7 @@ import (
 
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/floater/command"
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/floater/netmap"
-	"github.com/kosmos.io/kosmos/pkg/kosmosctl/util"
+	"github.com/kosmos.io/kosmos/pkg/utils"
 	"github.com/kosmos.io/kosmos/pkg/version"
 )
 
@@ -79,7 +79,7 @@ func NewCmdDoctor() *cobra.Command {
 	}
 
 	flags := cmd.Flags()
-	flags.StringVarP(&o.Namespace, "namespace", "n", util.DefaultNamespace, "Kosmos namespace.")
+	flags.StringVarP(&o.Namespace, "namespace", "n", utils.DefaultNamespace, "Kosmos namespace.")
 	flags.StringVarP(&o.ImageRepository, "image-repository", "r", "ghcr.io/kosmos-io", "Image repository.")
 	flags.StringVarP(&o.ImageRepositoryDst, "image-repository-dst", "", "", "Image repository.")
 	flags.StringVar(&o.HostKubeConfig, "host-kubeconfig", "", "Absolute path to the host kubeconfig file.")
