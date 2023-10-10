@@ -13,6 +13,8 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
 	"k8s.io/klog/v2"
 	ctlutil "k8s.io/kubectl/pkg/cmd/util"
@@ -28,18 +30,24 @@ var installExample = templates.Examples(i18n.T(`
         # Install all module to Kosmos control plane, e.g: 
         kosmosctl install
 
-        # Install clusterlink module to Kosmos control plane, e.g: 
+		# Install Kosmos control plane, if you need to specify a special master cluster kubeconfig, e.g: 
+        kosmosctl install --host-kubeconfig=[host-kubeconfig]
+
+		# Install clusterlink module to Kosmos control plane, e.g: 
         kosmosctl install -m clusterlink
 
-        # Install clustertree module to Kosmos control plane, e.g: 
-        kosmosctl install -m clustertree --host-kubeconfig=[host-kubeconfig]
+		# Install clustertree module to Kosmos control plane, e.g: 
+        kosmosctl install -m clustertree
 `))
 
 type CommandInstallOptions struct {
-	Namespace     string
-	ImageRegistry string
-	Version       string
-	Module        string
+	Namespace            string
+	ImageRegistry        string
+	Version              string
+	Module               string
+	HostKubeConfig       string
+	HostKubeConfigStream []byte
+	WaitTime             int
 
 	Client           kubernetes.Interface
 	ExtensionsClient extensionsclient.Interface
@@ -68,14 +76,34 @@ func NewCmdInstall(f ctlutil.Factory) *cobra.Command {
 	flags.StringVarP(&o.Namespace, "namespace", "n", util.DefaultNamespace, "Kosmos namespace.")
 	flags.StringVarP(&o.ImageRegistry, "private-image-registry", "", util.DefaultImageRepository, "Private image registry where pull images from. If set, all required images will be downloaded from it, it would be useful in offline installation scenarios.  In addition, you still can use --kube-image-registry to specify the registry for Kubernetes's images.")
 	flags.StringVarP(&o.Module, "module", "m", util.DefaultInstallModule, "Kosmos specify the module to install.")
+	flags.StringVar(&o.HostKubeConfig, "host-kubeconfig", "", "Absolute path to the host kubeconfig file.")
+	flags.IntVarP(&o.WaitTime, "wait-time", "", 120, "Wait the specified time for the Kosmos install ready.")
 
 	return cmd
 }
 
 func (o *CommandInstallOptions) Complete(f ctlutil.Factory) error {
-	config, err := f.ToRESTConfig()
-	if err != nil {
-		return fmt.Errorf("kosmosctl install complete error, generate rest config failed: %v", err)
+	var config *rest.Config
+	var err error
+
+	if len(o.HostKubeConfig) > 0 {
+		config, err = clientcmd.BuildConfigFromFlags("", o.HostKubeConfig)
+		if err != nil {
+			return fmt.Errorf("kosmosctl install complete error, generate host config failed: %s", err)
+		}
+		o.HostKubeConfigStream, err = os.ReadFile(o.HostKubeConfig)
+		if err != nil {
+			return fmt.Errorf("kosmosctl install complete error, read host config failed: %s", err)
+		}
+	} else {
+		config, err = f.ToRESTConfig()
+		if err != nil {
+			return fmt.Errorf("kosmosctl install complete error, generate rest config failed: %v", err)
+		}
+		o.HostKubeConfigStream, err = os.ReadFile(filepath.Join(homedir.HomeDir(), ".kube", "config"))
+		if err != nil {
+			return fmt.Errorf("kosmosctl install complete error, read host config failed: %s", err)
+		}
 	}
 
 	o.Client, err = kubernetes.NewForConfig(config)
@@ -224,7 +252,7 @@ func (o *CommandInstallOptions) runClusterlink() error {
 			return fmt.Errorf("kosmosctl install clusterlink run error, deployment options failed: %v", err)
 		}
 	}
-	if err = util.WaitDeploymentReady(o.Client, clusterlinkDeployment, 120); err != nil {
+	if err = util.WaitDeploymentReady(o.Client, clusterlinkDeployment, o.WaitTime); err != nil {
 		return fmt.Errorf("kosmosctl install clusterlink run error, deployment options failed: %v", err)
 	} else {
 		klog.Info("Deployment clusterlink-network-manager has been created.")
@@ -302,17 +330,13 @@ func (o *CommandInstallOptions) runClustertree() error {
 	klog.Info("Create CRD " + clustertreeKnode.Name + " successful.")
 
 	klog.Info("Start creating kosmos-clustertree ConfigMap...")
-	hostKubeconfig, err := os.ReadFile(filepath.Join(homedir.HomeDir(), ".kube", "config"))
-	if err != nil {
-		return fmt.Errorf("kosmosctl install clustertree run error, host-kubeconfig read failed: %v", err)
-	}
 	clustertreeConfigMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "host-kubeconfig",
+			Name:      util.HostKubeConfigName,
 			Namespace: o.Namespace,
 		},
 		Data: map[string]string{
-			"kubeconfig": string(hostKubeconfig),
+			"kubeconfig": string(o.HostKubeConfigStream),
 		},
 	}
 	_, err = o.Client.CoreV1().ConfigMaps(o.Namespace).Create(context.TODO(), clustertreeConfigMap, metav1.CreateOptions{})
@@ -338,7 +362,7 @@ func (o *CommandInstallOptions) runClustertree() error {
 			return fmt.Errorf("kosmosctl install clustertree run error, deployment options failed: %v", err)
 		}
 	}
-	if err = util.WaitDeploymentReady(o.Client, clustertreeDeployment, 120); err != nil {
+	if err = util.WaitDeploymentReady(o.Client, clustertreeDeployment, o.WaitTime); err != nil {
 		return fmt.Errorf("kosmosctl install clustertree run error, deployment options failed: %v", err)
 	} else {
 		klog.Info("Deployment clustertree-knode-manager has been created.")
