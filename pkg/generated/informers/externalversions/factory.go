@@ -8,6 +8,7 @@ import (
 	time "time"
 
 	versioned "github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
+	apis "github.com/kosmos.io/kosmos/pkg/generated/informers/externalversions/apis"
 	internalinterfaces "github.com/kosmos.io/kosmos/pkg/generated/informers/externalversions/internalinterfaces"
 	kosmos "github.com/kosmos.io/kosmos/pkg/generated/informers/externalversions/kosmos"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -227,7 +228,12 @@ type SharedInformerFactory interface {
 	// client.
 	InformerFor(obj runtime.Object, newFunc internalinterfaces.NewInformerFunc) cache.SharedIndexInformer
 
+	Multicluster() apis.Interface
 	Kosmos() kosmos.Interface
+}
+
+func (f *sharedInformerFactory) Multicluster() apis.Interface {
+	return apis.New(f, f.namespace, f.tweakListOptions)
 }
 
 func (f *sharedInformerFactory) Kosmos() kosmos.Interface {

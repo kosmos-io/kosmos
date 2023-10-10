@@ -783,6 +783,18 @@ func schema_pkg_apis_kosmos_v1alpha1_KnodeSpec(ref common.ReferenceCallback) com
 							Format: "byte",
 						},
 					},
+					"kubeAPIQPS": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"number"},
+							Format: "float",
+						},
+					},
+					"kubeAPIBurst": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"integer"},
+							Format: "int32",
+						},
+					},
 					"nodeName": {
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"string"},
