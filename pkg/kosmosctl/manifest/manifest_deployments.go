@@ -87,7 +87,7 @@ spec:
         - name: CLUSTER_NAME
           value: {{ .ClusterName }}
         - name: USE_PROXY
-          value: "true"
+          value: "{{ .UseProxy }}"
         volumeMounts:
           - mountPath: /etc/clusterlink
             name: proxy-config
@@ -121,7 +121,7 @@ spec:
       containers:
         - name: manager
           image: {{ .ImageRepository }}/clustertree-knode-manager:v{{ .Version }}
-          imagePullPolicy: Always
+          imagePullPolicy: IfNotPresent
           command:
             - clustertree-knode-manager
             - --kube-api-qps=500
@@ -150,6 +150,8 @@ type DeploymentReplace struct {
 }
 
 type ClusterlinkDeploymentReplace struct {
+	Namespace   string
 	Version     string
 	ClusterName string
+	UseProxy    string
 }

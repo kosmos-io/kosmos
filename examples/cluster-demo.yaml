@@ -1,12 +1,9 @@
 apiVersion: kosmos.io/v1alpha1
 kind: Cluster
 metadata:
-  name: cluster-4
+  name: member-cluster
 spec:
-  podCIDRs:
-  - "10.202.0.0/18"
-  serviceCIDRs:
-  - "10.213.0.0/18"
   cni: "calico"
-  imageRepository: "kosmos.io"
-  networkType: "p2p"
+  defaultNICName: eth0
+  imageRepository: {{ .image-repository }} # Default: ghcr.io/kosmos-io
+  networkType: {{ .network-type }} # Optional: gateway/p2p
