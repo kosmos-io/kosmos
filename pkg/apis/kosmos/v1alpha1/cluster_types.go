@@ -35,7 +35,7 @@ type ClusterSpec struct {
 	// +optional
 	IPFamily        IPFamilyType `json:"ipFamily"`
 	ImageRepository string       `json:"imageRepository,omitempty"`
-	// +kubebuilder:default=clusterlink-system
+	// +kubebuilder:default=kosmos-system
 	// +optional
 	Namespace string `json:"namespace"`
 

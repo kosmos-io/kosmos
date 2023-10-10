@@ -88,7 +88,7 @@ func run(ctx context.Context, opts *options.Options) error {
 		}
 	} else {
 		// try get kubeconfig from configmap
-		cm, err := clientset.CoreV1().ConfigMaps(utils.NamespaceClusterLinksystem).Get(context.Background(), opts.ExternalKubeConfigName, metav1.GetOptions{})
+		cm, err := clientset.CoreV1().ConfigMaps(utils.DefaultNamespace).Get(context.Background(), opts.ExternalKubeConfigName, metav1.GetOptions{})
 		if err != nil {
 			return fmt.Errorf("failed to configmap %s: %v", opts.ExternalKubeConfigName, err)
 		}
