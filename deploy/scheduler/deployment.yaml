@@ -1,0 +1,101 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kosmos-scheduler
+  namespace: kosmos-system
+  labels:
+    component: scheduler
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      component: scheduler
+  template:
+    metadata:
+      labels:
+        component: scheduler
+    spec:
+      volumes:
+        - name: scheduler-config
+          configMap:
+            name: scheduler-config
+            defaultMode: 420
+      containers:
+        - name: kosmos-scheduler
+          image: ghcr.io/kosmos-io/scheduler:0.0.2
+          command:
+            - scheduler
+            - --leader-elect=true
+            - --leader-elect-resource-name=kosmos-scheduler
+            - --leader-elect-resource-namespace=kosmos-system
+            - --config=/etc/kubernetes/kube-scheduler/scheduler-config.yaml
+          resources:
+            requests:
+              cpu: 200m
+          volumeMounts:
+            - name: scheduler-config
+              readOnly: true
+              mountPath: /etc/kubernetes/kube-scheduler
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 10259
+              scheme: HTTPS
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 10259
+              scheme: HTTPS
+      restartPolicy: Always
+      dnsPolicy: ClusterFirst
+      serviceAccountName: kosmos-scheduler
+      serviceAccount: kosmos-scheduler
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: scheduler-config
+  namespace: kosmos-system
+data:
+  scheduler-config.yaml: |
+    apiVersion: kubescheduler.config.k8s.io/v1
+    kind: KubeSchedulerConfiguration
+    leaderElection:
+      leaderElect: true
+    profiles:
+      - schedulerName: kosmos-scheduler
+        plugins:
+          preFilter:
+            disabled:
+              - name: "VolumeBinding"
+            enabled:
+              - name: "KnodeVolumeBinding"
+          filter:
+            disabled:
+              - name: "VolumeBinding"
+              - name: "TaintToleration"
+            enabled:
+              - name: "KNodeTaintToleration"
+              - name: "KnodeVolumeBinding"
+          score:
+            disabled:
+              - name: "VolumeBinding"
+          reserve:
+            disabled:
+              - name: "VolumeBinding"
+            enabled:
+              - name: "KnodeVolumeBinding"
+          preBind:
+            disabled:
+              - name: "VolumeBinding"
+            enabled:
+              - name: "KnodeVolumeBinding"
+        pluginConfig:
+          - name: KnodeVolumeBinding
+            args:
+              bindTimeoutSeconds: 5
