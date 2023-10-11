@@ -17,11 +17,9 @@ import (
 	"k8s.io/kubectl/pkg/util/i18n"
 	"k8s.io/kubectl/pkg/util/templates"
 
+	"github.com/kosmos.io/kosmos/pkg/kosmosctl/manifest"
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/util"
-)
-
-const (
-	clusterlinkOperator = "clusterlink-operator"
+	"github.com/kosmos.io/kosmos/pkg/utils"
 )
 
 var unjoinExample = templates.Examples(i18n.T(`
@@ -67,10 +65,7 @@ func NewCmdUnJoin(f ctlutil.Factory) *cobra.Command {
 
 	cmd.Flags().StringVarP(&o.MasterKubeConfig, "master-kubeconfig", "", "", "Absolute path to the master kubeconfig file.")
 	cmd.Flags().StringVarP(&o.ClusterKubeConfig, "cluster-kubeconfig", "", "", "Absolute path to the cluster kubeconfig file.")
-	err := cmd.MarkFlagRequired("cluster-kubeconfig")
-	if err != nil {
-		fmt.Printf("kosmosctl unjoin cmd error, MarkFlagRequired failed: %s", err)
-	}
+
 	return cmd
 }
 func (o *CommandUnJoinOptions) Complete(f ctlutil.Factory) error {
@@ -162,33 +157,41 @@ func (o *CommandUnJoinOptions) runCluster(clusterName string) error {
 	}
 
 	// 2. delete operator
-	err := o.Client.CoreV1().ServiceAccounts(util.ClusterlinkNamespace).Delete(context.TODO(), clusterlinkOperator, metav1.DeleteOptions{})
-	if err != nil && !apierrors.IsNotFound(err) {
-		return fmt.Errorf("(operator) kosmosctl unjoin run error, delete serviceaccout failed: %s", err)
+	clusterlinkOperatorDeployment, err := util.GenerateDeployment(manifest.ClusterlinkOperatorDeployment, nil)
+	if err != nil {
+		return err
 	}
-	err = o.Client.AppsV1().Deployments(util.ClusterlinkNamespace).Delete(context.TODO(), clusterlinkOperator, metav1.DeleteOptions{})
+	err = o.Client.AppsV1().Deployments(utils.DefaultNamespace).Delete(context.TODO(), clusterlinkOperatorDeployment.Name, metav1.DeleteOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		return fmt.Errorf("(operator) kosmosctl unjoin run error, delete deployment failed: %s", err)
 	}
 
 	// 3. delete secret
-	err = o.Client.CoreV1().Secrets(util.ClusterlinkNamespace).Delete(context.TODO(), util.ControlPanelSecretName, metav1.DeleteOptions{})
+	err = o.Client.CoreV1().Secrets(utils.DefaultNamespace).Delete(context.TODO(), utils.ControlPanelSecretName, metav1.DeleteOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		return fmt.Errorf("(secret) kosmosctl unjoin run error, delete secret failed: %s", err)
 	}
 
 	// 4. delete rbac
-	err = o.Client.RbacV1().ClusterRoleBindings().Delete(context.TODO(), util.ExternalIPPoolNamePrefix, metav1.DeleteOptions{})
+	err = o.Client.RbacV1().ClusterRoleBindings().Delete(context.TODO(), utils.ExternalIPPoolNamePrefix, metav1.DeleteOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		return fmt.Errorf("(rbac) kosmosctl unjoin run error, delete clusterrolebinding failed: %s", err)
 	}
-	err = o.Client.RbacV1().ClusterRoles().Delete(context.TODO(), util.ExternalIPPoolNamePrefix, metav1.DeleteOptions{})
+	err = o.Client.RbacV1().ClusterRoles().Delete(context.TODO(), utils.ExternalIPPoolNamePrefix, metav1.DeleteOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		return fmt.Errorf("(rbac) kosmosctl unjoin run error, delete clusterrole failed: %s", err)
 	}
+	clusterlinkOperatorServiceAccount, err := util.GenerateDeployment(manifest.ClusterlinkOperatorServiceAccount, nil)
+	if err != nil {
+		return err
+	}
+	err = o.Client.CoreV1().ServiceAccounts(utils.DefaultNamespace).Delete(context.TODO(), clusterlinkOperatorServiceAccount.Name, metav1.DeleteOptions{})
+	if err != nil && !apierrors.IsNotFound(err) {
+		return fmt.Errorf("(operator) kosmosctl unjoin run error, delete serviceaccout failed: %s", err)
+	}
 
 	// 5. delete namespace
-	err = o.Client.CoreV1().Namespaces().Delete(context.TODO(), util.ClusterlinkNamespace, metav1.DeleteOptions{})
+	err = o.Client.CoreV1().Namespaces().Delete(context.TODO(), utils.DefaultNamespace, metav1.DeleteOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		return fmt.Errorf("(namespace) kosmosctl unjoin run error, delete namespace failed: %s", err)
 	}

@@ -9,8 +9,8 @@ metadata:
 spec:
   cni: {{ .CNI }}
   defaultNICName: {{ .DefaultNICName }}
-  imageRepository: {{ .ImageRepository }} # Default: ghcr.io/kosmos-io
-  networkType: {{ .NetworkType }} # Optional: gateway/p2p
+  imageRepository: {{ .ImageRepository }}
+  networkType: {{ .NetworkType }}
 `
 
 	KnodeCR = `

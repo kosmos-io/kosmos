@@ -16,6 +16,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	clusterlinkv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
+	"github.com/kosmos.io/kosmos/pkg/utils"
 )
 
 const (
@@ -58,7 +59,7 @@ func GetCalicoClient(cluster *clusterlinkv1alpha1.Cluster) (clientv3.Interface, 
 		return nil, err
 	}
 
-	clusterConfigMap, err := clientSet.CoreV1().ConfigMaps("clusterlink-system").Get(context.Background(), cluster.Name, metav1.GetOptions{})
+	clusterConfigMap, err := clientSet.CoreV1().ConfigMaps(utils.DefaultNamespace).Get(context.Background(), cluster.Name, metav1.GetOptions{})
 	if err != nil {
 		klog.Errorf("failed to get cluster configmap, cluster name is %s.", cluster.Name)
 		return nil, err

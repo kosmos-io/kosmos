@@ -10,7 +10,7 @@ import (
 	ctlutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/i18n"
 
-	"github.com/kosmos.io/kosmos/pkg/kosmosctl/util"
+	"github.com/kosmos.io/kosmos/pkg/utils"
 )
 
 const (
@@ -49,7 +49,7 @@ func NewCmdGet(f ctlutil.Factory, streams genericclioptions.IOStreams) *cobra.Co
 
 	o.GetOptions.PrintFlags.AddFlags(cmd)
 	flags := cmd.Flags()
-	flags.StringVarP(&o.Namespace, "namespace", "n", util.DefaultNamespace, "If present, the namespace scope for this CLI request.")
+	flags.StringVarP(&o.Namespace, "namespace", "n", utils.DefaultNamespace, "If present, the namespace scope for this CLI request.")
 
 	return cmd
 }

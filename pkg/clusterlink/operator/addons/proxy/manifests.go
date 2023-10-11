@@ -49,7 +49,7 @@ spec:
                 values:
                 - clusterlink-proxy
             namespaces:
-            - clusterlink-system
+            - {{ .Namespace }}
             topologyKey: kubernetes.io/hostname
       containers:
         - name: manager

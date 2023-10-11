@@ -23,6 +23,7 @@ import (
 
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/manifest"
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/util"
+	"github.com/kosmos.io/kosmos/pkg/utils"
 	"github.com/kosmos.io/kosmos/pkg/version"
 )
 
@@ -73,10 +74,10 @@ func NewCmdInstall(f ctlutil.Factory) *cobra.Command {
 	}
 
 	flags := cmd.Flags()
-	flags.StringVarP(&o.Namespace, "namespace", "n", util.DefaultNamespace, "Kosmos namespace.")
-	flags.StringVarP(&o.ImageRegistry, "private-image-registry", "", util.DefaultImageRepository, "Private image registry where pull images from. If set, all required images will be downloaded from it, it would be useful in offline installation scenarios.  In addition, you still can use --kube-image-registry to specify the registry for Kubernetes's images.")
-	flags.StringVarP(&o.Module, "module", "m", util.DefaultInstallModule, "Kosmos specify the module to install.")
-	flags.StringVar(&o.HostKubeConfig, "host-kubeconfig", "", "Absolute path to the host kubeconfig file.")
+	flags.StringVarP(&o.Namespace, "namespace", "n", utils.DefaultNamespace, "Kosmos namespace.")
+	flags.StringVarP(&o.ImageRegistry, "private-image-registry", "", utils.DefaultImageRepository, "Private image registry where pull images from. If set, all required images will be downloaded from it, it would be useful in offline installation scenarios.  In addition, you still can use --kube-image-registry to specify the registry for Kubernetes's images.")
+	flags.StringVarP(&o.Module, "module", "m", utils.DefaultInstallModule, "Kosmos specify the module to install.")
+	flags.StringVar(&o.HostKubeConfig, "host-kubeconfig", "", "Absolute path to the special host kubeconfig file.")
 	flags.IntVarP(&o.WaitTime, "wait-time", "", 120, "Wait the specified time for the Kosmos install ready.")
 
 	return cmd
@@ -214,7 +215,9 @@ func (o *CommandInstallOptions) runClusterlink() error {
 
 	klog.Info("Attempting to create kosmos-clusterlink knode CRDs...")
 	crds := apiextensionsv1.CustomResourceDefinitionList{}
-	clusterlinkCluster, err := util.GenerateCustomResourceDefinition(manifest.ClusterlinkCluster, nil)
+	clusterlinkCluster, err := util.GenerateCustomResourceDefinition(manifest.ClusterlinkCluster, manifest.ClusterlinkReplace{
+		Namespace: o.Namespace,
+	})
 	if err != nil {
 		return err
 	}
@@ -332,7 +335,7 @@ func (o *CommandInstallOptions) runClustertree() error {
 	klog.Info("Start creating kosmos-clustertree ConfigMap...")
 	clustertreeConfigMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      util.HostKubeConfigName,
+			Name:      utils.HostKubeConfigName,
 			Namespace: o.Namespace,
 		},
 		Data: map[string]string{

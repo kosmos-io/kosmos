@@ -25,6 +25,7 @@ import (
 
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/manifest"
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/util"
+	"github.com/kosmos.io/kosmos/pkg/utils"
 	"github.com/kosmos.io/kosmos/pkg/version"
 )
 
@@ -85,8 +86,8 @@ func NewCmdJoin(f ctlutil.Factory) *cobra.Command {
 	flags.StringVar(&o.ClusterKubeConfig, "cluster-kubeconfig", "", "Absolute path to the cluster kubeconfig file.")
 	flags.StringVar(&o.ClusterName, "cluster-name", "", "Specify the name of the member cluster to join.")
 	flags.StringVar(&o.CNI, "cni", "", "The cluster is configured using cni and currently supports calico and flannel.")
-	flags.StringVar(&o.DefaultNICName, "default-nic", "", "Specify the name of the cluster to join.")
-	flags.StringVar(&o.ImageRegistry, "private-image-registry", util.DefaultImageRepository, "Private image registry where pull images from. If set, all required images will be downloaded from it, it would be useful in offline installation scenarios.  In addition, you still can use --kube-image-registry to specify the registry for Kubernetes's images.")
+	flags.StringVar(&o.DefaultNICName, "default-nic", "", "Set default network interface card.")
+	flags.StringVar(&o.ImageRegistry, "private-image-registry", utils.DefaultImageRepository, "Private image registry where pull images from. If set, all required images will be downloaded from it, it would be useful in offline installation scenarios.  In addition, you still can use --kube-image-registry to specify the registry for Kubernetes's images.")
 	flags.StringVar(&o.NetworkType, "network-type", "gateway", "Set the cluster network connection mode, which supports gateway and p2p modes. Gateway is used by default.")
 	flags.StringVar(&o.KnodeName, "knode-name", "", "Specify the name of the knode to join.")
 	flags.StringVar(&o.UseProxy, "use-proxy", "false", "Set whether to enable proxy.")
@@ -97,6 +98,7 @@ func NewCmdJoin(f ctlutil.Factory) *cobra.Command {
 
 func (o *CommandJoinOptions) Complete(f ctlutil.Factory) error {
 	var masterConfig *rest.Config
+	var clusterConfig *rest.Config
 	var err error
 
 	if len(o.MasterKubeConfig) > 0 {
@@ -125,7 +127,7 @@ func (o *CommandJoinOptions) Complete(f ctlutil.Factory) error {
 	}
 
 	if len(o.ClusterKubeConfig) > 0 {
-		clusterConfig, err := clientcmd.BuildConfigFromFlags("", o.ClusterKubeConfig)
+		clusterConfig, err = clientcmd.BuildConfigFromFlags("", o.ClusterKubeConfig)
 		if err != nil {
 			return fmt.Errorf("kosmosctl join complete error, generate clusterConfig failed: %s", err)
 		}
@@ -203,7 +205,7 @@ func (o *CommandJoinOptions) runCluster() error {
 
 	// 2. create namespace in member
 	namespace := &corev1.Namespace{}
-	namespace.Name = util.ClusterlinkNamespace
+	namespace.Name = utils.DefaultNamespace
 	_, err = o.Client.CoreV1().Namespaces().Create(context.TODO(), namespace, metav1.CreateOptions{})
 	if err != nil && !apierrors.IsAlreadyExists(err) {
 		return fmt.Errorf("(cluster namespace) kosmosctl join run error, create namespace failed: %s", err)
@@ -213,8 +215,8 @@ func (o *CommandJoinOptions) runCluster() error {
 	secret := &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      util.ControlPanelSecretName,
-			Namespace: util.ClusterlinkNamespace,
+			Name:      utils.ControlPanelSecretName,
+			Namespace: utils.DefaultNamespace,
 		},
 		Data: map[string][]byte{
 			"kubeconfig": o.MasterKubeConfigStream,
@@ -235,7 +237,7 @@ func (o *CommandJoinOptions) runCluster() error {
 		return fmt.Errorf("(cluster rbac) kosmosctl join run error, create clusterrole failed: %s", err)
 	}
 	clusterRoleBinding, err := util.GenerateClusterRoleBinding(manifest.ClusterlinkClusterRoleBinding, manifest.ClusterRoleBindingReplace{
-		Namespace: util.ClusterlinkNamespace,
+		Namespace: utils.DefaultNamespace,
 	})
 	if err != nil {
 		return fmt.Errorf("(cluster rbac) kosmosctl join run error, generate clusterrolebinding failed: %s", err)
@@ -247,7 +249,7 @@ func (o *CommandJoinOptions) runCluster() error {
 
 	// 5. create operator in member
 	serviceAccount, err := util.GenerateServiceAccount(manifest.ClusterlinkOperatorServiceAccount, manifest.ServiceAccountReplace{
-		Namespace: util.ClusterlinkNamespace,
+		Namespace: utils.DefaultNamespace,
 	})
 	if err != nil {
 		return fmt.Errorf("(cluster operator) kosmosctl join run error, generate serviceaccount failed: %s", err)
@@ -258,10 +260,11 @@ func (o *CommandJoinOptions) runCluster() error {
 	}
 
 	deployment, err := util.GenerateDeployment(manifest.ClusterlinkOperatorDeployment, manifest.ClusterlinkDeploymentReplace{
-		Namespace:   util.ClusterlinkNamespace,
-		Version:     version.GetReleaseVersion().PatchRelease(),
-		ClusterName: o.ClusterName,
-		UseProxy:    o.UseProxy,
+		Namespace:       utils.DefaultNamespace,
+		Version:         version.GetReleaseVersion().PatchRelease(),
+		ClusterName:     o.ClusterName,
+		UseProxy:        o.UseProxy,
+		ImageRepository: o.ImageRegistry,
 	})
 	if err != nil {
 		return fmt.Errorf("(cluster operator) kosmosctl join run error, generate deployment failed: %s", err)
