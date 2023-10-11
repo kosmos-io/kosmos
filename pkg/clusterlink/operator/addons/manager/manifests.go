@@ -42,7 +42,7 @@ spec:
                 values:
                 - clusterlink-controller-manager
             namespaces:
-            - clusterlink-system
+            - {{ .Namespace }}
             topologyKey: kubernetes.io/hostname
       containers:
         - name: manager

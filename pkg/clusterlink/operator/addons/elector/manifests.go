@@ -42,7 +42,7 @@ spec:
                 values:
                 - elector
             namespaces:
-            - clusterlink-system
+            - {{ .Namespace }}
             topologyKey: kubernetes.io/hostname
       containers:
       - name: elector

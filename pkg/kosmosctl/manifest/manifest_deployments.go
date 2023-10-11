@@ -65,11 +65,11 @@ spec:
                     values:
                       - operator
               namespaces:
-                - clusterlink-system
+                - {{ .Namespace }}
               topologyKey: kubernetes.io/hostname
       containers:
       - name: operator
-        image: ghcr.io/kosmos-io/clusterlink-operator:v{{ .Version }}
+        image: {{ .ImageRepository }}/clusterlink-operator:v{{ .Version }}
         imagePullPolicy: IfNotPresent
         command:
           - clusterlink-operator
@@ -150,8 +150,9 @@ type DeploymentReplace struct {
 }
 
 type ClusterlinkDeploymentReplace struct {
-	Namespace   string
-	Version     string
-	ClusterName string
-	UseProxy    string
+	Namespace       string
+	Version         string
+	ClusterName     string
+	UseProxy        string
+	ImageRepository string
 }

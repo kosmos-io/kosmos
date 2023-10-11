@@ -25,7 +25,7 @@ func NewOptions() *Options {
 		LeaderElection: componentbaseconfig.LeaderElectionConfiguration{
 			LeaderElect:       true,
 			ResourceLock:      resourcelock.LeasesResourceLock,
-			ResourceNamespace: utils.NamespaceClusterLinksystem,
+			ResourceNamespace: utils.DefaultNamespace,
 			ResourceName:      "network-manager",
 		},
 	}
@@ -38,7 +38,7 @@ func (o *Options) AddFlags(flags *pflag.FlagSet) {
 
 	flags.BoolVar(&o.LeaderElection.LeaderElect, "leader-elect", true, "Start a leader election client and gain leadership before executing the main loop. Enable this when running replicated components for high availability.")
 	flags.StringVar(&o.LeaderElection.ResourceName, "leader-elect-resource-name", "network-manager", "The name of resource object that is used for locking during leader election.")
-	flags.StringVar(&o.LeaderElection.ResourceNamespace, "leader-elect-resource-namespace", utils.NamespaceClusterLinksystem, "The namespace of resource object that is used for locking during leader election.")
+	flags.StringVar(&o.LeaderElection.ResourceNamespace, "leader-elect-resource-namespace", utils.DefaultNamespace, "The namespace of resource object that is used for locking during leader election.")
 	flags.Float32Var(&o.KubernetesOptions.QPS, "kube-qps", 40.0, "QPS to use while talking with kube-apiserver.")
 	flags.IntVar(&o.KubernetesOptions.Burst, "kube-burst", 60, "Burst to use while talking with kube-apiserver.")
 	flags.StringVar(&o.KubernetesOptions.KubeConfig, "kubeconfig", "", "Path for kubernetes kubeconfig file, if left blank, will use in cluster way.")
