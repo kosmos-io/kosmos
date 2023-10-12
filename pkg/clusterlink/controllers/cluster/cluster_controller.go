@@ -20,6 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/informers"
@@ -33,6 +34,15 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/utils"
 	"github.com/kosmos.io/kosmos/pkg/utils/flags"
 	"github.com/kosmos.io/kosmos/pkg/utils/keys"
+)
+
+// KubeFlannelNetworkConfig
+const (
+	FlannelCNI             = "flannel"
+	KubeFlannelNamespace   = "kube-flannel"
+	KubeFlannelConfigMap   = "kube-flannel-cfg"
+	KubeFlannelNetworkConf = "net-conf.json"
+	KubeFlannelIPPool      = "Network"
 )
 
 type SetClusterPodCIDRFun func(cluster *clusterlinkv1alpha1.Cluster) error
@@ -113,18 +123,27 @@ func (c *Controller) Start(ctx context.Context) error {
 		klog.Errorf("can not add handler err: %v", err)
 		return err
 	}
-	isEtcd := CheckIsEtcd(cluster)
-	if !isEtcd {
-		c.setClusterPodCIDRFun, err = c.initCalicoInformer(ctx, cluster, c.dynamicClient)
+
+	if cluster.Spec.CNI == FlannelCNI {
+		c.setClusterPodCIDRFun, err = c.initFlannelInformer(ctx, cluster, c.kubeClient)
 		if err != nil {
 			klog.Errorf("cluster %s initCalicoInformer err: %v", err)
 			return err
 		}
 	} else {
-		c.setClusterPodCIDRFun, err = c.initCalicoWatcherWithEtcdBackend(ctx, cluster)
-		if err != nil {
-			klog.Errorf("cluster %s initCalicoWatcherWithEtcdBackend err: %v", err)
-			return err
+		isEtcd := CheckIsEtcd(cluster)
+		if !isEtcd {
+			c.setClusterPodCIDRFun, err = c.initCalicoInformer(ctx, cluster, c.dynamicClient)
+			if err != nil {
+				klog.Errorf("cluster %s initCalicoInformer err: %v", err)
+				return err
+			}
+		} else {
+			c.setClusterPodCIDRFun, err = c.initCalicoWatcherWithEtcdBackend(ctx, cluster)
+			if err != nil {
+				klog.Errorf("cluster %s initCalicoWatcherWithEtcdBackend err: %v", err)
+				return err
+			}
 		}
 	}
 	factory.Start(c.stopCh)
@@ -346,6 +365,76 @@ func (c *Controller) initCalicoWatcherWithEtcdBackend(ctx context.Context, clust
 			}
 		}
 		cluster.Status.PodCIDRs = podCIDRs
+		return nil
+	}, nil
+}
+
+// todo by wuyingjun-lucky
+func (c *Controller) initFlannelInformer(context context.Context, cluster *clusterlinkv1alpha1.Cluster, kubeClient kubernetes.Interface) (SetClusterPodCIDRFun, error) {
+	informerFactory := informers.NewSharedInformerFactoryWithOptions(kubeClient, 0, informers.WithNamespace(KubeFlannelNamespace))
+	lister := informerFactory.Core().V1().ConfigMaps().Lister()
+	_, err := informerFactory.Core().V1().ConfigMaps().Informer().AddEventHandler(
+		cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				cm, ok := obj.(*corev1.ConfigMap)
+				if !ok || cm.Name != KubeFlannelConfigMap {
+					return
+				}
+				c.onChange(cluster)
+			},
+			UpdateFunc: func(oldObj, newObj interface{}) {
+				cm, ok := newObj.(*corev1.ConfigMap)
+				if !ok || cm.Name != KubeFlannelConfigMap {
+					return
+				}
+				c.onChange(cluster)
+			},
+			DeleteFunc: func(obj interface{}) {
+				cm, ok := obj.(*corev1.ConfigMap)
+				if !ok || cm.Name != KubeFlannelConfigMap {
+					return
+				}
+				c.onChange(cluster)
+			},
+		})
+
+	if err != nil {
+		return nil, err
+	}
+
+	informerFactory.Start(context.Done())
+	informerFactory.WaitForCacheSync(context.Done())
+
+	return func(cluster *clusterlinkv1alpha1.Cluster) error {
+		cms, err := lister.List(labels.Everything())
+		if err != nil {
+			return err
+		}
+		podCIDRS := make([]string, 0)
+		for _, cm := range cms {
+			if cm.Name == KubeFlannelConfigMap {
+				v := cm.Data[KubeFlannelNetworkConf]
+				if v == "" {
+					continue
+				}
+				var data map[string]interface{}
+				err = json.Unmarshal([]byte(v), &data)
+				if err != nil {
+					klog.Warningf("Convert kube flannel configmap network data err: %v", err)
+					continue
+				}
+
+				PodIPPool, ok := data[KubeFlannelIPPool].(string)
+				if !ok {
+					klog.Warningf("Convert kube flannel configmap network data err to string")
+					continue
+				}
+
+				podCIDRS = append(podCIDRS, PodIPPool)
+				break
+			}
+		}
+		cluster.Status.PodCIDRs = podCIDRS
 		return nil
 	}, nil
 }
