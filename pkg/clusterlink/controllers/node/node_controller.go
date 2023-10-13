@@ -171,10 +171,10 @@ func (r *Reconciler) CleanOrphan() error {
 	}
 	var errs []error
 	cnt := 0
-	for _, cn := range clusterNodes.Items {
-		clusterNode := cn
-		if _, ok := k8sNodeNameSet[cn.Spec.NodeName]; !ok {
-			if err := r.Delete(context.Background(), &clusterNode); err != nil {
+	for i := range clusterNodes.Items {
+		clusterNode := &clusterNodes.Items[i]
+		if _, ok := k8sNodeNameSet[clusterNode.Spec.NodeName]; !ok {
+			if err := r.ClusterLinkClient.KosmosV1alpha1().ClusterNodes().Delete(context.Background(), clusterNode.Name, metav1.DeleteOptions{}); err != nil {
 				errs = append(errs, err)
 				klog.Warningf("failed to delete clusterNode %s", clusterNode.Name)
 			} else {
@@ -228,7 +228,8 @@ func (r *Reconciler) CleanResource() error {
 		return err
 	}
 	var errs []error
-	for _, node := range list.Items {
+	for i := range list.Items {
+		node := &list.Items[i]
 		err := r.ClusterLinkClient.KosmosV1alpha1().ClusterNodes().Delete(context.TODO(), node.GetName(), metav1.DeleteOptions{})
 		if err != nil {
 			if apierrors.IsNotFound(err) {
