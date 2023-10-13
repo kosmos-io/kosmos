@@ -178,6 +178,10 @@ func (n *DefaultNetWork) InitSys() {
 	if err := CreateGlobalNetIptablesChains(); err != nil {
 		klog.Warning(err)
 	}
+
+	if err := EnableLooseModeForFlannel(); err != nil {
+		klog.Warning(err)
+	}
 }
 
 func (n *DefaultNetWork) UpdateCidrConfig(cluster *clusterlinkv1alpha1.Cluster) {
