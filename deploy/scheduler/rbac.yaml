@@ -48,7 +48,7 @@ rules:
     resources:
       - leases
     resourceNames:
-      - kube-scheduler
+      - kosmos-scheduler
   - verbs:
       - create
     apiGroups:
