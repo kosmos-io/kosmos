@@ -148,7 +148,7 @@ func (o *CommandUninstallOptions) runClusterlink() error {
 	clusters, err = o.DynamicClient.Resource(util.ClusterGVR).List(context.TODO(), metav1.ListOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		return fmt.Errorf("kosmosctl uninstall clusterlink run error, list cluster failed: %v", err)
-	} else if len(clusters.Items) > 0 {
+	} else if clusters != nil && len(clusters.Items) > 0 {
 		klog.Info("kosmosctl uninstall warning, skip removing cluster crd because cr instance exists")
 	} else {
 		clusterCRD, _ := util.GenerateCustomResourceDefinition(manifest.ClusterlinkCluster, nil)
@@ -165,7 +165,7 @@ func (o *CommandUninstallOptions) runClusterlink() error {
 	clusternodes, err = o.DynamicClient.Resource(util.ClusterNodeGVR).List(context.TODO(), metav1.ListOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		return fmt.Errorf("kosmosctl uninstall clusterlink run error, list clusternode failed: %v", err)
-	} else if len(clusternodes.Items) > 0 {
+	} else if clusternodes != nil && len(clusternodes.Items) > 0 {
 		klog.Info("kosmosctl uninstall warning, skip removing clusternode crd because cr instance exists")
 	} else {
 		clusternodeCRD, _ := util.GenerateCustomResourceDefinition(manifest.ClusterlinkClusterNode, nil)
@@ -182,7 +182,7 @@ func (o *CommandUninstallOptions) runClusterlink() error {
 	nodeconfigs, err = o.DynamicClient.Resource(util.NodeConfigGVR).List(context.TODO(), metav1.ListOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		return fmt.Errorf("kosmosctl uninstall clusterlink run error, list nodeconfig failed: %v", err)
-	} else if len(nodeconfigs.Items) > 0 {
+	} else if nodeconfigs != nil && len(nodeconfigs.Items) > 0 {
 		klog.Info("kosmosctl uninstall warning, skip removing nodeconfig crd because cr instance exists")
 	} else {
 		nodeConfigCRD, _ := util.GenerateCustomResourceDefinition(manifest.ClusterlinkNodeConfig, nil)
@@ -246,7 +246,7 @@ func (o *CommandUninstallOptions) runClustertree() error {
 	knodes, err = o.DynamicClient.Resource(util.KnodeGVR).List(context.TODO(), metav1.ListOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		return fmt.Errorf("kosmosctl uninstall clustertree run error, list knode failed: %v", err)
-	} else if len(knodes.Items) > 0 {
+	} else if knodes != nil && len(knodes.Items) > 0 {
 		klog.Info("kosmosctl uninstall warning, skip removing knode crd because cr instance exists")
 	} else {
 		knodeCRD, _ := util.GenerateCustomResourceDefinition(manifest.ClusterTreeKnode, nil)

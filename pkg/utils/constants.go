@@ -8,7 +8,10 @@ const (
 
 const ExternalIPPoolNamePrefix = "clusterlink"
 
-const CNITypeCalico = "calico"
+const (
+	CNITypeCalico  = "calico"
+	NetworkTypeP2P = "p2p"
+)
 
 const (
 	ProxySecretName        = "clusterlink-agent-proxy"
