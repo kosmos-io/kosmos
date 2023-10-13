@@ -61,6 +61,8 @@ const (
 
 	IPTablesPreRoutingChain  = "PREROUTING"
 	IPTablesPostRoutingChain = "POSTROUTING"
+
+	FLANNEL_DEV_NAME_PREFIX = "flannel"
 )
 
 type vxlanAttributes struct {
