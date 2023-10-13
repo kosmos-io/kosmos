@@ -21,14 +21,27 @@ var NEIGH_TYPE_MAP map[NeighType]string = map[NeighType]string{
 	NEIGH_FDB: "fbd",
 }
 
-func getNeighList(linkIndex, family int, neighType NeighType) ([]netlink.Neigh, error) {
+func neighListForArp(linkIndex int) ([]netlink.Neigh, error) {
+	var err error
+	var neighList []netlink.Neigh
+	neighList4, err4 := netlink.NeighList(linkIndex, netlink.FAMILY_V4)
+	neighList6, err6 := netlink.NeighList(linkIndex, netlink.FAMILY_V6)
+	neighList = append(neighList, neighList4...)
+	neighList = append(neighList, neighList6...)
+	if err4 != nil || err6 != nil {
+		err = fmt.Errorf("list arp err, linkIndex: %d, err4: %s, err6: %s ", linkIndex, err4, err6)
+	}
+	return neighList, err
+}
+
+func getNeighList(linkIndex int, neighType NeighType) ([]netlink.Neigh, error) {
 	var err error
 	var neighList []netlink.Neigh
 	switch neighType {
 	case NEIGH_FDB:
 		neighList, err = netlink.NeighList(linkIndex, unix.AF_BRIDGE)
 	case NEIGH_ARP:
-		neighList, err = netlink.NeighList(linkIndex, netlink.FAMILY_V4)
+		neighList, err = neighListForArp(linkIndex)
 	default:
 		return nil, fmt.Errorf("strange neighType %v", neighType)
 	}
@@ -156,7 +169,7 @@ func DeleteNeighByDevice(dev string, neighType NeighType) error {
 		klog.Errorf("Find interface %s error :%v", dev, err)
 		return err
 	}
-	neighList, err := getNeighList(vxlanIface.Attrs().Index, unix.AF_BRIDGE, neighType)
+	neighList, err := getNeighList(vxlanIface.Attrs().Index, neighType)
 	if err != nil {
 		klog.Errorf("Show  %s entries error: %v", NEIGH_TYPE_MAP[neighType], err)
 		return err
@@ -186,7 +199,7 @@ func ListNeigh(neighType NeighType) []FDBRecord {
 		if err != nil {
 			continue
 		}
-		neighList, err := getNeighList(vxlanIface.Attrs().Index, unix.AF_BRIDGE, neighType)
+		neighList, err := getNeighList(vxlanIface.Attrs().Index, neighType)
 		if err != nil {
 			klog.Errorf("List vxlan neigh %s entries, but get error : %v", NEIGH_TYPE_MAP[neighType], err)
 			continue
