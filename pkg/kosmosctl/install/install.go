@@ -255,7 +255,8 @@ func (o *CommandInstallOptions) runClusterlink() error {
 			return fmt.Errorf("kosmosctl install clusterlink run error, deployment options failed: %v", err)
 		}
 	}
-	if err = util.WaitDeploymentReady(o.Client, clusterlinkDeployment, o.WaitTime); err != nil {
+	label := map[string]string{"app": clusterlinkDeployment.Labels["app"]}
+	if err = util.WaitPodReady(o.Client, clusterlinkDeployment.Namespace, util.MapToString(label), o.WaitTime); err != nil {
 		return fmt.Errorf("kosmosctl install clusterlink run error, deployment options failed: %v", err)
 	} else {
 		klog.Info("Deployment clusterlink-network-manager has been created.")
@@ -365,7 +366,8 @@ func (o *CommandInstallOptions) runClustertree() error {
 			return fmt.Errorf("kosmosctl install clustertree run error, deployment options failed: %v", err)
 		}
 	}
-	if err = util.WaitDeploymentReady(o.Client, clustertreeDeployment, o.WaitTime); err != nil {
+	label := map[string]string{"app": clustertreeDeployment.Labels["app"]}
+	if err = util.WaitPodReady(o.Client, clustertreeDeployment.Namespace, util.MapToString(label), o.WaitTime); err != nil {
 		return fmt.Errorf("kosmosctl install clustertree run error, deployment options failed: %v", err)
 	} else {
 		klog.Info("Deployment clustertree-knode-manager has been created.")

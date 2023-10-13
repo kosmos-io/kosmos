@@ -24,25 +24,23 @@ import (
 
 var unjoinExample = templates.Examples(i18n.T(`
 		# Unjoin cluster from Kosmos control plane in any cluster, e.g:
-		kosmosctl unjoin cluster --cluster-name=[cluster-name] --cluster-kubeconfig=[member-kubeconfig] --master-kubeconfig=[master-kubeconfig]
+		kosmosctl unjoin cluster --name=[cluster-name] --cluster-kubeconfig=[member-kubeconfig] --master-kubeconfig=[master-kubeconfig]
 
 		# Unjoin cluster from Kosmos control plane in master cluster, e.g:
-		kosmosctl unjoin cluster --cluster-name=[cluster-name] --cluster-kubeconfig=[member-kubeconfig]
+		kosmosctl unjoin cluster --name=[cluster-name] --cluster-kubeconfig=[member-kubeconfig]
 
 		# Unjoin knode from Kosmos control plane in any cluster, e.g:
-		kosmosctl unjoin knode --knode-name=[knode-name] --master-kubeconfig=[master-kubeconfig]
+		kosmosctl unjoin knode --name=[knode-name] --master-kubeconfig=[master-kubeconfig]
 
 		# Unjoin knode from Kosmos control plane in master cluster, e.g:
-		kosmosctl unjoin knode --knode-name=[knode-name]
+		kosmosctl unjoin knode --name=[knode-name]
 `))
 
 type CommandUnJoinOptions struct {
 	MasterKubeConfig  string
 	ClusterKubeConfig string
 
-	ClusterName string
-
-	KnodeName string
+	Name string
 
 	Client        kubernetes.Interface
 	DynamicClient *dynamic.DynamicClient
@@ -69,8 +67,7 @@ func NewCmdUnJoin(f ctlutil.Factory) *cobra.Command {
 
 	cmd.Flags().StringVarP(&o.MasterKubeConfig, "master-kubeconfig", "", "", "Absolute path to the master kubeconfig file.")
 	cmd.Flags().StringVarP(&o.ClusterKubeConfig, "cluster-kubeconfig", "", "", "Absolute path to the cluster kubeconfig file.")
-	cmd.Flags().StringVar(&o.ClusterName, "cluster-name", "", "Specify the name of the member cluster to unjoin.")
-	cmd.Flags().StringVar(&o.KnodeName, "knode-name", "", "Specify the name of the knode to unjoin.")
+	cmd.Flags().StringVar(&o.Name, "name", "", "Specify the name of the resource to unjoin.")
 
 	return cmd
 }
@@ -109,9 +106,13 @@ func (o *CommandUnJoinOptions) Complete(f ctlutil.Factory) error {
 }
 
 func (o *CommandUnJoinOptions) Validate(args []string) error {
+	if len(o.Name) == 0 {
+		return fmt.Errorf("kosmosctl unjoin validate error, resource name is not valid")
+	}
+
 	switch args[0] {
 	case "cluster":
-		_, err := o.DynamicClient.Resource(util.ClusterGVR).Get(context.TODO(), o.ClusterName, metav1.GetOptions{})
+		_, err := o.DynamicClient.Resource(util.ClusterGVR).Get(context.TODO(), o.Name, metav1.GetOptions{})
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				return fmt.Errorf("kosmosctl unjoin validate warning, clsuter is not found: %s", err)
@@ -119,7 +120,7 @@ func (o *CommandUnJoinOptions) Validate(args []string) error {
 			return fmt.Errorf("kosmosctl unjoin validate error, get cluster failed: %s", err)
 		}
 	case "knode":
-		_, err := o.DynamicClient.Resource(util.KnodeGVR).Get(context.TODO(), o.KnodeName, metav1.GetOptions{})
+		_, err := o.DynamicClient.Resource(util.KnodeGVR).Get(context.TODO(), o.Name, metav1.GetOptions{})
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				return fmt.Errorf("kosmosctl unjoin validate warning, knode is not found: %s", err)
@@ -152,15 +153,16 @@ func (o *CommandUnJoinOptions) runCluster() error {
 	klog.Info("Start removing cluster from kosmos control plane...")
 	// 1. delete cluster
 	for {
-		err := o.DynamicClient.Resource(util.ClusterGVR).Namespace("").Delete(context.TODO(), o.ClusterName, metav1.DeleteOptions{})
+		err := o.DynamicClient.Resource(util.ClusterGVR).Namespace("").Delete(context.TODO(), o.Name, metav1.DeleteOptions{})
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				break
 			}
-			return fmt.Errorf("(cluster) kosmosctl unjoin run error, delete cluster failed: %s", err)
+			return fmt.Errorf("kosmosctl unjoin run error, delete cluster failed: %s", err)
 		}
 		time.Sleep(3 * time.Second)
 	}
+	klog.Info("Cluster: " + o.Name + " has been deleted.")
 
 	// 2. delete operator
 	clusterlinkOperatorDeployment, err := util.GenerateDeployment(manifest.ClusterlinkOperatorDeployment, nil)
@@ -169,32 +171,39 @@ func (o *CommandUnJoinOptions) runCluster() error {
 	}
 	err = o.Client.AppsV1().Deployments(utils.DefaultNamespace).Delete(context.TODO(), clusterlinkOperatorDeployment.Name, metav1.DeleteOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
-		return fmt.Errorf("(operator) kosmosctl unjoin run error, delete deployment failed: %s", err)
+		return fmt.Errorf("kosmosctl unjoin run error, delete deployment failed: %s", err)
 	}
+	klog.Info("Deployment: " + clusterlinkOperatorDeployment.Name + " has been deleted.")
 
 	// 3. delete secret
 	err = o.Client.CoreV1().Secrets(utils.DefaultNamespace).Delete(context.TODO(), utils.ControlPanelSecretName, metav1.DeleteOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
-		return fmt.Errorf("(secret) kosmosctl unjoin run error, delete secret failed: %s", err)
+		return fmt.Errorf("kosmosctl unjoin run error, delete secret failed: %s", err)
 	}
+	klog.Info("Secret: " + utils.ControlPanelSecretName + " has been deleted.")
 
 	// 4. delete rbac
 	err = o.Client.RbacV1().ClusterRoleBindings().Delete(context.TODO(), utils.ExternalIPPoolNamePrefix, metav1.DeleteOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
-		return fmt.Errorf("(rbac) kosmosctl unjoin run error, delete clusterrolebinding failed: %s", err)
+		return fmt.Errorf("kosmosctl unjoin run error, delete clusterrolebinding failed: %s", err)
 	}
+	klog.Info("ClusterRoleBinding: " + utils.ExternalIPPoolNamePrefix + " has been deleted.")
+
 	err = o.Client.RbacV1().ClusterRoles().Delete(context.TODO(), utils.ExternalIPPoolNamePrefix, metav1.DeleteOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
-		return fmt.Errorf("(rbac) kosmosctl unjoin run error, delete clusterrole failed: %s", err)
+		return fmt.Errorf("kosmosctl unjoin run error, delete clusterrole failed: %s", err)
 	}
+	klog.Info("ClusterRole: " + utils.ExternalIPPoolNamePrefix + " has been deleted.")
+
 	clusterlinkOperatorServiceAccount, err := util.GenerateServiceAccount(manifest.ClusterlinkOperatorServiceAccount, nil)
 	if err != nil {
 		return err
 	}
 	err = o.Client.CoreV1().ServiceAccounts(utils.DefaultNamespace).Delete(context.TODO(), clusterlinkOperatorServiceAccount.Name, metav1.DeleteOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
-		return fmt.Errorf("(operator) kosmosctl unjoin run error, delete serviceaccout failed: %s", err)
+		return fmt.Errorf("kosmosctl unjoin run error, delete serviceaccout failed: %s", err)
 	}
+	klog.Info("ServiceAccount: " + clusterlinkOperatorServiceAccount.Name + " has been deleted.")
 
 	// 5. If cluster is not the master, delete namespace
 	clusterlinkNetworkManagerDeployment, err := util.GenerateDeployment(manifest.ClusterlinkNetworkManagerDeployment, nil)
@@ -205,27 +214,27 @@ func (o *CommandUnJoinOptions) runCluster() error {
 	if err != nil && apierrors.IsNotFound(err) {
 		err = o.Client.CoreV1().Namespaces().Delete(context.TODO(), utils.DefaultNamespace, metav1.DeleteOptions{})
 		if err != nil && !apierrors.IsNotFound(err) {
-			return fmt.Errorf("(namespace) kosmosctl unjoin run error, delete namespace failed: %s", err)
+			return fmt.Errorf("kosmosctl unjoin run error, delete namespace failed: %s", err)
 		}
 	}
 
-	klog.Info("Cluster [" + o.ClusterName + "] was removed.")
+	klog.Info("Cluster [" + o.Name + "] is removed.")
 	return nil
 }
 
 func (o *CommandUnJoinOptions) runKnode() error {
 	klog.Info("Start removing knode from kosmos control plane...")
 	for {
-		err := o.DynamicClient.Resource(util.KnodeGVR).Namespace("").Delete(context.TODO(), o.KnodeName, metav1.DeleteOptions{})
+		err := o.DynamicClient.Resource(util.KnodeGVR).Namespace("").Delete(context.TODO(), o.Name, metav1.DeleteOptions{})
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				break
 			}
-			return fmt.Errorf("(knode) kosmosctl unjoin run error, delete knode failed: %s", err)
+			return fmt.Errorf("kosmosctl unjoin run error, delete knode failed: %s", err)
 		}
 		time.Sleep(3 * time.Second)
 	}
 
-	klog.Info("Knode [" + o.KnodeName + "] was removed.")
+	klog.Info("Knode [" + o.Name + "] is removed.")
 	return nil
 }
