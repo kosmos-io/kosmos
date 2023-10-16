@@ -141,6 +141,125 @@ spec:
             name: host-kubeconfig
           name: config-volume
 `
+
+	CorednsDeployment = `
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    kosmos.io/app: coredns
+  name: coredns
+  namespace: {{ .Namespace }}
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 2
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      kosmos.io/app: coredns
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        kosmos.io/app: coredns
+    spec:
+      containers:
+        - args:
+            - -conf
+            - /etc/coredns/Corefile
+          image: {{ .ImageRepository }}/coredns:latest
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            failureThreshold: 5
+            httpGet:
+              path: /health
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+          name: coredns
+          ports:
+            - containerPort: 53
+              name: dns
+              protocol: UDP
+            - containerPort: 53
+              name: dns-tcp
+              protocol: TCP
+            - containerPort: 9153
+              name: metrics
+              protocol: TCP
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /ready
+              port: 8181
+              scheme: HTTP
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          resources:
+            limits:
+              cpu: 2000m
+              memory: 2560Mi
+            requests:
+              cpu: 1000m
+              memory: 1280Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              add:
+                - NET_BIND_SERVICE
+              drop:
+                - all
+            readOnlyRootFilesystem: true
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+            - mountPath: /etc/coredns
+              name: config-volume
+              readOnly: true
+            - mountPath: /etc/add-hosts
+              name: customer-hosts
+              readOnly: true
+      dnsPolicy: Default
+      priorityClassName: system-cluster-critical
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      serviceAccount: coredns
+      serviceAccountName: coredns
+      terminationGracePeriodSeconds: 30
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  kosmos.io/app: coredns
+              topologyKey: kubernetes.io/hostname
+      volumes:
+        - configMap:
+            defaultMode: 420
+            items:
+              - key: Corefile
+                path: Corefile
+            name: coredns
+          name: config-volume
+        - configMap:
+            defaultMode: 420
+            items:
+              - key: customer-hosts
+                path: customer-hosts
+            name: coredns-customer-hosts
+          name: customer-hosts
+
+`
 )
 
 type DeploymentReplace struct {
