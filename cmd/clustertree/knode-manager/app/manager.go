@@ -15,7 +15,7 @@ import (
 
 	"github.com/kosmos.io/kosmos/cmd/clustertree/knode-manager/app/config"
 	"github.com/kosmos.io/kosmos/cmd/clustertree/knode-manager/app/options"
-	knodemanager "github.com/kosmos.io/kosmos/pkg/clustertree/knode-manager"
+	manager "github.com/kosmos.io/kosmos/pkg/clustertree/knode-manager"
 )
 
 func NewKosmosNodeManagerCommand(ctx context.Context) *cobra.Command {
@@ -49,7 +49,11 @@ func NewKosmosNodeManagerCommand(ctx context.Context) *cobra.Command {
 }
 
 func Run(ctx context.Context, c *config.Config) error {
-	knManager := knodemanager.NewManager(c)
+	knManager, err := manager.NewManager(c)
+	if err != nil {
+		return err
+	}
+
 	if !c.LeaderElection.LeaderElect {
 		knManager.Run(c.WorkerNumber, ctx.Done())
 		return nil

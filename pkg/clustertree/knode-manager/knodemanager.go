@@ -2,6 +2,7 @@ package knodemanager
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"math/rand"
 	"sync"
@@ -11,6 +12,8 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	kubeinformers "k8s.io/client-go/informers"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	klogv2 "k8s.io/klog/v2"
@@ -18,6 +21,8 @@ import (
 
 	"github.com/kosmos.io/kosmos/cmd/clustertree/knode-manager/app/config"
 	kosmosv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
+	"github.com/kosmos.io/kosmos/pkg/clustertree/knode-manager/controllers/mcs"
+	"github.com/kosmos.io/kosmos/pkg/clustertree/knode-manager/utils"
 	crdclientset "github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/generated/informers/externalversions"
 	knLister "github.com/kosmos.io/kosmos/pkg/generated/listers/kosmos/v1alpha1"
@@ -30,8 +35,9 @@ type KnodeManager struct {
 	runLock sync.Mutex
 	stopCh  <-chan struct{}
 
-	knclient        crdclientset.Interface
-	informerFactory externalversions.SharedInformerFactory
+	knclient              crdclientset.Interface
+	kosmosInformerFactory externalversions.SharedInformerFactory
+	kubeInformerFactory   kubeinformers.SharedInformerFactory
 
 	queue      workqueue.RateLimitingInterface
 	knLister   knLister.KnodeLister
@@ -42,23 +48,41 @@ type KnodeManager struct {
 	knWaitGroup wait.Group
 
 	opts *config.Opts
+
+	serviceExportController *mcs.ServiceExportController
 }
 
-func NewManager(c *config.Config) *KnodeManager {
-	factory := externalversions.NewSharedInformerFactory(c.CRDClient, 0)
-	knInformer := factory.Kosmos().V1alpha1().Knodes()
+func NewManager(c *config.Config) (*KnodeManager, error) {
+	kosmosInformerFactory := externalversions.NewSharedInformerFactory(c.CRDClient, 0)
+	knInformer := kosmosInformerFactory.Kosmos().V1alpha1().Knodes()
+	// init kube client
+	kubeClient, err := utils.NewClientFromConfigPath(c.Opts.KubeConfigPath, func(config *rest.Config) {
+		config.QPS = c.Opts.KubeAPIQPS
+		config.Burst = c.Opts.KubeAPIBurst
+	})
+	if err != nil {
+		return nil, fmt.Errorf("could not build clientset: %v", err)
+	}
+
+	masterInformers := NewInformers(kubeClient, c.CRDClient, c.Opts.InformerResyncPeriod)
+	serviceExportController, err := mcs.NewServiceExportController(kubeClient, c.CRDClient, masterInformers.informer, kosmosInformerFactory)
+	if err != nil {
+		return nil, err
+	}
 
 	manager := &KnodeManager{
-		knclient:        c.CRDClient,
-		informerFactory: factory,
-		knLister:        knInformer.Lister(),
-		knInformer:      knInformer.Informer(),
+		knclient:              c.CRDClient,
+		kosmosInformerFactory: kosmosInformerFactory,
+		kubeInformerFactory:   masterInformers.informer,
+		knLister:              knInformer.Lister(),
+		knInformer:            knInformer.Informer(),
 
 		queue: workqueue.NewRateLimitingQueue(
 			NewItemExponentialFailureAndJitterSlowRateLimter(2*time.Second, 15*time.Second, 1*time.Minute, 1.0, defaultRetryNum),
 		),
-		knodes: make(map[string]*Knode),
-		opts:   c.Opts,
+		knodes:                  make(map[string]*Knode),
+		opts:                    c.Opts,
+		serviceExportController: serviceExportController,
 	}
 
 	_, _ = knInformer.Informer().AddEventHandler(
@@ -69,7 +93,7 @@ func NewManager(c *config.Config) *KnodeManager {
 		},
 	)
 
-	return manager
+	return manager, nil
 }
 
 func (km *KnodeManager) addKnode(obj interface{}) {
@@ -152,15 +176,23 @@ func (km *KnodeManager) Run(workers int, stopCh <-chan struct{}) {
 	km.runLock.Lock()
 	defer km.runLock.Unlock()
 	if km.stopCh != nil {
-		klogv2.Fatal("virtualnode manager is already running...")
+		klogv2.Fatal("Knode Manager is already running...")
 	}
 	klogv2.Info("Start Informer Factory")
 
-	// informerFactory should not be controlled by stopCh
+	// kosmosInformerFactory should not be controlled by stopCh
 	stopInformer := make(chan struct{})
-	km.informerFactory.Start(stopInformer)
+
+	go func() {
+		if err := km.serviceExportController.Run(stopCh); err != nil {
+			klogv2.Error(err)
+		}
+	}()
+
+	km.kosmosInformerFactory.Start(stopInformer)
+	km.kubeInformerFactory.Start(stopInformer)
 	if !cache.WaitForCacheSync(stopCh, km.knInformer.HasSynced) {
-		klogv2.Fatal("virtualnode manager: wait for informer factory failed")
+		klogv2.Fatal("Knode manager: wait for informer factory failed")
 	}
 
 	km.stopCh = stopCh
