@@ -39,6 +39,9 @@ var installExample = templates.Examples(i18n.T(`
 
 		# Install clustertree module to Kosmos control plane, e.g: 
         kosmosctl install -m clustertree
+
+		# Install coredns module to Kosmos control plane, e.g: 
+        kosmosctl install -m coredns
 `))
 
 type CommandInstallOptions struct {
@@ -131,6 +134,12 @@ func (o *CommandInstallOptions) Validate() error {
 func (o *CommandInstallOptions) Run() error {
 	klog.Info("Kosmos starts installing.")
 	switch o.Module {
+	case "coredns":
+		err := o.runCoredns()
+		if err != nil {
+			return err
+		}
+		util.CheckInstall("coredns")
 	case "clusterlink":
 		err := o.runClusterlink()
 		if err != nil {
@@ -213,7 +222,7 @@ func (o *CommandInstallOptions) runClusterlink() error {
 	}
 	klog.Info("ClusterRoleBinding clusterlink-network-manager has been created.")
 
-	klog.Info("Attempting to create kosmos-clusterlink knode CRDs...")
+	klog.Info("Attempting to create clusterlink CRDs...")
 	crds := apiextensionsv1.CustomResourceDefinitionList{}
 	clusterlinkCluster, err := util.GenerateCustomResourceDefinition(manifest.ClusterlinkCluster, manifest.ClusterlinkReplace{
 		Namespace: o.Namespace,
@@ -372,6 +381,143 @@ func (o *CommandInstallOptions) runClustertree() error {
 	} else {
 		klog.Info("Deployment clustertree-knode-manager has been created.")
 	}
+
+	return nil
+}
+
+func (o *CommandInstallOptions) runCoredns() error {
+	klog.Info("Start creating kosmos-coredns...")
+	namespace := &corev1.Namespace{}
+	namespace.Name = o.Namespace
+	_, err := o.Client.CoreV1().Namespaces().Create(context.TODO(), namespace, metav1.CreateOptions{})
+	if err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return fmt.Errorf("kosmosctl install coredns run error, namespace options failed: %v", err)
+		}
+	}
+	klog.Infof("Namespace %s has been created.", o.Namespace)
+
+	klog.Info("Start creating kosmos-coredns ServiceAccount...")
+	sa, err := util.GenerateServiceAccount(manifest.CorednsServiceAccount, manifest.ServiceAccountReplace{
+		Namespace: o.Namespace,
+	})
+	if err != nil {
+		return err
+	}
+	_, err = o.Client.CoreV1().ServiceAccounts(o.Namespace).Create(context.TODO(), sa, metav1.CreateOptions{})
+	if err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return fmt.Errorf("kosmosctl install coredns run error, serviceaccount options failed: %v", err)
+		}
+	}
+	klog.Infof("ServiceAccount %s has been created.", sa.Name)
+
+	klog.Info("Start creating kosmos-coredns ClusterRole...")
+	cRole, err := util.GenerateClusterRole(manifest.CorednsClusterRole, nil)
+	if err != nil {
+		return err
+	}
+	_, err = o.Client.RbacV1().ClusterRoles().Create(context.TODO(), cRole, metav1.CreateOptions{})
+	if err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return fmt.Errorf("kosmosctl install coredns run error, clusterrole options failed: %v", err)
+		}
+	}
+	klog.Infof("ClusterRole %s has been created.", cRole.Name)
+
+	klog.Info("Start creating kosmos-coredns ClusterRoleBinding...")
+	crb, err := util.GenerateClusterRoleBinding(manifest.CorednsClusterRoleBinding, manifest.ClusterRoleBindingReplace{
+		Namespace: o.Namespace,
+	})
+	if err != nil {
+		return err
+	}
+	_, err = o.Client.RbacV1().ClusterRoleBindings().Create(context.TODO(), crb, metav1.CreateOptions{})
+	if err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return fmt.Errorf("kosmosctl install coredns run error, clusterrolebinding options failed: %v", err)
+		}
+	}
+	klog.Infof("ClusterRoleBinding %s has been created.", crb.Name)
+
+	klog.Info("Start creating kosmos-coredns configmaps...")
+	coreFile, err := util.GenerateConfigMap(manifest.CorednsCorefile, manifest.ConfigmapReplace{
+		Namespace: o.Namespace,
+	})
+	if err != nil {
+		return err
+	}
+	_, err = o.Client.CoreV1().ConfigMaps(o.Namespace).Create(context.TODO(), coreFile, metav1.CreateOptions{})
+	if err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return fmt.Errorf("kosmosctl install coredns coreFile run error, configmap options failed: %v", err)
+		}
+	}
+	klog.Info("ConfigMap corefile has been created.")
+
+	customerHosts, err := util.GenerateConfigMap(manifest.CorednsCustomerHosts, manifest.ConfigmapReplace{
+		Namespace: o.Namespace,
+	})
+	if err != nil {
+		return err
+	}
+	_, err = o.Client.CoreV1().ConfigMaps(o.Namespace).Create(context.TODO(), customerHosts, metav1.CreateOptions{})
+	if err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return fmt.Errorf("kosmosctl install coredns customerHosts run error, configmap options failed: %v", err)
+		}
+	}
+	klog.Info("ConfigMap customerHosts has been created.")
+
+	klog.Info("Attempting to create coredns CRDs, coredns reuses clusterlink's cluster CRD")
+	crd, err := util.GenerateCustomResourceDefinition(manifest.ClusterlinkCluster, manifest.ClusterlinkReplace{
+		Namespace: o.Namespace,
+	})
+	if err != nil {
+		return err
+	}
+	_, err = o.ExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Create(context.Background(), crd, metav1.CreateOptions{})
+	if err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return fmt.Errorf("kosmosctl install coredns run error, crd options failed: %v", err)
+		}
+	}
+	klog.Infof("Create CRD %s successful.", crd.Name)
+
+	klog.Info("Start creating kosmos-coredns Deployment...")
+	deploy, err := util.GenerateDeployment(manifest.CorednsDeployment, manifest.DeploymentReplace{
+		Namespace:       o.Namespace,
+		ImageRepository: o.ImageRegistry,
+	})
+	if err != nil {
+		return err
+	}
+	_, err = o.Client.AppsV1().Deployments(o.Namespace).Create(context.Background(), deploy, metav1.CreateOptions{})
+	if err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return fmt.Errorf("kosmosctl install coredns run error, deployment options failed: %v", err)
+		}
+	}
+	if err = util.WaitDeploymentReady(o.Client, deploy, o.WaitTime); err != nil {
+		return fmt.Errorf("kosmosctl install coredns run error, deployment options failed: %v", err)
+	} else {
+		klog.Info("Deployment coredns has been created.")
+	}
+
+	klog.Info("Attempting to create coredns service...")
+	svc, err := util.GenerateService(manifest.CorednsService, manifest.ServiceReplace{
+		Namespace: o.Namespace,
+	})
+	if err != nil {
+		return err
+	}
+	_, err = o.Client.CoreV1().Services(o.Namespace).Create(context.Background(), svc, metav1.CreateOptions{})
+	if err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return fmt.Errorf("kosmosctl install coredns run error, service options failed: %v", err)
+		}
+	}
+	klog.Infof("Create service %s successful.", svc.Name)
 
 	return nil
 }

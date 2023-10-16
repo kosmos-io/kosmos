@@ -63,6 +63,21 @@ subjects:
     name: clustertree-knode-manager
     namespace: {{ .Namespace }}
 `
+
+	CorednsClusterRoleBinding = `
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kosmos-coredns
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kosmos-coredns
+subjects:
+  - kind: ServiceAccount
+    name: coredns
+    namespace: {{ .Namespace }}
+`
 )
 
 type ClusterRoleBindingReplace struct {

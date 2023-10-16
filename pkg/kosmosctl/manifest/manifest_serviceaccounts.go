@@ -32,6 +32,14 @@ metadata:
   name: clustertree-knode-manager
   namespace: {{ .Namespace }}
 `
+
+	CorednsServiceAccount = `
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: coredns
+  namespace: {{ .Namespace }}
+`
 )
 
 type ServiceAccountReplace struct {
