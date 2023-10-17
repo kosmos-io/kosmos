@@ -20,12 +20,20 @@ func (c *FakeKosmosV1alpha1) ClusterNodes() v1alpha1.ClusterNodeInterface {
 	return &FakeClusterNodes{c}
 }
 
+func (c *FakeKosmosV1alpha1) DaemonSets(namespace string) v1alpha1.DaemonSetInterface {
+	return &FakeDaemonSets{c, namespace}
+}
+
 func (c *FakeKosmosV1alpha1) Knodes() v1alpha1.KnodeInterface {
 	return &FakeKnodes{c}
 }
 
 func (c *FakeKosmosV1alpha1) NodeConfigs() v1alpha1.NodeConfigInterface {
 	return &FakeNodeConfigs{c}
+}
+
+func (c *FakeKosmosV1alpha1) ShadowDaemonSets(namespace string) v1alpha1.ShadowDaemonSetInterface {
+	return &FakeShadowDaemonSets{c, namespace}
 }
 
 // RESTClient returns a RESTClient that is used to communicate

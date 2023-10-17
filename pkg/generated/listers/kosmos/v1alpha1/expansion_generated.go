@@ -10,6 +10,14 @@ type ClusterListerExpansion interface{}
 // ClusterNodeLister.
 type ClusterNodeListerExpansion interface{}
 
+// DaemonSetListerExpansion allows custom methods to be added to
+// DaemonSetLister.
+type DaemonSetListerExpansion interface{}
+
+// DaemonSetNamespaceListerExpansion allows custom methods to be added to
+// DaemonSetNamespaceLister.
+type DaemonSetNamespaceListerExpansion interface{}
+
 // KnodeListerExpansion allows custom methods to be added to
 // KnodeLister.
 type KnodeListerExpansion interface{}
@@ -17,3 +25,11 @@ type KnodeListerExpansion interface{}
 // NodeConfigListerExpansion allows custom methods to be added to
 // NodeConfigLister.
 type NodeConfigListerExpansion interface{}
+
+// ShadowDaemonSetListerExpansion allows custom methods to be added to
+// ShadowDaemonSetLister.
+type ShadowDaemonSetListerExpansion interface{}
+
+// ShadowDaemonSetNamespaceListerExpansion allows custom methods to be added to
+// ShadowDaemonSetNamespaceLister.
+type ShadowDaemonSetNamespaceListerExpansion interface{}
