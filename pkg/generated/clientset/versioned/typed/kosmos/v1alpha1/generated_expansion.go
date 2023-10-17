@@ -6,6 +6,10 @@ type ClusterExpansion interface{}
 
 type ClusterNodeExpansion interface{}
 
+type DaemonSetExpansion interface{}
+
 type KnodeExpansion interface{}
 
 type NodeConfigExpansion interface{}
+
+type ShadowDaemonSetExpansion interface{}
