@@ -11,9 +11,9 @@ COPY ${TARGETPLATFORM}/certificate /bin/certificate/
 
 COPY ${TARGETPLATFORM}/${BINARY} /bin/${BINARY}
 
+
 RUN adduser -D -g clusterlink -u 1002 clusterlink && \
     chown -R clusterlink:clusterlink /bin/certificate && \
-    chown -R clusterlink:clusterlink /bin/${BINARY} && \
-    chmod u+s /bin/ping
+    chown -R clusterlink:clusterlink /bin/${BINARY}
 
 USER clusterlink
