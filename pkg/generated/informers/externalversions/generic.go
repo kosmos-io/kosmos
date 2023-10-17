@@ -42,10 +42,14 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Kosmos().V1alpha1().Clusters().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("clusternodes"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Kosmos().V1alpha1().ClusterNodes().Informer()}, nil
+	case v1alpha1.SchemeGroupVersion.WithResource("daemonsets"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Kosmos().V1alpha1().DaemonSets().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("knodes"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Kosmos().V1alpha1().Knodes().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("nodeconfigs"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Kosmos().V1alpha1().NodeConfigs().Informer()}, nil
+	case v1alpha1.SchemeGroupVersion.WithResource("shadowdaemonsets"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Kosmos().V1alpha1().ShadowDaemonSets().Informer()}, nil
 
 		// Group=multicluster.x-k8s.io, Version=v1alpha1
 	case apisv1alpha1.SchemeGroupVersion.WithResource("serviceexports"):

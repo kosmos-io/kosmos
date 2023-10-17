@@ -14,8 +14,10 @@ type KosmosV1alpha1Interface interface {
 	RESTClient() rest.Interface
 	ClustersGetter
 	ClusterNodesGetter
+	DaemonSetsGetter
 	KnodesGetter
 	NodeConfigsGetter
+	ShadowDaemonSetsGetter
 }
 
 // KosmosV1alpha1Client is used to interact with features provided by the kosmos.io group.
@@ -31,12 +33,20 @@ func (c *KosmosV1alpha1Client) ClusterNodes() ClusterNodeInterface {
 	return newClusterNodes(c)
 }
 
+func (c *KosmosV1alpha1Client) DaemonSets(namespace string) DaemonSetInterface {
+	return newDaemonSets(c, namespace)
+}
+
 func (c *KosmosV1alpha1Client) Knodes() KnodeInterface {
 	return newKnodes(c)
 }
 
 func (c *KosmosV1alpha1Client) NodeConfigs() NodeConfigInterface {
 	return newNodeConfigs(c)
+}
+
+func (c *KosmosV1alpha1Client) ShadowDaemonSets(namespace string) ShadowDaemonSetInterface {
+	return newShadowDaemonSets(c, namespace)
 }
 
 // NewForConfig creates a new KosmosV1alpha1Client for the given config.

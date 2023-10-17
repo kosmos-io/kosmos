@@ -91,6 +91,14 @@ informer-gen \
   --output-base="${REPO_ROOT}" \
   --output-package=github.com/kosmos.io/kosmos/pkg/generated/informers
 
+echo "Generating with default-gen"
+GO111MODULE=on go install k8s.io/code-generator/cmd/defaulter-gen
+defaulter-gen \
+  --go-header-file hack/boilerplate/boilerplate.go.txt \
+  --input-dirs=github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1 \
+  --output-base="${REPO_ROOT}" \
+  --output-package=github.com/kosmos.io/kosmos/pkg/generated/default
+
 echo "Generating with openapi-gen"
 GO111MODULE=on go install k8s.io/code-generator/cmd/openapi-gen
 openapi-gen \
