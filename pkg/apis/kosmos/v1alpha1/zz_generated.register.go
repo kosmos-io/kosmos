@@ -46,11 +46,15 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&ClusterList{},
 		&ClusterNode{},
 		&ClusterNodeList{},
+		&DaemonSet{},
+		&DaemonSetList{},
 		&Knode{},
 		&KnodeList{},
 		&NodeConfig{},
 		&NodeConfigList{},
 		&Proxy{},
+		&ShadowDaemonSet{},
+		&ShadowDaemonSetList{},
 	)
 	// AddToGroupVersion allows the serialization of client types like ListOptions.
 	v1.AddToGroupVersion(scheme, SchemeGroupVersion)

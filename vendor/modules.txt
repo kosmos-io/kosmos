@@ -68,7 +68,6 @@ github.com/evanphx/json-patch/v5
 github.com/exponent-io/jsonpath
 # github.com/fatih/camelcase v1.0.0
 ## explicit
-github.com/fatih/camelcase
 # github.com/felixge/httpsnoop v1.0.3
 ## explicit; go 1.13
 github.com/felixge/httpsnoop
@@ -1328,7 +1327,6 @@ k8s.io/client-go/tools/watch
 k8s.io/client-go/transport
 k8s.io/client-go/transport/spdy
 k8s.io/client-go/util/cert
-k8s.io/client-go/util/certificate/csr
 k8s.io/client-go/util/connrotation
 k8s.io/client-go/util/exec
 k8s.io/client-go/util/flowcontrol
@@ -1481,32 +1479,15 @@ k8s.io/kube-scheduler/config/v1beta3
 k8s.io/kube-scheduler/extender/v1
 # k8s.io/kubectl v0.26.3 => k8s.io/kubectl v0.26.3
 ## explicit; go 1.19
-k8s.io/kubectl/pkg/apps
-k8s.io/kubectl/pkg/cmd/apiresources
-k8s.io/kubectl/pkg/cmd/delete
 k8s.io/kubectl/pkg/cmd/get
 k8s.io/kubectl/pkg/cmd/util
-k8s.io/kubectl/pkg/cmd/util/podcmd
-k8s.io/kubectl/pkg/cmd/wait
-k8s.io/kubectl/pkg/describe
-k8s.io/kubectl/pkg/polymorphichelpers
 k8s.io/kubectl/pkg/rawhttp
 k8s.io/kubectl/pkg/scheme
-k8s.io/kubectl/pkg/util/certificate
-k8s.io/kubectl/pkg/util/completion
-k8s.io/kubectl/pkg/util/deployment
-k8s.io/kubectl/pkg/util/event
-k8s.io/kubectl/pkg/util/fieldpath
 k8s.io/kubectl/pkg/util/i18n
 k8s.io/kubectl/pkg/util/interrupt
 k8s.io/kubectl/pkg/util/openapi
 k8s.io/kubectl/pkg/util/openapi/validation
-k8s.io/kubectl/pkg/util/podutils
-k8s.io/kubectl/pkg/util/qos
-k8s.io/kubectl/pkg/util/rbac
-k8s.io/kubectl/pkg/util/resource
 k8s.io/kubectl/pkg/util/slice
-k8s.io/kubectl/pkg/util/storage
 k8s.io/kubectl/pkg/util/templates
 k8s.io/kubectl/pkg/util/term
 k8s.io/kubectl/pkg/validation
@@ -1523,12 +1504,15 @@ k8s.io/kubernetes/pkg/apis/apps
 k8s.io/kubernetes/pkg/apis/autoscaling
 k8s.io/kubernetes/pkg/apis/core
 k8s.io/kubernetes/pkg/apis/core/helper
+k8s.io/kubernetes/pkg/apis/core/install
 k8s.io/kubernetes/pkg/apis/core/pods
 k8s.io/kubernetes/pkg/apis/core/v1
 k8s.io/kubernetes/pkg/apis/core/v1/helper
 k8s.io/kubernetes/pkg/apis/core/validation
 k8s.io/kubernetes/pkg/capabilities
 k8s.io/kubernetes/pkg/cluster/ports
+k8s.io/kubernetes/pkg/controller
+k8s.io/kubernetes/pkg/controller/daemon/util
 k8s.io/kubernetes/pkg/features
 k8s.io/kubernetes/pkg/fieldpath
 k8s.io/kubernetes/pkg/kubelet/server/metrics
@@ -1578,7 +1562,10 @@ k8s.io/kubernetes/pkg/scheduler/metrics/resources
 k8s.io/kubernetes/pkg/scheduler/profile
 k8s.io/kubernetes/pkg/scheduler/util
 k8s.io/kubernetes/pkg/securitycontext
+k8s.io/kubernetes/pkg/util/hash
+k8s.io/kubernetes/pkg/util/labels
 k8s.io/kubernetes/pkg/util/parsers
+k8s.io/kubernetes/pkg/util/taints
 k8s.io/kubernetes/pkg/volume
 k8s.io/kubernetes/pkg/volume/util
 k8s.io/kubernetes/pkg/volume/util/fs
