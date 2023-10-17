@@ -48,6 +48,7 @@ func NewNodeAdapter(ctx context.Context, cr *kosmosv1alpha1.Knode, ac *AdapterCo
 		stopCh:           ctx.Done(),
 		clientNodeLister: ac.NodeInformer.Lister(),
 		clientPodLister:  ac.PodInformer.Lister(),
+		updatedNode:      make(chan *corev1.Node, 10),
 	}
 
 	_, err := ac.NodeInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
