@@ -1,5 +1,5 @@
 /*
-Copyright 2017 The Kubernetes Authors.
+Copyright 2019 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,18 +14,27 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// This code is directly lifted from the Kubernetes codebase in order to avoid relying on the k8s.io/kubernetes package.
+// This code is lifted from the Kubernetes codebase and make some slight modifications in order to avoid relying on the k8s.io/kubernetes package.
 // For reference:
-//https://github.com/kubernetes/component-helpers/blob/master/scheduling/corev1/helpers.go
+//https://github.com/kubernetes/component-helpers/blob/release-1.26/scheduling/corev1/helpers.go
 
 package helpers
 
 import v1 "k8s.io/api/core/v1"
 
 var KnodeTaint = &v1.Taint{
-	Key:    "knode.kosmos.io",
+	Key:    "kosmos.io/node",
 	Value:  "true",
 	Effect: v1.TaintEffectNoSchedule,
+}
+
+func HasKnodeTaint(node *v1.Node) bool {
+	for _, taint := range node.Spec.Taints {
+		if taint.Key == KnodeTaint.Key && taint.Value == KnodeTaint.Value && taint.Effect == KnodeTaint.Effect {
+			return true
+		}
+	}
+	return false
 }
 
 // TolerationsTolerateTaint checks if taint is tolerated by any of the tolerations.

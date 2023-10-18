@@ -40,27 +40,27 @@ create_gopath_tree "${REPO_ROOT}" "${link_path}"
 
 deepcopy-gen \
   --go-header-file hack/boilerplate/boilerplate.go.txt \
-  --input-dirs=github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1 \
+  --input-dirs="github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1,github.com/kosmos.io/kosmos/pkg/apis/config,github.com/kosmos.io/kosmos/pkg/apis/config/v1" \
   --output-base="${REPO_ROOT}" \
-  --output-package=pkg/apis/kosmos/v1alpha1 \
+  --output-package="pkg/apis/kosmos/v1alpha1,pkg/apis/config,pkg/apis/config/v1" \
   --output-file-base=zz_generated.deepcopy
 
 echo "Generating with register-gen"
 GO111MODULE=on go install k8s.io/code-generator/cmd/register-gen
 register-gen \
   --go-header-file hack/boilerplate/boilerplate.go.txt \
-  --input-dirs=github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1 \
+  --input-dirs="github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1" \
   --output-base="${REPO_ROOT}" \
-  --output-package=pkg/apis/kosmos/v1alpha1 \
+  --output-package="pkg/apis/kosmos/v1alpha1" \
   --output-file-base=zz_generated.register
 
 echo "Generating with conversion-gen"
 GO111MODULE=on go install k8s.io/code-generator/cmd/conversion-gen
 conversion-gen \
   --go-header-file hack/boilerplate/boilerplate.go.txt \
-  --input-dirs=github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1 \
+  --input-dirs="github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1,github.com/kosmos.io/kosmos/pkg/apis/config/v1" \
   --output-base="${REPO_ROOT}" \
-  --output-package=github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1 \
+  --output-package="github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1,pkg/apis/config/v1" \
   --output-file-base=zz_generated.conversion
 
 echo "Generating with client-gen"
@@ -72,6 +72,15 @@ client-gen \
   --output-base="${REPO_ROOT}" \
   --output-package=github.com/kosmos.io/kosmos/pkg/generated/clientset \
   --clientset-name=versioned
+
+echo "Generating with defaults-gen"
+GO111MODULE=on go install k8s.io/code-generator/cmd/defaulter-gen
+defaulter-gen \
+  --go-header-file hack/boilerplate/boilerplate.go.txt \
+  --input-dirs="github.com/kosmos.io/kosmos/pkg/apis/config/v1" \
+  --output-base="${REPO_ROOT}" \
+  --output-package="pkg/apis/config/v1" \
+  --output-file-base=zz_generated.defaults
 
 echo "Generating with lister-gen"
 GO111MODULE=on go install k8s.io/code-generator/cmd/lister-gen
