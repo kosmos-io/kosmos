@@ -41,11 +41,23 @@ rules:
 `
 
 	ClusterTreeKnodeManagerClusterRole = `
----
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: clustertree-knode-manager
+rules:
+  - apiGroups: ['*']
+    resources: ['*']
+    verbs: ["*"]
+  - nonResourceURLs: ['*']
+    verbs: ["get"]
+`
+
+	CorednsClusterRole = `
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kosmos-coredns
 rules:
   - apiGroups: ['*']
     resources: ['*']

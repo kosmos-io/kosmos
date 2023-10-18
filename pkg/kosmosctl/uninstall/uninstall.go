@@ -104,6 +104,11 @@ func (o *CommandUninstallOptions) Validate() error {
 func (o *CommandUninstallOptions) Run() error {
 	klog.Info("Kosmos starts uninstalling.")
 	switch o.Module {
+	case "coredns":
+		err := o.runCoredns()
+		if err != nil {
+			return err
+		}
 	case "clusterlink":
 		err := o.runClusterlink()
 		if err != nil {
@@ -262,7 +267,7 @@ func (o *CommandUninstallOptions) runClustertree() error {
 
 	err = o.Client.CoreV1().ConfigMaps(utils.DefaultNamespace).Delete(context.TODO(), utils.HostKubeConfigName, metav1.DeleteOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
-		return fmt.Errorf("kosmosctl uninstall clusterrouter run error, configmap options failed: %v", err)
+		return fmt.Errorf("kosmosctl uninstall clustertree run error, configmap options failed: %v", err)
 	}
 	klog.Info("ConfigMap " + utils.HostKubeConfigName + " is deleted.")
 
@@ -297,5 +302,98 @@ func (o *CommandUninstallOptions) runClustertree() error {
 	klog.Info("ServiceAccount " + clustertreeServiceAccount.Name + " is deleted.")
 
 	klog.Info("Clustertree was uninstalled.")
+	return nil
+}
+
+func (o *CommandUninstallOptions) runCoredns() error {
+	klog.Info("Start uninstalling coredns ...")
+	deploy, err := util.GenerateDeployment(manifest.CorednsDeployment, nil)
+	if err != nil {
+		return err
+	}
+	err = o.Client.AppsV1().Deployments(o.Namespace).Delete(context.Background(), deploy.Name, metav1.DeleteOptions{})
+	if err != nil && !apierrors.IsNotFound(err) {
+		return fmt.Errorf("kosmosctl uninstall coredns run error, deployment options failed: %v", err)
+	}
+	klog.Infof("Deployment %s is deleted.", deploy.Name)
+
+	svc, err := util.GenerateService(manifest.CorednsService, nil)
+	if err != nil {
+		return err
+	}
+	err = o.Client.CoreV1().Services(o.Namespace).Delete(context.TODO(), svc.Name, metav1.DeleteOptions{})
+	if err != nil && !apierrors.IsNotFound(err) {
+		return fmt.Errorf("kosmosctl uninstall coredns run error, service options failed: %v", err)
+	}
+	klog.Info("Service " + svc.Name + " is deleted.")
+
+	coreFile, err := util.GenerateConfigMap(manifest.CorednsCorefile, nil)
+	if err != nil {
+		return err
+	}
+	err = o.Client.CoreV1().ConfigMaps(o.Namespace).Delete(context.TODO(), coreFile.Name, metav1.DeleteOptions{})
+	if err != nil && !apierrors.IsNotFound(err) {
+		return fmt.Errorf("kosmosctl uninstall coredns run error, configmap options failed: %v", err)
+	}
+	klog.Info("Configmap " + svc.Name + " is deleted.")
+
+	customerHosts, err := util.GenerateConfigMap(manifest.CorednsCustomerHosts, nil)
+	if err != nil {
+		return err
+	}
+	err = o.Client.CoreV1().ConfigMaps(o.Namespace).Delete(context.TODO(), customerHosts.Name, metav1.DeleteOptions{})
+	if err != nil && !apierrors.IsNotFound(err) {
+		return fmt.Errorf("kosmosctl uninstall coredns run error, configmap options failed: %v", err)
+	}
+	klog.Info("Configmap " + svc.Name + " is deleted.")
+
+	clusters, err := o.DynamicClient.Resource(util.ClusterGVR).List(context.TODO(), metav1.ListOptions{})
+	if err != nil && !apierrors.IsNotFound(err) {
+		return fmt.Errorf("kosmosctl uninstall coredns run error, list cluster failed: %v", err)
+	} else if len(clusters.Items) > 0 {
+		klog.Info("kosmosctl uninstall warning, skip removing cluster crd because cr instance exists")
+	} else {
+		clusterCRD, _ := util.GenerateCustomResourceDefinition(manifest.ClusterlinkCluster, nil)
+		if err != nil {
+			return err
+		}
+		err = o.ExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Delete(context.Background(), clusterCRD.Name, metav1.DeleteOptions{})
+		if err != nil && !apierrors.IsNotFound(err) {
+			return fmt.Errorf("kosmosctl uninstall coredns run error, cluster crd delete failed: %v", err)
+		}
+		klog.Infof("CRD %s is deleted.", clusterCRD.Name)
+	}
+
+	crb, err := util.GenerateClusterRoleBinding(manifest.CorednsClusterRoleBinding, nil)
+	if err != nil {
+		return err
+	}
+	err = o.Client.RbacV1().ClusterRoleBindings().Delete(context.TODO(), crb.Name, metav1.DeleteOptions{})
+	if err != nil && !apierrors.IsNotFound(err) {
+		return fmt.Errorf("kosmosctl uninstall coredns run error, clusterrolebinding options failed: %v", err)
+	}
+	klog.Info("ClusterRoleBinding " + crb.Name + " is deleted.")
+
+	cRole, err := util.GenerateClusterRole(manifest.CorednsClusterRole, nil)
+	if err != nil {
+		return err
+	}
+	err = o.Client.RbacV1().ClusterRoles().Delete(context.TODO(), cRole.Name, metav1.DeleteOptions{})
+	if err != nil && !apierrors.IsNotFound(err) {
+		return fmt.Errorf("kosmosctl install coredns run error, clusterrole options failed: %v", err)
+	}
+	klog.Info("ClusterRole " + cRole.Name + " is deleted.")
+
+	sa, err := util.GenerateServiceAccount(manifest.CorednsServiceAccount, nil)
+	if err != nil {
+		return err
+	}
+	err = o.Client.CoreV1().ServiceAccounts(o.Namespace).Delete(context.TODO(), sa.Name, metav1.DeleteOptions{})
+	if err != nil && !apierrors.IsNotFound(err) {
+		return fmt.Errorf("kosmosctl uninstall coredns run error, serviceaccount options failed: %v", err)
+	}
+	klog.Info("ServiceAccount " + sa.Name + " is deleted.")
+
+	klog.Info("Coredns was uninstalled.")
 	return nil
 }
