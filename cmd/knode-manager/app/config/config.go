@@ -39,7 +39,7 @@ type Opts struct {
 
 	NodeName string
 
-	Plugin           string
+	Adapter          string
 	PluginConfigPath string
 
 	TaintKey     string

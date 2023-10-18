@@ -21,7 +21,7 @@ const (
 var (
 	buildVersion    = "N/A"
 	numberOfWorkers = 50
-	pluginName      = "k8s"
+	adapterName     = "k8s"
 )
 
 type Options struct {
@@ -51,9 +51,9 @@ func NewKosmosNodeOptions() (*Options, error) {
 	if err != nil {
 		panic(err)
 	}
-	o.Plugin = pluginName
+	o.Adapter = adapterName
 	o.PodSyncWorkers = numberOfWorkers
-	o.Version = strings.Join([]string{pluginName, buildVersion}, "-")
+	o.Version = strings.Join([]string{adapterName, buildVersion}, "-")
 
 	options.Opts = o
 
@@ -88,7 +88,7 @@ func (o *Options) Flags() cliflag.NamedFlagSets {
 	fs.StringVar(&o.Opts.KubeNamespace, "namespace", o.Opts.KubeNamespace, "kubernetes namespace (default is 'all')")
 	fs.StringVar(&o.Opts.KubeClusterDomain, "cluster-domain", o.Opts.KubeClusterDomain, "kubernetes cluster-domain (default is 'cluster.local')")
 	fs.StringVar(&o.Opts.NodeName, "nodename", o.Opts.NodeName, "kubernetes node name")
-	fs.StringVar(&o.Opts.Plugin, "plugin", o.Opts.Plugin, "plugin type")
+	fs.StringVar(&o.Opts.Adapter, "adapter", o.Opts.Adapter, "adapter type")
 	fs.StringVar(&o.Opts.PluginConfigPath, "plugin-config", o.Opts.PluginConfigPath, "plugin configuration file")
 
 	fs.DurationVar(&o.Opts.InformerResyncPeriod, "full-resync-period", o.Opts.InformerResyncPeriod, "how often to perform a full resync of pods between kubernetes and knode")
