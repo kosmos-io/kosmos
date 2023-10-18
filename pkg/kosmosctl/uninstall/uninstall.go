@@ -129,7 +129,7 @@ func (o *CommandUninstallOptions) Run() error {
 			return err
 		}
 		err = o.Client.CoreV1().Namespaces().Delete(context.TODO(), o.Namespace, metav1.DeleteOptions{})
-		if err != nil {
+		if err != nil && !apierrors.IsNotFound(err) {
 			return fmt.Errorf("kosmosctl uninstall all module run error, namespace options failed: %v", err)
 		}
 	}
@@ -144,19 +144,24 @@ func (o *CommandUninstallOptions) runClusterlink() error {
 		return err
 	}
 	err = o.Client.AppsV1().Deployments(o.Namespace).Delete(context.Background(), clusterlinkDeployment.Name, metav1.DeleteOptions{})
-	if err != nil && !apierrors.IsNotFound(err) {
-		return fmt.Errorf("kosmosctl uninstall clusterlink run error, deployment options failed: %v", err)
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return fmt.Errorf("kosmosctl uninstall clusterlink run error, deployment options failed: %v", err)
+		}
+	} else {
+		klog.Info("Deployment " + clusterlinkDeployment.Name + " is deleted.")
 	}
-	klog.Info("Deployment " + clusterlinkDeployment.Name + " is deleted.")
 
 	var clusters, clusternodes, nodeconfigs *unstructured.UnstructuredList
 	clusters, err = o.DynamicClient.Resource(util.ClusterGVR).List(context.TODO(), metav1.ListOptions{})
-	if err != nil && !apierrors.IsNotFound(err) {
-		return fmt.Errorf("kosmosctl uninstall clusterlink run error, list cluster failed: %v", err)
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return fmt.Errorf("kosmosctl uninstall clusterlink run error, list cluster failed: %v", err)
+		}
 	} else if clusters != nil && len(clusters.Items) > 0 {
 		klog.Info("kosmosctl uninstall warning, skip removing cluster crd because cr instance exists")
 	} else {
-		clusterCRD, _ := util.GenerateCustomResourceDefinition(manifest.ClusterlinkCluster, nil)
+		clusterCRD, err := util.GenerateCustomResourceDefinition(manifest.ClusterlinkCluster, nil)
 		if err != nil {
 			return err
 		}
@@ -168,12 +173,14 @@ func (o *CommandUninstallOptions) runClusterlink() error {
 	}
 
 	clusternodes, err = o.DynamicClient.Resource(util.ClusterNodeGVR).List(context.TODO(), metav1.ListOptions{})
-	if err != nil && !apierrors.IsNotFound(err) {
-		return fmt.Errorf("kosmosctl uninstall clusterlink run error, list clusternode failed: %v", err)
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return fmt.Errorf("kosmosctl uninstall clusterlink run error, list clusternode failed: %v", err)
+		}
 	} else if clusternodes != nil && len(clusternodes.Items) > 0 {
 		klog.Info("kosmosctl uninstall warning, skip removing clusternode crd because cr instance exists")
 	} else {
-		clusternodeCRD, _ := util.GenerateCustomResourceDefinition(manifest.ClusterlinkClusterNode, nil)
+		clusternodeCRD, err := util.GenerateCustomResourceDefinition(manifest.ClusterlinkClusterNode, nil)
 		if err != nil {
 			return err
 		}
@@ -185,12 +192,14 @@ func (o *CommandUninstallOptions) runClusterlink() error {
 	}
 
 	nodeconfigs, err = o.DynamicClient.Resource(util.NodeConfigGVR).List(context.TODO(), metav1.ListOptions{})
-	if err != nil && !apierrors.IsNotFound(err) {
-		return fmt.Errorf("kosmosctl uninstall clusterlink run error, list nodeconfig failed: %v", err)
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return fmt.Errorf("kosmosctl uninstall clusterlink run error, list nodeconfig failed: %v", err)
+		}
 	} else if nodeconfigs != nil && len(nodeconfigs.Items) > 0 {
 		klog.Info("kosmosctl uninstall warning, skip removing nodeconfig crd because cr instance exists")
 	} else {
-		nodeConfigCRD, _ := util.GenerateCustomResourceDefinition(manifest.ClusterlinkNodeConfig, nil)
+		nodeConfigCRD, err := util.GenerateCustomResourceDefinition(manifest.ClusterlinkNodeConfig, nil)
 		if err != nil {
 			return err
 		}
@@ -206,32 +215,41 @@ func (o *CommandUninstallOptions) runClusterlink() error {
 		return err
 	}
 	err = o.Client.RbacV1().ClusterRoleBindings().Delete(context.TODO(), clusterlinkClusterRoleBinding.Name, metav1.DeleteOptions{})
-	if err != nil && !apierrors.IsNotFound(err) {
-		return fmt.Errorf("kosmosctl uninstall clusterlink run error, clusterrolebinding options failed: %v", err)
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return fmt.Errorf("kosmosctl uninstall clusterlink run error, clusterrolebinding options failed: %v", err)
+		}
+	} else {
+		klog.Info("ClusterRoleBinding " + clusterlinkClusterRoleBinding.Name + " is deleted.")
 	}
-	klog.Info("ClusterRoleBinding " + clusterlinkClusterRoleBinding.Name + " is deleted.")
 
 	clusterlinkClusterRole, err := util.GenerateClusterRole(manifest.ClusterlinkNetworkManagerClusterRole, nil)
 	if err != nil {
 		return err
 	}
 	err = o.Client.RbacV1().ClusterRoles().Delete(context.TODO(), clusterlinkClusterRole.Name, metav1.DeleteOptions{})
-	if err != nil && !apierrors.IsNotFound(err) {
-		return fmt.Errorf("kosmosctl install clusterlink run error, clusterrole options failed: %v", err)
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return fmt.Errorf("kosmosctl install clusterlink run error, clusterrole options failed: %v", err)
+		}
+	} else {
+		klog.Info("ClusterRole " + clusterlinkClusterRole.Name + " is deleted.")
 	}
-	klog.Info("ClusterRole " + clusterlinkClusterRole.Name + " is deleted.")
 
 	clusterlinkServiceAccount, err := util.GenerateServiceAccount(manifest.ClusterlinkNetworkManagerServiceAccount, nil)
 	if err != nil {
 		return err
 	}
 	err = o.Client.CoreV1().ServiceAccounts(o.Namespace).Delete(context.TODO(), clusterlinkServiceAccount.Name, metav1.DeleteOptions{})
-	if err != nil && !apierrors.IsNotFound(err) {
-		return fmt.Errorf("kosmosctl uninstall clusterlink run error, serviceaccount options failed: %v", err)
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return fmt.Errorf("kosmosctl uninstall clusterlink run error, serviceaccount options failed: %v", err)
+		}
+	} else {
+		klog.Info("ServiceAccount " + clusterlinkServiceAccount.Name + " is deleted.")
 	}
-	klog.Info("ServiceAccount " + clusterlinkServiceAccount.Name + " is deleted.")
 
-	klog.Info("Clusterlink was uninstalled.")
+	klog.Info("Clusterlink uninstalled.")
 	return nil
 }
 
@@ -242,19 +260,24 @@ func (o *CommandUninstallOptions) runClustertree() error {
 		return err
 	}
 	err = o.Client.AppsV1().Deployments(o.Namespace).Delete(context.Background(), clustertreeDeployment.Name, metav1.DeleteOptions{})
-	if err != nil && !apierrors.IsNotFound(err) {
-		return fmt.Errorf("kosmosctl uninstall clustertree run error, deployment options failed: %v", err)
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return fmt.Errorf("kosmosctl uninstall clustertree run error, deployment options failed: %v", err)
+		}
+	} else {
+		klog.Info("Deployment " + clustertreeDeployment.Name + " is deleted.")
 	}
-	klog.Info("Deployment " + clustertreeDeployment.Name + " is deleted.")
 
 	var knodes *unstructured.UnstructuredList
 	knodes, err = o.DynamicClient.Resource(util.KnodeGVR).List(context.TODO(), metav1.ListOptions{})
-	if err != nil && !apierrors.IsNotFound(err) {
-		return fmt.Errorf("kosmosctl uninstall clustertree run error, list knode failed: %v", err)
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return fmt.Errorf("kosmosctl uninstall clustertree run error, list knode failed: %v", err)
+		}
 	} else if knodes != nil && len(knodes.Items) > 0 {
 		klog.Info("kosmosctl uninstall warning, skip removing knode crd because cr instance exists")
 	} else {
-		knodeCRD, _ := util.GenerateCustomResourceDefinition(manifest.ClusterTreeKnode, nil)
+		knodeCRD, err := util.GenerateCustomResourceDefinition(manifest.ClusterTreeKnode, nil)
 		if err != nil {
 			return err
 		}
@@ -266,42 +289,54 @@ func (o *CommandUninstallOptions) runClustertree() error {
 	}
 
 	err = o.Client.CoreV1().ConfigMaps(utils.DefaultNamespace).Delete(context.TODO(), utils.HostKubeConfigName, metav1.DeleteOptions{})
-	if err != nil && !apierrors.IsNotFound(err) {
-		return fmt.Errorf("kosmosctl uninstall clustertree run error, configmap options failed: %v", err)
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return fmt.Errorf("kosmosctl uninstall clustertree run error, configmap options failed: %v", err)
+		}
+	} else {
+		klog.Info("ConfigMap " + utils.HostKubeConfigName + " is deleted.")
 	}
-	klog.Info("ConfigMap " + utils.HostKubeConfigName + " is deleted.")
 
 	clustertreeClusterRoleBinding, err := util.GenerateClusterRoleBinding(manifest.ClusterTreeKnodeManagerClusterRoleBinding, nil)
 	if err != nil {
 		return err
 	}
 	err = o.Client.RbacV1().ClusterRoleBindings().Delete(context.TODO(), clustertreeClusterRoleBinding.Name, metav1.DeleteOptions{})
-	if err != nil && !apierrors.IsNotFound(err) {
-		return fmt.Errorf("kosmosctl uninstall clustertree run error, clusterrolebinding options failed: %v", err)
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return fmt.Errorf("kosmosctl uninstall clustertree run error, clusterrolebinding options failed: %v", err)
+		}
+	} else {
+		klog.Info("ClusterRoleBinding " + clustertreeClusterRoleBinding.Name + " is deleted.")
 	}
-	klog.Info("ClusterRoleBinding " + clustertreeClusterRoleBinding.Name + " is deleted.")
 
 	clustertreeClusterRole, err := util.GenerateClusterRole(manifest.ClusterTreeKnodeManagerClusterRole, nil)
 	if err != nil {
 		return err
 	}
 	err = o.Client.RbacV1().ClusterRoles().Delete(context.TODO(), clustertreeClusterRole.Name, metav1.DeleteOptions{})
-	if err != nil && !apierrors.IsNotFound(err) {
-		return fmt.Errorf("kosmosctl uninstall clustertree run error, clusterrole options failed: %v", err)
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return fmt.Errorf("kosmosctl uninstall clustertree run error, clusterrole options failed: %v", err)
+		}
+	} else {
+		klog.Info("ClusterRole " + clustertreeClusterRole.Name + " is deleted.")
 	}
-	klog.Info("ClusterRole " + clustertreeClusterRole.Name + " is deleted.")
 
 	clustertreeServiceAccount, err := util.GenerateServiceAccount(manifest.ClusterTreeKnodeManagerServiceAccount, nil)
 	if err != nil {
 		return err
 	}
 	err = o.Client.CoreV1().ServiceAccounts(o.Namespace).Delete(context.TODO(), clustertreeServiceAccount.Name, metav1.DeleteOptions{})
-	if err != nil && !apierrors.IsNotFound(err) {
-		return fmt.Errorf("kosmosctl install clustertree run error, serviceaccount options failed: %v", err)
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return fmt.Errorf("kosmosctl install clustertree run error, serviceaccount options failed: %v", err)
+		}
+	} else {
+		klog.Info("ServiceAccount " + clustertreeServiceAccount.Name + " is deleted.")
 	}
-	klog.Info("ServiceAccount " + clustertreeServiceAccount.Name + " is deleted.")
 
-	klog.Info("Clustertree was uninstalled.")
+	klog.Info("Clustertree uninstalled.")
 	return nil
 }
 
