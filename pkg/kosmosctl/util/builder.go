@@ -146,3 +146,36 @@ func parseTemplate(strTmpl string, obj interface{}) ([]byte, error) {
 	}
 	return buf.Bytes(), nil
 }
+
+func GenerateConfigMap(template string, obj interface{}) (*corev1.ConfigMap, error) {
+	bs, err := parseTemplate(template, obj)
+	if err != nil {
+		return nil, fmt.Errorf("kosmosctl parsing configmap template exception, error: %v", err)
+	} else if bs == nil {
+		return nil, fmt.Errorf("kosmosctl get configmap template exception, value is empty")
+	}
+
+	o := &corev1.ConfigMap{}
+
+	if err = runtime.DecodeInto(scheme.Codecs.UniversalDecoder(), bs, o); err != nil {
+		return nil, fmt.Errorf("kosmosctl decode configmap bytes error: %v", err)
+	}
+
+	return o, nil
+}
+
+func GenerateService(template string, obj interface{}) (*corev1.Service, error) {
+	bs, err := parseTemplate(template, obj)
+	if err != nil {
+		return nil, fmt.Errorf("kosmosctl parsing service template exception, error: %v", err)
+	} else if bs == nil {
+		return nil, fmt.Errorf("kosmosctl get service template exception, value is empty")
+	}
+
+	o := &corev1.Service{}
+
+	if err = runtime.DecodeInto(scheme.Codecs.UniversalDecoder(), bs, o); err != nil {
+		return nil, fmt.Errorf("kosmosctl decode service bytes error: %v", err)
+	}
+	return o, nil
+}
