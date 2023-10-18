@@ -34,6 +34,7 @@ const (
 	ServiceExportControllerName = "serviceexport-controller"
 )
 
+// ServiceExportController is to sync serviceExport and labeling the endpointSlice for handling by ServiceImport
 type ServiceExportController struct {
 	master                            kubernetes.Interface
 	kosmosMaster                      kosmosversioned.Interface
@@ -48,6 +49,7 @@ type ServiceExportController struct {
 	masterServiceExportQueue          workqueue.RateLimitingInterface
 }
 
+// NewServiceExportController create a new serviceExport controller
 func NewServiceExportController(master kubernetes.Interface, kosmosMaster kosmosversioned.Interface, masterInformer informers.SharedInformerFactory, kosmosMasterInformer kosmosinformer.SharedInformerFactory) (*ServiceExportController, error) {
 	c := &ServiceExportController{
 		master:                   master,

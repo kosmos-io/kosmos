@@ -34,15 +34,17 @@ import (
 )
 
 const (
-	ServiceKey                   = "kubernetes.io/service-name"
-	ServiceImportControllerName  = "serviceimport-controller"
-	ServiceExportLabelKey        = "kosmos.io/service-export"
-	ServiceImportLabelKey        = "kosmos.io/service-import"
-	MCSLabelValue                = "ture"
-	ConnectedEndpointSliceKey    = "kosmos.io/connected-endpointslices"
-	DisconnectedEndpointSliceKey = "kosmos.io/disconnected-endpointslices"
+	ServiceKey                  = "kubernetes.io/service-name"
+	ServiceImportControllerName = "serviceimport-controller"
+	ServiceExportLabelKey       = "kosmos.io/service-export"
+	ServiceImportLabelKey       = "kosmos.io/service-import"
+	MCSLabelValue               = "ture"
+	ConnectedEndpointsKey       = "kosmos.io/connected-address"
+	DisconnectedEndpointsKey    = "kosmos.io/disconnected-address"
 )
 
+// ServiceImportController is to sync serviceImport and synchronize labeled endpointSlices
+// and services to the member clusters according to ServiceImport
 type ServiceImportController struct {
 	client       kubernetes.Interface
 	kosmosClient kosmosversioned.Interface
@@ -63,6 +65,7 @@ type ServiceImportController struct {
 	masterEndpointSliceInformerSynced cache.InformerSynced
 }
 
+// NewServiceImportController create a new serviceImport controller
 func NewServiceImportController(client kubernetes.Interface, kosmosClient kosmosversioned.Interface, clientInformer, masterInformer informers.SharedInformerFactory, kosmosClientInformer kosmosinformer.SharedInformerFactory) (*ServiceImportController, error) {
 	c := &ServiceImportController{
 		client:                   client,
@@ -267,6 +270,10 @@ func (c *ServiceImportController) syncClientEndpointSlice() {
 		klog.V(3).Infof("EndpointSlice %/%s deleted", namespace, sliceName)
 	}
 
+	if !helper.HasAnnotation(masterSlice.ObjectMeta, ServiceExportLabelKey) {
+		needsCleanup = true
+	}
+
 	if needsCleanup || masterSlice.DeletionTimestamp != nil {
 		err := c.cleanupEndpointSliceInClient(namespace, sliceName)
 		if err != nil {
@@ -464,14 +471,32 @@ func (c *ServiceImportController) createOrUpdateServiceInClient(service *v1.Serv
 }
 
 func (c *ServiceImportController) importEndpointSliceHandler(endpointSlice *discoveryv1.EndpointSlice, serviceImport *mcsv1alpha1.ServiceImport) error {
-	if metav1.HasAnnotation(serviceImport.ObjectMeta, ConnectedEndpointSliceKey) || metav1.HasAnnotation(serviceImport.ObjectMeta, DisconnectedEndpointSliceKey) {
-		annotationValue := helper.GetLabelOrAnnotationValue(serviceImport.Annotations, ConnectedEndpointSliceKey)
-		connectedSlices := strings.Split(annotationValue, ",")
-		if !stringInSlice(endpointSlice.Name, connectedSlices) {
-			return nil
-		}
+	newEndpointSlice := endpointSlice.DeepCopy()
+	if metav1.HasAnnotation(serviceImport.ObjectMeta, ConnectedEndpointsKey) || metav1.HasAnnotation(serviceImport.ObjectMeta, DisconnectedEndpointsKey) {
+		annotationValue := helper.GetLabelOrAnnotationValue(serviceImport.Annotations, DisconnectedEndpointsKey)
+		disConnectedAddress := strings.Split(annotationValue, ",")
+		clearEndpointSlice(newEndpointSlice, disConnectedAddress)
 	}
-	return c.createOrUpdateEndpointSliceInClient(endpointSlice, serviceImport.Name)
+
+	return c.createOrUpdateEndpointSliceInClient(newEndpointSlice, serviceImport.Name)
+}
+
+func clearEndpointSlice(slice *discoveryv1.EndpointSlice, disconnectedAddress []string) {
+	disconnectedAddressMap := make(map[string]struct{})
+	for _, name := range disconnectedAddress {
+		disconnectedAddressMap[name] = struct{}{}
+	}
+
+	endpoints := slice.Endpoints
+	for i := range endpoints {
+		newAddresses := make([]string, 0)
+		for _, address := range endpoints[i].Addresses {
+			if _, found := disconnectedAddressMap[address]; !found {
+				newAddresses = append(newAddresses, address)
+			}
+		}
+		endpoints[i].Addresses = newAddresses
+	}
 }
 
 func (c *ServiceImportController) createOrUpdateEndpointSliceInClient(endpointSlice *discoveryv1.EndpointSlice, serviceName string) error {
@@ -481,6 +506,7 @@ func (c *ServiceImportController) createOrUpdateEndpointSliceInClient(endpointSl
 		if apierrors.IsAlreadyExists(err) {
 			err = c.updateEndpointSlice(newSlice, c.client)
 			if err != nil {
+				klog.Errorf("Update endpointSlice(%s/%s) in client failed, Error: %v", newSlice.Namespace, newSlice.Name, err)
 				return err
 			}
 			return nil
@@ -530,15 +556,6 @@ func (c *ServiceImportController) cleanupEndpointSliceInClient(namespace, sliceN
 	return nil
 }
 
-func stringInSlice(s string, slice []string) bool {
-	for _, element := range slice {
-		if element == s {
-			return true
-		}
-	}
-	return false
-}
-
 func generateService(service *v1.Service, serviceImport *mcsv1alpha1.ServiceImport) *v1.Service {
 	clusterIP := v1.ClusterIPNone
 	if podutils.IsServiceIPSet(service) {
@@ -563,9 +580,9 @@ func generateService(service *v1.Service, serviceImport *mcsv1alpha1.ServiceImpo
 	}
 }
 
-func servicePorts(svcImport *mcsv1alpha1.ServiceImport) []v1.ServicePort {
-	ports := make([]v1.ServicePort, len(svcImport.Spec.Ports))
-	for i, p := range svcImport.Spec.Ports {
+func servicePorts(serviceImport *mcsv1alpha1.ServiceImport) []v1.ServicePort {
+	ports := make([]v1.ServicePort, len(serviceImport.Spec.Ports))
+	for i, p := range serviceImport.Spec.Ports {
 		ports[i] = v1.ServicePort{
 			Name:        p.Name,
 			Protocol:    p.Protocol,
