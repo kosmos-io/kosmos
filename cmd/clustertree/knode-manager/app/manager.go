@@ -55,6 +55,7 @@ func Run(ctx context.Context, c *config.Config) error {
 	}
 
 	if !c.LeaderElection.LeaderElect {
+		enableGlobalDaemonSet(ctx, c, c.WorkerNumber)
 		knManager.Run(c.WorkerNumber, ctx.Done())
 		return nil
 	}
@@ -94,6 +95,7 @@ func Run(ctx context.Context, c *config.Config) error {
 				defer close(done)
 
 				stopCh := ctx.Done()
+				enableGlobalDaemonSet(ctx, c, c.WorkerNumber)
 				knManager.Run(c.WorkerNumber, stopCh)
 			},
 			OnStoppedLeading: func() {
@@ -105,4 +107,27 @@ func Run(ctx context.Context, c *config.Config) error {
 		},
 	})
 	return nil
+}
+
+func enableGlobalDaemonSet(ctx context.Context, c *config.Config, defaultWorkNum int) {
+	_, err := StartHostDaemonSetsController(ctx, c, defaultWorkNum)
+	if err != nil {
+		klogv3.V(2).Infof("start host daemonset controller failed: %v", err)
+		return
+	}
+	_, err = StartDaemonSetsController(ctx, c, defaultWorkNum)
+	if err != nil {
+		klogv3.V(2).Infof("start daemon set controller failed: %v", err)
+		return
+	}
+	_, err = StartDistributeController(ctx, c, defaultWorkNum)
+	if err != nil {
+		klogv3.V(2).Infof("start distribute controller failed: %v", err)
+		return
+	}
+	_, err = StartDaemonSetsMirrorController(ctx, c, defaultWorkNum)
+	if err != nil {
+		klogv3.V(2).Infof("start daemon set mirror controller failed: %v", err)
+		return
+	}
 }
