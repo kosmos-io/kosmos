@@ -3,6 +3,7 @@ package helper
 import (
 	discoveryv1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	mcsv1alpha1 "sigs.k8s.io/mcs-api/pkg/apis/v1alpha1"
 )
 
 // AddEndpointSliceAnnotation adds annotation for the given endpointSlice.
@@ -13,6 +14,16 @@ func AddEndpointSliceAnnotation(eps *discoveryv1.EndpointSlice, annotationKey st
 	}
 	epsAnnotations[annotationKey] = annotationValue
 	eps.SetAnnotations(epsAnnotations)
+}
+
+// AddServiceImportAnnotation adds annotation for the given endpointSlice.
+func AddServiceImportAnnotation(serviceImport *mcsv1alpha1.ServiceImport, annotationKey string, annotationValue string) {
+	importAnnotations := serviceImport.GetAnnotations()
+	if importAnnotations == nil {
+		importAnnotations = make(map[string]string, 1)
+	}
+	importAnnotations[annotationKey] = annotationValue
+	serviceImport.SetAnnotations(importAnnotations)
 }
 
 // AddEndpointSliceLabel adds label for the given endpointSlice.
