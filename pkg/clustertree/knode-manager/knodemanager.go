@@ -21,7 +21,6 @@ import (
 
 	"github.com/kosmos.io/kosmos/cmd/clustertree/knode-manager/app/config"
 	kosmosv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
-	"github.com/kosmos.io/kosmos/pkg/clustertree/knode-manager/controllers/mcs"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/knode-manager/utils"
 	crdclientset "github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/generated/informers/externalversions"
@@ -49,7 +48,7 @@ type KnodeManager struct {
 
 	opts *config.Opts
 
-	serviceExportController *mcs.ServiceExportController
+	//serviceExportController *mcs.ServiceExportController
 }
 
 func NewManager(c *config.Config) (*KnodeManager, error) {
@@ -65,10 +64,10 @@ func NewManager(c *config.Config) (*KnodeManager, error) {
 	}
 
 	masterInformers := NewInformers(kubeClient, c.CRDClient, c.Opts.InformerResyncPeriod)
-	serviceExportController, err := mcs.NewServiceExportController(kubeClient, c.CRDClient, masterInformers.informer, kosmosInformerFactory)
-	if err != nil {
-		return nil, err
-	}
+	//serviceExportController, err := mcs.NewServiceExportController(kubeClient, c.CRDClient, masterInformers.informer, kosmosInformerFactory)
+	//if err != nil {
+	//	return nil, err
+	//}
 
 	manager := &KnodeManager{
 		knclient:              c.CRDClient,
@@ -80,9 +79,9 @@ func NewManager(c *config.Config) (*KnodeManager, error) {
 		queue: workqueue.NewRateLimitingQueue(
 			NewItemExponentialFailureAndJitterSlowRateLimter(2*time.Second, 15*time.Second, 1*time.Minute, 1.0, defaultRetryNum),
 		),
-		knodes:                  make(map[string]*Knode),
-		opts:                    c.Opts,
-		serviceExportController: serviceExportController,
+		knodes: make(map[string]*Knode),
+		opts:   c.Opts,
+		//serviceExportController: serviceExportController,
 	}
 
 	_, _ = knInformer.Informer().AddEventHandler(
@@ -183,11 +182,11 @@ func (km *KnodeManager) Run(workers int, stopCh <-chan struct{}) {
 	// kosmosInformerFactory should not be controlled by stopCh
 	stopInformer := make(chan struct{})
 
-	go func() {
-		if err := km.serviceExportController.Run(stopCh); err != nil {
-			klogv2.Error(err)
-		}
-	}()
+	//go func() {
+	//	if err := km.serviceExportController.Run(stopCh); err != nil {
+	//		klogv2.Error(err)
+	//	}
+	//}()
 
 	km.kosmosInformerFactory.Start(stopInformer)
 	km.kubeInformerFactory.Start(stopInformer)
