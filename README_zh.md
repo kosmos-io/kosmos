@@ -58,8 +58,8 @@ Kosmos调度模块是基于Kubernetes调度框架的扩展开发，旨在满足�
 
 ## 贡献者
 
-<a href="https://github.com/kosmos-io/clusterlink/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=kosmos-io/clusterlink" />
+<a href="https://github.com/kosmos-io/kosmos/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=kosmos-io/kosmos" />
 </a>
 
 Made with [contrib.rocks](https://contrib.rocks).
