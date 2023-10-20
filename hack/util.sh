@@ -21,7 +21,7 @@ CLUSTERLINK_TARGET_SOURCE=(
   clusterlink-floater=cmd/clusterlink/floater
   clusterlink-network-manager=cmd/clusterlink/network-manager
   clusterlink-controller-manager=cmd/clusterlink/controller-manager
-  clustertree-knode-manager=cmd/clustertree/knode-manager
+  clustertree-cluster-manager=cmd/clustertree/cluster-manager
   kosmosctl=cmd/kosmosctl
 )
 

@@ -103,27 +103,27 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: clustertree-knode-manager
+  name: clustertree-cluster-manager
   namespace: {{ .Namespace }}
   labels:
-    app: clustertree-knode-manager
+    app: clustertree-cluster-manager
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: clustertree-knode-manager
+      app: clustertree-cluster-manager
   template:
     metadata:
       labels:
-        app: clustertree-knode-manager
+        app: clustertree-cluster-manager
     spec:
-      serviceAccountName: clustertree-knode-manager
+      serviceAccountName: clustertree-cluster-manager
       containers:
         - name: manager
-          image: {{ .ImageRepository }}/clustertree-knode-manager:v{{ .Version }}
+          image: {{ .ImageRepository }}/clustertree-cluster-manager:v{{ .Version }}
           imagePullPolicy: IfNotPresent
           command:
-            - clustertree-knode-manager
+            - clustertree-cluster-manager
             - --kube-api-qps=500
             - --kube-api-burst=1000
             - --kubeconfig=/etc/kube/config

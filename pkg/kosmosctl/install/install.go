@@ -299,7 +299,7 @@ func (o *CommandInstallOptions) runClustertree() error {
 			return fmt.Errorf("kosmosctl install clustertree run error, serviceaccount options failed: %v", err)
 		}
 	}
-	klog.Info("ServiceAccount clustertree-knode-manager has been created.")
+	klog.Info("ServiceAccount clustertree-cluster-manager has been created.")
 
 	klog.Info("Start creating kosmos-clustertree ClusterRole...")
 	clustertreeClusterRole, err := util.GenerateClusterRole(manifest.ClusterTreeKnodeManagerClusterRole, nil)
@@ -379,7 +379,7 @@ func (o *CommandInstallOptions) runClustertree() error {
 	if err = util.WaitPodReady(o.Client, clustertreeDeployment.Namespace, util.MapToString(label), o.WaitTime); err != nil {
 		return fmt.Errorf("kosmosctl install clustertree run error, deployment options failed: %v", err)
 	} else {
-		klog.Info("Deployment clustertree-knode-manager has been created.")
+		klog.Info("Deployment clustertree-cluster-manager has been created.")
 	}
 
 	return nil

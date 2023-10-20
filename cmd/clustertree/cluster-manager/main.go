@@ -6,12 +6,12 @@ import (
 	apiserver "k8s.io/apiserver/pkg/server"
 	"k8s.io/component-base/cli"
 
-	"github.com/kosmos.io/kosmos/cmd/clustertree/knode-manager/app"
+	"github.com/kosmos.io/kosmos/cmd/clustertree/cluster-manager/app"
 )
 
 func main() {
 	ctx := apiserver.SetupSignalContext()
-	command := app.NewKosmosNodeManagerCommand(ctx)
-	code := cli.Run(command)
+	cmd := app.NewAgentCommand(ctx)
+	code := cli.Run(cmd)
 	os.Exit(code)
 }
