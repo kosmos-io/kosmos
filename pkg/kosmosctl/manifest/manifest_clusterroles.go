@@ -44,7 +44,7 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: clustertree-knode-manager
+  name: clustertree-cluster-manager
 rules:
   - apiGroups: ['*']
     resources: ['*']

@@ -29,7 +29,7 @@ metadata:
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: clustertree-knode-manager
+  name: clustertree-cluster-manager
   namespace: {{ .Namespace }}
 `
 

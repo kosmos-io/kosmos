@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: clustertree-knode-manager
+  name: clustertree-cluster-manager
   namespace: kosmos-system
 ---
 apiVersion: v1
@@ -34,26 +34,26 @@ metadata:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: clustertree-knode-manager
+  name: clustertree-cluster-manager
   namespace: kosmos-system
   labels:
-    app: clustertree-knode-manager
+    app: clustertree-cluster-manager
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: clustertree-knode-manager
+      app: clustertree-cluster-manager
   template:
     metadata:
       labels:
-        app: clustertree-knode-manager
+        app: clustertree-cluster-manager
     spec:
       containers:
-        - name: clustertree-knode-manager
-          image: ghcr.io/kosmos-io/clustertree-knode-manager:__VERSION__
+        - name: clustertree-cluster-manager
+          image: ghcr.io/kosmos-io/clustertree-cluster-manager:__VERSION__
           imagePullPolicy: Always
           command:
-            - clustertree-knode-manager
+            - clustertree-cluster-manager
             - --kube-api-qps=500
             - --kube-api-burst=1000
             - --kubeconfig=/etc/kube/config
@@ -62,7 +62,7 @@ spec:
             - mountPath: /etc/kube
               name: config-volume
               readOnly: true
-      serviceAccountName: clustertree-knode-manager
+      serviceAccountName: clustertree-cluster-manager
       volumes:
         - configMap:
             defaultMode: 420
