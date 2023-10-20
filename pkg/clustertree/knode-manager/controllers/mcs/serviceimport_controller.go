@@ -3,6 +3,7 @@ package mcs
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"strings"
 
 	v1 "k8s.io/api/core/v1"
@@ -39,7 +40,7 @@ const (
 	ServiceExportLabelKey       = "kosmos.io/service-export"
 	ServiceImportLabelKey       = "kosmos.io/service-import"
 	MCSLabelValue               = "ture"
-	ConnectedEndpointsKey       = "kosmos.io/connected-address"
+	ServiceEndpointsKey         = "kosmos.io/address"
 	DisconnectedEndpointsKey    = "kosmos.io/disconnected-address"
 )
 
@@ -134,6 +135,11 @@ func (c *ServiceImportController) Run(ctx context.Context) error {
 	}
 	klog.Infof("Client endpointSlice serviceImport service caches synced")
 
+	if !cache.WaitForCacheSync(stopCh, c.masterServiceInformerSynced, c.masterEndpointSliceInformerSynced) {
+		return fmt.Errorf("cannot sync endpointSlice service caches from master")
+	}
+	klog.Infof("Master endpointSlice serviceImport service caches synced")
+
 	for i := 0; i < workers; i++ {
 		go wait.Until(c.syncClientEndpointSlice, 0, stopCh)
 		go wait.Until(c.syncClientServiceImport, 0, stopCh)
@@ -198,13 +204,17 @@ func (c *ServiceImportController) clientServiceImportAdded(obj interface{}) {
 }
 
 func (c *ServiceImportController) clientServiceImportUpdated(old, new interface{}) {
+	oldImport := old.(*mcsv1alpha1.ServiceImport)
+	newImport := new.(*mcsv1alpha1.ServiceImport)
 	key, err := cache.MetaNamespaceKeyFunc(new)
 	if err != nil {
 		runtime.HandleError(err)
 		return
 	}
-	klog.Info("Client serviceImport update ", "key ", key)
-	c.clientServiceImportQueue.Add(key)
+	if !reflect.DeepEqual(oldImport.Spec, newImport.Spec) {
+		klog.Info("Client serviceImport update ", "key ", key)
+		c.clientServiceImportQueue.Add(key)
+	}
 }
 
 func (c *ServiceImportController) clientServiceImportDeleted(obj interface{}) {
@@ -270,10 +280,6 @@ func (c *ServiceImportController) syncClientEndpointSlice() {
 		klog.V(3).Infof("EndpointSlice %/%s deleted", namespace, sliceName)
 	}
 
-	if !helper.HasAnnotation(masterSlice.ObjectMeta, ServiceExportLabelKey) {
-		needsCleanup = true
-	}
-
 	if needsCleanup || masterSlice.DeletionTimestamp != nil {
 		err := c.cleanupEndpointSliceInClient(namespace, sliceName)
 		if err != nil {
@@ -298,6 +304,51 @@ func (c *ServiceImportController) syncClientEndpointSlice() {
 	err = c.importEndpointSliceHandler(masterSlice, serviceImport)
 	if err != nil {
 		klog.Errorf("Create or update endpointSlice %/%s in client cluster failed, error: %v", namespace, sliceName, err)
+		return
+	}
+
+	// update the serviceImport address
+	masterEndpointSlices, err := c.masterEndpointSliceLister.EndpointSlices(namespace).List(labels.SelectorFromSet(map[string]string{
+		ServiceKey: serviceImportName,
+	}))
+	if err != nil {
+		klog.Errorf("Get service from master cluster failed, error: %v", err)
+		return
+	}
+
+	addresses := make([]string, 0)
+	for _, eps := range masterEndpointSlices {
+		if !helper.HasAnnotation(eps.ObjectMeta, ServiceExportLabelKey) {
+			klog.V(4).Infof("ServiceEndpointSlice %s/%s has not been exported in master, ignore it", namespace, eps.Name)
+			return
+		}
+		for _, endpoint := range eps.Endpoints {
+			for _, address := range endpoint.Addresses {
+				newAddress := address
+				addresses = append(addresses, newAddress)
+			}
+		}
+	}
+
+	addressString := strings.Join(addresses, ",")
+	helper.AddServiceImportAnnotation(serviceImport, ServiceEndpointsKey, addressString)
+	err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		_, updateErr := c.kosmosClient.MulticlusterV1alpha1().ServiceImports(namespace).Update(context.TODO(), serviceImport, metav1.UpdateOptions{})
+		if updateErr == nil {
+			return nil
+		}
+		updated, getErr := c.kosmosClient.MulticlusterV1alpha1().ServiceImports(namespace).Get(context.TODO(), serviceImport.Name, metav1.GetOptions{})
+		if getErr == nil {
+			// Make a copy, so we don't mutate the shared cache
+			serviceImport = updated.DeepCopy()
+			helper.AddServiceImportAnnotation(serviceImport, ServiceEndpointsKey, addressString)
+		} else {
+			klog.Errorf("Failed to get updated serviceImport %s/%s: %v", namespace, serviceImport.Name, err)
+		}
+		return updateErr
+	})
+	if err != nil {
+		klog.Errorf("Update serviceImport (%s/%s) status failed, Error: %v", namespace, serviceImport.Name, err)
 		return
 	}
 
@@ -379,16 +430,45 @@ func (c *ServiceImportController) syncClientServiceImport() {
 		return
 	}
 
+	addresses := make([]string, 0)
 	for _, eps := range masterEndpointSlices {
 		if !helper.HasAnnotation(eps.ObjectMeta, ServiceExportLabelKey) {
 			klog.V(4).Infof("ServiceEndpointSlice %s/%s has not been exported in master, ignore it", namespace, eps.Name)
 			return
+		}
+		for _, endpoint := range eps.Endpoints {
+			for _, address := range endpoint.Addresses {
+				newAddress := address
+				addresses = append(addresses, newAddress)
+			}
 		}
 		err = c.importEndpointSliceHandler(eps, serviceImport)
 		if err != nil {
 			klog.Errorf("Create or update service %s/%s in client cluster failed, error: %v", namespace, importName, err)
 			return
 		}
+	}
+
+	addressString := strings.Join(addresses, ",")
+	helper.AddServiceImportAnnotation(serviceImport, ServiceEndpointsKey, addressString)
+	err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		_, updateErr := c.kosmosClient.MulticlusterV1alpha1().ServiceImports(namespace).Update(context.TODO(), serviceImport, metav1.UpdateOptions{})
+		if updateErr == nil {
+			return nil
+		}
+		updated, getErr := c.kosmosClient.MulticlusterV1alpha1().ServiceImports(namespace).Get(context.TODO(), serviceImport.Name, metav1.GetOptions{})
+		if getErr == nil {
+			// Make a copy, so we don't mutate the shared cache
+			serviceImport = updated.DeepCopy()
+			helper.AddServiceImportAnnotation(serviceImport, ServiceEndpointsKey, addressString)
+		} else {
+			klog.Errorf("Failed to get updated serviceImport %s/%s: %v", namespace, serviceImport.Name, err)
+		}
+		return updateErr
+	})
+	if err != nil {
+		klog.Errorf("Update serviceImport (%s/%s) status failed, Error: %v", namespace, serviceImport.Name, err)
+		return
 	}
 
 	c.clientEventRecorder.Event(serviceImport, v1.EventTypeNormal, "Synced", "serviceImport has been synced successfully")
@@ -472,7 +552,7 @@ func (c *ServiceImportController) createOrUpdateServiceInClient(service *v1.Serv
 
 func (c *ServiceImportController) importEndpointSliceHandler(endpointSlice *discoveryv1.EndpointSlice, serviceImport *mcsv1alpha1.ServiceImport) error {
 	newEndpointSlice := endpointSlice.DeepCopy()
-	if metav1.HasAnnotation(serviceImport.ObjectMeta, ConnectedEndpointsKey) || metav1.HasAnnotation(serviceImport.ObjectMeta, DisconnectedEndpointsKey) {
+	if metav1.HasAnnotation(serviceImport.ObjectMeta, ServiceEndpointsKey) || metav1.HasAnnotation(serviceImport.ObjectMeta, DisconnectedEndpointsKey) {
 		annotationValue := helper.GetLabelOrAnnotationValue(serviceImport.Annotations, DisconnectedEndpointsKey)
 		disConnectedAddress := strings.Split(annotationValue, ",")
 		clearEndpointSlice(newEndpointSlice, disConnectedAddress)
@@ -544,7 +624,7 @@ func (c *ServiceImportController) cleanupEndpointSliceInClient(namespace, sliceN
 		return nil
 	}
 
-	err = c.client.CoreV1().Endpoints(namespace).Delete(context.TODO(), sliceName, metav1.DeleteOptions{})
+	err = c.client.DiscoveryV1().EndpointSlices(namespace).Delete(context.TODO(), sliceName, metav1.DeleteOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.V(4).Infof("EndpointSlice %s/%s is deleting and endpointSlice %s/%s is not found, ignore it", namespace, sliceName)
