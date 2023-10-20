@@ -23,7 +23,7 @@ function release_binary_for_platform() {
   local -r arch=$3
   local -r platform="${os}-${arch}"
 
-  local target_pkg="${CLUSTERLINK_GO_PACKAGE}/$(util::get_target_source "$target")"
+  local target_pkg="${KOSMOS_GO_PACKAGE}/$(util::get_target_source "$target")"
   set -x
   CGO_ENABLED=0 GOOS=${os} GOARCH=${arch} go build \
       -ldflags "${LDFLAGS:-}" \
