@@ -211,10 +211,24 @@ func (c *ServiceImportController) clientServiceImportUpdated(old, new interface{
 		runtime.HandleError(err)
 		return
 	}
-	if !reflect.DeepEqual(oldImport.Spec, newImport.Spec) {
+	if shouldEnqueueServiceImport(oldImport, newImport) {
 		klog.Info("Client serviceImport update ", "key ", key)
 		c.clientServiceImportQueue.Add(key)
 	}
+}
+
+func shouldEnqueueServiceImport(oldImport *mcsv1alpha1.ServiceImport, newImport *mcsv1alpha1.ServiceImport) bool {
+	if !reflect.DeepEqual(oldImport.Spec, newImport.Spec) {
+		return true
+	}
+	oldAddressAnnotation := helper.GetLabelOrAnnotationValue(oldImport.GetAnnotations(), ServiceEndpointsKey)
+	oldDisAddressAnnotation := helper.GetLabelOrAnnotationValue(oldImport.GetAnnotations(), DisconnectedEndpointsKey)
+	newAddressAnnotation := helper.GetLabelOrAnnotationValue(newImport.GetAnnotations(), ServiceEndpointsKey)
+	newDisAddressAnnotation := helper.GetLabelOrAnnotationValue(newImport.GetAnnotations(), DisconnectedEndpointsKey)
+	if oldAddressAnnotation != newAddressAnnotation || oldDisAddressAnnotation != newDisAddressAnnotation {
+		return true
+	}
+	return false
 }
 
 func (c *ServiceImportController) clientServiceImportDeleted(obj interface{}) {
@@ -568,15 +582,21 @@ func clearEndpointSlice(slice *discoveryv1.EndpointSlice, disconnectedAddress []
 	}
 
 	endpoints := slice.Endpoints
-	for i := range endpoints {
+	newEndpoints := make([]discoveryv1.Endpoint, 0)
+	for _, endpoint := range endpoints {
 		newAddresses := make([]string, 0)
-		for _, address := range endpoints[i].Addresses {
+		for _, address := range endpoint.Addresses {
 			if _, found := disconnectedAddressMap[address]; !found {
 				newAddresses = append(newAddresses, address)
 			}
 		}
-		endpoints[i].Addresses = newAddresses
+		// 只添加非空地址的endpoint
+		if len(newAddresses) > 0 {
+			endpoint.Addresses = newAddresses
+			newEndpoints = append(newEndpoints, endpoint)
+		}
 	}
+	slice.Endpoints = newEndpoints
 }
 
 func (c *ServiceImportController) createOrUpdateEndpointSliceInClient(endpointSlice *discoveryv1.EndpointSlice, serviceName string) error {
