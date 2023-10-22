@@ -24,8 +24,8 @@ import (
 	clusterlinkv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	networkmanager "github.com/kosmos.io/kosmos/pkg/clusterlink/network-manager"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers"
-	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/utils"
 	"github.com/kosmos.io/kosmos/pkg/scheme"
+	"github.com/kosmos.io/kosmos/pkg/utils"
 )
 
 const (
@@ -44,6 +44,10 @@ type ClusterController struct {
 	Master        client.Client
 	EventRecorder record.EventRecorder
 	Logger        logr.Logger
+
+	ConfigOptFunc func(config *rest.Config)
+
+	MasterResourceManager *utils.ResourceManager
 
 	// clusterName: Manager
 	ControllerManagers     map[string]*manager.Manager
@@ -170,7 +174,7 @@ func (c *ClusterController) Reconcile(ctx context.Context, request reconcile.Req
 	c.ManagerCancelFuncs[cluster.Name] = &cancel
 	c.ControllerManagersLock.Unlock()
 
-	if err = c.setupControllers(&mgr); err != nil {
+	if err = c.setupControllers(&mgr, cluster.Name); err != nil {
 		return reconcile.Result{}, fmt.Errorf("failed to setup cluster %s controllers: %v", cluster.Name, err)
 	}
 
@@ -195,7 +199,7 @@ func (c *ClusterController) clearClusterControllers(cluster *clusterlinkv1alpha1
 	delete(c.ControllerManagers, cluster.Name)
 }
 
-func (c *ClusterController) setupControllers(m *manager.Manager) error {
+func (c *ClusterController) setupControllers(m *manager.Manager, clusterName string) error {
 	mgr := *m
 
 	nodeResourcesController := controllers.NodeResourcesController{
@@ -204,6 +208,30 @@ func (c *ClusterController) setupControllers(m *manager.Manager) error {
 	}
 	if err := nodeResourcesController.SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("error starting %s: %v", networkmanager.ControllerName, err)
+	}
+
+	//// mcs controller
+	//clusterKubeClient, err := utils.NewClusterKubeClient(mgr.GetClient(), clusterName, c.ConfigOptFunc)
+	//if err != nil {
+	//	return err
+	//}
+
+	clusterKosmosClient, err := utils.NewClusterKosmosClient(mgr.GetClient(), clusterName, c.ConfigOptFunc)
+	if err != nil {
+		return err
+	}
+
+	serviceImportController := &controllers.ServiceImportController{
+		Client:              mgr.GetClient(),
+		Master:              c.Master,
+		EventRecorder:       mgr.GetEventRecorderFor(controllers.MemberServiceImportControllerName),
+		Logger:              mgr.GetLogger(),
+		ClusterNodeName:     clusterName,
+		ClusterKosmosClient: clusterKosmosClient,
+	}
+
+	if err := serviceImportController.AddController(mgr); err != nil {
+		return fmt.Errorf("error starting %s: %v", controllers.MemberServiceImportControllerName, err)
 	}
 
 	return nil
