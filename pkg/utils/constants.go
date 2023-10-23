@@ -4,6 +4,7 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 const (
@@ -79,3 +80,28 @@ const (
 	DefaultTaintEffect = string(corev1.TaintEffectNoSchedule)
 	DefaultTaintKey    = "kosmos-node.io/plugin"
 )
+
+const (
+	ReservedNS          = "kube-system"
+	RooTCAConfigMapName = "kube-root-ca.crt"
+	SATokenPrefix       = "kube-api-access"
+	MasterRooTCAName    = "master-root-ca.crt"
+)
+
+var GVR_CONFIGMAP = schema.GroupVersionResource{
+	Group:    "",
+	Version:  "v1",
+	Resource: "configmaps",
+}
+
+var GVR_PVC = schema.GroupVersionResource{
+	Group:    "",
+	Version:  "v1",
+	Resource: "persistentvolumeclaims",
+}
+
+var GVR_SECRET = schema.GroupVersionResource{
+	Group:    "",
+	Version:  "v1",
+	Resource: "secrets",
+}
