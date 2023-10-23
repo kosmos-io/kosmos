@@ -1,4 +1,4 @@
-package controllers
+package mcs
 
 import (
 	"context"
@@ -27,34 +27,35 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/utils/keys"
 )
 
-const MemberServiceImportControllerName = "member-service-import-controller"
+const LeafServiceImportControllerName = "leaf-service-import-controller"
 
-// ServiceImportController watches serviceImport in member node and sync service and endpointSlice in master
+// ServiceImportController watches serviceImport in leaf node and sync service and endpointSlice in root cluster
 type ServiceImportController struct {
-	Client                client.Client
-	Master                client.Client
-	ClusterKosmosClient   *utils.ClusterKosmosClient
-	ClusterNodeName       string
-	EventRecorder         record.EventRecorder
-	Logger                logr.Logger
-	processor             utils.AsyncWorker
-	masterResourceManager *utils.ResourceManager
-	ctx                   context.Context
+	LeafClient client.Client
+	// TODO should not use client.Client for root cluster,because it will create a new informerFactory
+	RootClient          client.Client
+	ClusterKosmosClient *utils.ClusterKosmosClient
+	LeafNodeName        string
+	EventRecorder       record.EventRecorder
+	Logger              logr.Logger
+	processor           utils.AsyncWorker
+	RootResourceManager *utils.ResourceManager
+	ctx                 context.Context
 }
 
 func (c *ServiceImportController) AddController(mgr manager.Manager) error {
 	if err := mgr.Add(c); err != nil {
-		klog.Errorf("Unable to create %s Error: %v", MemberServiceImportControllerName, err)
+		klog.Errorf("Unable to create %s Error: %v", LeafServiceImportControllerName, err)
 	}
 	return nil
 }
 
 func (c *ServiceImportController) Start(ctx context.Context) error {
-	klog.Infof("Starting %s", MemberServiceImportControllerName)
-	defer klog.Infof("Stop %s as process done.", MemberServiceImportControllerName)
+	klog.Infof("Starting %s", LeafServiceImportControllerName)
+	defer klog.Infof("Stop %s as process done.", LeafServiceImportControllerName)
 
 	opt := utils.Options{
-		Name: MemberServiceImportControllerName,
+		Name: LeafServiceImportControllerName,
 		KeyFunc: func(obj interface{}) (utils.QueueKey, error) {
 			// 不关心队列中的GVK
 			return keys.NamespaceWideKeyFunc(obj)
@@ -75,7 +76,7 @@ func (c *ServiceImportController) Start(ctx context.Context) error {
 		return err
 	}
 
-	_, err = c.masterResourceManager.EndpointSliceInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, err = c.RootResourceManager.EndpointSliceInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    c.OnEpsAdd,
 		UpdateFunc: c.OnEpsUpdate,
 		DeleteFunc: c.OnEpsDelete,
@@ -99,18 +100,18 @@ func (c *ServiceImportController) Reconcile(key utils.QueueKey) error {
 		klog.Error("invalid key")
 		return fmt.Errorf("invalid key")
 	}
-	klog.V(4).Infof("============ %s starts to reconcile %s in cluster %s ============", MemberServiceImportControllerName, clusterWideKey.NamespaceKey(), c.ClusterNodeName)
+	klog.V(4).Infof("============ %s starts to reconcile %s in cluster %s ============", LeafServiceImportControllerName, clusterWideKey.NamespaceKey(), c.LeafNodeName)
 	defer func() {
-		klog.V(4).Infof("============ %s has been reconciled in cluster %s =============", clusterWideKey.NamespaceKey(), c.ClusterNodeName)
+		klog.V(4).Infof("============ %s has been reconciled in cluster %s =============", clusterWideKey.NamespaceKey(), c.LeafNodeName)
 	}()
 
 	serviceImport := &mcsv1alpha1.ServiceImport{}
-	if err := c.Client.Get(c.ctx, types.NamespacedName{Namespace: clusterWideKey.Namespace, Name: clusterWideKey.Name}, serviceImport); err != nil {
+	if err := c.LeafClient.Get(c.ctx, types.NamespacedName{Namespace: clusterWideKey.Namespace, Name: clusterWideKey.Name}, serviceImport); err != nil {
 		// The serviceImport no longer exist, in which case we stop processing.
 		if apierrors.IsNotFound(err) {
 			return nil
 		}
-		klog.Errorf("Get %s in cluster %s failed, Error: %v", clusterWideKey.NamespaceKey(), c.ClusterNodeName, err)
+		klog.Errorf("Get %s in cluster %s failed, Error: %v", clusterWideKey.NamespaceKey(), c.LeafNodeName, err)
 		return err
 	}
 
@@ -131,12 +132,12 @@ func (c *ServiceImportController) Reconcile(key utils.QueueKey) error {
 
 func (c *ServiceImportController) cleanupServiceAndEndpointSlice(ctx context.Context, namespace, name string) error {
 	service := &corev1.Service{}
-	if err := c.Client.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, service); err != nil {
+	if err := c.LeafClient.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, service); err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.V(4).Infof("ServiceImport %s/%s is deleting and Service %s/%s is not found, ignore it", namespace, name, namespace, name)
 			return nil
 		}
-		klog.Errorf("ServiceImport %s/%s is deleting but clean up service in cluster %s failed, Error: %v", namespace, name, c.ClusterNodeName, err)
+		klog.Errorf("ServiceImport %s/%s is deleting but clean up service in cluster %s failed, Error: %v", namespace, name, c.LeafNodeName, err)
 		return err
 	}
 
@@ -145,17 +146,17 @@ func (c *ServiceImportController) cleanupServiceAndEndpointSlice(ctx context.Con
 		return nil
 	}
 
-	if err := c.Client.Delete(ctx, service); err != nil {
+	if err := c.LeafClient.Delete(ctx, service); err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.V(4).Infof("ServiceImport %s/%s is deleting and Service %s/%s is not found, ignore it", namespace, name, namespace, name)
 			return nil
 		}
-		klog.Errorf("ServiceImport %s/%s is deleting but clean up service in cluster %s failed, Error: %v", namespace, name, c.ClusterNodeName, err)
+		klog.Errorf("ServiceImport %s/%s is deleting but clean up service in cluster %s failed, Error: %v", namespace, name, c.LeafNodeName, err)
 		return err
 	}
 
 	endpointSlice := &discoveryv1.EndpointSlice{}
-	err := c.Client.DeleteAllOf(ctx, endpointSlice, &client.DeleteAllOfOptions{
+	err := c.LeafClient.DeleteAllOf(ctx, endpointSlice, &client.DeleteAllOfOptions{
 		ListOptions: client.ListOptions{
 			Namespace: namespace,
 			LabelSelector: labels.SelectorFromSet(map[string]string{
@@ -168,30 +169,30 @@ func (c *ServiceImportController) cleanupServiceAndEndpointSlice(ctx context.Con
 			klog.V(4).Infof("ServiceImport %s/%s is deleting and Service %s/%s is not found, ignore it", namespace, name, namespace, name)
 			return nil
 		}
-		klog.Errorf("ServiceImport %s/%s is deleting but clean up service in cluster %s failed, Error: %v", namespace, name, c.ClusterNodeName, err)
+		klog.Errorf("ServiceImport %s/%s is deleting but clean up service in cluster %s failed, Error: %v", namespace, name, c.LeafNodeName, err)
 		return err
 	}
 	return nil
 }
 
 func (c *ServiceImportController) syncServiceImport(ctx context.Context, serviceImport *mcsv1alpha1.ServiceImport) error {
-	masterService := &corev1.Service{}
-	if err := c.Master.Get(ctx, types.NamespacedName{Namespace: serviceImport.Namespace, Name: serviceImport.Name}, masterService); err != nil {
+	rootService := &corev1.Service{}
+	if err := c.RootClient.Get(ctx, types.NamespacedName{Namespace: serviceImport.Namespace, Name: serviceImport.Name}, rootService); err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.V(4).Infof("Service %s/%s is not found in master, ignore it", serviceImport.Namespace, serviceImport.Name)
+			klog.V(4).Infof("Service %s/%s is not found in root cluster, ignore it", serviceImport.Namespace, serviceImport.Name)
 			return nil
 		}
-		klog.Errorf("Get Service %s/%s failed from master", serviceImport.Namespace, serviceImport.Name, err)
+		klog.Errorf("Get Service %s/%s failed from root cluster", serviceImport.Namespace, serviceImport.Name, err)
 		return err
 	}
 
-	if err := c.importServiceHandler(ctx, masterService, serviceImport); err != nil {
-		klog.Errorf("Create or update service %s/%s in client cluster %s failed, error: %v", serviceImport.Namespace, serviceImport.Name, c.ClusterNodeName, err)
+	if err := c.importServiceHandler(ctx, rootService, serviceImport); err != nil {
+		klog.Errorf("Create or update service %s/%s in client cluster %s failed, error: %v", serviceImport.Namespace, serviceImport.Name, c.LeafNodeName, err)
 		return err
 	}
 
 	epsList := &discoveryv1.EndpointSliceList{}
-	err := c.Master.List(ctx, epsList, &client.ListOptions{
+	err := c.RootClient.List(ctx, epsList, &client.ListOptions{
 		LabelSelector: labels.SelectorFromSet(map[string]string{utils.ServiceKey: serviceImport.Name}),
 		Namespace:     serviceImport.Namespace,
 	})
@@ -219,7 +220,7 @@ func (c *ServiceImportController) syncServiceImport(ctx context.Context, service
 	addressString := strings.Join(addresses, ",")
 	helper.AddServiceImportAnnotation(serviceImport, utils.ServiceEndpointsKey, addressString)
 	if err = c.updateServiceImport(ctx, serviceImport, addressString); err != nil {
-		klog.Errorf("Update serviceImport (%s/%s) annotation in cluster %s failed, Error: %v", serviceImport.Namespace, serviceImport.Name, c.ClusterNodeName, err)
+		klog.Errorf("Update serviceImport (%s/%s) annotation in cluster %s failed, Error: %v", serviceImport.Namespace, serviceImport.Name, c.LeafNodeName, err)
 		return err
 	}
 
@@ -240,16 +241,16 @@ func (c *ServiceImportController) importEndpointSliceHandler(ctx context.Context
 func (c *ServiceImportController) createOrUpdateEndpointSliceInClient(ctx context.Context, endpointSlice *discoveryv1.EndpointSlice, serviceName string) error {
 	newSlice := retainEndpointSlice(endpointSlice, serviceName)
 
-	if err := c.Client.Create(ctx, endpointSlice); err != nil {
+	if err := c.LeafClient.Create(ctx, newSlice); err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			err = c.updateEndpointSlice(ctx, newSlice)
 			if err != nil {
-				klog.Errorf("Update endpointSlice(%s/%s) in cluster %s failed, Error: %v", newSlice.Namespace, newSlice.Name, c.ClusterNodeName, err)
+				klog.Errorf("Update endpointSlice(%s/%s) in cluster %s failed, Error: %v", newSlice.Namespace, newSlice.Name, c.LeafNodeName, err)
 				return err
 			}
 			return nil
 		}
-		klog.Errorf("Create endpointSlice(%s/%s) in cluster %s failed, Error: %v", newSlice.Namespace, newSlice.Name, c.ClusterNodeName, err)
+		klog.Errorf("Create endpointSlice(%s/%s) in cluster %s failed, Error: %v", newSlice.Namespace, newSlice.Name, c.LeafNodeName, err)
 		return err
 	}
 	return nil
@@ -258,18 +259,18 @@ func (c *ServiceImportController) createOrUpdateEndpointSliceInClient(ctx contex
 func (c *ServiceImportController) updateEndpointSlice(ctx context.Context, endpointSlice *discoveryv1.EndpointSlice) error {
 	newEps := endpointSlice.DeepCopy()
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		updateErr := c.Client.Update(ctx, newEps)
+		updateErr := c.LeafClient.Update(ctx, newEps)
 		if updateErr == nil {
 			return nil
 		}
 
 		updated := &discoveryv1.EndpointSlice{}
-		getErr := c.Client.Get(ctx, types.NamespacedName{Namespace: newEps.Namespace, Name: newEps.Name}, updated)
+		getErr := c.LeafClient.Get(ctx, types.NamespacedName{Namespace: newEps.Namespace, Name: newEps.Name}, updated)
 		if getErr == nil {
 			//Make a copy, so we don't mutate the shared cache
 			newEps = updated.DeepCopy()
 		} else {
-			klog.Errorf("Failed to get updated endpointSlice %s/%s in cluster %s: %v", endpointSlice.Namespace, endpointSlice.Name, c.ClusterNodeName, getErr)
+			klog.Errorf("Failed to get updated endpointSlice %s/%s in cluster %s: %v", endpointSlice.Namespace, endpointSlice.Name, c.LeafNodeName, getErr)
 		}
 
 		return updateErr
@@ -311,8 +312,8 @@ func clearEndpointSlice(slice *discoveryv1.EndpointSlice, disconnectedAddress []
 	slice.Endpoints = newEndpoints
 }
 
-func (c *ServiceImportController) importServiceHandler(ctx context.Context, masterService *corev1.Service, serviceImport *mcsv1alpha1.ServiceImport) error {
-	clientService := generateService(masterService, serviceImport)
+func (c *ServiceImportController) importServiceHandler(ctx context.Context, rootService *corev1.Service, serviceImport *mcsv1alpha1.ServiceImport) error {
+	clientService := generateService(rootService, serviceImport)
 	err := c.createOrUpdateServiceInClient(ctx, clientService)
 	if err != nil {
 		return err
@@ -322,24 +323,24 @@ func (c *ServiceImportController) importServiceHandler(ctx context.Context, mast
 
 func (c *ServiceImportController) createOrUpdateServiceInClient(ctx context.Context, service *corev1.Service) error {
 	oldService := &corev1.Service{}
-	if err := c.Client.Get(ctx, types.NamespacedName{Namespace: service.Namespace, Name: service.Name}, oldService); err != nil {
+	if err := c.LeafClient.Get(ctx, types.NamespacedName{Namespace: service.Namespace, Name: service.Name}, oldService); err != nil {
 		if apierrors.IsNotFound(err) {
-			if err = c.Client.Create(ctx, service); err != nil {
-				klog.Errorf("Create serviceImport service(%s/%s) in client cluster %s failed, Error: %v", service.Namespace, service.Name, c.ClusterNodeName, err)
+			if err = c.LeafClient.Create(ctx, service); err != nil {
+				klog.Errorf("Create serviceImport service(%s/%s) in client cluster %s failed, Error: %v", service.Namespace, service.Name, c.LeafNodeName, err)
 				return err
 			} else {
 				return nil
 			}
 		}
-		klog.Errorf("Get service(%s/%s) from in cluster %s failed, Error: %v", service.Namespace, service.Name, c.ClusterNodeName, err)
+		klog.Errorf("Get service(%s/%s) from in cluster %s failed, Error: %v", service.Namespace, service.Name, c.LeafNodeName, err)
 		return err
 	}
 
 	retainServiceFields(oldService, service)
 
-	if err := c.Client.Update(ctx, service); err != nil {
+	if err := c.LeafClient.Update(ctx, service); err != nil {
 		if err != nil {
-			klog.Errorf("Update serviceImport service(%s/%s) in cluster %s failed, Error: %v", service.Namespace, service.Name, c.ClusterNodeName, err)
+			klog.Errorf("Update serviceImport service(%s/%s) in cluster %s failed, Error: %v", service.Namespace, service.Name, c.LeafNodeName, err)
 			return err
 		}
 	}
@@ -349,18 +350,18 @@ func (c *ServiceImportController) createOrUpdateServiceInClient(ctx context.Cont
 func (c *ServiceImportController) updateServiceImport(ctx context.Context, serviceImport *mcsv1alpha1.ServiceImport, addresses string) error {
 	newImport := serviceImport.DeepCopy()
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		updateErr := c.Client.Update(ctx, newImport)
+		updateErr := c.LeafClient.Update(ctx, newImport)
 		if updateErr == nil {
 			return nil
 		}
 		updated := &mcsv1alpha1.ServiceImport{}
-		getErr := c.Client.Get(ctx, types.NamespacedName{Namespace: newImport.Namespace, Name: newImport.Name}, updated)
+		getErr := c.LeafClient.Get(ctx, types.NamespacedName{Namespace: newImport.Namespace, Name: newImport.Name}, updated)
 		if getErr == nil {
 			// Make a copy, so we don't mutate the shared cache
 			newImport = updated.DeepCopy()
 			helper.AddServiceImportAnnotation(newImport, utils.ServiceEndpointsKey, addresses)
 		} else {
-			klog.Errorf("Failed to get updated serviceImport %s/%s in cluster %s,Error : %v", newImport.Namespace, serviceImport.Name, c.ClusterNodeName, getErr)
+			klog.Errorf("Failed to get updated serviceImport %s/%s in cluster %s,Error : %v", newImport.Namespace, serviceImport.Name, c.LeafNodeName, getErr)
 		}
 		return updateErr
 	})
@@ -393,7 +394,7 @@ func (c *ServiceImportController) OnDelete(obj interface{}) {
 func (c *ServiceImportController) OnEpsAdd(obj interface{}) {
 	eps := obj.(*discoveryv1.EndpointSlice)
 	if helper.HasAnnotation(eps.ObjectMeta, utils.ServiceExportLabelKey) {
-		serviceExportName, _ := helper.GetAnnotationValue(eps.ObjectMeta, utils.ServiceKey)
+		serviceExportName := helper.GetLabelOrAnnotationValue(eps.GetLabels(), utils.ServiceKey)
 		key := keys.ClusterWideKey{}
 		key.Namespace = eps.Namespace
 		key.Name = serviceExportName
@@ -406,7 +407,7 @@ func (c *ServiceImportController) OnEpsUpdate(old interface{}, new interface{}) 
 	oldSlice := old.(*discoveryv1.EndpointSlice)
 	isRemoveAnnotationEvent := helper.HasAnnotation(oldSlice.ObjectMeta, utils.ServiceExportLabelKey) && !helper.HasAnnotation(newSlice.ObjectMeta, utils.ServiceExportLabelKey)
 	if helper.HasAnnotation(newSlice.ObjectMeta, utils.ServiceExportLabelKey) || isRemoveAnnotationEvent {
-		serviceExportName, _ := helper.GetAnnotationValue(newSlice.ObjectMeta, utils.ServiceKey)
+		serviceExportName := helper.GetLabelOrAnnotationValue(newSlice.GetLabels(), utils.ServiceKey)
 		key := keys.ClusterWideKey{}
 		key.Namespace = newSlice.Namespace
 		key.Name = serviceExportName
@@ -417,7 +418,7 @@ func (c *ServiceImportController) OnEpsUpdate(old interface{}, new interface{}) 
 func (c *ServiceImportController) OnEpsDelete(obj interface{}) {
 	eps := obj.(*discoveryv1.EndpointSlice)
 	if helper.HasAnnotation(eps.ObjectMeta, utils.ServiceExportLabelKey) {
-		serviceExportName, _ := helper.GetAnnotationValue(eps.ObjectMeta, utils.ServiceKey)
+		serviceExportName := helper.GetLabelOrAnnotationValue(eps.GetLabels(), utils.ServiceKey)
 		key := keys.ClusterWideKey{}
 		key.Namespace = eps.Namespace
 		key.Name = serviceExportName

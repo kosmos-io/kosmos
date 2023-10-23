@@ -23,8 +23,8 @@ const (
 )
 
 type NodeResourcesController struct {
-	Client        client.Client
-	Master        client.Client
+	LeafClient    client.Client
+	RootClient    client.Client
 	EventRecorder record.EventRecorder
 }
 

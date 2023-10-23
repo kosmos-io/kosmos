@@ -26,6 +26,7 @@ import (
 	clusterlinkv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	networkmanager "github.com/kosmos.io/kosmos/pkg/clusterlink/network-manager"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers"
+	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/mcs"
 	podcontrollers "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/pod"
 	"github.com/kosmos.io/kosmos/pkg/scheme"
 	"github.com/kosmos.io/kosmos/pkg/utils"
@@ -35,37 +36,37 @@ const (
 	ControllerName = "cluster-controller"
 	//RequeueTime    = 5 * time.Second
 
-	ControllerFinalizerName      = "kosmos.io/cluster-manager"
-	MasterClusterAnnotationKey   = "kosmos.io/cluster-role"
-	MasterClusterAnnotationValue = "master"
+	ControllerFinalizerName    = "kosmos.io/cluster-manager"
+	RootClusterAnnotationKey   = "kosmos.io/cluster-role"
+	RootClusterAnnotationValue = "root"
 
 	DefaultClusterKubeQPS   = 40.0
 	DefalutClusterKubeBurst = 60
 )
 
 type ClusterController struct {
-	Master        client.Client
+	RootClient    client.Client
 	EventRecorder record.EventRecorder
 	Logger        logr.Logger
 
 	ConfigOptFunc func(config *rest.Config)
 
-	MasterResourceManager *utils.ResourceManager
+	RootResourceManager *utils.ResourceManager
 
 	// clusterName: Manager
 	ControllerManagers     map[string]*manager.Manager
 	ManagerCancelFuncs     map[string]*context.CancelFunc
 	ControllerManagersLock sync.Mutex
 
-	MasterDynamic dynamic.Interface
+	RootDynamic dynamic.Interface
 
 	mgr *manager.Manager
 }
 
-func isMasterCluster(cluster *clusterlinkv1alpha1.Cluster) bool {
+func isRootCluster(cluster *clusterlinkv1alpha1.Cluster) bool {
 	annotations := cluster.GetAnnotations()
-	if val, ok := annotations[MasterClusterAnnotationKey]; ok {
-		return val == MasterClusterAnnotationValue
+	if val, ok := annotations[RootClusterAnnotationKey]; ok {
+		return val == RootClusterAnnotationValue
 	}
 	return false
 }
@@ -73,13 +74,13 @@ func isMasterCluster(cluster *clusterlinkv1alpha1.Cluster) bool {
 var predicatesFunc = predicate.Funcs{
 	CreateFunc: func(createEvent event.CreateEvent) bool {
 		obj := createEvent.Object.(*clusterlinkv1alpha1.Cluster)
-		return !isMasterCluster(obj)
+		return !isRootCluster(obj)
 	},
 	UpdateFunc: func(updateEvent event.UpdateEvent) bool {
 		obj := updateEvent.ObjectNew.(*clusterlinkv1alpha1.Cluster)
 		old := updateEvent.ObjectOld.(*clusterlinkv1alpha1.Cluster)
 
-		if isMasterCluster(obj) {
+		if isRootCluster(obj) {
 			return false
 		}
 
@@ -96,7 +97,7 @@ var predicatesFunc = predicate.Funcs{
 	},
 	DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
 		obj := deleteEvent.Object.(*clusterlinkv1alpha1.Cluster)
-		return !isMasterCluster(obj)
+		return !isRootCluster(obj)
 	},
 	GenericFunc: func(genericEvent event.GenericEvent) bool {
 		return false
@@ -122,7 +123,7 @@ func (c *ClusterController) Reconcile(ctx context.Context, request reconcile.Req
 	}()
 
 	cluster := &clusterlinkv1alpha1.Cluster{}
-	if err := c.Master.Get(ctx, request.NamespacedName, cluster); err != nil {
+	if err := c.RootClient.Get(ctx, request.NamespacedName, cluster); err != nil {
 		if errors.IsNotFound(err) {
 			klog.Infof("Cluster %s has been deleted", request.Name)
 			return controllerruntime.Result{}, nil
@@ -134,7 +135,7 @@ func (c *ClusterController) Reconcile(ctx context.Context, request reconcile.Req
 	if cluster.DeletionTimestamp.IsZero() {
 		if !controllerutil.ContainsFinalizer(cluster, ControllerFinalizerName) {
 			controllerutil.AddFinalizer(cluster, ControllerFinalizerName)
-			if err := c.Master.Update(ctx, cluster); err != nil {
+			if err := c.RootClient.Update(ctx, cluster); err != nil {
 				return controllerruntime.Result{}, err
 			}
 		}
@@ -145,7 +146,7 @@ func (c *ClusterController) Reconcile(ctx context.Context, request reconcile.Req
 
 		if controllerutil.ContainsFinalizer(cluster, ControllerFinalizerName) {
 			controllerutil.RemoveFinalizer(cluster, ControllerFinalizerName)
-			if err := c.Master.Update(ctx, cluster); err != nil {
+			if err := c.RootClient.Update(ctx, cluster); err != nil {
 				return controllerruntime.Result{}, err
 			}
 		}
@@ -174,11 +175,6 @@ func (c *ClusterController) Reconcile(ctx context.Context, request reconcile.Req
 		return reconcile.Result{}, fmt.Errorf("new manager with err %v, cluster %s", err, cluster.Name)
 	}
 
-	dynamicClient, err := dynamic.NewForConfig(config)
-	if err != nil {
-		return reconcile.Result{}, fmt.Errorf("could not build dynamic client for cluster %s: %v", cluster.Name, err)
-	}
-
 	subContext, cancel := context.WithCancel(ctx)
 
 	c.ControllerManagersLock.Lock()
@@ -186,7 +182,7 @@ func (c *ClusterController) Reconcile(ctx context.Context, request reconcile.Req
 	c.ManagerCancelFuncs[cluster.Name] = &cancel
 	c.ControllerManagersLock.Unlock()
 
-	if err = c.setupControllers(&mgr, cluster, dynamicClient); err != nil {
+	if err = c.setupControllers(&mgr, config, cluster); err != nil {
 		return reconcile.Result{}, fmt.Errorf("failed to setup cluster %s controllers: %v", cluster.Name, err)
 	}
 
@@ -211,50 +207,51 @@ func (c *ClusterController) clearClusterControllers(cluster *clusterlinkv1alpha1
 	delete(c.ControllerManagers, cluster.Name)
 }
 
-func (c *ClusterController) setupControllers(m *manager.Manager, cluster *clusterlinkv1alpha1.Cluster, clientDynamic *dynamic.DynamicClient) error {
+func (c *ClusterController) setupControllers(m *manager.Manager, config *rest.Config, cluster *clusterlinkv1alpha1.Cluster) error {
 	mgr := *m
 
 	nodeResourcesController := controllers.NodeResourcesController{
-		Client: mgr.GetClient(),
-		Master: c.Master,
+		LeafClient: mgr.GetClient(),
+		RootClient: c.RootClient,
 	}
 	if err := nodeResourcesController.SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("error starting %s: %v", networkmanager.ControllerName, err)
 	}
 
-	//// mcs controller
-	//clusterKubeClient, err := utils.NewClusterKubeClient(mgr.GetClient(), cluster.Name, c.ConfigOptFunc)
-	//if err != nil {
-	//	return err
-	//}
-
-	clusterKosmosClient, err := utils.NewClusterKosmosClient(mgr.GetClient(), cluster.Name, c.ConfigOptFunc)
+	// mcs controller
+	clusterDynamicClient, err := utils.NewClusterDynamicClient(config, cluster.Name, c.ConfigOptFunc)
 	if err != nil {
 		return err
 	}
 
-	serviceImportController := &controllers.ServiceImportController{
-		Client:              mgr.GetClient(),
-		Master:              c.Master,
-		EventRecorder:       mgr.GetEventRecorderFor(controllers.MemberServiceImportControllerName),
+	clusterKosmosClient, err := utils.NewClusterKosmosClient(config, cluster.Name, c.ConfigOptFunc)
+	if err != nil {
+		return err
+	}
+
+	serviceImportController := &mcs.ServiceImportController{
+		LeafClient:          mgr.GetClient(),
+		RootClient:          c.RootClient,
+		EventRecorder:       mgr.GetEventRecorderFor(mcs.LeafServiceImportControllerName),
 		Logger:              mgr.GetLogger(),
-		ClusterNodeName:     cluster.Name,
+		LeafNodeName:        cluster.Name,
 		ClusterKosmosClient: clusterKosmosClient,
+		RootResourceManager: c.RootResourceManager,
 	}
 
 	if err := serviceImportController.AddController(mgr); err != nil {
-		return fmt.Errorf("error starting %s: %v", controllers.MemberServiceImportControllerName, err)
+		return fmt.Errorf("error starting %s: %v", mcs.LeafServiceImportControllerName, err)
 	}
 
 	RootPodReconciler := podcontrollers.RootPodReconciler{
 		LeafClient:           mgr.GetClient(),
-		RootClient:           c.Master,
+		RootClient:           c.RootClient,
 		NodeName:             cluster.Name,
 		Namespace:            cluster.Spec.Namespace,
 		IgnoreLabels:         strings.Split("", ","),
 		EnableServiceAccount: true,
-		DynamicRootClient:    c.MasterDynamic,
-		DynamicLeafClient:    clientDynamic,
+		DynamicRootClient:    c.RootDynamic,
+		DynamicLeafClient:    clusterDynamicClient.DynamicClient,
 	}
 
 	if err := RootPodReconciler.SetupWithManager(*c.mgr); err != nil {
@@ -262,7 +259,7 @@ func (c *ClusterController) setupControllers(m *manager.Manager, cluster *cluste
 	}
 
 	podUpstreamController := podcontrollers.LeafPodReconciler{
-		RootClient: c.Master,
+		RootClient: c.RootClient,
 		Namespace:  cluster.Spec.Namespace,
 	}
 
