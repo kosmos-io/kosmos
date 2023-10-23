@@ -88,6 +88,20 @@ func ClusterWideKeyFunc(obj interface{}) (ClusterWideKey, error) {
 	return key, nil
 }
 
+// NamespaceWideKeyFunc generates a NamespaceWideKey for object.
+func NamespaceWideKeyFunc(obj interface{}) (ClusterWideKey, error) {
+	key := ClusterWideKey{}
+	metaInfo, err := meta.Accessor(obj)
+	if err != nil { // should not happen
+		return key, fmt.Errorf("object has no meta: %v", err)
+	}
+
+	key.Namespace = metaInfo.GetNamespace()
+	key.Name = metaInfo.GetName()
+
+	return key, nil
+}
+
 // FederatedKey is the object key which is a unique identifier across all clusters in federation.
 type FederatedKey struct {
 	// Cluster is the cluster name of the referencing object.

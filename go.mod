@@ -6,6 +6,7 @@ require (
 	github.com/bep/debounce v1.2.1
 	github.com/coreos/go-iptables v0.6.0
 	github.com/evanphx/json-patch v4.12.0+incompatible
+	github.com/go-logr/logr v1.2.3
 	github.com/gogo/protobuf v1.3.2
 	github.com/google/go-cmp v0.5.9
 	github.com/mattbaird/jsonpatch v0.0.0-20230413205102-771768614e91
@@ -18,7 +19,6 @@ require (
 	github.com/spf13/cobra v1.6.0
 	github.com/spf13/pflag v1.0.5
 	github.com/vishvananda/netlink v1.2.1-beta.2.0.20220630165224-c591ada0fb2b
-	golang.org/x/sync v0.1.0
 	golang.org/x/sys v0.6.0
 	golang.org/x/time v0.3.0
 	golang.org/x/tools v0.7.0
@@ -31,9 +31,11 @@ require (
 	k8s.io/cluster-bootstrap v0.26.3
 	k8s.io/code-generator v0.26.3
 	k8s.io/component-base v0.26.3
+	k8s.io/component-helpers v0.26.3
 	k8s.io/klog v1.0.0
 	k8s.io/klog/v2 v2.90.0
 	k8s.io/kube-openapi v0.0.0-20230303024457-afdc3dddf62d
+	k8s.io/kube-scheduler v0.0.0
 	k8s.io/kubectl v0.26.3
 	k8s.io/kubernetes v0.0.0-00010101000000-000000000000
 	k8s.io/metrics v0.26.3
@@ -61,12 +63,10 @@ require (
 	github.com/emicklei/go-restful/v3 v3.9.0 // indirect
 	github.com/evanphx/json-patch/v5 v5.6.0 // indirect
 	github.com/exponent-io/jsonpath v0.0.0-20151013193312-d6023ce2651d // indirect
-	github.com/fatih/camelcase v1.0.0 // indirect
 	github.com/felixge/httpsnoop v1.0.3 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/fvbommel/sortorder v1.0.1 // indirect
 	github.com/go-errors/errors v1.0.1 // indirect
-	github.com/go-logr/logr v1.2.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-openapi/jsonpointer v0.19.6 // indirect
 	github.com/go-openapi/jsonreference v0.20.1 // indirect
@@ -142,6 +142,7 @@ require (
 	golang.org/x/mod v0.9.0 // indirect
 	golang.org/x/net v0.8.0 // indirect
 	golang.org/x/oauth2 v0.0.0-20221014153046-6fdb5e3db783 // indirect
+	golang.org/x/sync v0.1.0 // indirect
 	golang.org/x/term v0.6.0 // indirect
 	golang.org/x/text v0.8.0 // indirect
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20200324154536-ceff61240acf // indirect
@@ -156,12 +157,10 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/cloud-provider v0.23.3 // indirect
-	k8s.io/component-helpers v0.26.3 // indirect
 	k8s.io/csi-translation-lib v0.23.3 // indirect
 	k8s.io/dynamic-resource-allocation v0.0.0 // indirect
 	k8s.io/gengo v0.0.0-20220902162205-c0856e24416d // indirect
 	k8s.io/kms v0.26.3 // indirect
-	k8s.io/kube-scheduler v0.0.0 // indirect
 	k8s.io/mount-utils v0.23.3 // indirect
 	sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.0.36 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
