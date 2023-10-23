@@ -334,7 +334,7 @@ func (c *ServiceImportController) syncClientEndpointSlice() {
 	for _, eps := range masterEndpointSlices {
 		if !helper.HasAnnotation(eps.ObjectMeta, ServiceExportLabelKey) {
 			klog.V(4).Infof("ServiceEndpointSlice %s/%s has not been exported in master, ignore it", namespace, eps.Name)
-			return
+			continue
 		}
 		for _, endpoint := range eps.Endpoints {
 			for _, address := range endpoint.Addresses {
@@ -448,7 +448,7 @@ func (c *ServiceImportController) syncClientServiceImport() {
 	for _, eps := range masterEndpointSlices {
 		if !helper.HasAnnotation(eps.ObjectMeta, ServiceExportLabelKey) {
 			klog.V(4).Infof("ServiceEndpointSlice %s/%s has not been exported in master, ignore it", namespace, eps.Name)
-			return
+			continue
 		}
 		for _, endpoint := range eps.Endpoints {
 			for _, address := range endpoint.Addresses {
@@ -590,7 +590,7 @@ func clearEndpointSlice(slice *discoveryv1.EndpointSlice, disconnectedAddress []
 				newAddresses = append(newAddresses, address)
 			}
 		}
-		// 只添加非空地址的endpoint
+		// Only add non-empty addresses from endpoints
 		if len(newAddresses) > 0 {
 			endpoint.Addresses = newAddresses
 			newEndpoints = append(newEndpoints, endpoint)
