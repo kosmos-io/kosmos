@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
@@ -91,12 +92,19 @@ func run(ctx context.Context, opts *options.Options) error {
 		return fmt.Errorf("failed to build controller manager: %v", err)
 	}
 
+	dynamicClient, err := dynamic.NewForConfig(config)
+	if err != nil {
+		klog.Errorf("Unable to create dynamicClient: %v", err)
+		return err
+	}
+
 	// add cluster controller
 	ClusterController := clusterManager.ClusterController{
 		Master:                mgr.GetClient(),
 		EventRecorder:         mgr.GetEventRecorderFor(clusterManager.ControllerName),
 		MasterResourceManager: masterResourceManager,
 		ConfigOptFunc:         configOptFunc,
+		MasterDynamic:         dynamicClient,
 	}
 	if err = ClusterController.SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("error starting %s: %v", clusterManager.ControllerName, err)

@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
@@ -24,6 +26,7 @@ import (
 	clusterlinkv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	networkmanager "github.com/kosmos.io/kosmos/pkg/clusterlink/network-manager"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers"
+	podcontrollers "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/pod"
 	"github.com/kosmos.io/kosmos/pkg/scheme"
 	"github.com/kosmos.io/kosmos/pkg/utils"
 )
@@ -53,6 +56,10 @@ type ClusterController struct {
 	ControllerManagers     map[string]*manager.Manager
 	ManagerCancelFuncs     map[string]*context.CancelFunc
 	ControllerManagersLock sync.Mutex
+
+	MasterDynamic dynamic.Interface
+
+	mgr *manager.Manager
 }
 
 func isMasterCluster(cluster *clusterlinkv1alpha1.Cluster) bool {
@@ -100,7 +107,7 @@ func (c *ClusterController) SetupWithManager(mgr manager.Manager) error {
 	c.ManagerCancelFuncs = make(map[string]*context.CancelFunc)
 	c.ControllerManagers = make(map[string]*manager.Manager)
 	c.Logger = mgr.GetLogger()
-
+	c.mgr = &mgr
 	return controllerruntime.NewControllerManagedBy(mgr).
 		Named(ControllerName).
 		WithOptions(controller.Options{}).
@@ -167,6 +174,11 @@ func (c *ClusterController) Reconcile(ctx context.Context, request reconcile.Req
 		return reconcile.Result{}, fmt.Errorf("new manager with err %v, cluster %s", err, cluster.Name)
 	}
 
+	dynamicClient, err := dynamic.NewForConfig(config)
+	if err != nil {
+		return reconcile.Result{}, fmt.Errorf("could not build dynamic client for cluster %s: %v", cluster.Name, err)
+	}
+
 	subContext, cancel := context.WithCancel(ctx)
 
 	c.ControllerManagersLock.Lock()
@@ -174,7 +186,7 @@ func (c *ClusterController) Reconcile(ctx context.Context, request reconcile.Req
 	c.ManagerCancelFuncs[cluster.Name] = &cancel
 	c.ControllerManagersLock.Unlock()
 
-	if err = c.setupControllers(&mgr, cluster.Name); err != nil {
+	if err = c.setupControllers(&mgr, cluster, dynamicClient); err != nil {
 		return reconcile.Result{}, fmt.Errorf("failed to setup cluster %s controllers: %v", cluster.Name, err)
 	}
 
@@ -199,7 +211,7 @@ func (c *ClusterController) clearClusterControllers(cluster *clusterlinkv1alpha1
 	delete(c.ControllerManagers, cluster.Name)
 }
 
-func (c *ClusterController) setupControllers(m *manager.Manager, clusterName string) error {
+func (c *ClusterController) setupControllers(m *manager.Manager, cluster *clusterlinkv1alpha1.Cluster, clientDynamic *dynamic.DynamicClient) error {
 	mgr := *m
 
 	nodeResourcesController := controllers.NodeResourcesController{
@@ -211,12 +223,12 @@ func (c *ClusterController) setupControllers(m *manager.Manager, clusterName str
 	}
 
 	//// mcs controller
-	//clusterKubeClient, err := utils.NewClusterKubeClient(mgr.GetClient(), clusterName, c.ConfigOptFunc)
+	//clusterKubeClient, err := utils.NewClusterKubeClient(mgr.GetClient(), cluster.Name, c.ConfigOptFunc)
 	//if err != nil {
 	//	return err
 	//}
 
-	clusterKosmosClient, err := utils.NewClusterKosmosClient(mgr.GetClient(), clusterName, c.ConfigOptFunc)
+	clusterKosmosClient, err := utils.NewClusterKosmosClient(mgr.GetClient(), cluster.Name, c.ConfigOptFunc)
 	if err != nil {
 		return err
 	}
@@ -226,12 +238,36 @@ func (c *ClusterController) setupControllers(m *manager.Manager, clusterName str
 		Master:              c.Master,
 		EventRecorder:       mgr.GetEventRecorderFor(controllers.MemberServiceImportControllerName),
 		Logger:              mgr.GetLogger(),
-		ClusterNodeName:     clusterName,
+		ClusterNodeName:     cluster.Name,
 		ClusterKosmosClient: clusterKosmosClient,
 	}
 
 	if err := serviceImportController.AddController(mgr); err != nil {
 		return fmt.Errorf("error starting %s: %v", controllers.MemberServiceImportControllerName, err)
+	}
+
+	RootPodReconciler := podcontrollers.RootPodReconciler{
+		LeafClient:           mgr.GetClient(),
+		RootClient:           c.Master,
+		NodeName:             cluster.Name,
+		Namespace:            cluster.Spec.Namespace,
+		IgnoreLabels:         strings.Split("", ","),
+		EnableServiceAccount: true,
+		DynamicRootClient:    c.MasterDynamic,
+		DynamicLeafClient:    clientDynamic,
+	}
+
+	if err := RootPodReconciler.SetupWithManager(*c.mgr); err != nil {
+		return fmt.Errorf("error starting RootPodReconciler %s: %v", networkmanager.ControllerName, err)
+	}
+
+	podUpstreamController := podcontrollers.LeafPodReconciler{
+		RootClient: c.Master,
+		Namespace:  cluster.Spec.Namespace,
+	}
+
+	if err := podUpstreamController.SetupWithManager(*c.mgr); err != nil {
+		return fmt.Errorf("error starting podUpstreamReconciler %s: %v", networkmanager.ControllerName, err)
 	}
 
 	return nil
