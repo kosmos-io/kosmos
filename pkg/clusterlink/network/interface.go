@@ -37,8 +37,12 @@ type NetWork interface {
 	UpdateCidrConfig(cluster *clusterlinkv1alpha1.Cluster)
 }
 
-func NewNetWork() NetWork {
+func NewNetWork(enableInitSys bool) NetWork {
 	dn := &DefaultNetWork{}
-	dn.InitSys()
+
+	if enableInitSys {
+		dn.InitSys()
+	}
+
 	return dn
 }

@@ -31,8 +31,8 @@ var installExample = templates.Examples(i18n.T(`
         # Install all module to Kosmos control plane, e.g: 
         kosmosctl install
 
-		# Install Kosmos control plane, if you need to specify a special master cluster kubeconfig, e.g: 
-        kosmosctl install --host-kubeconfig=[host-kubeconfig]
+		# Install Kosmos control plane, if you need to specify a special control plane cluster kubeconfig, e.g: 
+        kosmosctl install --kubeconfig ~/kubeconfig/cluster-kubeconfig
 
 		# Install clusterlink module to Kosmos control plane, e.g: 
         kosmosctl install -m clusterlink
@@ -80,7 +80,7 @@ func NewCmdInstall(f ctlutil.Factory) *cobra.Command {
 	flags.StringVarP(&o.Namespace, "namespace", "n", utils.DefaultNamespace, "Kosmos namespace.")
 	flags.StringVarP(&o.ImageRegistry, "private-image-registry", "", utils.DefaultImageRepository, "Private image registry where pull images from. If set, all required images will be downloaded from it, it would be useful in offline installation scenarios.  In addition, you still can use --kube-image-registry to specify the registry for Kubernetes's images.")
 	flags.StringVarP(&o.Module, "module", "m", utils.DefaultInstallModule, "Kosmos specify the module to install.")
-	flags.StringVar(&o.HostKubeConfig, "host-kubeconfig", "", "Absolute path to the special host kubeconfig file.")
+	flags.StringVar(&o.HostKubeConfig, "kubeconfig", "", "Absolute path to the special kubeconfig file.")
 	flags.IntVarP(&o.WaitTime, "wait-time", "", 120, "Wait the specified time for the Kosmos install ready.")
 
 	return cmd

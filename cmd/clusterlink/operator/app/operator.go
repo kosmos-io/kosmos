@@ -36,7 +36,7 @@ func NewOperatorCommand(ctx context.Context) *cobra.Command {
 			if errs := opts.Validate(); len(errs) != 0 {
 				return errs.ToAggregate()
 			}
-			if err := run(ctx, opts); err != nil {
+			if err := Run(ctx, opts); err != nil {
 				return err
 			}
 			return nil
@@ -70,12 +70,12 @@ func NewOperatorCommand(ctx context.Context) *cobra.Command {
 	return cmd
 }
 
-func run(ctx context.Context, opts *options.Options) error {
+func Run(ctx context.Context, opts *options.Options) error {
 	restConfig, err := clientcmd.BuildConfigFromFlags("", opts.KubeConfig)
 	if err != nil {
 		return fmt.Errorf("error building kubeconfig: %s", err.Error())
 	}
-	clientset, err := kubernetes.NewForConfig(restConfig)
+	clientSet, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
 		return fmt.Errorf("error get kubeclient: %v", err)
 	}
@@ -88,7 +88,7 @@ func run(ctx context.Context, opts *options.Options) error {
 		}
 	} else {
 		// try get kubeconfig from configmap
-		cm, err := clientset.CoreV1().ConfigMaps(utils.DefaultNamespace).Get(context.Background(), opts.ExternalKubeConfigName, metav1.GetOptions{})
+		cm, err := clientSet.CoreV1().ConfigMaps(utils.DefaultNamespace).Get(context.Background(), opts.ExternalKubeConfigName, metav1.GetOptions{})
 		if err != nil {
 			return fmt.Errorf("failed to configmap %s: %v", opts.ExternalKubeConfigName, err)
 		}

@@ -31,29 +31,24 @@ import (
 )
 
 var joinExample = templates.Examples(i18n.T(`
-        # Join cluster resource from a directory containing cluster.yaml, e.g: 
-        kosmosctl join cluster --name=[cluster-name] --master-kubeconfig=[master-kubeconfig] --cluster-kubeconfig=[cluster-kubeconfig]
-        
-        # Join cluster resource without master-kubeconfig, e.g: 
-        kosmosctl join cluster --name=[cluster-name] --cluster-kubeconfig=[cluster-kubeconfig]
+        # Join cluster resource, e.g: 
+        kosmosctl join cluster --name cluster-name --kubeconfig ~/kubeconfig/cluster-kubeconfig
 
-        # Join knode resource, e.g: 
-        kosmosctl join knode --name=[knode-name] --master-kubeconfig=[master-kubeconfig] --cluster-kubeconfig=[cluster-kubeconfig]
-
-        # Join knode resource without master-kubeconfig, e.g: 
-        kosmosctl join knode --name=[knode-name] --cluster-kubeconfig=[cluster-kubeconfig]
+        # Join cluster resource use param values other than default, e.g: 
+        kosmosctl join cluster --name cluster-name --kubeconfig ~/kubeconfig/cluster-kubeconfig --cni cni-name --default-nic nic-name
 `))
 
 type CommandJoinOptions struct {
-	MasterKubeConfig       string
-	MasterKubeConfigStream []byte
-	ClusterKubeConfig      string
+	KubeConfig           string
+	HostKubeConfig       string
+	HostKubeConfigStream []byte
 
 	Name           string
 	CNI            string
 	DefaultNICName string
 	ImageRegistry  string
 	NetworkType    string
+	IpFamily       string
 	UseProxy       string
 	WaitTime       int
 
@@ -82,13 +77,14 @@ func NewCmdJoin(f ctlutil.Factory) *cobra.Command {
 	}
 
 	flags := cmd.Flags()
-	flags.StringVar(&o.MasterKubeConfig, "master-kubeconfig", "", "Absolute path to the master kubeconfig file.")
-	flags.StringVar(&o.ClusterKubeConfig, "cluster-kubeconfig", "", "Absolute path to the cluster kubeconfig file.")
+	flags.StringVar(&o.KubeConfig, "kubeconfig", "", "Absolute path to the cluster kubeconfig file.")
+	flags.StringVar(&o.HostKubeConfig, "host-kubeconfig", "", "Absolute path to the special host kubeconfig file.")
 	flags.StringVar(&o.Name, "name", "", "Specify the name of the resource to join.")
 	flags.StringVar(&o.CNI, "cni", "", "The cluster is configured using cni and currently supports calico and flannel.")
 	flags.StringVar(&o.DefaultNICName, "default-nic", "", "Set default network interface card.")
 	flags.StringVar(&o.ImageRegistry, "private-image-registry", utils.DefaultImageRepository, "Private image registry where pull images from. If set, all required images will be downloaded from it, it would be useful in offline installation scenarios.  In addition, you still can use --kube-image-registry to specify the registry for Kubernetes's images.")
-	flags.StringVar(&o.NetworkType, "network-type", utils.NetworkTypeP2P, "Set the cluster network connection mode, which supports gateway and p2p modes, p2p is used by default.")
+	flags.StringVar(&o.NetworkType, "network-type", utils.NetworkTypeGateway, "Set the cluster network connection mode, which supports gateway and p2p modes, gateway is used by default.")
+	flags.StringVar(&o.IpFamily, "ip-family", utils.DefaultIpFamily, "Specify the IP protocol version used by network devices, common IP families include IPv4 and IPv6.")
 	flags.StringVar(&o.UseProxy, "use-proxy", "false", "Set whether to enable proxy.")
 	flags.IntVarP(&o.WaitTime, "wait-time", "", 120, "Wait the specified time for the Kosmos install ready.")
 
@@ -96,37 +92,37 @@ func NewCmdJoin(f ctlutil.Factory) *cobra.Command {
 }
 
 func (o *CommandJoinOptions) Complete(f ctlutil.Factory) error {
-	var masterConfig *rest.Config
+	var hostConfig *rest.Config
 	var clusterConfig *rest.Config
 	var err error
 
-	if len(o.MasterKubeConfig) > 0 {
-		masterConfig, err = clientcmd.BuildConfigFromFlags("", o.MasterKubeConfig)
+	if len(o.HostKubeConfig) > 0 {
+		hostConfig, err = clientcmd.BuildConfigFromFlags("", o.HostKubeConfig)
 		if err != nil {
-			return fmt.Errorf("kosmosctl join complete error, generate masterConfig failed: %s", err)
+			return fmt.Errorf("kosmosctl join complete error, generate hostConfig failed: %s", err)
 		}
-		o.MasterKubeConfigStream, err = os.ReadFile(o.MasterKubeConfig)
+		o.HostKubeConfigStream, err = os.ReadFile(o.HostKubeConfig)
 		if err != nil {
-			return fmt.Errorf("kosmosctl join complete error, read masterconfig failed: %s", err)
+			return fmt.Errorf("kosmosctl join complete error, read hostConfig failed: %s", err)
 		}
 	} else {
-		masterConfig, err = f.ToRESTConfig()
+		hostConfig, err = f.ToRESTConfig()
 		if err != nil {
-			return fmt.Errorf("kosmosctl join complete error, generate masterConfig failed: %s", err)
+			return fmt.Errorf("kosmosctl join complete error, generate hostConfig failed: %s", err)
 		}
-		o.MasterKubeConfigStream, err = os.ReadFile(filepath.Join(homedir.HomeDir(), ".kube", "config"))
+		o.HostKubeConfigStream, err = os.ReadFile(filepath.Join(homedir.HomeDir(), ".kube", "config"))
 		if err != nil {
-			return fmt.Errorf("kosmosctl join complete error, read masterconfig failed: %s", err)
+			return fmt.Errorf("kosmosctl join complete error, read hostConfig failed: %s", err)
 		}
 	}
 
-	o.DynamicClient, err = dynamic.NewForConfig(masterConfig)
+	o.DynamicClient, err = dynamic.NewForConfig(hostConfig)
 	if err != nil {
 		return fmt.Errorf("kosmosctl join complete error, generate dynamic client failed: %s", err)
 	}
 
-	if len(o.ClusterKubeConfig) > 0 {
-		clusterConfig, err = clientcmd.BuildConfigFromFlags("", o.ClusterKubeConfig)
+	if len(o.KubeConfig) > 0 {
+		clusterConfig, err = clientcmd.BuildConfigFromFlags("", o.KubeConfig)
 		if err != nil {
 			return fmt.Errorf("kosmosctl join complete error, generate clusterConfig failed: %s", err)
 		}
@@ -148,7 +144,7 @@ func (o *CommandJoinOptions) Complete(f ctlutil.Factory) error {
 
 func (o *CommandJoinOptions) Validate(args []string) error {
 	if len(o.Name) == 0 {
-		return fmt.Errorf("kosmosctl join validate error, resource name is not valid")
+		return fmt.Errorf("kosmosctl join validate error, name is not valid")
 	}
 
 	switch args[0] {
@@ -191,12 +187,19 @@ func (o *CommandJoinOptions) Run(args []string) error {
 func (o *CommandJoinOptions) runCluster() error {
 	klog.Info("Start registering cluster to kosmos control plane...")
 	// 1. create cluster in master
+	clusterKubeConfigByte, err := os.ReadFile(o.KubeConfig)
+	if err != nil {
+		return fmt.Errorf("kosmosctl join run error, decode cluster cr failed: %s", err)
+	}
+	base64ClusterKubeConfig := base64.StdEncoding.EncodeToString(clusterKubeConfigByte)
 	clusterByte, err := util.GenerateCustomResource(manifest.ClusterCR, manifest.ClusterReplace{
 		ClusterName:     o.Name,
 		CNI:             o.CNI,
 		DefaultNICName:  o.DefaultNICName,
 		ImageRepository: o.ImageRegistry,
 		NetworkType:     o.NetworkType,
+		IpFamily:        o.IpFamily,
+		KubeConfig:      base64ClusterKubeConfig,
 	})
 	if err != nil {
 		return err
@@ -229,7 +232,7 @@ func (o *CommandJoinOptions) runCluster() error {
 			Namespace: utils.DefaultNamespace,
 		},
 		Data: map[string][]byte{
-			"kubeconfig": o.MasterKubeConfigStream,
+			"kubeconfig": o.HostKubeConfigStream,
 		},
 	}
 	_, err = o.Client.CoreV1().Secrets(secret.Namespace).Create(context.TODO(), secret, metav1.CreateOptions{})
@@ -301,7 +304,7 @@ func (o *CommandJoinOptions) runCluster() error {
 
 func (o *CommandJoinOptions) runKnode() error {
 	klog.Info("Start registering knode to kosmos control plane...")
-	clusterKubeConfigByte, err := os.ReadFile(o.ClusterKubeConfig)
+	clusterKubeConfigByte, err := os.ReadFile(o.KubeConfig)
 	if err != nil {
 		return fmt.Errorf("kosmosctl join run error, decode knode cr failed: %s", err)
 	}

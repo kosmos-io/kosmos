@@ -69,9 +69,10 @@ func NewKosmosCtlCommand() *cobra.Command {
 			},
 		},
 		{
-			Message: "Cluster Doctor/Floater Commands:",
+			Message: "Cluster Check/Analysis Commands:",
 			Commands: []*cobra.Command{
-				floater.NewCmdDoctor(),
+				floater.NewCmdCheck(),
+				floater.NewCmdAnalysis(f),
 			},
 		}, {
 			Message: "Cluster Resource Import/Export Commands:",

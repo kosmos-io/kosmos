@@ -3,6 +3,7 @@ package floater
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -10,14 +11,26 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/remotecommand"
 	"k8s.io/klog/v2"
 
+	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/floater/command"
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/manifest"
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/util"
+	"github.com/kosmos.io/kosmos/pkg/utils"
+)
+
+type Protocol string
+
+const (
+	TCP  Protocol = "tcp"
+	UDP  Protocol = "udp"
+	IPv4 Protocol = "ipv4"
 )
 
 const (
@@ -25,8 +38,9 @@ const (
 )
 
 type FloatInfo struct {
-	NodeName string
-	NodeIPs  []string
+	NodeName       string
+	NodeIPs        []string
+	NodeConfigSpec v1alpha1.NodeConfigSpec
 
 	PodName string
 	PodIPs  []string
@@ -44,14 +58,62 @@ type Floater struct {
 	PodWaitTime       int
 	Port              string
 	EnableHostNetwork bool
+	EnableAnalysis    bool
 
 	CIDRsMap map[string]string
 
-	Client kubernetes.Interface
 	Config *rest.Config
+	Client kubernetes.Interface
 }
 
-func (f *Floater) RunInit() error {
+func NewCheckFloater(o *CommandCheckOptions) *Floater {
+	floater := &Floater{
+		Namespace:         o.Namespace,
+		Name:              DefaultFloaterName,
+		ImageRepository:   o.DstImageRepository,
+		Version:           o.Version,
+		PodWaitTime:       o.PodWaitTime,
+		Port:              o.Port,
+		EnableHostNetwork: false,
+		EnableAnalysis:    false,
+	}
+	if o.HostNetwork {
+		floater.EnableHostNetwork = true
+	}
+	return floater
+}
+
+func NewAnalysisFloater(o *CommandAnalysisOptions) *Floater {
+	floater := &Floater{
+		Namespace:         o.Namespace,
+		Name:              DefaultFloaterName,
+		ImageRepository:   o.ImageRepository,
+		Version:           o.Version,
+		PodWaitTime:       o.PodWaitTime,
+		Port:              o.Port,
+		EnableHostNetwork: true,
+		EnableAnalysis:    true,
+	}
+
+	return floater
+}
+
+func (f *Floater) completeFromKubeConfigPath(kubeConfigPath string) error {
+	config, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
+	if err != nil {
+		return fmt.Errorf("kosmosctl docter complete error, generate floater config failed: %v", err)
+	}
+	f.Config = config
+
+	f.Client, err = kubernetes.NewForConfig(f.Config)
+	if err != nil {
+		return fmt.Errorf("kosmosctl docter complete error, generate floater client failed: %v", err)
+	}
+
+	return nil
+}
+
+func (f *Floater) CreateFloater() error {
 	klog.Infof("create Clusterlink floater, namespace: %s", f.Namespace)
 	namespace := &corev1.Namespace{}
 	namespace.Name = f.Namespace
@@ -74,7 +136,7 @@ func (f *Floater) RunInit() error {
 	}
 
 	klog.Infof("create Clusterlink floater, version: %s", f.Version)
-	if err = f.initFloaterDaemonSet(); err != nil {
+	if err = f.applyDaemonSet(); err != nil {
 		return err
 	}
 
@@ -130,7 +192,7 @@ func (f *Floater) applyClusterRoleBinding() error {
 	return nil
 }
 
-func (f *Floater) initFloaterDaemonSet() error {
+func (f *Floater) applyDaemonSet() error {
 	clusterlinkFloaterDaemonSet, err := util.GenerateDaemonSet(manifest.ClusterlinkFloaterDaemonSet, manifest.DaemonSetReplace{
 		Namespace:         f.Namespace,
 		Name:              f.Name,
@@ -138,6 +200,7 @@ func (f *Floater) initFloaterDaemonSet() error {
 		ImageRepository:   f.ImageRepository,
 		Port:              f.Port,
 		EnableHostNetwork: f.EnableHostNetwork,
+		EnableAnalysis:    f.EnableAnalysis,
 	})
 	if err != nil {
 		return err
@@ -159,7 +222,9 @@ func (f *Floater) initFloaterDaemonSet() error {
 
 func (f *Floater) GetPodInfo() ([]*FloatInfo, error) {
 	selector := util.MapToString(map[string]string{"app": f.Name})
-	pods, err := f.Client.CoreV1().Pods(f.Namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: selector})
+	pods, err := f.Client.CoreV1().Pods(f.Namespace).List(context.TODO(), metav1.ListOptions{
+		LabelSelector: selector,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -173,7 +238,7 @@ func (f *Floater) GetPodInfo() ([]*FloatInfo, error) {
 		podInfo := &FloatInfo{
 			NodeName: pod.Spec.NodeName,
 			PodName:  pod.GetObjectMeta().GetName(),
-			PodIPs:   PodIPToArray(pod.Status.PodIPs),
+			PodIPs:   podIPToArray(pod.Status.PodIPs),
 		}
 
 		floaterInfos = append(floaterInfos, podInfo)
@@ -182,7 +247,7 @@ func (f *Floater) GetPodInfo() ([]*FloatInfo, error) {
 	return floaterInfos, nil
 }
 
-func PodIPToArray(podIPs []corev1.PodIP) []string {
+func podIPToArray(podIPs []corev1.PodIP) []string {
 	var ret []string
 
 	for _, podIP := range podIPs {
@@ -194,7 +259,9 @@ func PodIPToArray(podIPs []corev1.PodIP) []string {
 
 func (f *Floater) GetNodesInfo() ([]*FloatInfo, error) {
 	selector := util.MapToString(map[string]string{"app": f.Name})
-	pods, err := f.Client.CoreV1().Pods(f.Namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: selector})
+	pods, err := f.Client.CoreV1().Pods(f.Namespace).List(context.TODO(), metav1.ListOptions{
+		LabelSelector: selector,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -216,7 +283,7 @@ func (f *Floater) GetNodesInfo() ([]*FloatInfo, error) {
 			if pod.Spec.NodeName == node.Name {
 				nodeInfo := &FloatInfo{
 					NodeName: node.Name,
-					NodeIPs:  NodeIPToArray(node),
+					NodeIPs:  nodeIPToArray(node),
 					PodName:  pod.Name,
 				}
 				floaterInfos = append(floaterInfos, nodeInfo)
@@ -227,7 +294,7 @@ func (f *Floater) GetNodesInfo() ([]*FloatInfo, error) {
 	return floaterInfos, nil
 }
 
-func NodeIPToArray(node corev1.Node) []string {
+func nodeIPToArray(node corev1.Node) []string {
 	var nodeIPs []string
 
 	for _, addr := range node.Status.Addresses {
@@ -237,6 +304,65 @@ func NodeIPToArray(node corev1.Node) []string {
 	}
 
 	return nodeIPs
+}
+
+func (f *Floater) GetSysNodeConfig() ([]*FloatInfo, error) {
+	var floatInfos []*FloatInfo
+	selector := util.MapToString(map[string]string{"app": f.Name})
+	getNodeConfigCmd := []string{"cat", utils.NodeConfigFile}
+	fPods, err := f.Client.CoreV1().Pods(f.Namespace).List(context.TODO(), metav1.ListOptions{
+		LabelSelector: selector,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	for _, fPod := range fPods.Items {
+		var nodeConfigSpec v1alpha1.NodeConfigSpec
+		var floatInfo FloatInfo
+		containerName := fPod.Spec.Containers[0].Name
+		req := f.Client.CoreV1().RESTClient().Post().Resource("pods").
+			Namespace(fPod.Namespace).Name(fPod.Name).SubResource("exec")
+		scheme := runtime.NewScheme()
+		if err = corev1.AddToScheme(scheme); err != nil {
+			panic(err.Error())
+		}
+		parameterCodec := runtime.NewParameterCodec(scheme)
+		req.VersionedParams(
+			&corev1.PodExecOptions{
+				Stdin:     false,
+				Stdout:    true,
+				Stderr:    true,
+				TTY:       false,
+				Container: containerName,
+				Command:   getNodeConfigCmd,
+			}, parameterCodec)
+
+		exec, err := remotecommand.NewSPDYExecutor(f.Config, "POST", req.URL())
+		if err != nil {
+			klog.Infof("error: %s", err)
+		}
+
+		var stdout, stderr bytes.Buffer
+		err = exec.StreamWithContext(context.TODO(), remotecommand.StreamOptions{
+			Stdin:  nil,
+			Stdout: &stdout,
+			Stderr: &stderr,
+			Tty:    false,
+		})
+		if err != nil {
+			klog.Infof("error: %s", err)
+		}
+
+		err = json.Unmarshal(stdout.Bytes(), &nodeConfigSpec)
+		if err != nil {
+			klog.Infof("error: %s", err)
+		}
+		floatInfo.NodeConfigSpec = nodeConfigSpec
+		floatInfos = append(floatInfos, &floatInfo)
+	}
+
+	return floatInfos, nil
 }
 
 func (f *Floater) CommandExec(fInfo *FloatInfo, cmd command.Command) *command.Result {
@@ -276,4 +402,78 @@ func (f *Floater) CommandExec(fInfo *FloatInfo, cmd command.Command) *command.Re
 	}
 
 	return cmd.ParseResult(outBuffer.String())
+}
+
+func (f *Floater) RemoveFloater() error {
+	klog.Infof("remove Clusterlink floater, version: %s", f.Version)
+	if err := f.removeDaemonSet(); err != nil {
+		return err
+	}
+
+	klog.Info("remove Clusterlink floater, apply RBAC")
+	if err := f.removeClusterRoleBinding(); err != nil {
+		return err
+	}
+	if err := f.removeClusterRole(); err != nil {
+		return err
+	}
+	if err := f.removeServiceAccount(); err != nil {
+		return err
+	}
+
+	if f.Namespace != utils.DefaultNamespace {
+		klog.Infof("remove namespace specified when creating Clusterlink floater, namespace: %s", f.Namespace)
+		err := f.Client.CoreV1().Namespaces().Delete(context.TODO(), f.Namespace, metav1.DeleteOptions{})
+		if err != nil {
+			if !apierrors.IsNotFound(err) {
+				return fmt.Errorf("kosmosctl floater run error, namespace options failed: %v", err)
+			}
+		}
+	}
+
+	return nil
+}
+
+func (f *Floater) removeDaemonSet() error {
+	err := f.Client.AppsV1().DaemonSets(f.Namespace).Delete(context.Background(), f.Name, metav1.DeleteOptions{})
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return fmt.Errorf("kosmosctl floater run error, daemonset options failed: %v", err)
+		}
+	}
+
+	return nil
+}
+
+func (f *Floater) removeClusterRoleBinding() error {
+	err := f.Client.RbacV1().ClusterRoleBindings().Delete(context.Background(), f.Name, metav1.DeleteOptions{})
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return fmt.Errorf("kosmosctl floater run error, clusterrolebinding options failed: %v", err)
+		}
+	}
+
+	return nil
+}
+
+func (f *Floater) removeClusterRole() error {
+	err := f.Client.RbacV1().ClusterRoles().Delete(context.Background(), f.Name, metav1.DeleteOptions{})
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return fmt.Errorf("kosmosctl floater run error, clusterrole options failed: %v", err)
+		}
+	}
+
+	return nil
+}
+
+func (f *Floater) removeServiceAccount() error {
+	err := f.Client.CoreV1().ServiceAccounts(f.Namespace).Delete(context.Background(), f.Name, metav1.DeleteOptions{})
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return fmt.Errorf("kosmosctl floater run error, serviceaccount options failed: %v", err)
+		}
+	}
+
+	return nil
 }

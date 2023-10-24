@@ -7,9 +7,9 @@ import (
 
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 	ctlutil "k8s.io/kubectl/pkg/cmd/util"
+	"k8s.io/kubectl/pkg/util/i18n"
+	"k8s.io/kubectl/pkg/util/templates"
 
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/floater/command"
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/floater/netmap"
@@ -17,10 +17,21 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/version"
 )
 
-type CommandDoctorOptions struct {
+var checkExample = templates.Examples(i18n.T(`
+        # Check single cluster network connectivity, e.g:
+        kosmosctl check --src-kubeconfig ~/kubeconfig/src-kubeconfig
+        
+        # Check across clusters network connectivity, e.g:
+        kosmosctl check --src-kubeconfig ~/kubeconfig/src-kubeconfig --dst-kubeconfig ~/kubeconfig/dst-kubeconfig
+        
+        # Check cluster network connectivity, if you need to specify a special image repository, e.g: 
+        kosmosctl check -r ghcr.io/kosmos-io
+`))
+
+type CommandCheckOptions struct {
 	Namespace          string
 	ImageRepository    string
-	ImageRepositoryDst string
+	DstImageRepository string
 	Version            string
 
 	Protocol    string
@@ -28,38 +39,30 @@ type CommandDoctorOptions struct {
 	Port        string
 	HostNetwork bool
 
-	SrcKubeConfig  string
-	DstKubeConfig  string
-	HostKubeConfig string
+	KubeConfig    string
+	SrcKubeConfig string
+	DstKubeConfig string
 
 	SrcFloater *Floater
 	DstFloater *Floater
 }
 
-type Protocol string
-
-const (
-	TCP  Protocol = "tcp"
-	UDP  Protocol = "udp"
-	IPv4 Protocol = "ipv4"
-)
-
-type PrintData struct {
+type PrintCheckData struct {
 	command.Result
 	SrcNodeName string
 	DstNodeName string
 	TargetIP    string
 }
 
-func NewCmdDoctor() *cobra.Command {
-	o := &CommandDoctorOptions{
+func NewCmdCheck() *cobra.Command {
+	o := &CommandCheckOptions{
 		Version: version.GetReleaseVersion().PatchRelease(),
 	}
 	cmd := &cobra.Command{
-		Use:                   "dr",
-		Short:                 "Dr.link is an one-shot kubernetes network diagnose tool.",
+		Use:                   "check",
+		Short:                 i18n.T("Check network connectivity between Kosmos clusters"),
 		Long:                  "",
-		Example:               "",
+		Example:               checkExample,
 		SilenceUsage:          true,
 		DisableFlagsInUseLine: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -80,12 +83,12 @@ func NewCmdDoctor() *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.StringVarP(&o.Namespace, "namespace", "n", utils.DefaultNamespace, "Kosmos namespace.")
-	flags.StringVarP(&o.ImageRepository, "image-repository", "r", "ghcr.io/kosmos-io", "Image repository.")
-	flags.StringVarP(&o.ImageRepositoryDst, "image-repository-dst", "", "", "Image repository.")
-	flags.StringVar(&o.HostKubeConfig, "host-kubeconfig", "", "Absolute path to the host kubeconfig file.")
+	flags.StringVarP(&o.ImageRepository, "image-repository", "r", utils.DefaultImageRepository, "Image repository.")
+	flags.StringVarP(&o.DstImageRepository, "dst-image-repository", "", "", "Destination cluster image repository.")
+	flags.StringVar(&o.KubeConfig, "kubeconfig", "", "Absolute path to the host kubeconfig file.")
 	flags.StringVar(&o.SrcKubeConfig, "src-kubeconfig", "", "Absolute path to the source cluster kubeconfig file.")
 	flags.StringVar(&o.DstKubeConfig, "dst-kubeconfig", "", "Absolute path to the destination cluster kubeconfig file.")
-	flags.BoolVar(&o.HostNetwork, "host-network", false, "")
+	flags.BoolVar(&o.HostNetwork, "host-network", false, "Configure HostNetwork.")
 	flags.StringVar(&o.Port, "port", "8889", "Port used by floater.")
 	flags.IntVarP(&o.PodWaitTime, "pod-wait-time", "w", 30, "Time for wait pod(floater) launch.")
 	flags.StringVar(&o.Protocol, "protocol", string(TCP), "Protocol for the network problem.")
@@ -93,18 +96,18 @@ func NewCmdDoctor() *cobra.Command {
 	return cmd
 }
 
-func (o *CommandDoctorOptions) Complete() error {
-	if len(o.ImageRepositoryDst) == 0 {
-		o.ImageRepositoryDst = o.ImageRepository
+func (o *CommandCheckOptions) Complete() error {
+	if len(o.DstImageRepository) == 0 {
+		o.DstImageRepository = o.ImageRepository
 	}
 
-	srcFloater := newFloater(o)
+	srcFloater := NewCheckFloater(o)
 	if err := srcFloater.completeFromKubeConfigPath(o.SrcKubeConfig); err != nil {
 		return err
 	}
 	o.SrcFloater = srcFloater
 
-	dstFloater := newFloater(o)
+	dstFloater := NewCheckFloater(o)
 	if err := dstFloater.completeFromKubeConfigPath(o.DstKubeConfig); err != nil {
 		return err
 	}
@@ -113,7 +116,7 @@ func (o *CommandDoctorOptions) Complete() error {
 	return nil
 }
 
-func (o *CommandDoctorOptions) Validate() error {
+func (o *CommandCheckOptions) Validate() error {
 	if len(o.Namespace) == 0 {
 		return fmt.Errorf("namespace must be specified")
 	}
@@ -121,41 +124,10 @@ func (o *CommandDoctorOptions) Validate() error {
 	return nil
 }
 
-func newFloater(o *CommandDoctorOptions) *Floater {
-	floater := &Floater{
-		Namespace:         o.Namespace,
-		Name:              DefaultFloaterName,
-		ImageRepository:   o.ImageRepositoryDst,
-		Version:           o.Version,
-		PodWaitTime:       o.PodWaitTime,
-		Port:              o.Port,
-		EnableHostNetwork: false,
-	}
-	if o.HostNetwork {
-		floater.EnableHostNetwork = true
-	}
-	return floater
-}
+func (o *CommandCheckOptions) Run() error {
+	var resultData []*PrintCheckData
 
-func (f *Floater) completeFromKubeConfigPath(kubeConfigPath string) error {
-	config, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
-	if err != nil {
-		return fmt.Errorf("kosmosctl docter complete error, generate floater config failed: %v", err)
-	}
-	f.Config = config
-
-	f.Client, err = kubernetes.NewForConfig(f.Config)
-	if err != nil {
-		return fmt.Errorf("kosmosctl docter complete error, generate floater client failed: %v", err)
-	}
-
-	return nil
-}
-
-func (o *CommandDoctorOptions) Run() error {
-	var resultData []*PrintData
-
-	if err := o.SrcFloater.RunInit(); err != nil {
+	if err := o.SrcFloater.CreateFloater(); err != nil {
 		return err
 	}
 
@@ -166,7 +138,7 @@ func (o *CommandDoctorOptions) Run() error {
 				return fmt.Errorf("get src cluster nodeInfos failed: %s", err)
 			}
 
-			if err = o.DstFloater.RunInit(); err != nil {
+			if err = o.DstFloater.CreateFloater(); err != nil {
 				return err
 			}
 			var dstNodeInfos []*FloatInfo
@@ -182,7 +154,7 @@ func (o *CommandDoctorOptions) Run() error {
 				return fmt.Errorf("get src cluster podInfos failed: %s", err)
 			}
 
-			if err = o.DstFloater.RunInit(); err != nil {
+			if err = o.DstFloater.CreateFloater(); err != nil {
 				return err
 			}
 			var dstPodInfos []*FloatInfo
@@ -211,11 +183,21 @@ func (o *CommandDoctorOptions) Run() error {
 
 	o.PrintResult(resultData)
 
+	if err := o.SrcFloater.RemoveFloater(); err != nil {
+		return err
+	}
+
+	if o.DstKubeConfig != "" {
+		if err := o.DstFloater.RemoveFloater(); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
-func (o *CommandDoctorOptions) RunRange(iPodInfos []*FloatInfo, jPodInfos []*FloatInfo) []*PrintData {
-	var resultData []*PrintData
+func (o *CommandCheckOptions) RunRange(iPodInfos []*FloatInfo, jPodInfos []*FloatInfo) []*PrintCheckData {
+	var resultData []*PrintCheckData
 
 	if len(iPodInfos) > 0 && len(jPodInfos) > 0 {
 		for _, iPodInfo := range iPodInfos {
@@ -238,7 +220,7 @@ func (o *CommandDoctorOptions) RunRange(iPodInfos []*FloatInfo, jPodInfos []*Flo
 						}
 						cmdResult = o.SrcFloater.CommandExec(iPodInfo, cmdObj)
 					}
-					resultData = append(resultData, &PrintData{
+					resultData = append(resultData, &PrintCheckData{
 						*cmdResult,
 						iPodInfo.NodeName, jPodInfo.NodeName, targetIP,
 					})
@@ -250,8 +232,8 @@ func (o *CommandDoctorOptions) RunRange(iPodInfos []*FloatInfo, jPodInfos []*Flo
 	return resultData
 }
 
-func (o *CommandDoctorOptions) RunNative(iNodeInfos []*FloatInfo, jNodeInfos []*FloatInfo) []*PrintData {
-	var resultData []*PrintData
+func (o *CommandCheckOptions) RunNative(iNodeInfos []*FloatInfo, jNodeInfos []*FloatInfo) []*PrintCheckData {
+	var resultData []*PrintCheckData
 
 	if len(iNodeInfos) > 0 && len(jNodeInfos) > 0 {
 		for _, iNodeInfo := range iNodeInfos {
@@ -262,7 +244,7 @@ func (o *CommandDoctorOptions) RunNative(iNodeInfos []*FloatInfo, jNodeInfos []*
 						TargetIP: ip,
 					}
 					cmdResult := o.SrcFloater.CommandExec(iNodeInfo, cmdObj)
-					resultData = append(resultData, &PrintData{
+					resultData = append(resultData, &PrintCheckData{
 						*cmdResult,
 						iNodeInfo.NodeName, jNodeInfo.NodeName, ip,
 					})
@@ -274,7 +256,7 @@ func (o *CommandDoctorOptions) RunNative(iNodeInfos []*FloatInfo, jNodeInfos []*
 	return resultData
 }
 
-func (o *CommandDoctorOptions) PrintResult(resultData []*PrintData) {
+func (o *CommandCheckOptions) PrintResult(resultData []*PrintCheckData) {
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetHeader([]string{"S/N", "SRC_NODE_NAME", "DST_NODE_NAME", "TARGET_IP", "RESULT"})
 

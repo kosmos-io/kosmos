@@ -16,14 +16,17 @@ const (
 const ExternalIPPoolNamePrefix = "clusterlink"
 
 const (
-	CNITypeCalico  = "calico"
-	NetworkTypeP2P = "p2p"
+	CNITypeCalico      = "calico"
+	NetworkTypeP2P     = "p2p"
+	NetworkTypeGateway = "gateway"
+	DefaultIpFamily    = "ipv4"
 )
 
 const (
 	ProxySecretName        = "clusterlink-agent-proxy"
 	ControlPanelSecretName = "controlpanel-config"
 	HostKubeConfigName     = "host-kubeconfig"
+	NodeConfigFile         = "~/nodeconfig.json"
 )
 
 const (

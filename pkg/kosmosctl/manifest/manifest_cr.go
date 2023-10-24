@@ -11,6 +11,8 @@ spec:
   defaultNICName: {{ .DefaultNICName }}
   imageRepository: {{ .ImageRepository }}
   networkType: {{ .NetworkType }}
+  ipFamily: {{ .IpFamily }}
+  kubeconfig: {{ .KubeConfig }}
 `
 
 	KnodeCR = `
@@ -31,6 +33,8 @@ type ClusterReplace struct {
 	DefaultNICName  string
 	ImageRepository string
 	NetworkType     string
+	IpFamily        string
+	KubeConfig      string
 }
 
 type KnodeReplace struct {

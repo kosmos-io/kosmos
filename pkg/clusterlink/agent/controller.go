@@ -40,7 +40,7 @@ type Reconciler struct {
 }
 
 func NetworkManager() *networkmanager.NetworkManager {
-	net := network.NewNetWork()
+	net := network.NewNetWork(true)
 	return networkmanager.NewNetworkManager(net)
 }
 
