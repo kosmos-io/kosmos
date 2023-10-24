@@ -26,9 +26,6 @@ spec:
           image: ghcr.io/kosmos-io/scheduler:0.0.2
           command:
             - scheduler
-            - --leader-elect=true
-            - --leader-elect-resource-name=kosmos-scheduler
-            - --leader-elect-resource-namespace=kosmos-system
             - --config=/etc/kubernetes/kube-scheduler/scheduler-config.yaml
           resources:
             requests:
@@ -67,6 +64,8 @@ data:
     kind: KubeSchedulerConfiguration
     leaderElection:
       leaderElect: true
+      resourceName: kosmos-scheduler
+      resourceNamespace: kosmos-system
     profiles:
       - schedulerName: kosmos-scheduler
         plugins:
