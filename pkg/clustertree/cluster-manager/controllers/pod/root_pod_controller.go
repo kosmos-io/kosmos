@@ -25,6 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/extensions/daemonset"
 	"github.com/kosmos.io/kosmos/pkg/utils"
 )
 
@@ -70,6 +71,11 @@ func (r *RootPodReconciler) Reconcile(ctx context.Context, request reconcile.Req
 
 	// belongs to the current node
 	if pod.Spec.NodeName != r.NodeName {
+		return reconcile.Result{}, nil
+	}
+
+	// don't create pod if pod has label daemonset.kosmos.io/managed=""
+	if _, ok := pod.Labels[daemonset.ManagedLabel]; ok {
 		return reconcile.Result{}, nil
 	}
 
@@ -445,6 +451,7 @@ func (p *RootPodReconciler) CreatePodInLeafCluster(ctx context.Context, pod *cor
 	if pod.Namespace == utils.ReservedNS {
 		return nil
 	}
+
 	basicPod := utils.FitPod(pod, p.IgnoreLabels)
 	klog.Infof("Creating pod %v/%+v", pod.Namespace, pod.Name)
 	ns := &corev1.Namespace{}
