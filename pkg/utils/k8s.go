@@ -10,6 +10,9 @@ import (
 	jsonpatch "github.com/evanphx/json-patch"
 	jsonpatch1 "github.com/mattbaird/jsonpatch"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -352,4 +355,58 @@ func UpdateSecret(old, new *corev1.Secret) {
 	old.Data = new.Data
 	old.StringData = new.StringData
 	old.Type = new.Type
+}
+
+func UpdateUnstructured(old, new *unstructured.Unstructured, g func() (interface{}, error), cb func(old, new interface{}) error) (*unstructured.Unstructured, error) {
+	oldObj, err := g()
+	if err != nil {
+		return nil, err
+	}
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(old.UnstructuredContent(), &oldObj); err != nil {
+		return nil, err
+	}
+
+	newObj, err := g()
+	if err != nil {
+		return nil, err
+	}
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(new.UnstructuredContent(), &newObj); err != nil {
+		return nil, err
+	}
+
+	if err := cb(oldObj, newObj); err != nil {
+		return nil, err
+	}
+
+	if retObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(oldObj); err == nil {
+		return &unstructured.Unstructured{
+			Object: retObj,
+		}, nil
+	} else {
+		return nil, err
+	}
+}
+
+func IsObjectGlobal(obj *metav1.ObjectMeta) bool {
+	if obj.Annotations == nil {
+		return false
+	}
+
+	if obj.Annotations[KosmosGlobalLabel] == "true" {
+		return true
+	}
+
+	return false
+}
+
+func IsObjectUnstructuredGlobal(obj map[string]string) bool {
+	if obj == nil {
+		return false
+	}
+
+	if obj[KosmosGlobalLabel] == "true" {
+		return true
+	}
+
+	return false
 }
