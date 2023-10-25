@@ -17,6 +17,7 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/get"
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/install"
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/join"
+	"github.com/kosmos.io/kosmos/pkg/kosmosctl/rsmigrate"
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/uninstall"
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/unjoin"
 )
@@ -71,6 +72,12 @@ func NewKosmosCtlCommand() *cobra.Command {
 			Message: "Cluster Doctor/Floater Commands:",
 			Commands: []*cobra.Command{
 				floater.NewCmdDoctor(),
+			},
+		}, {
+			Message: "Cluster Resource Import/Export Commands:",
+			Commands: []*cobra.Command{
+				rsmigrate.NewCmdImport(f),
+				rsmigrate.NewCmdExport(f),
 			},
 		},
 	}
