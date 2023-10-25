@@ -32,6 +32,6 @@ func (kc *KubeletController) Reconcile(ctx context.Context, request reconcile.Re
 	defer func() {
 		klog.Infof("============ %s has been reconciled =============", request.NamespacedName.String())
 	}()
-	//TODO
+	//TODO Specific logic implementation
 	return controllerruntime.Result{}, nil
 }
