@@ -47,7 +47,7 @@ type Worker interface {
 	SplitKey(key string) (namespace, name string, err error)
 }
 
-type concurrentWorker struct {
+type worker struct {
 	// runtime Objects keys that need to be synced.
 	queue workqueue.RateLimitingInterface
 
@@ -58,16 +58,16 @@ type concurrentWorker struct {
 	keyFunc func(obj interface{}) (string, error)
 }
 
-// NewConcurrentWorker returns a Concurrent informer worker which can process resource event.
-func NewConcurrentWorker(reconcile Reconcile, name string) Worker {
-	return &concurrentWorker{
+// NewWorker returns a Concurrent informer worker which can process resource event.
+func NewWorker(reconcile Reconcile, name string) Worker {
+	return &worker{
 		queue:     workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), name),
 		reconcile: reconcile,
 		keyFunc:   cache.DeletionHandlingMetaNamespaceKeyFunc,
 	}
 }
 
-func (c *concurrentWorker) Enqueue(obj runtime.Object) {
+func (c *worker) Enqueue(obj runtime.Object) {
 	key, err := c.keyFunc(obj)
 	if err != nil {
 		utilruntime.HandleError(fmt.Errorf("couldn't get key for object %#v: %v", obj, err))
@@ -77,7 +77,7 @@ func (c *concurrentWorker) Enqueue(obj runtime.Object) {
 	c.queue.Add(key)
 }
 
-func (c *concurrentWorker) EnqueueRateLimited(obj runtime.Object) {
+func (c *worker) EnqueueRateLimited(obj runtime.Object) {
 	key, err := c.keyFunc(obj)
 	if err != nil {
 		utilruntime.HandleError(fmt.Errorf("couldn't get key for object %#v: %v", obj, err))
@@ -87,7 +87,7 @@ func (c *concurrentWorker) EnqueueRateLimited(obj runtime.Object) {
 	c.queue.AddRateLimited(key)
 }
 
-func (c *concurrentWorker) EnqueueAfter(obj runtime.Object, after time.Duration) {
+func (c *worker) EnqueueAfter(obj runtime.Object, after time.Duration) {
 	key, err := c.keyFunc(obj)
 	if err != nil {
 		utilruntime.HandleError(fmt.Errorf("couldn't get key for object %#v: %v", obj, err))
@@ -97,12 +97,12 @@ func (c *concurrentWorker) EnqueueAfter(obj runtime.Object, after time.Duration)
 	c.queue.AddAfter(key, after)
 }
 
-func (c *concurrentWorker) GetFirst() (string, error) {
+func (c *worker) GetFirst() (string, error) {
 	item, _ := c.queue.Get()
 	return item.(string), nil
 }
 
-func (c *concurrentWorker) Forget(obj runtime.Object) {
+func (c *worker) Forget(obj runtime.Object) {
 	key, err := c.keyFunc(obj)
 	if err != nil {
 		utilruntime.HandleError(fmt.Errorf("couldn't get key for object %#v: %v", obj, err))
@@ -112,7 +112,7 @@ func (c *concurrentWorker) Forget(obj runtime.Object) {
 	c.queue.Forget(key)
 }
 
-func (c *concurrentWorker) Run(workerNumber int, stopChan <-chan struct{}) {
+func (c *worker) Run(workerNumber int, stopChan <-chan struct{}) {
 	defer c.queue.ShutDown()
 
 	for i := 0; i < workerNumber; i++ {
@@ -122,7 +122,7 @@ func (c *concurrentWorker) Run(workerNumber int, stopChan <-chan struct{}) {
 	<-stopChan
 }
 
-func (c *concurrentWorker) SplitKey(key string) (namespace, name string, err error) {
+func (c *worker) SplitKey(key string) (namespace, name string, err error) {
 	return cache.SplitMetaNamespaceKey(key)
 }
 
@@ -130,12 +130,12 @@ func (c *concurrentWorker) SplitKey(key string) (namespace, name string, err err
 // marks them done. You may run as many of these in parallel as you wish; the
 // queue guarantees that they will not end up processing the same runtime object
 // at the same time
-func (c *concurrentWorker) worker() {
+func (c *worker) worker() {
 	for c.processNextItem() {
 	}
 }
 
-func (c *concurrentWorker) processNextItem() bool {
+func (c *worker) processNextItem() bool {
 	key, quit := c.queue.Get()
 	if quit {
 		return false
@@ -148,7 +148,7 @@ func (c *concurrentWorker) processNextItem() bool {
 	return true
 }
 
-func (c *concurrentWorker) handleErr(err error, key interface{}) {
+func (c *worker) handleErr(err error, key interface{}) {
 	if err == nil {
 		c.queue.Forget(key)
 		return
