@@ -23,7 +23,7 @@ import (
 )
 
 const (
-	LeafPodControllerName = "left-pod-controller"
+	LeafPodControllerName = "leaf-pod-controller"
 	LeafPodRequeueTime    = 10 * time.Second
 )
 

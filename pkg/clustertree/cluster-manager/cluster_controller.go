@@ -270,5 +270,19 @@ func (c *ClusterController) setupControllers(m *manager.Manager, cluster *cluste
 		return fmt.Errorf("error starting podUpstreamReconciler %s: %v", networkmanager.ControllerName, err)
 	}
 
+	for i, gvr := range podcontrollers.SYNC_GVRS {
+		demoController := podcontrollers.SyncResourcesReconciler{
+			GroupVersionResource: gvr,
+			Object:               podcontrollers.SYNC_OBJS[i],
+			DynamicRootClient:    c.MasterDynamic,
+			DynamicLeafClient:    clientDynamic,
+			ControllerName:       "async-controller-" + gvr.Resource,
+		}
+		if err = demoController.SetupWithManager(mgr, gvr); err != nil {
+			klog.Fatalf("Unable to create cluster node controller: %v", err)
+			return err
+		}
+	}
+
 	return nil
 }
