@@ -1,5 +1,7 @@
 # KOSMOS
 
+> [English](README.md) | 中文
+
 Kosmos是移动云开源的分布式云原生联邦集群技术的集合，其名称kosmos：k代表**k**ubernetes，c**osmos**表示宇宙（希腊语），寓意kubernetes的无限扩展。目前，kosmos主要包括三大模块，分别是：**多集群网络**、**多集群管理编排**、**多集群调度**。此外，kosmos还配备一款kosmosctl工具， 可以快速进行kosmos组件部署、添加集群、测试网络连通性等工作。
 
 ## 多集群网络
