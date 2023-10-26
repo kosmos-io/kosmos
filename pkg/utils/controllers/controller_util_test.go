@@ -10,7 +10,7 @@ import (
 func Test_Enqueue(t *testing.T) {
 	const name = "public"
 
-	worker := NewConcurrentWorker(nil, "namespace")
+	worker := NewWorker(nil, "namespace")
 
 	ns := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{Name: name},
