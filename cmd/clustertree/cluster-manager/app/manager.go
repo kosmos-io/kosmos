@@ -117,6 +117,15 @@ func run(ctx context.Context, opts *options.Options) error {
 		return fmt.Errorf("error starting %s: %v", clusterManager.ServiceExportControllerName, err)
 	}
 
+	GlobalDaemonSetService := &GlobalDaemonSetService{
+		opts:           opts,
+		ctx:            ctx,
+		defaultWorkNum: 1,
+	}
+	if err = GlobalDaemonSetService.SetupWithManager(mgr); err != nil {
+		return fmt.Errorf("error starting global daemonset : %v", err)
+	}
+
 	go func() {
 		if err = mgr.Start(ctx); err != nil {
 			klog.Errorf("failed to start controller manager: %v", err)

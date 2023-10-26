@@ -182,10 +182,16 @@ func NewHostDaemonSetsController(
 	// Watch for creation/deletion of pods. The reason we watch is that we don't want a daemon set to create/delete
 	// more pods until all the effects (expectations) of a daemon set's create/delete have been observed.
 	// nolint:errcheck
-	podInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    dsc.addPod,
-		UpdateFunc: dsc.updatePod,
-		DeleteFunc: dsc.deletePod,
+	podInformer.Informer().AddEventHandler(cache.FilteringResourceEventHandler{
+		FilterFunc: func(obj interface{}) bool {
+			pod := obj.(*v1.Pod)
+			return pod.Annotations == nil || len(pod.Annotations[ClusterAnnotationKey]) == 0
+		},
+		Handler: cache.ResourceEventHandlerFuncs{
+			AddFunc:    dsc.addPod,
+			UpdateFunc: dsc.updatePod,
+			DeleteFunc: dsc.deletePod,
+		},
 	})
 	dsc.podLister = podInformer.Lister()
 	dsc.podStoreSynced = podInformer.Informer().HasSynced
@@ -193,18 +199,9 @@ func NewHostDaemonSetsController(
 	// nolint:errcheck
 	nodeInformer.Informer().AddEventHandler(cache.FilteringResourceEventHandler{
 		FilterFunc: func(obj interface{}) bool {
-			node, ok := obj.(*v1.Node)
-			if !ok {
-				return false
-			}
-
+			node := obj.(*v1.Node)
 			// filter virtual node
-			for _, taint := range node.Spec.Taints {
-				if taint.Key == "kosmos.io/node" {
-					return false
-				}
-			}
-			return true
+			return !isVirtualNode(node)
 		},
 		Handler: cache.ResourceEventHandlerFuncs{
 			AddFunc:    dsc.addNode,
@@ -645,6 +642,7 @@ func (dsc *HostDaemonSetsController) addNode(obj interface{}) {
 		klog.V(4).Infof("Error enqueueing daemon sets: %v", err)
 		return
 	}
+	dsList = filterHostShadowDS(dsList)
 	node := obj.(*v1.Node)
 	for _, ds := range dsList {
 		if shouldRun, _ := NodeShouldRunDaemonPod(node, ds); shouldRun {
@@ -703,6 +701,7 @@ func (dsc *HostDaemonSetsController) updateNode(old, cur interface{}) {
 		klog.V(4).Infof("Error listing daemon sets: %v", err)
 		return
 	}
+	dsList = filterHostShadowDS(dsList)
 	// TODO: it'd be nice to pass a hint with these enqueues, so that each ds would only examine the added node (unless it has other work to do, too).
 	for _, ds := range dsList {
 		oldShouldRun, oldShouldContinueRunning := NodeShouldRunDaemonPod(oldNode, ds)
@@ -725,10 +724,18 @@ func (dsc *HostDaemonSetsController) getDaemonPods(ctx context.Context, ds *kosm
 
 	// List all pods to include those that don't match the selector anymore but
 	// have a ControllerRef pointing to this controller.
-	pods, err := dsc.podLister.Pods(ds.Namespace).List(labels.Everything())
+	allPods, err := dsc.podLister.Pods(ds.Namespace).List(labels.Everything())
 	if err != nil {
 		return nil, err
 	}
+	var pods []*v1.Pod
+	for i := range allPods {
+		pod := allPods[i]
+		if len(pod.Annotations[ClusterAnnotationKey]) == 0 {
+			pods = append(pods, pod)
+		}
+	}
+
 	// If any adoptions are attempted, we should first recheck for deletion with
 	// an uncached quorum read sometime after listing Pods (see #42639).
 	dsNotDeleted := controller.RecheckDeletionTimestamp(func(ctx context.Context) (metav1.Object, error) {
@@ -1225,9 +1232,16 @@ func (dsc *HostDaemonSetsController) syncDaemonSet(ctx context.Context, key stri
 		return fmt.Errorf("unable to retrieve ds %v from store: %v", key, err)
 	}
 
-	nodeList, err := dsc.nodeLister.List(labels.Everything())
+	allNode, err := dsc.nodeLister.List(labels.Everything())
 	if err != nil {
 		return fmt.Errorf("couldn't get list of nodes when syncing daemon set %#v: %v", ds, err)
+	}
+	var nodeList []*v1.Node
+	for i := range allNode {
+		node := allNode[i]
+		if !isVirtualNode(node) {
+			nodeList = append(nodeList, node)
+		}
 	}
 
 	everything := metav1.LabelSelector{}
@@ -1462,4 +1476,24 @@ func GetHistoryDaemonSets(history *apps.ControllerRevision, s kosmoslister.Shado
 	}
 
 	return daemonSets, nil
+}
+
+func isVirtualNode(node *v1.Node) bool {
+	for _, taint := range node.Spec.Taints {
+		if taint.Key == "kosmos.io/node" {
+			return true
+		}
+	}
+	return false
+}
+
+func filterHostShadowDS(dsList []*kosmosv1alpha1.ShadowDaemonSet) []*kosmosv1alpha1.ShadowDaemonSet {
+	var filtered []*kosmosv1alpha1.ShadowDaemonSet
+	for i := range dsList {
+		ds := dsList[i]
+		if ds.RefType == kosmosv1alpha1.RefTypeHost {
+			filtered = append(filtered, ds)
+		}
+	}
+	return filtered
 }
