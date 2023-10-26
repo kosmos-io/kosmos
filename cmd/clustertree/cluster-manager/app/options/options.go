@@ -16,6 +16,7 @@ const (
 type Options struct {
 	LeaderElection    componentbaseconfig.LeaderElectionConfiguration
 	KubernetesOptions KubernetesOptions
+	ListenPort        int32
 }
 
 type KubernetesOptions struct {
@@ -41,4 +42,5 @@ func (o *Options) AddFlags(flags *pflag.FlagSet) {
 	flags.IntVar(&o.KubernetesOptions.Burst, "kube-burst", DefaultKubeBurst, "Burst to use while talking with kube-apiserver.")
 	flags.StringVar(&o.KubernetesOptions.KubeConfig, "kubeconfig", "", "Path for kubernetes kubeconfig file, if left blank, will use in cluster way.")
 	flags.StringVar(&o.KubernetesOptions.Master, "master", "", "Used to generate kubeconfig for downloading, if not specified, will use host in kubeconfig.")
+	flags.Int32Var(&o.ListenPort, "listen-port", 10250, "Listen port for requests from the kube-apiserver.")
 }
