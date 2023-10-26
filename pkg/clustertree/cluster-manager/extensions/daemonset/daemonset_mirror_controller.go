@@ -123,13 +123,12 @@ func (dmc *DaemonSetsMirrorController) Run(ctx context.Context, workers int) {
 	}
 
 	dmc.processor.Run(workers, ctx.Done())
-	<-ctx.Done()
 }
 
 func (dmc *DaemonSetsMirrorController) syncDaemonSet(key utils.QueueKey) error {
 	clusterWideKey, ok := key.(keys.ClusterWideKey)
 	if !ok {
-		klog.V(2).Infof("invalid key type %T", key)
+		klog.Errorf("invalid key type %T", key)
 		return fmt.Errorf("invalid key")
 	}
 
@@ -138,7 +137,7 @@ func (dmc *DaemonSetsMirrorController) syncDaemonSet(key utils.QueueKey) error {
 
 	d, err := dmc.dsLister.DaemonSets(namespace).Get(name)
 	if apierrors.IsNotFound(err) {
-		klog.V(3).Infof("daemon set has been deleted %v", key)
+		klog.Errorf("daemon set has been deleted %v", key)
 		return nil
 	}
 	ds := d.DeepCopy()
@@ -179,12 +178,12 @@ func (dmc *DaemonSetsMirrorController) syncDaemonSet(key utils.QueueKey) error {
 			}
 			_, err := dmc.kosmosClient.KosmosV1alpha1().DaemonSets(ds.Namespace).Create(context.Background(), ds, metav1.CreateOptions{})
 			if err != nil {
-				klog.V(2).Infof("failed to create kosmos daemon set %v", err)
+				klog.Errorf("failed to create kosmos daemon set %v", err)
 				return err
 			}
 			return nil
 		} else {
-			klog.V(2).Infof("failed to get kosmos daemon set %v", err)
+			klog.Errorf("failed to get kosmos daemon set %v", err)
 			return err
 		}
 	}
@@ -202,7 +201,7 @@ func (dmc *DaemonSetsMirrorController) syncDaemonSet(key utils.QueueKey) error {
 	kds.Labels = labels.Set{ManagedLabel: ""}
 	kds, err = dmc.kosmosClient.KosmosV1alpha1().DaemonSets(ds.Namespace).Update(context.Background(), kds, metav1.UpdateOptions{})
 	if err != nil {
-		klog.V(2).Infof("failed to update shadow daemon set %v", err)
+		klog.Errorf("failed to update shadow daemon set %v", err)
 		return err
 	}
 	ds.Status.CurrentNumberScheduled = kds.Status.CurrentNumberScheduled
@@ -217,7 +216,7 @@ func (dmc *DaemonSetsMirrorController) syncDaemonSet(key utils.QueueKey) error {
 	ds.Status.Conditions = kds.Status.Conditions
 	_, err = dmc.kubeClient.AppsV1().DaemonSets(ds.Namespace).UpdateStatus(context.Background(), ds, metav1.UpdateOptions{})
 	if err != nil {
-		klog.V(2).Infof("failed to update daemon set status %v", err)
+		klog.Errorf("failed to update daemon set status %v", err)
 		return err
 	}
 	return nil
@@ -247,7 +246,7 @@ func (dmc *DaemonSetsMirrorController) ProcessKosmosDaemonSet(obj interface{}) {
 	ds, err := dmc.dsLister.DaemonSets(kds.Namespace).Get(kds.Name)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
-			klog.V(2).Infof("failed to get daemon set %v", err)
+			klog.Errorf("failed to get daemon set %v", err)
 		}
 		return
 	}

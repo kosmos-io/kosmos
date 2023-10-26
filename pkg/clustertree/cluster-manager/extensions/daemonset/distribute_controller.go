@@ -3,6 +3,7 @@ package daemonset
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"sync"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -124,7 +125,6 @@ func (dc *DistributeController) Run(ctx context.Context, workers int) {
 
 	dc.knodeProcessor.Run(workers, ctx.Done())
 	dc.shadowDaemonSetProcessor.Run(workers, ctx.Done())
-	<-ctx.Done()
 }
 
 func (dc *DistributeController) syncKNode(key utils.QueueKey) error {
@@ -169,7 +169,7 @@ func (dc *DistributeController) syncKNode(key utils.QueueKey) error {
 				if !ok {
 					return false
 				}
-				if ds.Labels[ManagedLabel] == "" {
+				if _, ok := ds.Labels[ManagedLabel]; ok {
 					return true
 				}
 				return false
@@ -183,6 +183,7 @@ func (dc *DistributeController) syncKNode(key utils.QueueKey) error {
 
 		daemonsetSynced := dsInformer.Informer().HasSynced()
 		manager = NewKNodeDaemonSetManager(
+			name,
 			kubeClient,
 			dsInformer,
 			kubeFactory,
@@ -222,7 +223,7 @@ func (dc *DistributeController) syncShadowDaemonSet(key utils.QueueKey) error {
 	defer dc.lock.RUnlock()
 	clusterWideKey, ok := key.(keys.ClusterWideKey)
 	if !ok {
-		klog.V(2).Infof("invalid key type %T", key)
+		klog.Errorf("invalid key type %T", key)
 		return fmt.Errorf("invalid key")
 	}
 
@@ -232,13 +233,13 @@ func (dc *DistributeController) syncShadowDaemonSet(key utils.QueueKey) error {
 	sds, err := dc.sdsLister.ShadowDaemonSets(namespace).Get(name)
 
 	if apierrors.IsNotFound(err) {
-		klog.V(2).Infof("daemon set has been deleted %v", key)
+		klog.Errorf("daemon set has been deleted %v", key)
 		return nil
 	}
 
 	knode, err := dc.kNodeLister.Get(sds.Knode)
 	if err != nil && !apierrors.IsNotFound(err) {
-		klog.V(2).Infof("failed to get knode %s: %v", sds.Knode, err)
+		klog.Errorf("failed to get knode %s: %v", sds.Knode, err)
 		return err
 	}
 	// when knode is deleting or not found, skip sync
@@ -249,14 +250,14 @@ func (dc *DistributeController) syncShadowDaemonSet(key utils.QueueKey) error {
 	manager, ok := dc.knodeDaemonSetManagerMap[sds.Knode]
 	if !ok {
 		msg := fmt.Sprintf("no manager found for knode %s", sds.Knode)
-		klog.V(2).Info(msg)
+		klog.Errorf(msg)
 		return fmt.Errorf(msg)
 	}
 
 	if sds.DeletionTimestamp != nil {
 		err := manager.kubeClient.AppsV1().DaemonSets(sds.Namespace).Delete(context.Background(), sds.Name, metav1.DeleteOptions{})
 		if err != nil && !apierrors.IsNotFound(err) {
-			klog.V(2).Infof("failed to delete daemonset %s/%s from knode %s: %v", sds.Namespace, sds.Name, sds.Knode, err)
+			klog.Errorf("failed to delete daemonset %s/%s from knode %s: %v", sds.Namespace, sds.Name, sds.Knode, err)
 			return err
 		}
 		return dc.removeShadowDaemonSetFinalizer(sds)
@@ -264,28 +265,28 @@ func (dc *DistributeController) syncShadowDaemonSet(key utils.QueueKey) error {
 
 	sds, err = dc.ensureShadowDaemonSetFinalizer(sds)
 	if err != nil {
-		klog.V(2).Infof("failed to ensure finalizer for shadow daemonset %s/%s: %v", namespace, name, err)
+		klog.Errorf("failed to ensure finalizer for shadow daemonset %s/%s: %v", namespace, name, err)
 		return err
 	}
 	copy := sds.DeepCopy()
 
-	err = manager.tryCreateOrUpdateDaemonset(sds)
+	err = manager.tryCreateOrUpdateDaemonSet(sds)
 	if err != nil {
-		klog.V(2).Infof("failed to create or update daemonset %s/%s: %v", namespace, name, err)
+		klog.Errorf("failed to create or update daemonset %s/%s: %v", namespace, name, err)
 		return err
 	}
 
 	ds, error := manager.dsLister.DaemonSets(sds.Namespace).Get(sds.Name)
 
 	if error != nil {
-		klog.V(2).Infof("failed to get daemonset %s/%s: %v", namespace, name, error)
+		klog.Errorf("failed to get daemonset %s/%s: %v", namespace, name, error)
 		return error
 	}
 
 	error = dc.updateStatus(copy, ds)
 
 	if error != nil {
-		klog.V(2).Infof("failed to update status for shadow daemonset %s/%s: %v", namespace, name, error)
+		klog.Errorf("failed to update status for shadow daemonset %s/%s: %v", namespace, name, error)
 		return error
 	}
 	return nil
@@ -385,7 +386,12 @@ func (dc *DistributeController) addDaemonSet(obj interface{}) {
 }
 
 func (dc *DistributeController) updateDaemonSet(oldObj, newObj interface{}) {
+	oldDs := oldObj.(*appsv1.DaemonSet)
 	newDS := newObj.(*appsv1.DaemonSet)
+	if reflect.DeepEqual(oldDs.Status, newDS.Status) {
+		klog.V(4).Infof("member cluster daemon set %s/%s is unchanged skip enqueue", newDS.Namespace, newDS.Name)
+		return
+	}
 	dc.shadowDaemonSetProcessor.Enqueue(newDS)
 }
 
@@ -396,32 +402,35 @@ func (dc *DistributeController) deleteDaemonSet(obj interface{}) {
 
 func (dc *DistributeController) addShadowDaemonSet(obj interface{}) {
 	ds := obj.(*v1alpha1.ShadowDaemonSet)
-	klog.V(4).Infof("Adding daemon set %s", ds.Name)
 	dc.shadowDaemonSetProcessor.Enqueue(ds)
 }
 
 func (dc *DistributeController) updateShadowDaemonSet(oldObj, newObj interface{}) {
+	oldDs := oldObj.(*v1alpha1.ShadowDaemonSet)
 	newDS := newObj.(*v1alpha1.ShadowDaemonSet)
-	klog.V(4).Infof("Updating daemon set %s", newDS.Name)
+	if reflect.DeepEqual(oldDs.DaemonSetSpec, newDS.DaemonSetSpec) &&
+		reflect.DeepEqual(oldDs.Annotations, newDS.Annotations) &&
+		reflect.DeepEqual(oldDs.Labels, newDS.Labels) &&
+		oldDs.DeletionTimestamp == newDS.DeletionTimestamp {
+		klog.V(4).Infof("shadow daemon set %s/%s is unchanged skip enqueue", newDS.Namespace, newDS.Name)
+		return
+	}
 	dc.shadowDaemonSetProcessor.Enqueue(newDS)
 }
 
 func (dc *DistributeController) deleteShadowDaemonSet(obj interface{}) {
 	ds := obj.(*v1alpha1.ShadowDaemonSet)
-	klog.V(4).Infof("Deleting daemon set %s", ds.Name)
 	dc.shadowDaemonSetProcessor.Enqueue(ds)
 }
 
 type KNodeDaemonSetManager struct {
+	name string
+
 	kubeClient clientset.Interface
 
 	dsLister appslisters.DaemonSetLister
 
 	factory informer.SharedInformerFactory
-
-	version map[string]string
-
-	lock sync.RWMutex
 
 	ctx context.Context
 
@@ -432,7 +441,7 @@ type KNodeDaemonSetManager struct {
 
 func (km *KNodeDaemonSetManager) Start() {
 	km.factory.Start(km.ctx.Done())
-	if !cache.WaitForNamedCacheSync("km_manager", km.ctx.Done(), km.daemonSetSynced) {
+	if !cache.WaitForNamedCacheSync("distribute controller", km.ctx.Done(), km.daemonSetSynced) {
 		klog.Errorf("failed to wait for daemonSet caches to sync")
 		return
 	}
@@ -444,17 +453,16 @@ func (km *KNodeDaemonSetManager) Stop() {
 	}
 }
 
-func (km *KNodeDaemonSetManager) tryCreateOrUpdateDaemonset(sds *v1alpha1.ShadowDaemonSet) error {
+func (km *KNodeDaemonSetManager) tryCreateOrUpdateDaemonSet(sds *v1alpha1.ShadowDaemonSet) error {
 	err := km.ensureNameSpace(sds.Namespace)
 	if err != nil {
 		klog.V(4).Infof("ensure namespace %s failed: %v", sds.Namespace, err)
 		return err
 	}
 
-	ds, error := km.dsLister.DaemonSets(sds.Namespace).Get(sds.Name)
-	copyDs := ds.DeepCopy()
-	if error != nil {
-		if apierrors.IsNotFound(error) {
+	ds, err := km.getDaemonSet(sds.Namespace, sds.Name)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
 			newDaemonSet := &appsv1.DaemonSet{}
 			newDaemonSet.Spec.Template = sds.DaemonSetSpec.Template
 			newDaemonSet.Spec.Selector = sds.DaemonSetSpec.Selector
@@ -466,45 +474,51 @@ func (km *KNodeDaemonSetManager) tryCreateOrUpdateDaemonset(sds *v1alpha1.Shadow
 			newDaemonSet.Labels = sds.Labels
 			newDaemonSet.Annotations = sds.Annotations
 			newDaemonSet.Labels = labels.Set{ManagedLabel: ""}
-			newDs, error := km.kubeClient.AppsV1().DaemonSets(sds.Namespace).Create(context.Background(), newDaemonSet, metav1.CreateOptions{})
-			if error != nil {
-				klog.V(2).Infof("failed to create daemonset %s/%s: %v", sds.Namespace, sds.Name, error)
-				return error
+			if newDaemonSet.Spec.Template.Annotations != nil {
+				newDaemonSet.Spec.Template.Annotations[ManagedLabel] = ""
+				newDaemonSet.Spec.Template.Annotations[ClusterAnnotationKey] = km.name
+			} else {
+				newDaemonSet.Spec.Template.Annotations = labels.Set{ManagedLabel: "", ClusterAnnotationKey: km.name}
 			}
-			km.updateVersion(newDs)
+			_, err = km.kubeClient.AppsV1().DaemonSets(sds.Namespace).Create(context.Background(), newDaemonSet, metav1.CreateOptions{})
+			if err != nil {
+				klog.Errorf("failed to create daemonset %s/%s: %v", sds.Namespace, sds.Name, err)
+				return err
+			}
 			return nil
 		} else {
-			klog.V(2).Infof("failed to get daemonset %s/%s: %v", sds.Namespace, sds.Name, error)
-			return error
+			klog.Errorf("failed to get daemonset %s/%s: %v", sds.Namespace, sds.Name, err)
+			return err
 		}
 	}
 
-	if copyDs.ResourceVersion == km.version[key(sds.ObjectMeta)] {
-		return nil
-	}
-
-	copyDs.Spec.Template = sds.DaemonSetSpec.Template
-	copyDs.Spec.Selector = sds.DaemonSetSpec.Selector
-	copyDs.Spec.UpdateStrategy = sds.DaemonSetSpec.UpdateStrategy
-	copyDs.Spec.MinReadySeconds = sds.DaemonSetSpec.MinReadySeconds
-	copyDs.Spec.RevisionHistoryLimit = sds.DaemonSetSpec.RevisionHistoryLimit
+	ds.Spec.Template = sds.DaemonSetSpec.Template
+	ds.Spec.Selector = sds.DaemonSetSpec.Selector
+	ds.Spec.UpdateStrategy = sds.DaemonSetSpec.UpdateStrategy
+	ds.Spec.MinReadySeconds = sds.DaemonSetSpec.MinReadySeconds
+	ds.Spec.RevisionHistoryLimit = sds.DaemonSetSpec.RevisionHistoryLimit
 
 	for k, v := range sds.Labels {
-		copyDs.Labels[k] = v
+		ds.Labels[k] = v
 	}
-	copyDs.Labels[ManagedLabel] = ""
+	ds.Labels[ManagedLabel] = ""
 
 	for k, v := range sds.Annotations {
 		// TODO delete  annotations which add by controller
-		copyDs.Annotations[k] = v
+		ds.Annotations[k] = v
+	}
+	if ds.Spec.Template.Annotations != nil {
+		ds.Spec.Template.Annotations[ManagedLabel] = ""
+		ds.Spec.Template.Annotations[ClusterAnnotationKey] = km.name
+	} else {
+		ds.Spec.Template.Annotations = labels.Set{ManagedLabel: "", ClusterAnnotationKey: km.name}
 	}
 
-	updated, error := km.kubeClient.AppsV1().DaemonSets(sds.Namespace).Update(context.Background(), copyDs, metav1.UpdateOptions{})
-	if error != nil {
-		klog.V(2).Infof("failed to update daemonset %s/%s: %v", sds.Namespace, sds.Name, error)
-		return error
+	_, err = km.kubeClient.AppsV1().DaemonSets(sds.Namespace).Update(context.Background(), ds, metav1.UpdateOptions{})
+	if err != nil {
+		klog.Errorf("failed to update daemonset %s/%s: %v", sds.Namespace, sds.Name, err)
+		return err
 	}
-	km.updateVersion(updated)
 	return nil
 }
 
@@ -516,33 +530,35 @@ func (km *KNodeDaemonSetManager) ensureNameSpace(namespace string) error {
 		if apierrors.IsAlreadyExists(err) {
 			return nil
 		}
-		klog.V(2).Infof("failed to create namespace %s: %v", namespace, err)
+		klog.Errorf("failed to create namespace %s: %v", namespace, err)
 		return err
 	}
 
 	return nil
 }
 
-func (km *KNodeDaemonSetManager) updateVersion(ds *appsv1.DaemonSet) {
-	km.lock.Lock()
-	defer km.lock.Unlock()
-	km.version[key(ds.ObjectMeta)] = ds.ResourceVersion
+func (km *KNodeDaemonSetManager) getDaemonSet(namespace, name string) (*appsv1.DaemonSet, error) {
+	ds, err := km.dsLister.DaemonSets(namespace).Get(name)
+	if err != nil {
+		ds, err = km.kubeClient.AppsV1().DaemonSets(namespace).Get(context.Background(), name, metav1.GetOptions{})
+		if err != nil {
+			return nil, err
+		}
+		return ds, nil
+	}
+	return ds.DeepCopy(), nil
 }
 
-func NewKNodeDaemonSetManager(client *clientset.Clientset, dsInformer appsinformers.DaemonSetInformer, factory informer.SharedInformerFactory, synced bool) *KNodeDaemonSetManager {
+func NewKNodeDaemonSetManager(name string, client *clientset.Clientset, dsInformer appsinformers.DaemonSetInformer, factory informer.SharedInformerFactory, synced bool) *KNodeDaemonSetManager {
 	ctx := context.TODO()
 	ctx, cancel := context.WithCancel(ctx)
 	return &KNodeDaemonSetManager{
+		name:            name,
 		kubeClient:      client,
 		dsLister:        dsInformer.Lister(),
 		factory:         factory,
 		ctx:             ctx,
 		cancelFun:       cancel,
-		version:         map[string]string{},
 		daemonSetSynced: dsInformer.Informer().HasSynced,
 	}
-}
-
-func key(obj metav1.ObjectMeta) string {
-	return obj.Namespace + "/" + obj.Name
 }
