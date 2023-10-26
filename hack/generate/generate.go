@@ -28,8 +28,18 @@ func main() {
 		fmt.Println("can not read file：", err)
 		return
 	}
+	serviceImportCRD, err := os.ReadFile(fmt.Sprintf("%s/deploy/crds/mcs/multicluster.x-k8s.io_serviceimports.yaml", projectpath.Root))
+	if err != nil {
+		fmt.Println("can not read file：", err)
+		return
+	}
+	serviceExportCRD, err := os.ReadFile(fmt.Sprintf("%s/deploy/crds/mcs/multicluster.x-k8s.io_serviceexports.yaml", projectpath.Root))
+	if err != nil {
+		fmt.Println("can not read file：", err)
+		return
+	}
 
-	filename := fmt.Sprintf("%s/pkg/clusterlinkctl/initmaster/ctlmaster/manifests_crd.go", projectpath.Root)
+	filename := fmt.Sprintf("%s/pkg/kosmosctl/manifest/manifest_crds.go", projectpath.Root)
 	fset := token.NewFileSet()
 	node, err := parser.ParseFile(fset, filename, nil, parser.ParseComments)
 	if err != nil {
@@ -67,6 +77,30 @@ func main() {
 			valueSpec.Values[0] = &ast.BasicLit{
 				Kind:  token.STRING,
 				Value: fmt.Sprintf("`%s`", nodeConfigCRD),
+			}
+			return false
+		}
+		return true
+	})
+
+	ast.Inspect(node, func(n ast.Node) bool {
+		if ident, ok := n.(*ast.Ident); ok && ident.Obj != nil && ident.Obj.Kind == ast.Con && ident.Obj.Name == "ServiceImport" {
+			valueSpec := ident.Obj.Decl.(*ast.ValueSpec)
+			valueSpec.Values[0] = &ast.BasicLit{
+				Kind:  token.STRING,
+				Value: fmt.Sprintf("`%s`", serviceImportCRD),
+			}
+			return false
+		}
+		return true
+	})
+
+	ast.Inspect(node, func(n ast.Node) bool {
+		if ident, ok := n.(*ast.Ident); ok && ident.Obj != nil && ident.Obj.Kind == ast.Con && ident.Obj.Name == "ServiceExport" {
+			valueSpec := ident.Obj.Decl.(*ast.ValueSpec)
+			valueSpec.Values[0] = &ast.BasicLit{
+				Kind:  token.STRING,
+				Value: fmt.Sprintf("`%s`", serviceExportCRD),
 			}
 			return false
 		}
