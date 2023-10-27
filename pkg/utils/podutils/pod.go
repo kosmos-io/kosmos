@@ -1,4 +1,4 @@
-package utils
+package podutils
 
 import (
 	"encoding/json"
@@ -9,6 +9,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/klog"
+
+	"github.com/kosmos.io/kosmos/pkg/utils"
 )
 
 func GetSecrets(pod *corev1.Pod) []string {
@@ -72,7 +74,7 @@ func SetObjectGlobal(obj *metav1.ObjectMeta) {
 	if obj.Annotations == nil {
 		obj.Annotations = map[string]string{}
 	}
-	obj.Annotations[KosmosGlobalLabel] = "true"
+	obj.Annotations[utils.KosmosGlobalLabel] = "true"
 }
 
 func SetUnstructuredObjGlobal(unstructuredObj *unstructured.Unstructured) {
@@ -80,7 +82,7 @@ func SetUnstructuredObjGlobal(unstructuredObj *unstructured.Unstructured) {
 	if annotationsMap == nil {
 		annotationsMap = map[string]string{}
 	}
-	annotationsMap[KosmosGlobalLabel] = "true"
+	annotationsMap[utils.KosmosGlobalLabel] = "true"
 
 	unstructuredObj.SetAnnotations(annotationsMap)
 }
@@ -147,7 +149,7 @@ func FitPod(pod *corev1.Pod, ignoreLabels []string) *corev1.Pod {
 	if podCopy.Annotations == nil {
 		podCopy.Annotations = make(map[string]string)
 	}
-	podCopy.Labels[KosmosPodLabel] = "true"
+	podCopy.Labels[utils.KosmosPodLabel] = "true"
 	cns := ConvertAnnotations(pod.Annotations)
 	recoverSelectors(podCopy, cns)
 	podCopy.Spec.Containers = fitContainers(pod.Spec.Containers)
@@ -164,7 +166,7 @@ func FitPod(pod *corev1.Pod, ignoreLabels []string) *corev1.Pod {
 		if err != nil {
 			return podCopy
 		}
-		podCopy.Annotations[KosmosTrippedLabels] = string(trippedStr)
+		podCopy.Annotations[utils.KosmosTrippedLabels] = string(trippedStr)
 	}
 
 	return podCopy
@@ -189,14 +191,14 @@ func fitContainers(containers []corev1.Container) []corev1.Container {
 }
 
 func IsKosmosPod(pod *corev1.Pod) bool {
-	if pod.Labels != nil && pod.Labels[KosmosPodLabel] == "true" {
+	if pod.Labels != nil && pod.Labels[utils.KosmosPodLabel] == "true" {
 		return true
 	}
 	return false
 }
 
 func RecoverLabels(labels map[string]string, annotations map[string]string) {
-	trippedLabels := annotations[KosmosTrippedLabels]
+	trippedLabels := annotations[utils.KosmosTrippedLabels]
 	if trippedLabels == "" {
 		return
 	}
@@ -234,7 +236,7 @@ func GetUpdatedPod(orig, update *corev1.Pod, ignoreLabels []string) {
 	if update.Annotations == nil {
 		update.Annotations = make(map[string]string)
 	}
-	if orig.Annotations[KosmosSelectorKey] != update.Annotations[KosmosSelectorKey] {
+	if orig.Annotations[utils.KosmosSelectorKey] != update.Annotations[utils.KosmosSelectorKey] {
 		if cns := ConvertAnnotations(update.Annotations); cns != nil {
 			orig.Spec.Tolerations = cns.Tolerations
 		}
@@ -247,16 +249,16 @@ func GetUpdatedPod(orig, update *corev1.Pod, ignoreLabels []string) {
 	}
 }
 
-func ConvertAnnotations(annotation map[string]string) *ClustersNodeSelection {
+func ConvertAnnotations(annotation map[string]string) *utils.ClustersNodeSelection {
 	if annotation == nil {
 		return nil
 	}
-	val := annotation[KosmosSelectorKey]
+	val := annotation[utils.KosmosSelectorKey]
 	if len(val) == 0 {
 		return nil
 	}
 
-	var cns ClustersNodeSelection
+	var cns utils.ClustersNodeSelection
 	err := json.Unmarshal([]byte(val), &cns)
 	if err != nil {
 		return nil
@@ -264,7 +266,7 @@ func ConvertAnnotations(annotation map[string]string) *ClustersNodeSelection {
 	return &cns
 }
 
-func recoverSelectors(pod *corev1.Pod, cns *ClustersNodeSelection) {
+func recoverSelectors(pod *corev1.Pod, cns *utils.ClustersNodeSelection) {
 	if cns != nil {
 		pod.Spec.NodeSelector = cns.NodeSelector
 		pod.Spec.Tolerations = cns.Tolerations

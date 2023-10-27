@@ -1,13 +1,13 @@
-package pod
+package controllers
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/klog/v2"
@@ -45,15 +45,15 @@ type SyncResourcesReconciler struct {
 }
 
 func (r *SyncResourcesReconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
-	obj, err := r.DynamicRootClient.Resource(r.GroupVersionResource).Namespace(request.Namespace).Get(ctx, request.Name, metav1.GetOptions{})
+	// skip namespace
+	if len(r.Namespace) > 0 && r.Namespace != request.Namespace {
+		return reconcile.Result{}, nil
+	}
+
+	_, err := r.DynamicRootClient.Resource(r.GroupVersionResource).Namespace(request.Namespace).Get(ctx, request.Name, metav1.GetOptions{})
 	if err != nil {
 		klog.Errorf("get %s error: %v", request.NamespacedName, err)
 		return reconcile.Result{RequeueAfter: SyncResourcesRequeueTime}, nil
-	}
-
-	// skip namespace
-	if len(r.Namespace) > 0 && r.Namespace != obj.GetNamespace() {
-		return reconcile.Result{}, nil
 	}
 
 	if err = r.SyncResource(ctx, request); err != nil {
@@ -128,7 +128,7 @@ func (r *SyncResourcesReconciler) SyncResource(ctx context.Context, request reco
 		return nil
 	}
 
-	old, err := r.DynamicRootClient.Resource(r.GroupVersionResource).Namespace(request.Namespace).Get(ctx, request.Name, metav1.GetOptions{})
+	old, err := r.DynamicLeafClient.Resource(r.GroupVersionResource).Namespace(request.Namespace).Get(ctx, request.Name, metav1.GetOptions{})
 
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -140,36 +140,22 @@ func (r *SyncResourcesReconciler) SyncResource(ctx context.Context, request reco
 		return err
 	}
 
-	objGenerator := func() (interface{}, error) {
-		switch old.GetKind() {
-		case SYNC_KIND_CONFIGMAP:
-			return &corev1.ConfigMap{}, nil
-		case SYNC_KIND_SECRET:
-			return &corev1.Secret{}, nil
-		}
-		return nil, fmt.Errorf("[objGenerator] not match kind")
+	var latest *unstructured.Unstructured
+	var unstructerr error
+	switch old.GetKind() {
+	case SYNC_KIND_CONFIGMAP:
+		latest, unstructerr = utils.UpdateUnstructured(old, obj, &corev1.ConfigMap{}, &corev1.ConfigMap{}, utils.UpdateConfigMap)
+	case SYNC_KIND_SECRET:
+		latest, unstructerr = utils.UpdateUnstructured(old, obj, &corev1.Secret{}, &corev1.Secret{}, utils.UpdateSecret)
 	}
 
-	convertSelector := func(oldObj, newObj interface{}) error {
-		switch old.GetKind() {
-		case SYNC_KIND_CONFIGMAP:
-			utils.UpdateConfigMap(oldObj.(*corev1.ConfigMap), newObj.(*corev1.ConfigMap))
-			return nil
-		case SYNC_KIND_SECRET:
-			utils.UpdateSecret(oldObj.(*corev1.Secret), newObj.(*corev1.Secret))
-			return nil
-		}
-		return fmt.Errorf("[convertSelector] not match kind")
+	if unstructerr != nil {
+		return unstructerr
 	}
-
-	latest, err := utils.UpdateUnstructured(old, obj, objGenerator, convertSelector)
-	if err != nil {
-		return err
-	}
-	if utils.IsObjectUnstructuredGlobal(latest.GetAnnotations()) {
+	if !utils.IsObjectUnstructuredGlobal(old.GetAnnotations()) {
 		return nil
 	}
-	_, err = r.DynamicRootClient.Resource(r.GroupVersionResource).Namespace(request.Namespace).Update(ctx, latest, metav1.UpdateOptions{})
+	_, err = r.DynamicLeafClient.Resource(r.GroupVersionResource).Namespace(request.Namespace).Update(ctx, latest, metav1.UpdateOptions{})
 	if err != nil {
 		klog.Errorf("update %s from client cluster failed, error: %v", latest.GetKind(), err)
 		return err

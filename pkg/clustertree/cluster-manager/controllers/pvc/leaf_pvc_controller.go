@@ -22,6 +22,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/kosmos.io/kosmos/pkg/utils"
+	"github.com/kosmos.io/kosmos/pkg/utils/podutils"
 )
 
 const (
@@ -116,7 +117,7 @@ func filterPVC(leafPVC *v1.PersistentVolumeClaim, nodeName string) error {
 	leafPVC.ObjectMeta.ResourceVersion = ""
 	leafPVC.ObjectMeta.OwnerReferences = nil
 
-	utils.SetObjectGlobal(&leafPVC.ObjectMeta)
+	podutils.SetObjectGlobal(&leafPVC.ObjectMeta)
 	if labelSelector != nil {
 		labelStr, err := json.Marshal(labelSelector)
 		if err != nil {

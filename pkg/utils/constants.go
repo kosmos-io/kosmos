@@ -105,3 +105,9 @@ var GVR_SECRET = schema.GroupVersionResource{
 	Version:  "v1",
 	Resource: "secrets",
 }
+
+var GVR_SERVICE = schema.GroupVersionResource{
+	Group:    "",
+	Version:  "v1",
+	Resource: "services",
+}
