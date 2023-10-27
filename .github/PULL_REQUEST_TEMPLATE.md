@@ -34,17 +34,10 @@ Fixes #
 If there's anything specific you'd like your reviewer to pay attention to, mention it here
 -->
 
-#### Screenshots (if applicable):
+#### Does this PR introduce a user-facing change?
 <!--
-Insert screenshots or gifs to demonstrate the changes, if applicable
--->
-```release-note
-
-```
-
-#### Additional Comments:
-<!--
-Any additional information or comments you'd like to include
+If no, just write "NONE" in the release-note block below.
+If yes, a release note is required.
 -->
 ```release-note
 

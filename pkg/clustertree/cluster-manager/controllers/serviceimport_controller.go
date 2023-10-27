@@ -21,6 +21,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	mcsv1alpha1 "sigs.k8s.io/mcs-api/pkg/apis/v1alpha1"
 
+	kosmosversioned "github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/generated/informers/externalversions"
 	"github.com/kosmos.io/kosmos/pkg/utils"
 	"github.com/kosmos.io/kosmos/pkg/utils/helper"
@@ -33,7 +34,7 @@ const MemberServiceImportControllerName = "member-service-import-controller"
 type ServiceImportController struct {
 	Client                client.Client
 	Master                client.Client
-	ClusterKosmosClient   *utils.ClusterKosmosClient
+	KosmosClient          kosmosversioned.Interface
 	ClusterNodeName       string
 	EventRecorder         record.EventRecorder
 	Logger                logr.Logger
@@ -64,7 +65,7 @@ func (c *ServiceImportController) Start(ctx context.Context) error {
 	c.processor = utils.NewAsyncWorker(opt)
 	c.ctx = ctx
 
-	serviceImportInformerFactory := externalversions.NewSharedInformerFactory(c.ClusterKosmosClient.KosmosClient, 0)
+	serviceImportInformerFactory := externalversions.NewSharedInformerFactory(c.KosmosClient, 0)
 	serviceImportInformer := serviceImportInformerFactory.Multicluster().V1alpha1().ServiceImports()
 	_, err := serviceImportInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    c.OnAdd,

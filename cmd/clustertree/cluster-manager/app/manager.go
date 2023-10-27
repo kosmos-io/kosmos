@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
@@ -55,29 +56,25 @@ func run(ctx context.Context, opts *options.Options) error {
 	if err != nil {
 		panic(err)
 	}
+	config.QPS, config.Burst = opts.KubernetesOptions.QPS, opts.KubernetesOptions.Burst
 
 	configOptFunc := func(config *rest.Config) {
 		config.QPS = opts.KubernetesOptions.QPS
 		config.Burst = opts.KubernetesOptions.Burst
 	}
-	config.QPS, config.Burst = opts.KubernetesOptions.QPS, opts.KubernetesOptions.Burst
-
-	// init master client
-	masterClient, err := utils.NewClientFromConfigPath(opts.KubernetesOptions.KubeConfig, configOptFunc)
+	// init root client
+	rootClient, err := utils.NewClientFromConfigPath(opts.KubernetesOptions.KubeConfig, configOptFunc)
 	if err != nil {
-		return fmt.Errorf("could not build clientset for master cluster: %v", err)
+		return fmt.Errorf("could not build clientset for root cluster: %v", err)
 	}
 
 	// init Kosmos client
-	kosmosMasterClient, err := utils.NewKosmosClientFromConfigPath(opts.KubernetesOptions.KubeConfig, func(config *rest.Config) {
-		config.QPS = opts.KubernetesOptions.QPS
-		config.Burst = opts.KubernetesOptions.Burst
-	})
+	kosmosRootClient, err := utils.NewKosmosClientFromConfigPath(opts.KubernetesOptions.KubeConfig, configOptFunc)
 	if err != nil {
-		return fmt.Errorf("could not build kosmos clientset for master cluster: %v", err)
+		return fmt.Errorf("could not build kosmos clientset for root cluster: %v", err)
 	}
 
-	masterResourceManager := utils.NewResourceManager(masterClient, kosmosMasterClient)
+	rootResourceManager := utils.NewResourceManager(rootClient, kosmosRootClient)
 	mgr, err := controllerruntime.NewManager(config, controllerruntime.Options{
 		Logger:                  klog.Background(),
 		Scheme:                  scheme.NewSchema(),
@@ -91,12 +88,20 @@ func run(ctx context.Context, opts *options.Options) error {
 		return fmt.Errorf("failed to build controller manager: %v", err)
 	}
 
+	dynamicClient, err := dynamic.NewForConfig(config)
+	if err != nil {
+		klog.Errorf("Unable to create dynamicClient: %v", err)
+		return err
+	}
+
 	// add cluster controller
 	ClusterController := clusterManager.ClusterController{
-		Master:                mgr.GetClient(),
-		EventRecorder:         mgr.GetEventRecorderFor(clusterManager.ControllerName),
-		MasterResourceManager: masterResourceManager,
-		ConfigOptFunc:         configOptFunc,
+		Root:          mgr.GetClient(),
+		RootDynamic:   dynamicClient,
+		RootClient:    rootClient,
+		EventRecorder: mgr.GetEventRecorderFor(clusterManager.ControllerName),
+		ConfigOptFunc: configOptFunc,
+		Options:       opts,
 	}
 	if err = ClusterController.SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("error starting %s: %v", clusterManager.ControllerName, err)
@@ -112,15 +117,24 @@ func run(ctx context.Context, opts *options.Options) error {
 		return fmt.Errorf("error starting %s: %v", clusterManager.ServiceExportControllerName, err)
 	}
 
+	GlobalDaemonSetService := &GlobalDaemonSetService{
+		opts:           opts,
+		ctx:            ctx,
+		defaultWorkNum: 1,
+	}
+	if err = GlobalDaemonSetService.SetupWithManager(mgr); err != nil {
+		return fmt.Errorf("error starting global daemonset : %v", err)
+	}
+
 	go func() {
 		if err = mgr.Start(ctx); err != nil {
 			klog.Errorf("failed to start controller manager: %v", err)
 		}
 	}()
 
-	masterResourceManager.InformerFactory.Start(ctx.Done())
-	masterResourceManager.KosmosInformerFactory.Start(ctx.Done())
-	if !cache.WaitForCacheSync(ctx.Done(), masterResourceManager.EndpointSliceInformer.HasSynced) {
+	rootResourceManager.InformerFactory.Start(ctx.Done())
+	rootResourceManager.KosmosInformerFactory.Start(ctx.Done())
+	if !cache.WaitForCacheSync(ctx.Done(), rootResourceManager.EndpointSliceInformer.HasSynced) {
 		klog.Fatal("Knode manager: wait for informer factory failed")
 	}
 

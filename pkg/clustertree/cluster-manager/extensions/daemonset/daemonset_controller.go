@@ -142,8 +142,6 @@ func (dsc *DaemonSetsController) Run(ctx context.Context, workers int) {
 		return
 	}
 	dsc.processor.Run(workers, ctx.Done())
-
-	<-ctx.Done()
 }
 
 func (dsc *DaemonSetsController) addDaemonSet(obj interface{}) {

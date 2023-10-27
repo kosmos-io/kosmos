@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
+	extensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -56,8 +57,9 @@ type CommandJoinOptions struct {
 	UseProxy       string
 	WaitTime       int
 
-	Client        kubernetes.Interface
-	DynamicClient *dynamic.DynamicClient
+	Client           kubernetes.Interface
+	DynamicClient    *dynamic.DynamicClient
+	ExtensionsClient extensionsclient.Interface
 }
 
 // NewCmdJoin join resource to Kosmos control plane.
@@ -133,6 +135,12 @@ func (o *CommandJoinOptions) Complete(f ctlutil.Factory) error {
 		if err != nil {
 			return fmt.Errorf("kosmosctl join complete error, generate basic client failed: %v", err)
 		}
+		o.ExtensionsClient, err = extensionsclient.NewForConfig(clusterConfig)
+		if err != nil {
+			return fmt.Errorf("kosmosctl join complete error, generate extensions client failed: %v", err)
+		}
+	} else {
+		return fmt.Errorf("kosmosctl join complete error, arg ClusterKubeConfig is required")
 	}
 
 	return nil
@@ -316,6 +324,32 @@ func (o *CommandJoinOptions) runKnode() error {
 		return fmt.Errorf("kosmosctl join run error, create knode failed: %s", err)
 	}
 	klog.Info("Knode: " + obj.GetName() + " has been created.")
+
+	klog.Info("Attempting to create kosmos mcs CRDs...")
+	serviceExport, err := util.GenerateCustomResourceDefinition(manifest.ServiceExport, nil)
+	if err != nil {
+		return err
+	}
+	_, err = o.ExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Create(context.Background(), serviceExport, metav1.CreateOptions{})
+	if err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return fmt.Errorf("kosmosctl join run error, crd options failed: %v", err)
+		}
+	}
+	klog.Info("Create CRD " + serviceExport.Name + " successful.")
+
+	serviceImport, err := util.GenerateCustomResourceDefinition(manifest.ServiceImport, nil)
+	if err != nil {
+		return err
+	}
+	_, err = o.ExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Create(context.Background(), serviceImport, metav1.CreateOptions{})
+	if err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return fmt.Errorf("kosmosctl join run error, crd options failed: %v", err)
+		}
+	}
+	klog.Info("Create CRD " + serviceImport.Name + " successful.")
+
 	klog.Info("Knode [" + obj.GetName() + "] registration successful.")
 
 	return nil

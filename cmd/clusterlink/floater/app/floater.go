@@ -74,14 +74,17 @@ func run(_ context.Context, _ *options.Options) error {
 			klog.Errorf("response writer error: %s", err)
 		}
 	})
-	srv := &http.Server{
-		ReadTimeout:  5 * time.Second,
-		WriteTimeout: 10 * time.Second,
-		Addr:         fmt.Sprintf(":%s", port),
+
+	server := &http.Server{
+		Addr:              fmt.Sprintf(":%s", port),
+		ReadHeaderTimeout: 3 * time.Second,
 	}
-	if err := srv.ListenAndServeTLS("/bin/certificate/file.crt", "/bin/certificate/file.key"); err != nil {
+
+	err := server.ListenAndServe()
+	if err != nil {
 		klog.Errorf("lanch server error: %s", err)
-		return err
+		panic(err)
 	}
+
 	return nil
 }
