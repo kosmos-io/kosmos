@@ -32,6 +32,8 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/mcs"
 	podcontrollers "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/pod"
+	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/pv"
+	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/pvc"
 	kosmosversioned "github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/scheme"
 	"github.com/kosmos.io/kosmos/pkg/utils"
@@ -293,6 +295,11 @@ func (c *ClusterController) setupControllers(m *manager.Manager, cluster *cluste
 		return fmt.Errorf("error starting podUpstreamReconciler %s: %v", podcontrollers.LeafPodControllerName, err)
 	}
 
+	err := c.setupStorageControllers(m, node, leafClient)
+	if err != nil {
+		return err
+	}
+
 	for i, gvr := range podcontrollers.SYNC_GVRS {
 		demoController := podcontrollers.SyncResourcesReconciler{
 			GroupVersionResource: gvr,
@@ -305,6 +312,50 @@ func (c *ClusterController) setupControllers(m *manager.Manager, cluster *cluste
 			klog.Errorf("Unable to create cluster node controller: %v", err)
 			return err
 		}
+	}
+
+	return nil
+}
+
+func (c *ClusterController) setupStorageControllers(m *manager.Manager, node *corev1.Node, leafClient kubernetes.Interface) error {
+	mgr := *m
+
+	rootPVCController := pvc.RootPVCController{
+		LeafClient:    mgr.GetClient(),
+		RootClient:    c.Root,
+		LeafClientSet: leafClient,
+	}
+	if err := rootPVCController.SetupWithManager(*c.mgr); err != nil {
+		return fmt.Errorf("error starting root pvc controller %v", err)
+	}
+
+	rootPVController := pv.RootPVController{
+		LeafClient:    mgr.GetClient(),
+		RootClient:    c.Root,
+		LeafClientSet: leafClient,
+	}
+	if err := rootPVController.SetupWithManager(*c.mgr); err != nil {
+		return fmt.Errorf("error starting root pv controller %v", err)
+	}
+
+	leafPVCController := pvc.LeafPVCController{
+		LeafClient:    mgr.GetClient(),
+		RootClient:    c.Root,
+		RootClientSet: c.RootClient,
+		NodeName:      node.Name,
+	}
+	if err := leafPVCController.SetupWithManager(mgr); err != nil {
+		return fmt.Errorf("error starting leaf pvc controller %v", err)
+	}
+
+	leafPVontroller := pv.LeafPVController{
+		LeafClient:    mgr.GetClient(),
+		RootClient:    c.Root,
+		RootClientSet: c.RootClient,
+		NodeName:      node.Name,
+	}
+	if err := leafPVontroller.SetupWithManager(mgr); err != nil {
+		return fmt.Errorf("error starting leaf pv controller %v", err)
 	}
 
 	return nil
