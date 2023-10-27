@@ -96,7 +96,8 @@ func (l *LeafPVCController) SetupWithManager(mgr manager.Manager) error {
 				return false
 			},
 			UpdateFunc: func(updateEvent event.UpdateEvent) bool {
-				return true
+				pvc := updateEvent.ObjectOld.(*v1.PersistentVolumeClaim)
+				return utils.IsObjectGlobal(&pvc.ObjectMeta)
 			},
 			DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
 				return false

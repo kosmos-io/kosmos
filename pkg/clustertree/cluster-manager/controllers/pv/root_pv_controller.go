@@ -50,7 +50,7 @@ func (r *RootPVController) Reconcile(ctx context.Context, request reconcile.Requ
 	}
 
 	if pvNeedDelete || pv.DeletionTimestamp != nil {
-		if err = r.LeafClientSet.CoreV1().PersistentVolumes().Delete(ctx, pv.Name, metav1.DeleteOptions{}); err != nil {
+		if err = r.LeafClientSet.CoreV1().PersistentVolumes().Delete(ctx, request.NamespacedName.Name, metav1.DeleteOptions{}); err != nil {
 			if !errors.IsNotFound(err) {
 				klog.Errorf("delete root pv , pv %q: %v", pv.Name, err)
 				return reconcile.Result{RequeueAfter: RootPVRequeueTime}, nil
