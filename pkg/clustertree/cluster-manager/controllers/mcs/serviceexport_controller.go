@@ -1,4 +1,4 @@
-package clusterManager
+package mcs
 
 import (
 	"context"
@@ -29,9 +29,9 @@ import (
 
 const ServiceExportControllerName = "service-export-controller"
 
-// ServiceExportController watches serviceExport in master and annotated the endpointSlice
+// ServiceExportController watches serviceExport in root cluster and annotated the endpointSlice
 type ServiceExportController struct {
-	Master        client.Client
+	RootClient    client.Client
 	EventRecorder record.EventRecorder
 	Logger        logr.Logger
 }
@@ -43,7 +43,7 @@ func (c *ServiceExportController) Reconcile(ctx context.Context, request reconci
 	}()
 
 	serviceExport := &mcsv1alpha1.ServiceExport{}
-	if err := c.Master.Get(ctx, request.NamespacedName, serviceExport); err != nil {
+	if err := c.RootClient.Get(ctx, request.NamespacedName, serviceExport); err != nil {
 		// The serviceExport no longer exist, in which case we stop processing.
 		if apierrors.IsNotFound(err) {
 			return controllerruntime.Result{}, nil
@@ -115,7 +115,7 @@ func (c *ServiceExportController) removeAnnotation(ctx context.Context, export *
 		},
 	)
 	epsList := &discoveryv1.EndpointSliceList{}
-	err = c.Master.List(ctx, epsList, &client.ListOptions{
+	err = c.RootClient.List(ctx, epsList, &client.ListOptions{
 		Namespace:     export.Namespace,
 		LabelSelector: selector,
 	})
@@ -132,7 +132,7 @@ func (c *ServiceExportController) removeAnnotation(ctx context.Context, export *
 			continue
 		}
 		helper.RemoveAnnotation(newEps, utils.ServiceExportLabelKey)
-		err = c.updateEndpointSlice(ctx, newEps, c.Master)
+		err = c.updateEndpointSlice(ctx, newEps, c.RootClient)
 		if err != nil {
 			klog.Errorf("Update endpointSlice (%s/%s) failed, Error: %v", export.Namespace, newEps.Name, err)
 			return err
@@ -142,9 +142,9 @@ func (c *ServiceExportController) removeAnnotation(ctx context.Context, export *
 	return nil
 }
 
-func (c *ServiceExportController) updateEndpointSlice(ctx context.Context, eps *discoveryv1.EndpointSlice, master client.Client) error {
+func (c *ServiceExportController) updateEndpointSlice(ctx context.Context, eps *discoveryv1.EndpointSlice, rootClient client.Client) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		updateErr := master.Update(ctx, eps)
+		updateErr := rootClient.Update(ctx, eps)
 		if updateErr == nil {
 			return nil
 		}
@@ -154,7 +154,7 @@ func (c *ServiceExportController) updateEndpointSlice(ctx context.Context, eps *
 			Namespace: eps.Namespace,
 			Name:      eps.Name,
 		}
-		getErr := master.Get(ctx, key, newEps)
+		getErr := rootClient.Get(ctx, key, newEps)
 		if getErr == nil {
 			//Make a copy, so we don't mutate the shared cache
 			eps = newEps.DeepCopy()
@@ -174,7 +174,7 @@ func (c *ServiceExportController) syncServiceExport(ctx context.Context, export 
 		},
 	)
 	epsList := &discoveryv1.EndpointSliceList{}
-	err = c.Master.List(ctx, epsList, &client.ListOptions{
+	err = c.RootClient.List(ctx, epsList, &client.ListOptions{
 		Namespace:     export.Namespace,
 		LabelSelector: selector,
 	})
@@ -191,7 +191,7 @@ func (c *ServiceExportController) syncServiceExport(ctx context.Context, export 
 			continue
 		}
 		helper.AddEndpointSliceAnnotation(newEps, utils.ServiceExportLabelKey, utils.MCSLabelValue)
-		err = c.updateEndpointSlice(ctx, newEps, c.Master)
+		err = c.updateEndpointSlice(ctx, newEps, c.RootClient)
 		if err != nil {
 			klog.Errorf("Update endpointSlice (%s/%s) failed, Error: %v", export.Namespace, newEps.Name, err)
 			return err
