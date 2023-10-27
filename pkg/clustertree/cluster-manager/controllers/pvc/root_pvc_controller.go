@@ -56,7 +56,8 @@ func (r *RootPVCController) Reconcile(ctx context.Context, request reconcile.Req
 	}
 
 	if deletePVCInClient || pvc.DeletionTimestamp != nil {
-		if err = r.LeafClient.Delete(ctx, pvc); err != nil {
+		if err = r.LeafClientSet.CoreV1().PersistentVolumeClaims(request.NamespacedName.Namespace).Delete(ctx,
+			request.NamespacedName.Name, metav1.DeleteOptions{}); err != nil {
 			if !errors.IsNotFound(err) {
 				klog.Errorf("delete pvc from leaf cluster failed, error: %v", err)
 				return reconcile.Result{RequeueAfter: RootPVCRequeueTime}, nil
