@@ -18,10 +18,19 @@ import (
 	kosmosversioned "github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 )
 
+const SYNC_KIND_CONFIGMAP = "ConfigMap"
+const SYNC_KIND_SECRET = "SECRET"
+
 type ClustersNodeSelection struct {
 	NodeSelector map[string]string   `json:"nodeSelector,omitempty"`
 	Affinity     *corev1.Affinity    `json:"affinity,omitempty"`
 	Tolerations  []corev1.Toleration `json:"tolerations,omitempty"`
+}
+
+type EnvResourceManager interface {
+	GetConfigMap(name, namespace string) (*corev1.ConfigMap, error)
+	GetSecret(name, namespace string) (*corev1.Secret, error)
+	ListServices() ([]*corev1.Service, error)
 }
 
 func CreateMergePatch(original, new interface{}) ([]byte, error) {
@@ -336,26 +345,16 @@ func UpdateSecret(old, new *corev1.Secret) {
 	old.Type = new.Type
 }
 
-func UpdateUnstructured(old, new *unstructured.Unstructured, g func() (interface{}, error), cb func(old, new interface{}) error) (*unstructured.Unstructured, error) {
-	oldObj, err := g()
-	if err != nil {
-		return nil, err
-	}
+func UpdateUnstructured[T *corev1.ConfigMap | *corev1.Secret](old, new *unstructured.Unstructured, oldObj T, newObj T, update func(old, new T)) (*unstructured.Unstructured, error) {
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(old.UnstructuredContent(), &oldObj); err != nil {
 		return nil, err
 	}
 
-	newObj, err := g()
-	if err != nil {
-		return nil, err
-	}
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(new.UnstructuredContent(), &newObj); err != nil {
 		return nil, err
 	}
 
-	if err := cb(oldObj, newObj); err != nil {
-		return nil, err
-	}
+	update(oldObj, newObj)
 
 	if retObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(oldObj); err == nil {
 		return &unstructured.Unstructured{

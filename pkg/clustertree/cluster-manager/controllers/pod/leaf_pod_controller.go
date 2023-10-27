@@ -20,6 +20,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/kosmos.io/kosmos/pkg/utils"
+	"github.com/kosmos.io/kosmos/pkg/utils/podutils"
 )
 
 const (
@@ -62,8 +63,8 @@ func (r *LeafPodReconciler) Reconcile(ctx context.Context, request reconcile.Req
 		return reconcile.Result{}, nil
 	}
 
-	if utils.IsKosmosPod(podCopy) {
-		utils.FitObjectMeta(&podCopy.ObjectMeta)
+	if podutils.IsKosmosPod(podCopy) {
+		podutils.FitObjectMeta(&podCopy.ObjectMeta)
 		podCopy.ResourceVersion = "0"
 		if err := r.RootClient.Status().Update(ctx, podCopy); err != nil && !apierrors.IsNotFound(err) {
 			klog.Info(errors.Wrap(err, "error while updating pod status in kubernetes"))
@@ -73,21 +74,39 @@ func (r *LeafPodReconciler) Reconcile(ctx context.Context, request reconcile.Req
 	return reconcile.Result{}, nil
 }
 
+type rootDeleteOption struct {
+	GracePeriodSeconds *int64
+}
+
+func (dopt *rootDeleteOption) ApplyToDelete(opt *client.DeleteOptions) {
+	opt.GracePeriodSeconds = dopt.GracePeriodSeconds
+}
+
+func NewRootDeleteOption(pod *corev1.Pod) client.DeleteOption {
+	gracePeriodSeconds := pod.DeletionGracePeriodSeconds
+
+	current := metav1.NewTime(time.Now())
+	if pod.DeletionTimestamp.Before(&current) {
+		gracePeriodSeconds = new(int64)
+	}
+
+	return &rootDeleteOption{
+		GracePeriodSeconds: gracePeriodSeconds,
+	}
+}
+
 func (r *LeafPodReconciler) safeDeletePodInRootCluster(ctx context.Context, request reconcile.Request) error {
 	rPod := corev1.Pod{}
 	err := r.RootClient.Get(ctx, request.NamespacedName, &rPod)
 	if err == nil || !apierrors.IsNotFound(err) {
 		rPodCopy := rPod.DeepCopy()
 
-		deleteOptions := metav1.DeleteOptions{
-			GracePeriodSeconds: rPodCopy.DeletionGracePeriodSeconds,
-		}
-		current := metav1.NewTime(time.Now())
-		if rPodCopy.DeletionTimestamp.Before(&current) {
-			deleteOptions.GracePeriodSeconds = new(int64)
-		}
-		if err := r.RootClient.Delete(ctx, rPodCopy); err != nil && !apierrors.IsNotFound(err) {
-			return err
+		deleteOption := NewRootDeleteOption(rPodCopy)
+
+		if err := r.RootClient.Delete(ctx, rPodCopy, deleteOption); err != nil {
+			if !apierrors.IsNotFound(err) {
+				return err
+			}
 		}
 	}
 	return nil

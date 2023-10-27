@@ -10,6 +10,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -27,6 +28,7 @@ import (
 
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/extensions/daemonset"
 	"github.com/kosmos.io/kosmos/pkg/utils"
+	"github.com/kosmos.io/kosmos/pkg/utils/podutils"
 )
 
 const (
@@ -45,13 +47,80 @@ type RootPodReconciler struct {
 	IgnoreLabels         []string
 	EnableServiceAccount bool
 
-	DynamicLeafClient dynamic.Interface
+	DynamicLeafClient  dynamic.Interface
+	DynamicRootClient  dynamic.Interface
+	envResourceManager utils.EnvResourceManager
+}
+
+type envResourceManager struct {
 	DynamicRootClient dynamic.Interface
 }
 
+// GetConfigMap retrieves the specified config map from the cache.
+func (rm *envResourceManager) GetConfigMap(name, namespace string) (*corev1.ConfigMap, error) {
+	// return rm.configMapLister.ConfigMaps(namespace).Get(name)
+	obj, err := rm.DynamicRootClient.Resource(utils.GVR_CONFIGMAP).Namespace(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	retObj := &corev1.ConfigMap{}
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.UnstructuredContent(), &retObj); err != nil {
+		return nil, err
+	}
+
+	return retObj, nil
+}
+
+// GetSecret retrieves the specified secret from Kubernetes.
+func (rm *envResourceManager) GetSecret(name, namespace string) (*corev1.Secret, error) {
+	// return rm.secretLister.Secrets(namespace).Get(name)
+	obj, err := rm.DynamicRootClient.Resource(utils.GVR_SECRET).Namespace(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	retObj := &corev1.Secret{}
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.UnstructuredContent(), &retObj); err != nil {
+		return nil, err
+	}
+
+	return retObj, nil
+}
+
+// ListServices retrieves the list of services from Kubernetes.
+func (rm *envResourceManager) ListServices() ([]*corev1.Service, error) {
+	// return rm.serviceLister.List(labels.Everything())
+	objs, err := rm.DynamicRootClient.Resource(utils.GVR_SERVICE).List(context.TODO(), metav1.ListOptions{
+		LabelSelector: labels.Everything().String(),
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	retObj := make([]*corev1.Service, 0)
+
+	for _, obj := range objs.Items {
+		tmpObj := &corev1.Service{}
+		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.UnstructuredContent(), &tmpObj); err != nil {
+			return nil, err
+		}
+		retObj = append(retObj, tmpObj)
+	}
+
+	return retObj, nil
+}
+
+func NewEnvResourceManager(client dynamic.Interface) utils.EnvResourceManager {
+	return &envResourceManager{
+		DynamicRootClient: client,
+	}
+}
+
 func (r *RootPodReconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
-	var pod corev1.Pod
-	if err := r.Get(ctx, request.NamespacedName, &pod); err != nil {
+	var cachepod corev1.Pod
+	if err := r.Get(ctx, request.NamespacedName, &cachepod); err != nil {
 		if errors.IsNotFound(err) {
 			leafPod := &corev1.Pod{}
 			err := r.LeafClient.Get(ctx, request.NamespacedName, leafPod)
@@ -68,6 +137,8 @@ func (r *RootPodReconciler) Reconcile(ctx context.Context, request reconcile.Req
 		klog.Errorf("get %s error: %v", request.NamespacedName, err)
 		return reconcile.Result{RequeueAfter: RootPodRequeueTime}, nil
 	}
+
+	pod := *(cachepod.DeepCopy())
 
 	// belongs to the current node
 	if pod.Spec.NodeName != r.NodeName {
@@ -113,7 +184,7 @@ func (r *RootPodReconciler) Reconcile(ctx context.Context, request reconcile.Req
 		}
 	}
 
-	if utils.ShouldEnqueue(leafPod, &pod) {
+	if podutils.ShouldEnqueue(leafPod, &pod) {
 		if err := r.UpdatePodInLeafCluster(ctx, &pod); err != nil {
 			return reconcile.Result{RequeueAfter: RootPodRequeueTime}, nil
 		}
@@ -126,6 +197,8 @@ func (r *RootPodReconciler) SetupWithManager(mgr manager.Manager) error {
 	if r.Client == nil {
 		r.Client = mgr.GetClient()
 	}
+
+	r.envResourceManager = NewEnvResourceManager(r.DynamicRootClient)
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(RootPodControllerName).
@@ -159,7 +232,7 @@ func (p *RootPodReconciler) createStorageInLeafCluster(ctx context.Context, gvr 
 				return fmt.Errorf("find gvr(%v) %v error %v", gvr, rname, err)
 			}
 
-			utils.FitUnstructuredObjMeta(unstructuredObj)
+			podutils.FitUnstructuredObjMeta(unstructuredObj)
 			if gvr.Resource == "secrets" {
 				secretObj := &corev1.Secret{}
 				err = runtime.DefaultUnstructuredConverter.FromUnstructured(unstructuredObj.Object, secretObj)
@@ -174,7 +247,7 @@ func (p *RootPodReconciler) createStorageInLeafCluster(ctx context.Context, gvr 
 				}
 			}
 
-			utils.SetUnstructuredObjGlobal(unstructuredObj)
+			podutils.SetUnstructuredObjGlobal(unstructuredObj)
 
 			_, err = p.DynamicLeafClient.Resource(gvr).Namespace(ns).Create(ctx, unstructuredObj, metav1.CreateOptions{})
 			if err != nil {
@@ -311,7 +384,7 @@ func (p *RootPodReconciler) createCAInLeafCluster(ctx context.Context, ns string
 
 	newCA := ca.DeepCopy()
 	newCA.Name = utils.MasterRooTCAName
-	utils.FitObjectMeta(&newCA.ObjectMeta)
+	podutils.FitObjectMeta(&newCA.ObjectMeta)
 
 	err = p.LeafClient.Create(ctx, newCA)
 	if err != nil && !errors.IsAlreadyExists(err) {
@@ -452,7 +525,12 @@ func (p *RootPodReconciler) CreatePodInLeafCluster(ctx context.Context, pod *cor
 		return nil
 	}
 
-	basicPod := utils.FitPod(pod, p.IgnoreLabels)
+	if err := podutils.PopulateEnvironmentVariables(ctx, pod, p.envResourceManager); err != nil {
+		// span.SetStatus(err)
+		return err
+	}
+
+	basicPod := podutils.FitPod(pod, p.IgnoreLabels)
 	klog.Infof("Creating pod %v/%+v", pod.Namespace, pod.Name)
 	ns := &corev1.Namespace{}
 	nsKey := types.NamespacedName{
@@ -474,9 +552,9 @@ func (p *RootPodReconciler) CreatePodInLeafCluster(ctx context.Context, pod *cor
 			return err
 		}
 	}
-	secretNames := utils.GetSecrets(pod)
-	configMaps := utils.GetConfigmaps(pod)
-	pvcs := utils.GetPVCs(pod)
+	secretNames := podutils.GetSecrets(pod)
+	configMaps := podutils.GetConfigmaps(pod)
+	pvcs := podutils.GetPVCs(pod)
 	// nolint:errcheck
 	go wait.PollImmediate(500*time.Millisecond, 10*time.Minute, func() (bool, error) {
 		klog.Info("Trying to creating base dependent")
@@ -530,15 +608,15 @@ func (p *RootPodReconciler) UpdatePodInLeafCluster(ctx context.Context, pod *cor
 	if err != nil {
 		return fmt.Errorf("could not get current pod")
 	}
-	if !utils.IsKosmosPod(pod) {
+	if !podutils.IsKosmosPod(pod) {
 		klog.Info("Pod is not created by vk, ignore")
 		return nil
 	}
-	utils.FitLabels(currentPod.ObjectMeta.Labels, p.IgnoreLabels)
+	podutils.FitLabels(currentPod.ObjectMeta.Labels, p.IgnoreLabels)
 	podCopy := currentPod.DeepCopy()
 	// util.GetUpdatedPod update PodCopy container image, annotations, labels.
 	// recover toleration, affinity, tripped ignore labels.
-	utils.GetUpdatedPod(podCopy, pod, p.IgnoreLabels)
+	podutils.GetUpdatedPod(podCopy, pod, p.IgnoreLabels)
 	if reflect.DeepEqual(currentPod.Spec, podCopy.Spec) &&
 		reflect.DeepEqual(currentPod.Annotations, podCopy.Annotations) &&
 		reflect.DeepEqual(currentPod.Labels, podCopy.Labels) {
@@ -559,7 +637,7 @@ func (p *RootPodReconciler) DeletePodInLeafCluster(ctx context.Context, pod *cor
 	}
 	klog.Infof("Deleting pod %v/%+v", pod.Namespace, pod.Name)
 
-	if !utils.IsKosmosPod(pod) {
+	if !podutils.IsKosmosPod(pod) {
 		klog.Info("Pod is not create by vk, ignore")
 		return nil
 	}
@@ -597,6 +675,6 @@ func (p *RootPodReconciler) GetPodInLeafCluster(ctx context.Context, namespace s
 		return nil, fmt.Errorf("could not get pod %s/%s: %v", namespace, name, err)
 	}
 	podCopy := pod.DeepCopy()
-	utils.RecoverLabels(podCopy.Labels, podCopy.Annotations)
+	podutils.RecoverLabels(podCopy.Labels, podCopy.Annotations)
 	return podCopy, nil
 }

@@ -60,12 +60,12 @@ type ClusterController struct {
 	Logger        logr.Logger
 	Options       *options.Options
 
-	ControllerManagers     map[string]*manager.Manager
+	ControllerManagers     map[string]manager.Manager
 	ManagerCancelFuncs     map[string]*context.CancelFunc
 	ControllerManagersLock sync.Mutex
 
-	mgr                 *manager.Manager
 	RootResourceManager *utils.ResourceManager
+	mgr                 manager.Manager
 }
 
 func isRootCluster(cluster *clusterlinkv1alpha1.Cluster) bool {
@@ -111,11 +111,11 @@ var predicatesFunc = predicate.Funcs{
 
 func (c *ClusterController) SetupWithManager(mgr manager.Manager) error {
 	c.ManagerCancelFuncs = make(map[string]*context.CancelFunc)
-	c.ControllerManagers = make(map[string]*manager.Manager)
+	c.ControllerManagers = make(map[string]manager.Manager)
 	c.Logger = mgr.GetLogger()
 
 	// TODO this may not be a good idea
-	c.mgr = &mgr
+	c.mgr = mgr
 	return controllerruntime.NewControllerManagedBy(mgr).
 		Named(ControllerName).
 		WithOptions(controller.Options{}).
@@ -209,11 +209,11 @@ func (c *ClusterController) Reconcile(ctx context.Context, request reconcile.Req
 	subContext, cancel := context.WithCancel(ctx)
 
 	c.ControllerManagersLock.Lock()
-	c.ControllerManagers[cluster.Name] = &mgr
+	c.ControllerManagers[cluster.Name] = mgr
 	c.ManagerCancelFuncs[cluster.Name] = &cancel
 	c.ControllerManagersLock.Unlock()
 
-	if err = c.setupControllers(&mgr, cluster, node, leafDynamic, leafClient, kosmosClient); err != nil {
+	if err = c.setupControllers(mgr, cluster, node, leafDynamic, leafClient, kosmosClient); err != nil {
 		return reconcile.Result{}, fmt.Errorf("failed to setup cluster %s controllers: %v", cluster.Name, err)
 	}
 
@@ -240,8 +240,7 @@ func (c *ClusterController) clearClusterControllers(cluster *clusterlinkv1alpha1
 	delete(c.ControllerManagers, cluster.Name)
 }
 
-func (c *ClusterController) setupControllers(m *manager.Manager, cluster *clusterlinkv1alpha1.Cluster, node *corev1.Node, clientDynamic *dynamic.DynamicClient, leafClient kubernetes.Interface, kosmosClient kosmosversioned.Interface) error {
-	mgr := *m
+func (c *ClusterController) setupControllers(mgr manager.Manager, cluster *clusterlinkv1alpha1.Cluster, node *corev1.Node, clientDynamic *dynamic.DynamicClient, leafClient kubernetes.Interface, kosmosClient kosmosversioned.Interface) error {
 	nodeResourcesController := controllers.NodeResourcesController{
 		Leaf:          mgr.GetClient(),
 		Root:          c.Root,
@@ -282,33 +281,34 @@ func (c *ClusterController) setupControllers(m *manager.Manager, cluster *cluste
 		DynamicRootClient:    c.RootDynamic,
 		DynamicLeafClient:    clientDynamic,
 	}
-	if err := RootPodReconciler.SetupWithManager(*c.mgr); err != nil {
+	if err := RootPodReconciler.SetupWithManager(c.mgr); err != nil {
 		return fmt.Errorf("error starting RootPodReconciler %s: %v", podcontrollers.RootPodControllerName, err)
 	}
 
-	podUpstreamController := podcontrollers.LeafPodReconciler{
+	leafPodController := podcontrollers.LeafPodReconciler{
 		RootClient: c.Root,
 		Namespace:  cluster.Spec.Namespace,
 	}
 
-	if err := podUpstreamController.SetupWithManager(*c.mgr); err != nil {
+	if err := leafPodController.SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("error starting podUpstreamReconciler %s: %v", podcontrollers.LeafPodControllerName, err)
 	}
 
-	err := c.setupStorageControllers(m, node, leafClient)
+	err := c.setupStorageControllers(mgr, node, leafClient)
 	if err != nil {
 		return err
 	}
 
-	for i, gvr := range podcontrollers.SYNC_GVRS {
-		demoController := podcontrollers.SyncResourcesReconciler{
+	for i, gvr := range controllers.SYNC_GVRS {
+		demoController := controllers.SyncResourcesReconciler{
 			GroupVersionResource: gvr,
-			Object:               podcontrollers.SYNC_OBJS[i],
+			Object:               controllers.SYNC_OBJS[i],
 			DynamicRootClient:    c.RootDynamic,
 			DynamicLeafClient:    clientDynamic,
 			ControllerName:       "async-controller-" + gvr.Resource,
+			Namespace:            cluster.Spec.Namespace,
 		}
-		if err := demoController.SetupWithManager(mgr, gvr); err != nil {
+		if err := demoController.SetupWithManager(c.mgr, gvr); err != nil {
 			klog.Errorf("Unable to create cluster node controller: %v", err)
 			return err
 		}
@@ -317,15 +317,13 @@ func (c *ClusterController) setupControllers(m *manager.Manager, cluster *cluste
 	return nil
 }
 
-func (c *ClusterController) setupStorageControllers(m *manager.Manager, node *corev1.Node, leafClient kubernetes.Interface) error {
-	mgr := *m
-
+func (c *ClusterController) setupStorageControllers(mgr manager.Manager, node *corev1.Node, leafClient kubernetes.Interface) error {
 	rootPVCController := pvc.RootPVCController{
 		LeafClient:    mgr.GetClient(),
 		RootClient:    c.Root,
 		LeafClientSet: leafClient,
 	}
-	if err := rootPVCController.SetupWithManager(*c.mgr); err != nil {
+	if err := rootPVCController.SetupWithManager(c.mgr); err != nil {
 		return fmt.Errorf("error starting root pvc controller %v", err)
 	}
 
@@ -334,7 +332,7 @@ func (c *ClusterController) setupStorageControllers(m *manager.Manager, node *co
 		RootClient:    c.Root,
 		LeafClientSet: leafClient,
 	}
-	if err := rootPVController.SetupWithManager(*c.mgr); err != nil {
+	if err := rootPVController.SetupWithManager(c.mgr); err != nil {
 		return fmt.Errorf("error starting root pv controller %v", err)
 	}
 
