@@ -15,6 +15,7 @@ import (
 
 	"github.com/kosmos.io/kosmos/cmd/clustertree/cluster-manager/app/options"
 	clusterManager "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager"
+	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/mcs"
 	"github.com/kosmos.io/kosmos/pkg/scheme"
 	"github.com/kosmos.io/kosmos/pkg/sharedcli/klogflag"
 	"github.com/kosmos.io/kosmos/pkg/utils"
@@ -62,6 +63,7 @@ func run(ctx context.Context, opts *options.Options) error {
 		config.QPS = opts.KubernetesOptions.QPS
 		config.Burst = opts.KubernetesOptions.Burst
 	}
+
 	// init root client
 	rootClient, err := utils.NewClientFromConfigPath(opts.KubernetesOptions.KubeConfig, configOptFunc)
 	if err != nil {
@@ -69,12 +71,12 @@ func run(ctx context.Context, opts *options.Options) error {
 	}
 
 	// init Kosmos client
-	kosmosRootClient, err := utils.NewKosmosClientFromConfigPath(opts.KubernetesOptions.KubeConfig, configOptFunc)
+	rootKosmosClient, err := utils.NewKosmosClientFromConfigPath(opts.KubernetesOptions.KubeConfig, configOptFunc)
 	if err != nil {
 		return fmt.Errorf("could not build kosmos clientset for root cluster: %v", err)
 	}
 
-	rootResourceManager := utils.NewResourceManager(rootClient, kosmosRootClient)
+	rootResourceManager := utils.NewResourceManager(rootClient, rootKosmosClient)
 	mgr, err := controllerruntime.NewManager(config, controllerruntime.Options{
 		Logger:                  klog.Background(),
 		Scheme:                  scheme.NewSchema(),
@@ -96,25 +98,25 @@ func run(ctx context.Context, opts *options.Options) error {
 
 	// add cluster controller
 	ClusterController := clusterManager.ClusterController{
-		Root:          mgr.GetClient(),
-		RootDynamic:   dynamicClient,
-		RootClient:    rootClient,
-		EventRecorder: mgr.GetEventRecorderFor(clusterManager.ControllerName),
-		ConfigOptFunc: configOptFunc,
-		Options:       opts,
+		Root:                mgr.GetClient(),
+		RootDynamic:         dynamicClient,
+		RootClient:          rootClient,
+		EventRecorder:       mgr.GetEventRecorderFor(clusterManager.ControllerName),
+		Options:             opts,
+		RootResourceManager: rootResourceManager,
 	}
 	if err = ClusterController.SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("error starting %s: %v", clusterManager.ControllerName, err)
 	}
 
 	// add serviceExport controller
-	ServiceExportController := clusterManager.ServiceExportController{
-		Master:        mgr.GetClient(),
-		EventRecorder: mgr.GetEventRecorderFor(clusterManager.ServiceExportControllerName),
+	ServiceExportController := mcs.ServiceExportController{
+		RootClient:    mgr.GetClient(),
+		EventRecorder: mgr.GetEventRecorderFor(mcs.ServiceExportControllerName),
 		Logger:        mgr.GetLogger(),
 	}
 	if err = ServiceExportController.SetupWithManager(mgr); err != nil {
-		return fmt.Errorf("error starting %s: %v", clusterManager.ServiceExportControllerName, err)
+		return fmt.Errorf("error starting %s: %v", mcs.ServiceExportControllerName, err)
 	}
 
 	GlobalDaemonSetService := &GlobalDaemonSetService{
@@ -135,7 +137,7 @@ func run(ctx context.Context, opts *options.Options) error {
 	rootResourceManager.InformerFactory.Start(ctx.Done())
 	rootResourceManager.KosmosInformerFactory.Start(ctx.Done())
 	if !cache.WaitForCacheSync(ctx.Done(), rootResourceManager.EndpointSliceInformer.HasSynced) {
-		klog.Fatal("Knode manager: wait for informer factory failed")
+		klog.Fatal("cluster manager: wait for informer factory failed")
 	}
 
 	<-ctx.Done()

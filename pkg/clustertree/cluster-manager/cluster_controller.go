@@ -30,7 +30,10 @@ import (
 	"github.com/kosmos.io/kosmos/cmd/clustertree/cluster-manager/app/options"
 	clusterlinkv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers"
+	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/mcs"
 	podcontrollers "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/pod"
+	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/pv"
+	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/pvc"
 	kosmosversioned "github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/scheme"
 	"github.com/kosmos.io/kosmos/pkg/utils"
@@ -45,7 +48,7 @@ const (
 	RootClusterAnnotationValue = "root"
 
 	DefaultLeafKubeQPS   = 40.0
-	DefalutLeafKubeBurst = 60
+	DefaultLeafKubeBurst = 60
 )
 
 type ClusterController struct {
@@ -56,13 +59,13 @@ type ClusterController struct {
 	EventRecorder record.EventRecorder
 	Logger        logr.Logger
 	Options       *options.Options
-	ConfigOptFunc func(config *rest.Config)
 
 	ControllerManagers     map[string]*manager.Manager
 	ManagerCancelFuncs     map[string]*context.CancelFunc
 	ControllerManagersLock sync.Mutex
 
-	mgr *manager.Manager
+	mgr                 *manager.Manager
+	RootResourceManager *utils.ResourceManager
 }
 
 func isRootCluster(cluster *clusterlinkv1alpha1.Cluster) bool {
@@ -134,7 +137,7 @@ func (c *ClusterController) Reconcile(ctx context.Context, request reconcile.Req
 
 	config, err := utils.NewConfigFromBytes(cluster.Spec.Kubeconfig, func(config *rest.Config) {
 		config.QPS = DefaultLeafKubeQPS
-		config.Burst = DefalutLeafKubeBurst
+		config.Burst = DefaultLeafKubeBurst
 	})
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("could not build kubeconfig for cluster %s: %v", cluster.Name, err)
@@ -254,17 +257,18 @@ func (c *ClusterController) setupControllers(m *manager.Manager, cluster *cluste
 		return fmt.Errorf("error starting %s: %v", controllers.NodeLeaseControllerName, err)
 	}
 
-	serviceImportController := &controllers.ServiceImportController{
-		Client:          mgr.GetClient(),
-		Master:          c.Root,
-		EventRecorder:   mgr.GetEventRecorderFor(controllers.MemberServiceImportControllerName),
-		Logger:          mgr.GetLogger(),
-		ClusterNodeName: cluster.Name,
-		KosmosClient:    kosmosClient,
+	serviceImportController := &mcs.ServiceImportController{
+		LeafClient:          mgr.GetClient(),
+		RootClient:          c.Root,
+		RootKosmosClient:    kosmosClient,
+		EventRecorder:       mgr.GetEventRecorderFor(mcs.LeafServiceImportControllerName),
+		Logger:              mgr.GetLogger(),
+		LeafNodeName:        cluster.Name,
+		RootResourceManager: c.RootResourceManager,
 	}
 
 	if err := serviceImportController.AddController(mgr); err != nil {
-		return fmt.Errorf("error starting %s: %v", controllers.MemberServiceImportControllerName, err)
+		return fmt.Errorf("error starting %s: %v", mcs.LeafServiceImportControllerName, err)
 	}
 
 	// TODO Consider moving up to the same level as cluster-controller, add controllers after mgr is started may cause problems ？
@@ -291,6 +295,11 @@ func (c *ClusterController) setupControllers(m *manager.Manager, cluster *cluste
 		return fmt.Errorf("error starting podUpstreamReconciler %s: %v", podcontrollers.LeafPodControllerName, err)
 	}
 
+	err := c.setupStorageControllers(m, node, leafClient)
+	if err != nil {
+		return err
+	}
+
 	for i, gvr := range podcontrollers.SYNC_GVRS {
 		demoController := podcontrollers.SyncResourcesReconciler{
 			GroupVersionResource: gvr,
@@ -303,6 +312,50 @@ func (c *ClusterController) setupControllers(m *manager.Manager, cluster *cluste
 			klog.Errorf("Unable to create cluster node controller: %v", err)
 			return err
 		}
+	}
+
+	return nil
+}
+
+func (c *ClusterController) setupStorageControllers(m *manager.Manager, node *corev1.Node, leafClient kubernetes.Interface) error {
+	mgr := *m
+
+	rootPVCController := pvc.RootPVCController{
+		LeafClient:    mgr.GetClient(),
+		RootClient:    c.Root,
+		LeafClientSet: leafClient,
+	}
+	if err := rootPVCController.SetupWithManager(*c.mgr); err != nil {
+		return fmt.Errorf("error starting root pvc controller %v", err)
+	}
+
+	rootPVController := pv.RootPVController{
+		LeafClient:    mgr.GetClient(),
+		RootClient:    c.Root,
+		LeafClientSet: leafClient,
+	}
+	if err := rootPVController.SetupWithManager(*c.mgr); err != nil {
+		return fmt.Errorf("error starting root pv controller %v", err)
+	}
+
+	leafPVCController := pvc.LeafPVCController{
+		LeafClient:    mgr.GetClient(),
+		RootClient:    c.Root,
+		RootClientSet: c.RootClient,
+		NodeName:      node.Name,
+	}
+	if err := leafPVCController.SetupWithManager(mgr); err != nil {
+		return fmt.Errorf("error starting leaf pvc controller %v", err)
+	}
+
+	leafPVontroller := pv.LeafPVController{
+		LeafClient:    mgr.GetClient(),
+		RootClient:    c.Root,
+		RootClientSet: c.RootClient,
+		NodeName:      node.Name,
+	}
+	if err := leafPVontroller.SetupWithManager(mgr); err != nil {
+		return fmt.Errorf("error starting leaf pv controller %v", err)
 	}
 
 	return nil

@@ -93,11 +93,6 @@ func (c *NodeResourcesController) Reconcile(ctx context.Context, request reconci
 		klog.V(4).Infof("============ %s has been reconciled =============", request.Name)
 	}()
 
-	node := &corev1.Node{}
-	if err := c.Leaf.Get(ctx, request.NamespacedName, node); err != nil {
-		return controllerruntime.Result{}, err
-	}
-
 	nodes := corev1.NodeList{}
 	if err := c.Leaf.List(ctx, &nodes); err != nil {
 		return controllerruntime.Result{}, err
@@ -110,23 +105,20 @@ func (c *NodeResourcesController) Reconcile(ctx context.Context, request reconci
 
 	clusterResources := utils.CalculateClusterResources(&nodes, &pods)
 
-	curr := &corev1.Node{}
-	namespacedName := types.NamespacedName{
-		Name: c.Node.Name,
-	}
-	err := c.Root.Get(ctx, namespacedName, curr)
+	node := &corev1.Node{}
+	err := c.Root.Get(ctx, types.NamespacedName{Name: c.Node.Name}, node)
 	if err != nil {
 		return reconcile.Result{
 			RequeueAfter: RequeueTime,
 		}, fmt.Errorf("cannot get node while update node resources %s, err: %v", c.Node.Name, err)
 	}
 
-	clone := curr.DeepCopy()
+	clone := node.DeepCopy()
 	clone.Status.Allocatable = clusterResources
 	clone.Status.Capacity = clusterResources
 	clone.Status.Conditions = utils.NodeConditions()
 
-	patch, err := utils.CreateMergePatch(curr, clone)
+	patch, err := utils.CreateMergePatch(node, clone)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
