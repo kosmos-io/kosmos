@@ -84,8 +84,8 @@ func populateContainerEnvironment(ctx context.Context, pod *corev1.Pod, containe
 	}
 	// Create the final "environment map" for the container using the ".env" and ".envFrom" field
 	// and service environment variables.
-	err = makeEnvironmentMap(ctx, pod, container, rm, tmpEnv)
-	if err != nil {
+	envs, err := makeEnvironmentMap(ctx, pod, container, rm, tmpEnv)
+	if err != nil && len(envs) == 0 {
 		return err
 	}
 	// Empty the container's ".envFrom" field and replace its ".env" field with the final, merged environment.
@@ -102,6 +102,7 @@ func populateContainerEnvironment(ctx context.Context, pod *corev1.Pod, containe
 			Value: val,
 		})
 	}
+	res = append(res, envs...)
 	container.Env = res
 
 	return nil
@@ -275,7 +276,7 @@ loop:
 }
 
 // makeEnvironmentMap returns a map representing the resolved environment of the specified container after being populated from the entries in the ".env" and ".envFrom" field.
-func makeEnvironmentMap(ctx context.Context, pod *corev1.Pod, container *corev1.Container, rm utils.EnvResourceManager, res map[string]string) error {
+func makeEnvironmentMap(ctx context.Context, pod *corev1.Pod, container *corev1.Container, rm utils.EnvResourceManager, res map[string]string) ([]corev1.EnvVar, error) {
 	// TODO If pod.Spec.EnableServiceLinks is nil then fail as per 1.14 kubelet.
 	enableServiceLinks := corev1.DefaultEnableServiceLinks
 	if pod.Spec.EnableServiceLinks != nil {
@@ -288,7 +289,7 @@ func makeEnvironmentMap(ctx context.Context, pod *corev1.Pod, container *corev1.
 	// and keep trying to resolve the DNS name of the service (recommended).
 	svcEnv, err := getServiceEnvVarMap(rm, pod.Namespace, enableServiceLinks)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// If the variable's Value is set, expand the `$(var)` references to other
@@ -297,11 +298,12 @@ func makeEnvironmentMap(ctx context.Context, pod *corev1.Pod, container *corev1.
 	// mappingFunc := expansion.MappingFuncFor(res, svcEnv)
 
 	// Iterate over environment variables in order to populate the map.
+	var keys []corev1.EnvVar
 	for _, env := range container.Env {
 		envptr := env
 		val, err := getEnvironmentVariableValue(ctx, &envptr, pod, container, rm)
 		if err != nil {
-			return err
+			keys = append(keys, env)
 		}
 		if val != nil {
 			res[env.Name] = *val
@@ -315,7 +317,7 @@ func makeEnvironmentMap(ctx context.Context, pod *corev1.Pod, container *corev1.
 		}
 	}
 
-	return nil
+	return keys, nil
 }
 
 func getEnvironmentVariableValue(ctx context.Context, env *corev1.EnvVar, pod *corev1.Pod, container *corev1.Container, rm utils.EnvResourceManager) (*string, error) {
