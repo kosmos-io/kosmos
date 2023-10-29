@@ -64,6 +64,9 @@ func (l *leafResourceManager) ListNodeNames() []string {
 	defer l.leafResourceManagersLock.Unlock()
 	keys := make([]string, 0, len(l.resourceMap))
 	for k := range l.resourceMap {
+		if len(k) == 0 {
+			continue
+		}
 		keys = append(keys, k)
 	}
 	return keys
