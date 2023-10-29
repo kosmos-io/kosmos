@@ -15,7 +15,10 @@ import (
 
 	"github.com/kosmos.io/kosmos/cmd/clustertree/cluster-manager/app/options"
 	clusterManager "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager"
+	controllers "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/mcs"
+	podcontrollers "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/pod"
+	leafUtils "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/utils"
 	"github.com/kosmos.io/kosmos/pkg/scheme"
 	"github.com/kosmos.io/kosmos/pkg/sharedcli/klogflag"
 	"github.com/kosmos.io/kosmos/pkg/utils"
@@ -53,6 +56,8 @@ func NewAgentCommand(ctx context.Context) *cobra.Command {
 }
 
 func run(ctx context.Context, opts *options.Options) error {
+	globalleafManager := leafUtils.NewLeafResourceManager()
+
 	config, err := clientcmd.BuildConfigFromFlags(opts.KubernetesOptions.Master, opts.KubernetesOptions.KubeConfig)
 	if err != nil {
 		panic(err)
@@ -104,6 +109,7 @@ func run(ctx context.Context, opts *options.Options) error {
 		EventRecorder:       mgr.GetEventRecorderFor(clusterManager.ControllerName),
 		Options:             opts,
 		RootResourceManager: rootResourceManager,
+		GlobalLeafManager:   globalleafManager,
 	}
 	if err = ClusterController.SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("error starting %s: %v", clusterManager.ControllerName, err)
@@ -126,6 +132,33 @@ func run(ctx context.Context, opts *options.Options) error {
 	}
 	if err = GlobalDaemonSetService.SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("error starting global daemonset : %v", err)
+	}
+
+	// init rootPodController
+	RootPodReconciler := podcontrollers.RootPodReconciler{
+		GlobalLeafManager: globalleafManager,
+		RootClient:        mgr.GetClient(),
+		DynamicRootClient: dynamicClient,
+	}
+	if err := RootPodReconciler.SetupWithManager(mgr); err != nil {
+		return fmt.Errorf("error starting RootPodReconciler %s: %v", podcontrollers.RootPodControllerName, err)
+	}
+
+	// init commonCOntroller
+	for i, gvr := range controllers.SYNC_GVRS {
+		commonController := controllers.SyncResourcesReconciler{
+			GlobalLeafManager:    globalleafManager,
+			GroupVersionResource: gvr,
+			Object:               controllers.SYNC_OBJS[i],
+			DynamicRootClient:    dynamicClient,
+			// DynamicLeafClient:    clientDynamic,
+			ControllerName: "async-controller-" + gvr.Resource,
+			// Namespace:            cluster.Spec.Namespace,
+		}
+		if err := commonController.SetupWithManager(mgr, gvr); err != nil {
+			klog.Errorf("Unable to create cluster node controller: %v", err)
+			return err
+		}
 	}
 
 	go func() {

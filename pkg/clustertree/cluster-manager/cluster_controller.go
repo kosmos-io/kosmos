@@ -34,6 +34,7 @@ import (
 	podcontrollers "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/pod"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/pv"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/pvc"
+	leafUtils "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/utils"
 	kosmosversioned "github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/scheme"
 	"github.com/kosmos.io/kosmos/pkg/utils"
@@ -66,6 +67,8 @@ type ClusterController struct {
 
 	RootResourceManager *utils.ResourceManager
 	mgr                 manager.Manager
+
+	GlobalLeafManager leafUtils.LeafResourceManager
 }
 
 func isRootCluster(cluster *clusterlinkv1alpha1.Cluster) bool {
@@ -238,9 +241,20 @@ func (c *ClusterController) clearClusterControllers(cluster *clusterlinkv1alpha1
 	}
 	delete(c.ManagerCancelFuncs, cluster.Name)
 	delete(c.ControllerManagers, cluster.Name)
+
+	c.GlobalLeafManager.RemoveLeafResource(cluster.Name)
 }
 
 func (c *ClusterController) setupControllers(mgr manager.Manager, cluster *clusterlinkv1alpha1.Cluster, node *corev1.Node, clientDynamic *dynamic.DynamicClient, leafClient kubernetes.Interface, kosmosClient kosmosversioned.Interface) error {
+	c.GlobalLeafManager.AddLeafResource(cluster.Name, &leafUtils.LeafResource{
+		Client:               mgr.GetClient(),
+		DynamicClient:        clientDynamic,
+		NodeName:             cluster.Name,
+		Namespace:            cluster.Spec.Namespace,
+		IgnoreLabels:         strings.Split("", ","),
+		EnableServiceAccount: true,
+	})
+
 	nodeResourcesController := controllers.NodeResourcesController{
 		Leaf:          mgr.GetClient(),
 		Root:          c.Root,
@@ -270,21 +284,6 @@ func (c *ClusterController) setupControllers(mgr manager.Manager, cluster *clust
 		return fmt.Errorf("error starting %s: %v", mcs.LeafServiceImportControllerName, err)
 	}
 
-	// TODO Consider moving up to the same level as cluster-controller, add controllers after mgr is started may cause problems ？
-	RootPodReconciler := podcontrollers.RootPodReconciler{
-		LeafClient:           mgr.GetClient(),
-		RootClient:           c.Root,
-		NodeName:             cluster.Name,
-		Namespace:            cluster.Spec.Namespace,
-		IgnoreLabels:         strings.Split("", ","),
-		EnableServiceAccount: true,
-		DynamicRootClient:    c.RootDynamic,
-		DynamicLeafClient:    clientDynamic,
-	}
-	if err := RootPodReconciler.SetupWithManager(c.mgr); err != nil {
-		return fmt.Errorf("error starting RootPodReconciler %s: %v", podcontrollers.RootPodControllerName, err)
-	}
-
 	leafPodController := podcontrollers.LeafPodReconciler{
 		RootClient: c.Root,
 		Namespace:  cluster.Spec.Namespace,
@@ -297,21 +296,6 @@ func (c *ClusterController) setupControllers(mgr manager.Manager, cluster *clust
 	err := c.setupStorageControllers(mgr, node, leafClient)
 	if err != nil {
 		return err
-	}
-
-	for i, gvr := range controllers.SYNC_GVRS {
-		demoController := controllers.SyncResourcesReconciler{
-			GroupVersionResource: gvr,
-			Object:               controllers.SYNC_OBJS[i],
-			DynamicRootClient:    c.RootDynamic,
-			DynamicLeafClient:    clientDynamic,
-			ControllerName:       "async-controller-" + gvr.Resource,
-			Namespace:            cluster.Spec.Namespace,
-		}
-		if err := demoController.SetupWithManager(c.mgr, gvr); err != nil {
-			klog.Errorf("Unable to create cluster node controller: %v", err)
-			return err
-		}
 	}
 
 	return nil

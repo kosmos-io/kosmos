@@ -3,6 +3,7 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	jsonpatch "github.com/evanphx/json-patch"
 	jsonpatch1 "github.com/mattbaird/jsonpatch"
@@ -387,4 +388,52 @@ func IsObjectUnstructuredGlobal(obj map[string]string) bool {
 	}
 
 	return false
+}
+
+func AddResourceOwnersAnnotations(anno map[string]string, owner string) map[string]string {
+	owners := strings.Split(anno[KosmosResourceOwnersAnnotations], ",")
+
+	for _, v := range owners {
+		if v == owner {
+			// already existed
+			return anno
+		}
+	}
+	owners = append(owners, owner)
+
+	anno[KosmosResourceOwnersAnnotations] = strings.Join(owners, ",")
+	return anno
+}
+
+func RemoveResourceOwnersAnnotations(anno map[string]string, owner string) map[string]string {
+	owners := strings.Split(anno[KosmosResourceOwnersAnnotations], ",")
+
+	newowners := make([]string, len(owners)-1)
+
+	for _, v := range owners {
+		if v != owner {
+			newowners = append(newowners, v)
+		}
+	}
+
+	anno[KosmosResourceOwnersAnnotations] = strings.Join(newowners, ",")
+	return anno
+}
+
+func HasResourceOwnersAnnotations(anno map[string]string, owner string) bool {
+	owners := strings.Split(anno[KosmosResourceOwnersAnnotations], ",")
+
+	for _, v := range owners {
+		if v == owner {
+			// already existed
+			return true
+		}
+	}
+	return false
+}
+
+func ListResourceOwnersAnnotations(anno map[string]string) []string {
+	owners := strings.Split(anno[KosmosResourceOwnersAnnotations], ",")
+
+	return owners
 }

@@ -35,15 +35,6 @@ type LeafPodReconciler struct {
 }
 
 func (r *LeafPodReconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
-	if request.NamespacedName.Namespace == utils.ReservedNS {
-		return reconcile.Result{}, nil
-	}
-
-	// skip namespace
-	if len(r.Namespace) > 0 && r.Namespace != request.NamespacedName.Namespace {
-		return reconcile.Result{}, nil
-	}
-
 	var pod corev1.Pod
 	if err := r.Get(ctx, request.NamespacedName, &pod); err != nil {
 		if apierrors.IsNotFound(err) {
@@ -117,20 +108,35 @@ func (r *LeafPodReconciler) SetupWithManager(mgr manager.Manager) error {
 		r.Client = mgr.GetClient()
 	}
 
+	skipFunc := func(obj client.Object) bool {
+		if obj.GetNamespace() == utils.ReservedNS {
+			return false
+		}
+
+		// skip namespace
+		if len(r.Namespace) > 0 && r.Namespace != obj.GetNamespace() {
+			return false
+		}
+		return true
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(LeafPodControllerName).
 		WithOptions(controller.Options{}).
 		For(&corev1.Pod{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(createEvent event.CreateEvent) bool {
-				return true
+				return skipFunc(createEvent.Object)
 			},
 			UpdateFunc: func(updateEvent event.UpdateEvent) bool {
+				if !skipFunc(updateEvent.ObjectNew) {
+					return false
+				}
 				pod1 := updateEvent.ObjectOld.(*corev1.Pod)
 				pod2 := updateEvent.ObjectNew.(*corev1.Pod)
 				return !cmp.Equal(pod1.Status, pod2.Status)
 			},
 			DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
-				return true
+				return skipFunc(deleteEvent.Object)
 			},
 			GenericFunc: func(genericEvent event.GenericEvent) bool {
 				return false
