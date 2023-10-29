@@ -8,7 +8,6 @@ import (
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -74,11 +73,22 @@ func (dopt *rootDeleteOption) ApplyToDelete(opt *client.DeleteOptions) {
 }
 
 func NewRootDeleteOption(pod *corev1.Pod) client.DeleteOption {
-	gracePeriodSeconds := pod.DeletionGracePeriodSeconds
+	// TODO
+	//gracePeriodSeconds := pod.DeletionGracePeriodSeconds
+	//
+	//current := metav1.NewTime(time.Now())
+	//if pod.DeletionTimestamp.Before(&current) {
+	//	gracePeriodSeconds = new(int64)
+	//}
+	return &rootDeleteOption{
+		GracePeriodSeconds: new(int64),
+	}
+}
 
-	current := metav1.NewTime(time.Now())
-	if pod.DeletionTimestamp.Before(&current) {
-		gracePeriodSeconds = new(int64)
+func NewLeafDeleteOption(pod *corev1.Pod) client.DeleteOption {
+	gracePeriodSeconds := new(int64)
+	if pod.DeletionGracePeriodSeconds != nil {
+		gracePeriodSeconds = pod.DeletionGracePeriodSeconds
 	}
 
 	return &rootDeleteOption{
@@ -124,7 +134,9 @@ func (r *LeafPodReconciler) SetupWithManager(mgr manager.Manager) error {
 		if len(r.Namespace) > 0 && r.Namespace != obj.GetNamespace() {
 			return false
 		}
-		return true
+
+		p := obj.(*corev1.Pod)
+		return podutils.IsKosmosPod(p)
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -133,14 +145,14 @@ func (r *LeafPodReconciler) SetupWithManager(mgr manager.Manager) error {
 		For(&corev1.Pod{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(createEvent event.CreateEvent) bool {
 				// ignore create event
-				return false
+				return skipFunc(createEvent.Object)
 			},
 			UpdateFunc: func(updateEvent event.UpdateEvent) bool {
+				pod1 := updateEvent.ObjectOld.(*corev1.Pod)
+				pod2 := updateEvent.ObjectNew.(*corev1.Pod)
 				if !skipFunc(updateEvent.ObjectNew) {
 					return false
 				}
-				pod1 := updateEvent.ObjectOld.(*corev1.Pod)
-				pod2 := updateEvent.ObjectNew.(*corev1.Pod)
 				return !cmp.Equal(pod1.Status, pod2.Status)
 			},
 			DeleteFunc: func(deleteEvent event.DeleteEvent) bool {

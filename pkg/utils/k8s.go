@@ -391,6 +391,9 @@ func IsObjectUnstructuredGlobal(obj map[string]string) bool {
 }
 
 func AddResourceOwnersAnnotations(anno map[string]string, owner string) map[string]string {
+	if anno == nil {
+		anno = map[string]string{}
+	}
 	owners := strings.Split(anno[KosmosResourceOwnersAnnotations], ",")
 	newowners := make([]string, 0)
 
@@ -415,6 +418,9 @@ func AddResourceOwnersAnnotations(anno map[string]string, owner string) map[stri
 }
 
 func RemoveResourceOwnersAnnotations(anno map[string]string, owner string) map[string]string {
+	if anno == nil {
+		anno = map[string]string{}
+	}
 	owners := strings.Split(anno[KosmosResourceOwnersAnnotations], ",")
 	newowners := make([]string, len(owners)-1)
 
@@ -432,6 +438,9 @@ func RemoveResourceOwnersAnnotations(anno map[string]string, owner string) map[s
 }
 
 func HasResourceOwnersAnnotations(anno map[string]string, owner string) bool {
+	if anno == nil {
+		anno = map[string]string{}
+	}
 	owners := strings.Split(anno[KosmosResourceOwnersAnnotations], ",")
 
 	for _, v := range owners {
@@ -444,6 +453,9 @@ func HasResourceOwnersAnnotations(anno map[string]string, owner string) bool {
 }
 
 func ListResourceOwnersAnnotations(anno map[string]string) []string {
+	if anno == nil {
+		anno = map[string]string{}
+	}
 	owners := strings.Split(anno[KosmosResourceOwnersAnnotations], ",")
 	return owners
 }

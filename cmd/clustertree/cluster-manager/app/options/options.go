@@ -14,9 +14,11 @@ const (
 )
 
 type Options struct {
-	LeaderElection    componentbaseconfig.LeaderElectionConfiguration
-	KubernetesOptions KubernetesOptions
-	ListenPort        int32
+	LeaderElection      componentbaseconfig.LeaderElectionConfiguration
+	KubernetesOptions   KubernetesOptions
+	ListenPort          int32
+	DaemonSetController bool
+	MultiClusterService bool
 }
 
 type KubernetesOptions struct {
@@ -43,4 +45,6 @@ func (o *Options) AddFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&o.KubernetesOptions.KubeConfig, "kubeconfig", "", "Path for kubernetes kubeconfig file, if left blank, will use in cluster way.")
 	flags.StringVar(&o.KubernetesOptions.Master, "master", "", "Used to generate kubeconfig for downloading, if not specified, will use host in kubeconfig.")
 	flags.Int32Var(&o.ListenPort, "listen-port", 10250, "Listen port for requests from the kube-apiserver.")
+	flags.BoolVar(&o.DaemonSetController, "daemonset-controller", false, "Turn on or off daemonset controller.")
+	flags.BoolVar(&o.MultiClusterService, "multi-cluster-service", false, "Turn on or off mcs support.")
 }

@@ -66,6 +66,30 @@ func (l *LeafPVController) Reconcile(ctx context.Context, request reconcile.Requ
 			klog.Errorf("get root pv failed, error: %v", err)
 			return reconcile.Result{RequeueAfter: LeafPVRequeueTime}, nil
 		}
+
+		if pvCopy.Spec.ClaimRef != nil {
+			tmpPVC := &v1.PersistentVolumeClaim{}
+			nn := types.NamespacedName{
+				Name:      pvCopy.Spec.ClaimRef.Name,
+				Namespace: pvCopy.Spec.ClaimRef.Namespace,
+			}
+			err := l.LeafClient.Get(ctx, nn, tmpPVC)
+			if err != nil {
+				if !errors.IsNotFound(err) {
+					klog.Errorf("get tmp pvc failed, error: %v", err)
+					return reconcile.Result{RequeueAfter: LeafPVRequeueTime}, nil
+				}
+				klog.Warningf("tmp pvc not exist, error: %v", err)
+				return reconcile.Result{}, nil
+			}
+			if !utils.IsObjectGlobal(&tmpPVC.ObjectMeta) {
+				return reconcile.Result{}, nil
+			}
+		} else {
+			klog.Warningf("Can't find pvc for pv, error: %v", err)
+			return reconcile.Result{}, nil
+		}
+
 		rootPV = pv.DeepCopy()
 		filterPV(rootPV, l.NodeName)
 		nn := types.NamespacedName{
@@ -142,7 +166,7 @@ func (l *LeafPVController) SetupWithManager(mgr manager.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(LeafPVControllerName).
 		WithOptions(controller.Options{}).
-		For(&v1.PersistentVolumeClaim{}, builder.WithPredicates(predicate.Funcs{
+		For(&v1.PersistentVolume{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(createEvent event.CreateEvent) bool {
 				return true
 			},
