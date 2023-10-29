@@ -249,6 +249,7 @@ func (c *ClusterController) setupControllers(mgr manager.Manager, cluster *clust
 	c.GlobalLeafManager.AddLeafResource(cluster.Name, &leafUtils.LeafResource{
 		Client:               mgr.GetClient(),
 		DynamicClient:        clientDynamic,
+		Clientset:            leafClient,
 		NodeName:             cluster.Name,
 		Namespace:            cluster.Spec.Namespace,
 		IgnoreLabels:         strings.Split("", ","),
@@ -302,24 +303,6 @@ func (c *ClusterController) setupControllers(mgr manager.Manager, cluster *clust
 }
 
 func (c *ClusterController) setupStorageControllers(mgr manager.Manager, node *corev1.Node, leafClient kubernetes.Interface) error {
-	rootPVCController := pvc.RootPVCController{
-		LeafClient:    mgr.GetClient(),
-		RootClient:    c.Root,
-		LeafClientSet: leafClient,
-	}
-	if err := rootPVCController.SetupWithManager(c.mgr); err != nil {
-		return fmt.Errorf("error starting root pvc controller %v", err)
-	}
-
-	rootPVController := pv.RootPVController{
-		LeafClient:    mgr.GetClient(),
-		RootClient:    c.Root,
-		LeafClientSet: leafClient,
-	}
-	if err := rootPVController.SetupWithManager(c.mgr); err != nil {
-		return fmt.Errorf("error starting root pv controller %v", err)
-	}
-
 	leafPVCController := pvc.LeafPVCController{
 		LeafClient:    mgr.GetClient(),
 		RootClient:    c.Root,
