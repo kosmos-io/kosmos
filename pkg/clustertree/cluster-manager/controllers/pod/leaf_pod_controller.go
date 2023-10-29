@@ -89,17 +89,24 @@ func NewRootDeleteOption(pod *corev1.Pod) client.DeleteOption {
 func (r *LeafPodReconciler) safeDeletePodInRootCluster(ctx context.Context, request reconcile.Request) error {
 	rPod := corev1.Pod{}
 	err := r.RootClient.Get(ctx, request.NamespacedName, &rPod)
-	if err == nil || !apierrors.IsNotFound(err) {
-		rPodCopy := rPod.DeepCopy()
 
-		deleteOption := NewRootDeleteOption(rPodCopy)
-
-		if err := r.RootClient.Delete(ctx, rPodCopy, deleteOption); err != nil {
-			if !apierrors.IsNotFound(err) {
-				return err
-			}
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil
+		} else {
+			return err
 		}
 	}
+
+	rPodCopy := rPod.DeepCopy()
+	deleteOption := NewRootDeleteOption(rPodCopy)
+
+	if err := r.RootClient.Delete(ctx, rPodCopy, deleteOption); err != nil {
+		if !apierrors.IsNotFound(err) {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -125,7 +132,8 @@ func (r *LeafPodReconciler) SetupWithManager(mgr manager.Manager) error {
 		WithOptions(controller.Options{}).
 		For(&corev1.Pod{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(createEvent event.CreateEvent) bool {
-				return skipFunc(createEvent.Object)
+				// ignore create event
+				return false
 			},
 			UpdateFunc: func(updateEvent event.UpdateEvent) bool {
 				if !skipFunc(updateEvent.ObjectNew) {

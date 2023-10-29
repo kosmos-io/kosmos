@@ -117,7 +117,19 @@ func (r *RootPodReconciler) Reconcile(ctx context.Context, request reconcile.Req
 	var cachepod corev1.Pod
 	if err := r.Get(ctx, request.NamespacedName, &cachepod); err != nil {
 		if errors.IsNotFound(err) {
-			// we cannot get leaf pod when we donnot known the node name of pod, so skip...
+			// TODO: we cannot get leaf pod when we donnot known the node name of pod, so delete all ...
+			owners := r.GlobalLeafManager.ListNodeNames()
+			for _, owner := range owners {
+				lr, err := r.GlobalLeafManager.GetLeafResource(owner)
+				if err != nil {
+					// wait for leaf resource init
+					return reconcile.Result{RequeueAfter: RootPodRequeueTime}, nil
+				}
+				if err := r.DeletePodInLeafCluster(ctx, lr, request.NamespacedName); err != nil {
+					klog.Errorf("delete pod in leaf error[1]: %v,  %s", err, request.NamespacedName)
+					return reconcile.Result{RequeueAfter: RootPodRequeueTime}, nil
+				}
+			}
 			return reconcile.Result{}, nil
 		}
 		klog.Errorf("get %s error: %v", request.NamespacedName, err)
@@ -145,7 +157,7 @@ func (r *RootPodReconciler) Reconcile(ctx context.Context, request reconcile.Req
 
 	// delete pod in leaf
 	if !rootpod.GetDeletionTimestamp().IsZero() {
-		if err := r.DeletePodInLeafCluster(ctx, lr, &rootpod); err != nil {
+		if err := r.DeletePodInLeafCluster(ctx, lr, request.NamespacedName); err != nil {
 			klog.Errorf("delete pod in leaf error[1]: %v,  %s", err, request.NamespacedName)
 			return reconcile.Result{RequeueAfter: RootPodRequeueTime}, nil
 		}
@@ -624,10 +636,7 @@ func (r *RootPodReconciler) UpdatePodInLeafCluster(ctx context.Context, lr *leaf
 	// TODO: update env
 	// TODO： update config secret pv pvc ...
 	klog.Infof("Updating pod %v/%+v", rootpod.Namespace, rootpod.Name)
-	// currentPod, err := r.GetPodInLeafCluster(ctx, pod.Namespace, pod.Name)
-	// if err != nil {
-	// 	return fmt.Errorf("could not get current pod")
-	// }
+
 	if !podutils.IsKosmosPod(leafpod) {
 		klog.Info("Pod is not created by kosmos tree, ignore")
 		return nil
@@ -652,10 +661,20 @@ func (r *RootPodReconciler) UpdatePodInLeafCluster(ctx context.Context, lr *leaf
 	return nil
 }
 
-func (r *RootPodReconciler) DeletePodInLeafCluster(ctx context.Context, lr *leafUtils.LeafResource, pod *corev1.Pod) error {
-	klog.Infof("Deleting pod %v/%+v", pod.Namespace, pod.Name)
+func (r *RootPodReconciler) DeletePodInLeafCluster(ctx context.Context, lr *leafUtils.LeafResource, rootnamespacedname types.NamespacedName) error {
+	klog.Infof("Deleting pod %v/%+v", rootnamespacedname.Namespace, rootnamespacedname.Name)
+	leafPod := &corev1.Pod{}
 
-	if !podutils.IsKosmosPod(pod) {
+	err := lr.Client.Get(ctx, rootnamespacedname, leafPod)
+
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+
+	if !podutils.IsKosmosPod(leafPod) {
 		klog.Info("Pod is not create by kosmos tree, ignore")
 		return nil
 	}
@@ -663,36 +682,18 @@ func (r *RootPodReconciler) DeletePodInLeafCluster(ctx context.Context, lr *leaf
 	opts := &metav1.DeleteOptions{
 		GracePeriodSeconds: new(int64), // 0
 	}
-	if pod.DeletionGracePeriodSeconds != nil {
-		opts.GracePeriodSeconds = pod.DeletionGracePeriodSeconds
+	if leafPod.DeletionGracePeriodSeconds != nil {
+		opts.GracePeriodSeconds = leafPod.DeletionGracePeriodSeconds
 	}
 
-	err := lr.Client.Delete(ctx, pod)
+	err = lr.Client.Delete(ctx, leafPod)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			klog.Infof("Tried to delete pod %s/%s, but it did not exist in the cluster", pod.Namespace, pod.Name)
+			klog.Infof("Tried to delete pod %s/%s, but it did not exist in the cluster", leafPod.Namespace, leafPod.Name)
 			return nil
 		}
 		return fmt.Errorf("could not delete pod: %v", err)
 	}
-	klog.Infof("Delete pod %v/%+v success", pod.Namespace, pod.Name)
+	klog.Infof("Delete pod %v/%+v success", leafPod.Namespace, leafPod.Name)
 	return nil
 }
-
-// func (r *RootPodReconciler) GetPodInLeafCluster(ctx context.Context, namespace string, name string) (*corev1.Pod, error) {
-// 	pod := &corev1.Pod{}
-// 	err := r.GetLeafClient().Get(ctx, types.NamespacedName{
-// 		Namespace: namespace,
-// 		Name:      name,
-// 	}, pod)
-// 	if err != nil {
-// 		klog.Error(err)
-// 		if errors.IsNotFound(err) {
-// 			return nil, err
-// 		}
-// 		return nil, fmt.Errorf("could not get pod %s/%s: %v", namespace, name, err)
-// 	}
-// 	podCopy := pod.DeepCopy()
-// 	podutils.RecoverLabels(podCopy.Labels, podCopy.Annotations)
-// 	return podCopy, nil
-// }

@@ -140,13 +140,13 @@ func (r *SyncResourcesReconciler) SyncResource(ctx context.Context, request reco
 
 	if deleteSecretInClient || obj.GetDeletionTimestamp() != nil {
 		// delete OBJ in leaf cluster
-		if err = lr.DynamicClient.Resource(r.GroupVersionResource).Namespace(request.Namespace).Delete(ctx, obj.GetName(), metav1.DeleteOptions{}); err != nil {
+		if err = lr.DynamicClient.Resource(r.GroupVersionResource).Namespace(request.Namespace).Delete(ctx, request.Name, metav1.DeleteOptions{}); err != nil {
 			if errors.IsNotFound(err) {
 				return nil
 			}
 			return err
 		}
-		klog.V(3).Infof("%s %q deleted", obj.GetKind(), obj.GetName())
+		klog.V(3).Infof("%s %q deleted", r.GroupVersionResource.Resource, request.Name)
 		return nil
 	}
 
