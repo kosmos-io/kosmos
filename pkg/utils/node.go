@@ -3,18 +3,16 @@ package utils
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	clusterlinkv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 )
 
-func BuildNodeTemplate(cluster *clusterlinkv1alpha1.Cluster) *corev1.Node {
+func BuildNodeTemplate(name string) *corev1.Node {
 	node := &corev1.Node{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: cluster.Name,
+			Name: name,
 			Labels: map[string]string{
 				KosmosNodeLabel:     KosmosNodeValue,
 				NodeRoleLabel:       NodeRoleValue,
-				NodeHostnameValue:   cluster.Name,
+				NodeHostnameValue:   name,
 				NodeArchLabelStable: DefaultK8sArch,
 				NodeOSLabelStable:   DefaultK8sOS,
 				NodeOSLabelBeta:     DefaultK8sOS,

@@ -117,23 +117,27 @@ func run(ctx context.Context, opts *options.Options) error {
 		return fmt.Errorf("error starting %s: %v", clusterManager.ControllerName, err)
 	}
 
-	// add serviceExport controller
-	ServiceExportController := mcs.ServiceExportController{
-		RootClient:    mgr.GetClient(),
-		EventRecorder: mgr.GetEventRecorderFor(mcs.ServiceExportControllerName),
-		Logger:        mgr.GetLogger(),
-	}
-	if err = ServiceExportController.SetupWithManager(mgr); err != nil {
-		return fmt.Errorf("error starting %s: %v", mcs.ServiceExportControllerName, err)
+	if opts.MultiClusterService {
+		// add serviceExport controller
+		ServiceExportController := mcs.ServiceExportController{
+			RootClient:    mgr.GetClient(),
+			EventRecorder: mgr.GetEventRecorderFor(mcs.ServiceExportControllerName),
+			Logger:        mgr.GetLogger(),
+		}
+		if err = ServiceExportController.SetupWithManager(mgr); err != nil {
+			return fmt.Errorf("error starting %s: %v", mcs.ServiceExportControllerName, err)
+		}
 	}
 
-	GlobalDaemonSetService := &GlobalDaemonSetService{
-		opts:           opts,
-		ctx:            ctx,
-		defaultWorkNum: 1,
-	}
-	if err = GlobalDaemonSetService.SetupWithManager(mgr); err != nil {
-		return fmt.Errorf("error starting global daemonset : %v", err)
+	if opts.DaemonSetController {
+		daemonSetController := &GlobalDaemonSetService{
+			opts:           opts,
+			ctx:            ctx,
+			defaultWorkNum: 1,
+		}
+		if err = daemonSetController.SetupWithManager(mgr); err != nil {
+			return fmt.Errorf("error starting global daemonset : %v", err)
+		}
 	}
 
 	// init rootPodController
@@ -141,6 +145,7 @@ func run(ctx context.Context, opts *options.Options) error {
 		GlobalLeafManager: globalleafManager,
 		RootClient:        mgr.GetClient(),
 		DynamicRootClient: dynamicClient,
+		Options:           opts,
 	}
 	if err := RootPodReconciler.SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("error starting RootPodReconciler %s: %v", podcontrollers.RootPodControllerName, err)

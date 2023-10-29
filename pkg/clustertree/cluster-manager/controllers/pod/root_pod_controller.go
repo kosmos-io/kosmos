@@ -26,6 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/kosmos.io/kosmos/cmd/clustertree/cluster-manager/app/options"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/extensions/daemonset"
 	leafUtils "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/utils"
 	"github.com/kosmos.io/kosmos/pkg/utils"
@@ -45,6 +46,8 @@ type RootPodReconciler struct {
 	envResourceManager utils.EnvResourceManager
 
 	GlobalLeafManager leafUtils.LeafResourceManager
+
+	Options *options.Options
 }
 
 type envResourceManager struct {
@@ -141,7 +144,7 @@ func (r *RootPodReconciler) Reconcile(ctx context.Context, request reconcile.Req
 	// TODO: GlobalLeafResourceManager may not inited....
 	// belongs to the current node
 	if !r.GlobalLeafManager.IsInCluded(rootpod.Spec.NodeName) {
-		return reconcile.Result{}, nil
+		return reconcile.Result{RequeueAfter: RootPodRequeueTime}, nil
 	}
 
 	lr, err := r.GlobalLeafManager.GetLeafResource(rootpod.Spec.NodeName)
@@ -208,7 +211,8 @@ func (r *RootPodReconciler) SetupWithManager(mgr manager.Manager) error {
 			return false
 		}
 
-		return true
+		p := obj.(*corev1.Pod)
+		return strings.HasPrefix(p.Spec.NodeName, utils.KosmosNodePrefix)
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -428,7 +432,6 @@ const CoreDNSServiceName = "kube-dns"
 
 // changeToMasterCoreDNS point the dns of the pod to the master cluster, so that the pod can access any service.
 // The master cluster holds all the services in the multi-cluster.
-// TODO
 func (r *RootPodReconciler) changeToMasterCoreDNS(ctx context.Context, pod *corev1.Pod) {
 	if pod.Spec.DNSPolicy != corev1.DNSClusterFirst && pod.Spec.DNSPolicy != corev1.DNSClusterFirstWithHostNet {
 		return
@@ -596,49 +599,49 @@ func (r *RootPodReconciler) CreatePodInLeafCluster(ctx context.Context, lr *leaf
 	// create ns
 	ns := &corev1.Namespace{}
 	nsKey := types.NamespacedName{
-		Name: pod.Namespace,
+		Name: basicPod.Namespace,
 	}
 	if err := lr.Client.Get(ctx, nsKey, ns); err != nil {
 		if !errors.IsNotFound(err) {
 			// cannot get ns in root cluster, retry
 			return err
 		}
-		klog.Infof("Namespace %s does not exist for pod %s, creating it", pod.Namespace, pod.Name)
+		klog.Infof("Namespace %s does not exist for pod %s, creating it", basicPod.Namespace, basicPod.Name)
 		ns := &corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: pod.Namespace,
+				Name: basicPod.Namespace,
 			},
 		}
 
 		if createErr := lr.Client.Create(ctx, ns); createErr != nil {
 			if !errors.IsAlreadyExists(createErr) {
-				klog.Infof("Namespace %s create failed error: %v", pod.Namespace, createErr)
+				klog.Infof("Namespace %s create failed error: %v", basicPod.Namespace, createErr)
 				return err
 			} else {
 				// namespace already existed, skip create
-				klog.Info("Namespace %s already existed: %v", pod.Namespace, createErr)
+				klog.Info("Namespace %s already existed: %v", basicPod.Namespace, createErr)
 			}
 		}
 	}
 
 	// create secret configmap pvc
-	secretNames := podutils.GetSecrets(pod)
-	configMaps := podutils.GetConfigmaps(pod)
-	pvcs := podutils.GetPVCs(pod)
+	secretNames := podutils.GetSecrets(basicPod)
+	configMaps := podutils.GetConfigmaps(basicPod)
+	pvcs := podutils.GetPVCs(basicPod)
 	// nolint:errcheck
 	go wait.PollImmediate(500*time.Millisecond, 10*time.Minute, func() (bool, error) {
 		klog.Info("Trying to creating base dependent")
-		if err := r.createStorageInLeafCluster(ctx, lr, utils.GVR_CONFIGMAP, configMaps, pod.Namespace); err != nil {
+		if err := r.createStorageInLeafCluster(ctx, lr, utils.GVR_CONFIGMAP, configMaps, basicPod.Namespace); err != nil {
 			klog.Error(err)
 			return false, nil
 		}
 
-		klog.Infof("Create configmaps %v of %v/%v success", configMaps, pod.Namespace, pod.Name)
-		if err := r.createStorageInLeafCluster(ctx, lr, utils.GVR_PVC, pvcs, pod.Namespace); err != nil {
+		klog.Infof("Create configmaps %v of %v/%v success", configMaps, basicPod.Namespace, basicPod.Name)
+		if err := r.createStorageInLeafCluster(ctx, lr, utils.GVR_PVC, pvcs, basicPod.Namespace); err != nil {
 			klog.Error(err)
 			return false, nil
 		}
-		klog.Infof("Create pvc %v of %v/%v success", pvcs, pod.Namespace, pod.Name)
+		klog.Infof("Create pvc %v of %v/%v success", pvcs, basicPod.Namespace, basicPod.Name)
 		return true, nil
 	})
 	var err error
@@ -646,7 +649,7 @@ func (r *RootPodReconciler) CreatePodInLeafCluster(ctx context.Context, lr *leaf
 	wait.PollImmediate(100*time.Millisecond, 1*time.Second, func() (bool, error) {
 		klog.Info("Trying to creating secret and service account")
 
-		if err = r.createStorageInLeafCluster(ctx, lr, utils.GVR_SECRET, secretNames, pod.Namespace); err != nil {
+		if err = r.createStorageInLeafCluster(ctx, lr, utils.GVR_SECRET, secretNames, basicPod.Namespace); err != nil {
 			klog.Error(err)
 			return false, nil
 		}
@@ -656,16 +659,19 @@ func (r *RootPodReconciler) CreatePodInLeafCluster(ctx context.Context, lr *leaf
 		return fmt.Errorf("create secrets failed: %v", err)
 	}
 
-	r.convertAuth(ctx, lr, pod)
-	r.changeToMasterCoreDNS(ctx, pod)
+	r.convertAuth(ctx, lr, basicPod)
 
-	klog.Infof("Creating pod %+v", pod)
+	if !r.Options.MultiClusterService {
+		r.changeToMasterCoreDNS(ctx, basicPod)
+	}
+
+	klog.Infof("Creating pod %+v", basicPod)
 
 	err = lr.Client.Create(ctx, basicPod)
 	if err != nil {
 		return fmt.Errorf("could not create pod: %v", err)
 	}
-	klog.Infof("Create pod %v/%+v success", pod.Namespace, pod.Name)
+	klog.Infof("Create pod %v/%+v success", basicPod.Namespace, basicPod.Name)
 	return nil
 }
 
@@ -691,7 +697,10 @@ func (r *RootPodReconciler) UpdatePodInLeafCluster(ctx context.Context, lr *leaf
 	}
 
 	r.convertAuth(ctx, lr, podCopy)
-	r.changeToMasterCoreDNS(ctx, podCopy)
+
+	if !r.Options.MultiClusterService {
+		r.changeToMasterCoreDNS(ctx, podCopy)
+	}
 
 	klog.Infof("Updating pod %+v", podCopy)
 
@@ -721,14 +730,8 @@ func (r *RootPodReconciler) DeletePodInLeafCluster(ctx context.Context, lr *leaf
 		return nil
 	}
 
-	opts := &metav1.DeleteOptions{
-		GracePeriodSeconds: new(int64), // 0
-	}
-	if leafPod.DeletionGracePeriodSeconds != nil {
-		opts.GracePeriodSeconds = leafPod.DeletionGracePeriodSeconds
-	}
-
-	err = lr.Client.Delete(ctx, leafPod)
+	deleteOption := NewLeafDeleteOption(leafPod)
+	err = lr.Client.Delete(ctx, leafPod, deleteOption)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			klog.Infof("Tried to delete pod %s/%s, but it did not exist in the cluster", leafPod.Namespace, leafPod.Name)

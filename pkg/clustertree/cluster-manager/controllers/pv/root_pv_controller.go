@@ -39,7 +39,7 @@ func (r *RootPVController) SetupWithManager(mgr manager.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(RootPVControllerName).
 		WithOptions(controller.Options{}).
-		For(&v1.PersistentVolumeClaim{}, builder.WithPredicates(predicate.Funcs{
+		For(&v1.PersistentVolume{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(createEvent event.CreateEvent) bool {
 				return false
 			},

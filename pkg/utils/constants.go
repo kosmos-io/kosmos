@@ -48,6 +48,7 @@ const (
 
 // cluster node
 const (
+	KosmosNodePrefix       = "kosmos-"
 	KosmosNodeLabel        = "kosmos.io/node"
 	KosmosNodeValue        = "true"
 	KosmosNodeTaintKey     = "kosmos.io/node"
