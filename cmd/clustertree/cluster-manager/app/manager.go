@@ -18,6 +18,8 @@ import (
 	controllers "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/mcs"
 	podcontrollers "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/pod"
+	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/pv"
+	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/pvc"
 	leafUtils "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/utils"
 	"github.com/kosmos.io/kosmos/pkg/scheme"
 	"github.com/kosmos.io/kosmos/pkg/sharedcli/klogflag"
@@ -142,6 +144,22 @@ func run(ctx context.Context, opts *options.Options) error {
 	}
 	if err := RootPodReconciler.SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("error starting RootPodReconciler %s: %v", podcontrollers.RootPodControllerName, err)
+	}
+
+	rootPVCController := pvc.RootPVCController{
+		RootClient:        mgr.GetClient(),
+		GlobalLeafManager: globalleafManager,
+	}
+	if err := rootPVCController.SetupWithManager(mgr); err != nil {
+		return fmt.Errorf("error starting root pvc controller %v", err)
+	}
+
+	rootPVController := pv.RootPVController{
+		RootClient:        mgr.GetClient(),
+		GlobalLeafManager: globalleafManager,
+	}
+	if err := rootPVController.SetupWithManager(mgr); err != nil {
+		return fmt.Errorf("error starting root pv controller %v", err)
 	}
 
 	// init commonCOntroller

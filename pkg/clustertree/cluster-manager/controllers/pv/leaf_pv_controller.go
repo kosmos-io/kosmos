@@ -85,6 +85,8 @@ func (l *LeafPVController) Reconcile(ctx context.Context, request reconcile.Requ
 		pv.Spec.ClaimRef.UID = rootPVC.UID
 		pv.Spec.ClaimRef.ResourceVersion = rootPVC.ResourceVersion
 
+		utils.AddResourceOwnersAnnotations(rootPV.Annotations, l.NodeName)
+
 		rootPV, err = l.RootClientSet.CoreV1().PersistentVolumes().Create(ctx, rootPV, metav1.CreateOptions{})
 		if err != nil || rootPV == nil {
 			klog.Errorf("create pv in root cluster failed, error: %v", err)
@@ -117,6 +119,7 @@ func (l *LeafPVController) Reconcile(ctx context.Context, request reconcile.Requ
 	pvCopy.Spec.NodeAffinity = rootPV.Spec.NodeAffinity
 	pvCopy.UID = rootPV.UID
 	pvCopy.ResourceVersion = rootPV.ResourceVersion
+	utils.AddResourceOwnersAnnotations(pvCopy.Annotations, l.NodeName)
 
 	if utils.IsPVEqual(rootPV, pvCopy) {
 		return reconcile.Result{}, nil
