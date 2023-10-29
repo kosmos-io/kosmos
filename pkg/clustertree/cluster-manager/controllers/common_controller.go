@@ -20,6 +20,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	leafUtils "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/utils"
 	"github.com/kosmos.io/kosmos/pkg/utils"
 )
 
@@ -34,31 +35,41 @@ const SYNC_KIND_SECRET = "SECRET"
 type SyncResourcesReconciler struct {
 	GroupVersionResource schema.GroupVersionResource
 	Object               client.Object
-	DynamicLeafClient    dynamic.Interface
 	DynamicRootClient    dynamic.Interface
 	ControllerName       string
 
 	client.Client
-	LeafClient client.Client
-	RootClient client.Client
-	Namespace  string
+
+	GlobalLeafManager leafUtils.LeafResourceManager
 }
 
 func (r *SyncResourcesReconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
-	// skip namespace
-	if len(r.Namespace) > 0 && r.Namespace != request.Namespace {
-		return reconcile.Result{}, nil
-	}
-
-	_, err := r.DynamicRootClient.Resource(r.GroupVersionResource).Namespace(request.Namespace).Get(ctx, request.Name, metav1.GetOptions{})
-	if err != nil {
+	var owners []string
+	rootobj, err := r.DynamicRootClient.Resource(r.GroupVersionResource).Namespace(request.Namespace).Get(ctx, request.Name, metav1.GetOptions{})
+	if err != nil && !errors.IsNotFound(err) {
 		klog.Errorf("get %s error: %v", request.NamespacedName, err)
 		return reconcile.Result{RequeueAfter: SyncResourcesRequeueTime}, nil
 	}
 
-	if err = r.SyncResource(ctx, request); err != nil {
-		klog.Errorf("sync resource %s error: %v", request.NamespacedName, err)
-		return reconcile.Result{RequeueAfter: SyncResourcesRequeueTime}, nil
+	if err != nil && errors.IsNotFound(err) {
+		// delete all
+		owners = r.GlobalLeafManager.ListNodeNames()
+	} else {
+		owners = utils.ListResourceOwnersAnnotations(rootobj.GetAnnotations())
+	}
+
+	for _, owner := range owners {
+		if r.GlobalLeafManager.IsInCluded(owner) {
+			lr, err := r.GlobalLeafManager.GetLeafResource(owner)
+			if err != nil {
+				klog.Errorf("get lr(owner: %s) err: %v", owner, err)
+				return reconcile.Result{RequeueAfter: SyncResourcesRequeueTime}, nil
+			}
+			if err = r.SyncResource(ctx, request, lr); err != nil {
+				klog.Errorf("sync resource %s error: %v", request.NamespacedName, err)
+				return reconcile.Result{RequeueAfter: SyncResourcesRequeueTime}, nil
+			}
+		}
 	}
 
 	return reconcile.Result{}, nil
@@ -69,6 +80,17 @@ func (r *SyncResourcesReconciler) SetupWithManager(mgr manager.Manager, gvr sche
 		r.Client = mgr.GetClient()
 	}
 
+	skipFunc := func(obj client.Object) bool {
+		// skip reservedNS
+		if obj.GetNamespace() == utils.ReservedNS {
+			return false
+		}
+		if _, ok := obj.GetAnnotations()[utils.KosmosResourceOwnersAnnotations]; !ok {
+			return false
+		}
+		return true
+	}
+
 	if err := ctrl.NewControllerManagedBy(mgr).
 		Named(r.ControllerName).
 		WithOptions(controller.Options{}).
@@ -77,13 +99,13 @@ func (r *SyncResourcesReconciler) SetupWithManager(mgr manager.Manager, gvr sche
 				return false
 			},
 			UpdateFunc: func(updateEvent event.UpdateEvent) bool {
-				return true
+				return skipFunc(updateEvent.ObjectNew)
 			},
 			DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
-				return true
+				return skipFunc(deleteEvent.Object)
 			},
 			GenericFunc: func(genericEvent event.GenericEvent) bool {
-				return true
+				return false
 			},
 		})).
 		Complete(r); err != nil {
@@ -92,7 +114,7 @@ func (r *SyncResourcesReconciler) SetupWithManager(mgr manager.Manager, gvr sche
 	return nil
 }
 
-func (r *SyncResourcesReconciler) SyncResource(ctx context.Context, request reconcile.Request) error {
+func (r *SyncResourcesReconciler) SyncResource(ctx context.Context, request reconcile.Request, lr *leafUtils.LeafResource) error {
 	klog.V(4).Infof("Started sync resource processing, ns: %s, name: %s", request.Namespace, request.Name)
 
 	deleteSecretInClient := false
@@ -103,7 +125,7 @@ func (r *SyncResourcesReconciler) SyncResource(ctx context.Context, request reco
 			return err
 		}
 		// get obj in leaf cluster
-		_, err := r.DynamicLeafClient.Resource(r.GroupVersionResource).Namespace(request.Namespace).Get(ctx, request.Name, metav1.GetOptions{})
+		_, err := lr.DynamicClient.Resource(r.GroupVersionResource).Namespace(request.Namespace).Get(ctx, request.Name, metav1.GetOptions{})
 		if err != nil {
 			if !errors.IsNotFound(err) {
 				klog.Errorf("Get %s from leaef cluster failed, error: %v", obj.GetKind(), err)
@@ -118,7 +140,7 @@ func (r *SyncResourcesReconciler) SyncResource(ctx context.Context, request reco
 
 	if deleteSecretInClient || obj.GetDeletionTimestamp() != nil {
 		// delete OBJ in leaf cluster
-		if err = r.DynamicLeafClient.Resource(r.GroupVersionResource).Namespace(request.Namespace).Delete(ctx, obj.GetName(), metav1.DeleteOptions{}); err != nil {
+		if err = lr.DynamicClient.Resource(r.GroupVersionResource).Namespace(request.Namespace).Delete(ctx, obj.GetName(), metav1.DeleteOptions{}); err != nil {
 			if errors.IsNotFound(err) {
 				return nil
 			}
@@ -128,7 +150,7 @@ func (r *SyncResourcesReconciler) SyncResource(ctx context.Context, request reco
 		return nil
 	}
 
-	old, err := r.DynamicLeafClient.Resource(r.GroupVersionResource).Namespace(request.Namespace).Get(ctx, request.Name, metav1.GetOptions{})
+	old, err := lr.DynamicClient.Resource(r.GroupVersionResource).Namespace(request.Namespace).Get(ctx, request.Name, metav1.GetOptions{})
 
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -155,7 +177,7 @@ func (r *SyncResourcesReconciler) SyncResource(ctx context.Context, request reco
 	if !utils.IsObjectUnstructuredGlobal(old.GetAnnotations()) {
 		return nil
 	}
-	_, err = r.DynamicLeafClient.Resource(r.GroupVersionResource).Namespace(request.Namespace).Update(ctx, latest, metav1.UpdateOptions{})
+	_, err = lr.DynamicClient.Resource(r.GroupVersionResource).Namespace(request.Namespace).Update(ctx, latest, metav1.UpdateOptions{})
 	if err != nil {
 		klog.Errorf("update %s from client cluster failed, error: %v", latest.GetKind(), err)
 		return err

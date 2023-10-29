@@ -59,6 +59,8 @@ const (
 	KosmosTrippedLabels    = "kosmos-io/tripped"
 	KosmosPvcLabelSelector = "kosmos-io/label-selector"
 
+	KosmosResourceOwnersAnnotations = "kosmos-io/owners"
+
 	NodeRoleLabel         = "kubernetes.io/role"
 	NodeRoleValue         = "agent"
 	NodeOSLabelBeta       = "beta.kubernetes.io/os"
