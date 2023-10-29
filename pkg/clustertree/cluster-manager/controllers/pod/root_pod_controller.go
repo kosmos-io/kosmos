@@ -423,6 +423,41 @@ func (r *RootPodReconciler) createCAInLeafCluster(ctx context.Context, lr *leafU
 	return newCA, nil
 }
 
+const CoreDNSNamespace = "kube-system"
+const CoreDNSServiceName = "kube-dns"
+
+// changeToMasterCoreDNS point the dns of the pod to the master cluster, so that the pod can access any service.
+// The master cluster holds all the services in the multi-cluster.
+// TODO
+func (r *RootPodReconciler) changeToMasterCoreDNS(ctx context.Context, pod *corev1.Pod) {
+	if pod.Spec.DNSPolicy != corev1.DNSClusterFirst && pod.Spec.DNSPolicy != corev1.DNSClusterFirstWithHostNet {
+		return
+	}
+
+	ns := pod.Namespace
+	svc := &corev1.Service{}
+	err := r.RootClient.Get(ctx, types.NamespacedName{Namespace: CoreDNSNamespace, Name: CoreDNSServiceName}, svc)
+	if err != nil {
+		return
+	}
+	if svc != nil && svc.Spec.ClusterIP != "" {
+		pod.Spec.DNSPolicy = "None"
+		dnsConfig := corev1.PodDNSConfig{
+			Nameservers: []string{
+				svc.Spec.ClusterIP,
+			},
+			// TODO, if the master domain is changed, an exception will occur
+			Searches: []string{
+				fmt.Sprintf("%s.svc.cluster.local", ns),
+				"svc.cluster.local",
+				"cluster.local",
+				"localdomain",
+			},
+		}
+		pod.Spec.DNSConfig = &dnsConfig
+	}
+}
+
 func (r *RootPodReconciler) convertAuth(ctx context.Context, lr *leafUtils.LeafResource, pod *corev1.Pod) {
 	if pod.Spec.AutomountServiceAccountToken == nil || *pod.Spec.AutomountServiceAccountToken {
 		falseValue := false
@@ -622,6 +657,8 @@ func (r *RootPodReconciler) CreatePodInLeafCluster(ctx context.Context, lr *leaf
 	}
 
 	r.convertAuth(ctx, lr, pod)
+	r.changeToMasterCoreDNS(ctx, pod)
+
 	klog.Infof("Creating pod %+v", pod)
 
 	err = lr.Client.Create(ctx, basicPod)
@@ -652,6 +689,11 @@ func (r *RootPodReconciler) UpdatePodInLeafCluster(ctx context.Context, lr *leaf
 		reflect.DeepEqual(leafpod.Labels, podCopy.Labels) {
 		return nil
 	}
+
+	r.convertAuth(ctx, lr, podCopy)
+	r.changeToMasterCoreDNS(ctx, podCopy)
+
+	klog.Infof("Updating pod %+v", podCopy)
 
 	err := lr.Client.Update(ctx, podCopy)
 	if err != nil {
