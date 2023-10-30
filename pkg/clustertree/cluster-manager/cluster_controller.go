@@ -28,7 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/kosmos.io/kosmos/cmd/clustertree/cluster-manager/app/options"
-	clusterlinkv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
+	kosmosv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/mcs"
 	podcontrollers "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/pod"
@@ -70,7 +70,7 @@ type ClusterController struct {
 	GlobalLeafManager leafUtils.LeafResourceManager
 }
 
-func isRootCluster(cluster *clusterlinkv1alpha1.Cluster) bool {
+func isRootCluster(cluster *kosmosv1alpha1.Cluster) bool {
 	annotations := cluster.GetAnnotations()
 	if val, ok := annotations[RootClusterAnnotationKey]; ok {
 		return val == RootClusterAnnotationValue
@@ -80,12 +80,12 @@ func isRootCluster(cluster *clusterlinkv1alpha1.Cluster) bool {
 
 var predicatesFunc = predicate.Funcs{
 	CreateFunc: func(createEvent event.CreateEvent) bool {
-		obj := createEvent.Object.(*clusterlinkv1alpha1.Cluster)
+		obj := createEvent.Object.(*kosmosv1alpha1.Cluster)
 		return !isRootCluster(obj)
 	},
 	UpdateFunc: func(updateEvent event.UpdateEvent) bool {
-		obj := updateEvent.ObjectNew.(*clusterlinkv1alpha1.Cluster)
-		old := updateEvent.ObjectOld.(*clusterlinkv1alpha1.Cluster)
+		obj := updateEvent.ObjectNew.(*kosmosv1alpha1.Cluster)
+		old := updateEvent.ObjectOld.(*kosmosv1alpha1.Cluster)
 
 		if isRootCluster(obj) {
 			return false
@@ -103,7 +103,7 @@ var predicatesFunc = predicate.Funcs{
 		return false
 	},
 	DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
-		obj := deleteEvent.Object.(*clusterlinkv1alpha1.Cluster)
+		obj := deleteEvent.Object.(*kosmosv1alpha1.Cluster)
 		return !isRootCluster(obj)
 	},
 	GenericFunc: func(genericEvent event.GenericEvent) bool {
@@ -118,14 +118,14 @@ func (c *ClusterController) SetupWithManager(mgr manager.Manager) error {
 	return controllerruntime.NewControllerManagedBy(mgr).
 		Named(ControllerName).
 		WithOptions(controller.Options{}).
-		For(&clusterlinkv1alpha1.Cluster{}, builder.WithPredicates(predicatesFunc)).
+		For(&kosmosv1alpha1.Cluster{}, builder.WithPredicates(predicatesFunc)).
 		Complete(c)
 }
 
 func (c *ClusterController) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
 	klog.V(4).Infof("============ %s starts to reconcile %s ============", ControllerName, request.Name)
 
-	cluster := &clusterlinkv1alpha1.Cluster{}
+	cluster := &kosmosv1alpha1.Cluster{}
 	if err := c.Root.Get(ctx, request.NamespacedName, cluster); err != nil {
 		if errors.IsNotFound(err) {
 			klog.Infof("Cluster %s has been deleted", request.Name)
@@ -227,7 +227,7 @@ func (c *ClusterController) Reconcile(ctx context.Context, request reconcile.Req
 	return reconcile.Result{}, nil
 }
 
-func (c *ClusterController) clearClusterControllers(cluster *clusterlinkv1alpha1.Cluster) {
+func (c *ClusterController) clearClusterControllers(cluster *kosmosv1alpha1.Cluster) {
 	c.ControllerManagersLock.Lock()
 	defer c.ControllerManagersLock.Unlock()
 
@@ -241,7 +241,7 @@ func (c *ClusterController) clearClusterControllers(cluster *clusterlinkv1alpha1
 	c.GlobalLeafManager.RemoveLeafResource(cluster.Name)
 }
 
-func (c *ClusterController) setupControllers(mgr manager.Manager, cluster *clusterlinkv1alpha1.Cluster, node *corev1.Node, clientDynamic *dynamic.DynamicClient, leafClient kubernetes.Interface, kosmosClient kosmosversioned.Interface) error {
+func (c *ClusterController) setupControllers(mgr manager.Manager, cluster *kosmosv1alpha1.Cluster, node *corev1.Node, clientDynamic *dynamic.DynamicClient, leafClient kubernetes.Interface, kosmosClient kosmosversioned.Interface) error {
 	nodeName := fmt.Sprintf("%s%s", utils.KosmosNodePrefix, cluster.Name)
 	c.GlobalLeafManager.AddLeafResource(nodeName, &leafUtils.LeafResource{
 		Client:               mgr.GetClient(),
@@ -271,7 +271,6 @@ func (c *ClusterController) setupControllers(mgr manager.Manager, cluster *clust
 	if c.Options.MultiClusterService {
 		serviceImportController := &mcs.ServiceImportController{
 			LeafClient:          mgr.GetClient(),
-			RootClient:          c.Root,
 			RootKosmosClient:    kosmosClient,
 			EventRecorder:       mgr.GetEventRecorderFor(mcs.LeafServiceImportControllerName),
 			Logger:              mgr.GetLogger(),
@@ -323,7 +322,7 @@ func (c *ClusterController) setupStorageControllers(mgr manager.Manager, node *c
 	return nil
 }
 
-func (c *ClusterController) createNode(ctx context.Context, cluster *clusterlinkv1alpha1.Cluster, leafClient kubernetes.Interface) (*corev1.Node, error) {
+func (c *ClusterController) createNode(ctx context.Context, cluster *kosmosv1alpha1.Cluster, leafClient kubernetes.Interface) (*corev1.Node, error) {
 	nodeName := fmt.Sprintf("%s%s", utils.KosmosNodePrefix, cluster.Name)
 	serverVersion, err := leafClient.Discovery().ServerVersion()
 	if err != nil {
@@ -354,7 +353,7 @@ func (c *ClusterController) createNode(ctx context.Context, cluster *clusterlink
 	return node, nil
 }
 
-func (c *ClusterController) deleteNode(ctx context.Context, cluster *clusterlinkv1alpha1.Cluster) error {
+func (c *ClusterController) deleteNode(ctx context.Context, cluster *kosmosv1alpha1.Cluster) error {
 	err := c.RootClient.CoreV1().Nodes().Delete(ctx, cluster.Name, metav1.DeleteOptions{})
 	if err != nil && !errors.IsNotFound(err) {
 		return err

@@ -192,7 +192,7 @@ func run(ctx context.Context, opts *options.Options) error {
 
 	rootResourceManager.InformerFactory.Start(ctx.Done())
 	rootResourceManager.KosmosInformerFactory.Start(ctx.Done())
-	if !cache.WaitForCacheSync(ctx.Done(), rootResourceManager.EndpointSliceInformer.HasSynced) {
+	if !cache.WaitForCacheSync(ctx.Done(), rootResourceManager.EndpointSliceInformer.HasSynced, rootResourceManager.ServiceInformer.HasSynced) {
 		klog.Fatal("cluster manager: wait for informer factory failed")
 	}
 

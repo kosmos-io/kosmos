@@ -12,7 +12,7 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/utils"
 )
 
-func getClientFromLeafCluster(leafCluster *v1alpha1.Knode) (kubernetes.Interface, kosmosversioned.Interface, error) {
+func getClientFromLeafCluster(leafCluster *v1alpha1.Cluster) (kubernetes.Interface, kosmosversioned.Interface, error) {
 	//generate clientset by leafCluster kubeconfig
 	leafClusterKubeconfig := leafCluster.Spec.Kubeconfig
 	if len(leafClusterKubeconfig) == 0 {
@@ -36,7 +36,7 @@ func completeLeafClusterOptions(leafClusterOptions *LeafClusterOptions, masterCl
 	if leafClusterOptions.LeafClusterName == "" {
 		return fmt.Errorf("get leafcluster error: %s ", "leafcluster value can't be empty")
 	}
-	leafCluster, err := masterClient.KosmosV1alpha1().Knodes().Get(context.TODO(), leafClusterOptions.LeafClusterName, metav1.GetOptions{})
+	leafCluster, err := masterClient.KosmosV1alpha1().Clusters().Get(context.TODO(), leafClusterOptions.LeafClusterName, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("get leafcluster error: %s", err)
 	}
