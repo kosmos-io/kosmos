@@ -106,9 +106,8 @@ func (l *LeafPVController) Reconcile(ctx context.Context, request reconcile.Requ
 			return reconcile.Result{}, nil
 		}
 
-		pv.Spec.ClaimRef.UID = rootPVC.UID
-		pv.Spec.ClaimRef.ResourceVersion = rootPVC.ResourceVersion
-
+		rootPV.Spec.ClaimRef.UID = rootPVC.UID
+		rootPV.Spec.ClaimRef.ResourceVersion = rootPVC.ResourceVersion
 		utils.AddResourceOwnersAnnotations(rootPV.Annotations, l.NodeName)
 
 		rootPV, err = l.RootClientSet.CoreV1().PersistentVolumes().Create(ctx, rootPV, metav1.CreateOptions{})

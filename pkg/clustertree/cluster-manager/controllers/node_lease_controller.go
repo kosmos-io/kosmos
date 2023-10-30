@@ -123,7 +123,7 @@ func (c *NodeLeaseController) syncLease(ctx context.Context) {
 		return
 	}
 
-	klog.V(4).Infof("Successfully updated lease")
+	klog.V(5).Infof("Successfully updated lease")
 }
 
 func (c *NodeLeaseController) createLeaseIfNotExists(ctx context.Context, node *corev1.Node) (*coordinationv1.Lease, bool, error) {
