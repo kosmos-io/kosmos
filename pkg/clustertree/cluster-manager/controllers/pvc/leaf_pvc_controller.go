@@ -66,6 +66,7 @@ func (l *LeafPVCController) Reconcile(ctx context.Context, request reconcile.Req
 		return reconcile.Result{}, nil
 	}
 	pvcCopy.ResourceVersion = rootPVC.ResourceVersion
+	pvcCopy.OwnerReferences = rootPVC.OwnerReferences
 	utils.AddResourceOwnersAnnotations(pvcCopy.Annotations, l.NodeName)
 	klog.V(4).Infof("rootPVC %+v\n, pvc %+v", rootPVC, pvcCopy)
 

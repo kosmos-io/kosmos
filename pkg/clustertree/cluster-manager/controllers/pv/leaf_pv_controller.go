@@ -174,7 +174,7 @@ func (l *LeafPVController) SetupWithManager(mgr manager.Manager) error {
 				return true
 			},
 			DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
-				return false
+				return true
 			},
 			GenericFunc: func(genericEvent event.GenericEvent) bool {
 				return false
