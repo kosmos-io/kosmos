@@ -59,7 +59,7 @@ func (r *SyncResourcesReconciler) Reconcile(ctx context.Context, request reconci
 	}
 
 	for _, owner := range owners {
-		if r.GlobalLeafManager.IsInCluded(owner) {
+		if r.GlobalLeafManager.Has(owner) {
 			lr, err := r.GlobalLeafManager.GetLeafResource(owner)
 			if err != nil {
 				klog.Errorf("get lr(owner: %s) err: %v", owner, err)
@@ -115,7 +115,7 @@ func (r *SyncResourcesReconciler) SetupWithManager(mgr manager.Manager, gvr sche
 }
 
 func (r *SyncResourcesReconciler) SyncResource(ctx context.Context, request reconcile.Request, lr *leafUtils.LeafResource) error {
-	klog.V(4).Infof("Started sync resource processing, ns: %s, name: %s", request.Namespace, request.Name)
+	klog.V(5).Infof("Started sync resource processing, ns: %s, name: %s", request.Namespace, request.Name)
 
 	deleteSecretInClient := false
 
@@ -146,7 +146,7 @@ func (r *SyncResourcesReconciler) SyncResource(ctx context.Context, request reco
 			}
 			return err
 		}
-		klog.V(3).Infof("%s %q deleted", r.GroupVersionResource.Resource, request.Name)
+		klog.V(5).Infof("%s %q deleted", r.GroupVersionResource.Resource, request.Name)
 		return nil
 	}
 
