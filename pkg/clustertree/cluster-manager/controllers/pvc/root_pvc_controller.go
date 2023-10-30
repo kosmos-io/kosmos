@@ -46,7 +46,7 @@ func (r *RootPVCController) Reconcile(ctx context.Context, request reconcile.Req
 
 	clusters := utils.ListResourceOwnersAnnotations(pvc.Annotations)
 	if len(clusters) == 0 {
-		klog.Warningf("pvc leaf %q: %q doesn't existed", request.NamespacedName.Namespace, request.NamespacedName.Name)
+		klog.V(4).Infof("pvc leaf %q: %q doesn't existed", request.NamespacedName.Namespace, request.NamespacedName.Name)
 		return reconcile.Result{RequeueAfter: RootPVCRequeueTime}, nil
 	}
 
@@ -112,7 +112,7 @@ func (r *RootPVCController) SetupWithManager(mgr manager.Manager) error {
 				pvc := deleteEvent.Object.(*v1.PersistentVolumeClaim)
 				clusters := utils.ListResourceOwnersAnnotations(pvc.Annotations)
 				if len(clusters) == 0 {
-					klog.Warningf("pvc leaf %q: %q doesn't existed", deleteEvent.Object.GetNamespace(), deleteEvent.Object.GetName())
+					klog.V(4).Infof("pvc leaf %q: %q doesn't existed", deleteEvent.Object.GetNamespace(), deleteEvent.Object.GetName())
 					return false
 				}
 

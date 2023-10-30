@@ -453,8 +453,8 @@ func HasResourceOwnersAnnotations(anno map[string]string, owner string) bool {
 }
 
 func ListResourceOwnersAnnotations(anno map[string]string) []string {
-	if anno == nil {
-		anno = map[string]string{}
+	if anno == nil || anno[KosmosResourceOwnersAnnotations] == "" {
+		return []string{}
 	}
 	owners := strings.Split(anno[KosmosResourceOwnersAnnotations], ",")
 	return owners

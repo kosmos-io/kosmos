@@ -2,7 +2,6 @@ package pv
 
 import (
 	"context"
-	"time"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -23,7 +22,6 @@ import (
 
 const (
 	RootPVControllerName = "root-pv-controller"
-	RootPVRequeueTime    = 10 * time.Second
 )
 
 type RootPVController struct {
@@ -49,29 +47,27 @@ func (r *RootPVController) SetupWithManager(mgr manager.Manager) error {
 			DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
 				if deleteEvent.DeleteStateUnknown {
 					//TODO ListAndDelete
-					klog.Warningf("missing delete pv root event %q: %q", deleteEvent.Object.GetNamespace(), deleteEvent.Object.GetName())
+					klog.Warningf("missing delete pv root event %q", deleteEvent.Object.GetName())
 					return false
 				}
 
 				pv := deleteEvent.Object.(*v1.PersistentVolume)
 				clusters := utils.ListResourceOwnersAnnotations(pv.Annotations)
 				if len(clusters) == 0 {
-					klog.Warningf("pv leaf %q: %q doesn't existed", deleteEvent.Object.GetNamespace(), deleteEvent.Object.GetName())
+					klog.Warningf("pv leaf %q doesn't existed", deleteEvent.Object.GetName())
 					return false
 				}
 
 				lr, err := r.GlobalLeafManager.GetLeafResource(clusters[0])
 				if err != nil {
-					klog.Warningf("pv leaf %q: %q doesn't existed in LeafResources", deleteEvent.Object.GetNamespace(),
-						deleteEvent.Object.GetName())
+					klog.Warningf("pv leaf %q doesn't existed in LeafResources", deleteEvent.Object.GetName())
 					return false
 				}
 
 				if err = lr.Clientset.CoreV1().PersistentVolumes().Delete(context.TODO(), deleteEvent.Object.GetName(),
 					metav1.DeleteOptions{}); err != nil {
 					if !errors.IsNotFound(err) {
-						klog.Errorf("delete pv from leaf cluster failed, %q: %q, error: %v", deleteEvent.Object.GetNamespace(),
-							deleteEvent.Object.GetName(), err)
+						klog.Errorf("delete pv from leaf cluster failed, %q, error: %v", deleteEvent.Object.GetName(), err)
 					}
 				}
 
