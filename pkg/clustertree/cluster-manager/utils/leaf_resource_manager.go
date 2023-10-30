@@ -23,7 +23,7 @@ type LeafResourceManager interface {
 	AddLeafResource(string, *LeafResource)
 	RemoveLeafResource(string)
 	GetLeafResource(string) (*LeafResource, error)
-	IsInCluded(string) bool
+	Has(string) bool
 	ListNodeNames() []string
 }
 
@@ -54,7 +54,7 @@ func (l *leafResourceManager) GetLeafResource(nodename string) (*LeafResource, e
 	}
 }
 
-func (l *leafResourceManager) IsInCluded(nodename string) bool {
+func (l *leafResourceManager) Has(nodename string) bool {
 	if _, err := l.GetLeafResource(nodename); err != nil {
 		return false
 	}

@@ -49,15 +49,15 @@ func (r *LeafPodReconciler) Reconcile(ctx context.Context, request reconcile.Req
 
 	podCopy := pod.DeepCopy()
 
-	if ShouldSkipStatusUpdate(podCopy) {
-		return reconcile.Result{}, nil
-	}
+	// if ShouldSkipStatusUpdate(podCopy) {
+	// 	return reconcile.Result{}, nil
+	// }
 
 	if podutils.IsKosmosPod(podCopy) {
 		podutils.FitObjectMeta(&podCopy.ObjectMeta)
 		podCopy.ResourceVersion = "0"
 		if err := r.RootClient.Status().Update(ctx, podCopy); err != nil && !apierrors.IsNotFound(err) {
-			klog.Info(errors.Wrap(err, "error while updating pod status in kubernetes"))
+			klog.V(5).Info(errors.Wrap(err, "error while updating pod status in kubernetes"))
 			return reconcile.Result{RequeueAfter: LeafPodRequeueTime}, nil
 		}
 	}
@@ -165,7 +165,7 @@ func (r *LeafPodReconciler) SetupWithManager(mgr manager.Manager) error {
 		Complete(r)
 }
 
-func ShouldSkipStatusUpdate(pod *corev1.Pod) bool {
-	return pod.Status.Phase == corev1.PodSucceeded ||
-		pod.Status.Phase == corev1.PodFailed
-}
+// func ShouldSkipStatusUpdate(pod *corev1.Pod) bool {
+// 	return pod.Status.Phase == corev1.PodSucceeded ||
+// 		pod.Status.Phase == corev1.PodFailed
+// }
