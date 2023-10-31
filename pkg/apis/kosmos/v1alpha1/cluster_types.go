@@ -24,6 +24,21 @@ type Cluster struct {
 }
 
 type ClusterSpec struct {
+	// +optional
+	Kubeconfig []byte `json:"kubeconfig,omitempty"`
+
+	// +optional
+	ClusterLinkOptions ClusterLinkOptions `json:"clusterLinkOptions,omitempty"`
+
+	// +optional
+	ClusterTreeOptions ClusterTreeOptions `json:"clusterTreeOptions,omitempty"`
+}
+
+type ClusterStatus struct {
+	ClusterLinkStatus ClusterLinkStatus
+}
+
+type ClusterLinkOptions struct {
 	// +kubebuilder:default=calico
 	// +optional
 	CNI string `json:"cni"`
@@ -35,10 +50,6 @@ type ClusterSpec struct {
 	// +optional
 	IPFamily        IPFamilyType `json:"ipFamily"`
 	ImageRepository string       `json:"imageRepository,omitempty"`
-	// +kubebuilder:default=kosmos-system
-	// +optional
-	Namespace string `json:"namespace"`
-
 	// +kubebuilder:default=false
 	// +optional
 	UseIPPool bool `json:"useIPPool,omitempty"`
@@ -53,15 +64,14 @@ type ClusterSpec struct {
 	// +kubebuilder:default=*
 	// +optional
 	DefaultNICName string `json:"defaultNICName,omitempty"`
-
 	// +optional
 	GlobalCIDRsMap map[string]string `json:"globalCIDRsMap,omitempty"`
-
-	// +optional
-	Kubeconfig []byte `json:"kubeconfig,omitempty"`
 }
 
-type ClusterStatus struct {
+type ClusterTreeOptions struct {
+}
+
+type ClusterLinkStatus struct {
 	// +optional
 	PodCIDRs []string `json:"podCIDRs,omitempty"`
 	// +optional
@@ -87,9 +97,9 @@ type ClusterList struct {
 }
 
 func (c *Cluster) IsP2P() bool {
-	return c.Spec.NetworkType == NetworkTypeP2P
+	return c.Spec.ClusterLinkOptions.NetworkType == NetworkTypeP2P
 }
 
 func (c *Cluster) IsGateway() bool {
-	return c.Spec.NetworkType == NetWorkTypeGateWay
+	return c.Spec.ClusterLinkOptions.NetworkType == NetWorkTypeGateWay
 }
