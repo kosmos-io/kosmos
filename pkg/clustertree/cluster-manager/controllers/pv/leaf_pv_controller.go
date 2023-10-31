@@ -112,7 +112,12 @@ func (l *LeafPVController) Reconcile(ctx context.Context, request reconcile.Requ
 		return reconcile.Result{}, nil
 	}
 
-	if utils.HasResourceOwnersAnnotations(rootPV.Annotations, l.NodeName) && (pvNeedDelete || pv.DeletionTimestamp != nil) {
+	if !utils.HasResourceOwnersAnnotations(rootPV.Annotations, l.NodeName) {
+		klog.Errorf("meet the same name root pv name: %q !", request.NamespacedName.Name)
+		return reconcile.Result{}, nil
+	}
+
+	if pvNeedDelete || pv.DeletionTimestamp != nil {
 		if err = l.RootClientSet.CoreV1().PersistentVolumes().Delete(ctx, request.NamespacedName.Name, metav1.DeleteOptions{}); err != nil {
 			if !errors.IsNotFound(err) {
 				klog.Errorf("delete root pv failed, error: %v", err)
