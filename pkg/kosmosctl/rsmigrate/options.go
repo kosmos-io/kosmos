@@ -17,7 +17,7 @@ import (
 
 type LeafClusterOptions struct {
 	LeafClusterName         string
-	LeafCluster             *v1alpha1.Knode
+	LeafCluster             *v1alpha1.Cluster
 	LeafClusterNativeClient kubernetes.Interface
 	//clientset operate leafCluster releted resource
 	LeafClusterKosmosClient kosmosversioned.Interface

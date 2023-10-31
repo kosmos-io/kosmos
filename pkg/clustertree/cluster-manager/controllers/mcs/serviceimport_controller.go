@@ -32,9 +32,7 @@ const LeafServiceImportControllerName = "leaf-service-import-controller"
 
 // ServiceImportController watches serviceImport in leaf node and sync service and endpointSlice in root cluster
 type ServiceImportController struct {
-	LeafClient client.Client
-	// TODO should not use client.Client for root cluster,because it will create a new informerFactory
-	RootClient          client.Client
+	LeafClient          client.Client
 	RootKosmosClient    kosmosversioned.Interface
 	LeafNodeName        string
 	EventRecorder       record.EventRecorder
@@ -177,8 +175,8 @@ func (c *ServiceImportController) cleanupServiceAndEndpointSlice(ctx context.Con
 }
 
 func (c *ServiceImportController) syncServiceImport(ctx context.Context, serviceImport *mcsv1alpha1.ServiceImport) error {
-	rootService := &corev1.Service{}
-	if err := c.RootClient.Get(ctx, types.NamespacedName{Namespace: serviceImport.Namespace, Name: serviceImport.Name}, rootService); err != nil {
+	rootService, err := c.RootResourceManager.ServiceLister.Services(serviceImport.Namespace).Get(serviceImport.Name)
+	if err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.V(4).Infof("Service %s/%s is not found in root cluster, ignore it", serviceImport.Namespace, serviceImport.Name)
 			return nil
@@ -192,18 +190,14 @@ func (c *ServiceImportController) syncServiceImport(ctx context.Context, service
 		return err
 	}
 
-	epsList := &discoveryv1.EndpointSliceList{}
-	err := c.RootClient.List(ctx, epsList, &client.ListOptions{
-		LabelSelector: labels.SelectorFromSet(map[string]string{utils.ServiceKey: serviceImport.Name}),
-		Namespace:     serviceImport.Namespace,
-	})
+	epsList, err := c.RootResourceManager.EndpointSliceLister.EndpointSlices(serviceImport.Namespace).List(labels.SelectorFromSet(map[string]string{utils.ServiceKey: serviceImport.Name}))
 	if err != nil {
 		klog.Errorf("Get endpointSlices in namespace %s from cluster %s failed, error: %v", serviceImport.Namespace, err)
 		return err
 	}
 
 	addresses := make([]string, 0)
-	for _, eps := range epsList.Items {
+	for _, eps := range epsList {
 		epsCopy := eps.DeepCopy()
 		for _, endpoint := range epsCopy.Endpoints {
 			for _, address := range endpoint.Addresses {
@@ -304,7 +298,7 @@ func clearEndpointSlice(slice *discoveryv1.EndpointSlice, disconnectedAddress []
 				newAddresses = append(newAddresses, address)
 			}
 		}
-		// 只添加非空地址的endpoint
+		// Only add non-empty addresses from endpoints
 		if len(newAddresses) > 0 {
 			endpoint.Addresses = newAddresses
 			newEndpoints = append(newEndpoints, endpoint)
