@@ -47,17 +47,6 @@ func (l *LeafPVController) Reconcile(ctx context.Context, request reconcile.Requ
 		pvNeedDelete = true
 	}
 
-	if pvNeedDelete || pv.DeletionTimestamp != nil {
-		if err = l.RootClientSet.CoreV1().PersistentVolumes().Delete(ctx, request.NamespacedName.Name, metav1.DeleteOptions{}); err != nil {
-			if !errors.IsNotFound(err) {
-				klog.Errorf("delete root pv failed, error: %v", err)
-				return reconcile.Result{RequeueAfter: LeafPVRequeueTime}, nil
-			}
-		}
-		klog.V(4).Infof("root pv name: %q deleted", request.NamespacedName.Name)
-		return reconcile.Result{}, nil
-	}
-
 	pvCopy := pv.DeepCopy()
 	rootPV := &v1.PersistentVolume{}
 	err = l.RootClient.Get(ctx, request.NamespacedName, rootPV)
@@ -65,6 +54,10 @@ func (l *LeafPVController) Reconcile(ctx context.Context, request reconcile.Requ
 		if !errors.IsNotFound(err) {
 			klog.Errorf("get root pv failed, error: %v", err)
 			return reconcile.Result{RequeueAfter: LeafPVRequeueTime}, nil
+		}
+
+		if pv.DeletionTimestamp != nil {
+			return reconcile.Result{}, nil
 		}
 
 		if pvCopy.Spec.ClaimRef != nil {
@@ -116,6 +109,17 @@ func (l *LeafPVController) Reconcile(ctx context.Context, request reconcile.Requ
 			return reconcile.Result{RequeueAfter: LeafPVRequeueTime}, nil
 		}
 
+		return reconcile.Result{}, nil
+	}
+
+	if utils.HasResourceOwnersAnnotations(rootPV.Annotations, l.NodeName) && (pvNeedDelete || pv.DeletionTimestamp != nil) {
+		if err = l.RootClientSet.CoreV1().PersistentVolumes().Delete(ctx, request.NamespacedName.Name, metav1.DeleteOptions{}); err != nil {
+			if !errors.IsNotFound(err) {
+				klog.Errorf("delete root pv failed, error: %v", err)
+				return reconcile.Result{RequeueAfter: LeafPVRequeueTime}, nil
+			}
+		}
+		klog.V(4).Infof("root pv name: %q deleted", request.NamespacedName.Name)
 		return reconcile.Result{}, nil
 	}
 
