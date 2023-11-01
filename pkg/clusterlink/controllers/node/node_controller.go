@@ -23,6 +23,7 @@ import (
 
 	clusterlinkv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
+	"github.com/kosmos.io/kosmos/pkg/utils"
 	interfacepolicy "github.com/kosmos.io/kosmos/pkg/utils/interface-policy"
 )
 
@@ -41,16 +42,19 @@ type Reconciler struct {
 
 var predicatesFunc = predicate.Funcs{
 	CreateFunc: func(createEvent event.CreateEvent) bool {
-		return true
+		node := createEvent.Object.(*corev1.Node)
+		return !utils.IsKosmosNode(node)
 	},
 	UpdateFunc: func(updateEvent event.UpdateEvent) bool {
-		return true
+		node := updateEvent.ObjectNew.(*corev1.Node)
+		return !utils.IsKosmosNode(node)
 	},
 	DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
-		return true
+		node := deleteEvent.Object.(*corev1.Node)
+		return !utils.IsKosmosNode(node)
 	},
 	GenericFunc: func(genericEvent event.GenericEvent) bool {
-		return true
+		return false
 	},
 }
 

@@ -315,15 +315,15 @@ func NewMetricClientFromByte(kubeConfig []byte, opts ...Opts) (versioned.Interfa
 	return metricClient, nil
 }
 
-func IsVirtualNode(node *corev1.Node) bool {
+func IsKosmosNode(node *corev1.Node) bool {
 	if node == nil {
 		return false
 	}
-	valStr, exist := node.ObjectMeta.Labels[KosmosNodeLabel]
+	labelVal, exist := node.ObjectMeta.Labels[KosmosNodeLabel]
 	if !exist {
 		return false
 	}
-	return valStr == KosmosNodeValue
+	return labelVal == KosmosNodeValue
 }
 
 func IsVirtualPod(pod *corev1.Pod) bool {
