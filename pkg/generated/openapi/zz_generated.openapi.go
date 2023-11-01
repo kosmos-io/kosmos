@@ -17,6 +17,8 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 	return map[string]common.OpenAPIDefinition{
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Arp":                 schema_pkg_apis_kosmos_v1alpha1_Arp(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Cluster":             schema_pkg_apis_kosmos_v1alpha1_Cluster(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterLinkOptions":  schema_pkg_apis_kosmos_v1alpha1_ClusterLinkOptions(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterLinkStatus":   schema_pkg_apis_kosmos_v1alpha1_ClusterLinkStatus(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterList":         schema_pkg_apis_kosmos_v1alpha1_ClusterList(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterNode":         schema_pkg_apis_kosmos_v1alpha1_ClusterNode(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterNodeList":     schema_pkg_apis_kosmos_v1alpha1_ClusterNodeList(ref),
@@ -24,6 +26,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterNodeStatus":   schema_pkg_apis_kosmos_v1alpha1_ClusterNodeStatus(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterSpec":         schema_pkg_apis_kosmos_v1alpha1_ClusterSpec(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterStatus":       schema_pkg_apis_kosmos_v1alpha1_ClusterStatus(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterTreeOptions":  schema_pkg_apis_kosmos_v1alpha1_ClusterTreeOptions(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.DaemonSet":           schema_pkg_apis_kosmos_v1alpha1_DaemonSet(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.DaemonSetList":       schema_pkg_apis_kosmos_v1alpha1_DaemonSetList(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.DaemonSetSpec":       schema_pkg_apis_kosmos_v1alpha1_DaemonSetSpec(ref),
@@ -180,6 +183,140 @@ func schema_pkg_apis_kosmos_v1alpha1_Cluster(ref common.ReferenceCallback) commo
 		},
 		Dependencies: []string{
 			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterSpec", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_pkg_apis_kosmos_v1alpha1_ClusterLinkOptions(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"enable": {
+						SchemaProps: spec.SchemaProps{
+							Default: false,
+							Type:    []string{"boolean"},
+							Format:  "",
+						},
+					},
+					"cni": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"networkType": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"ipFamily": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"useIPPool": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
+					"localCIDRs": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.VxlanCIDRs"),
+						},
+					},
+					"bridgeCIDRs": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.VxlanCIDRs"),
+						},
+					},
+					"nicNodeNames": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NICNodeNames"),
+									},
+								},
+							},
+						},
+					},
+					"defaultNICName": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"globalCIDRsMap": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NICNodeNames", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.VxlanCIDRs"},
+	}
+}
+
+func schema_pkg_apis_kosmos_v1alpha1_ClusterLinkStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"podCIDRs": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"serviceCIDRs": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 }
 
@@ -413,21 +550,13 @@ func schema_pkg_apis_kosmos_v1alpha1_ClusterSpec(ref common.ReferenceCallback) c
 			SchemaProps: spec.SchemaProps{
 				Type: []string{"object"},
 				Properties: map[string]spec.Schema{
-					"cni": {
+					"kubeconfig": {
 						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
+							Type:   []string{"string"},
+							Format: "byte",
 						},
 					},
-					"networkType": {
-						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
-						},
-					},
-					"ipFamily": {
+					"namespace": {
 						SchemaProps: spec.SchemaProps{
 							Default: "",
 							Type:    []string{"string"},
@@ -440,76 +569,23 @@ func schema_pkg_apis_kosmos_v1alpha1_ClusterSpec(ref common.ReferenceCallback) c
 							Format: "",
 						},
 					},
-					"namespace": {
-						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
-						},
-					},
-					"useIPPool": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"boolean"},
-							Format: "",
-						},
-					},
-					"localCIDRs": {
+					"clusterLinkOptions": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.VxlanCIDRs"),
+							Ref:     ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterLinkOptions"),
 						},
 					},
-					"bridgeCIDRs": {
+					"clusterTreeOptions": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.VxlanCIDRs"),
-						},
-					},
-					"nicNodeNames": {
-						SchemaProps: spec.SchemaProps{
-							Type: []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: map[string]interface{}{},
-										Ref:     ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NICNodeNames"),
-									},
-								},
-							},
-						},
-					},
-					"defaultNICName": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
-					"globalCIDRsMap": {
-						SchemaProps: spec.SchemaProps{
-							Type: []string{"object"},
-							AdditionalProperties: &spec.SchemaOrBool{
-								Allows: true,
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: "",
-										Type:    []string{"string"},
-										Format:  "",
-									},
-								},
-							},
-						},
-					},
-					"kubeconfig": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "byte",
+							Ref:     ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterTreeOptions"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NICNodeNames", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.VxlanCIDRs"},
+			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterLinkOptions", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterTreeOptions"},
 	}
 }
 
@@ -519,32 +595,31 @@ func schema_pkg_apis_kosmos_v1alpha1_ClusterStatus(ref common.ReferenceCallback)
 			SchemaProps: spec.SchemaProps{
 				Type: []string{"object"},
 				Properties: map[string]spec.Schema{
-					"podCIDRs": {
+					"clusterLinkStatus": {
 						SchemaProps: spec.SchemaProps{
-							Type: []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: "",
-										Type:    []string{"string"},
-										Format:  "",
-									},
-								},
-							},
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterLinkStatus"),
 						},
 					},
-					"serviceCIDRs": {
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterLinkStatus"},
+	}
+}
+
+func schema_pkg_apis_kosmos_v1alpha1_ClusterTreeOptions(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"enable": {
 						SchemaProps: spec.SchemaProps{
-							Type: []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: "",
-										Type:    []string{"string"},
-										Format:  "",
-									},
-								},
-							},
+							Default: false,
+							Type:    []string{"boolean"},
+							Format:  "",
 						},
 					},
 				},
@@ -1041,12 +1116,6 @@ func schema_pkg_apis_kosmos_v1alpha1_KnodeSpec(ref common.ReferenceCallback) com
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"string"},
 							Format: "byte",
-						},
-					},
-					"kubeAPIQPS": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"number"},
-							Format: "float",
 						},
 					},
 					"kubeAPIBurst": {

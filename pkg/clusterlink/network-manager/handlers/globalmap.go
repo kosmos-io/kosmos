@@ -23,10 +23,10 @@ func (h *GlobalMap) Do(c *Context) (err error) {
 
 	for _, n := range nodes {
 		cluster := c.Filter.GetClusterByName(n.Spec.ClusterName)
-		globalMap := cluster.Spec.GlobalCIDRsMap
+		globalMap := cluster.Spec.ClusterLinkOptions.GlobalCIDRsMap
 
 		if len(globalMap) > 0 {
-			for src, dst := range cluster.Spec.GlobalCIDRsMap {
+			for src, dst := range cluster.Spec.ClusterLinkOptions.GlobalCIDRsMap {
 				ipType := helpers.GetIPType(src)
 
 				var vxBridge string

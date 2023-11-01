@@ -28,10 +28,6 @@ type KnodeSpec struct {
 	// +optional
 	Kubeconfig []byte `json:"kubeconfig,omitempty"`
 
-	// +kubebuilder:default=50
-	// +optional
-	KubeAPIQPS float32 `json:"kubeAPIQPS,omitempty"`
-
 	// +kubebuilder:default=100
 	// +optional
 	KubeAPIBurst int `json:"kubeAPIBurst,omitempty"`

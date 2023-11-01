@@ -9,9 +9,9 @@ func (h *ServiceRoutes) Do(c *Context) (err error) {
 
 	for _, target := range gwNodes {
 		cluster := c.Filter.GetClusterByName(target.Spec.ClusterName)
-		serviceCIDRs := cluster.Status.ServiceCIDRs
+		serviceCIDRs := cluster.Status.ClusterLinkStatus.ServiceCIDRs
 
-		serviceCIDRs = ConvertToGlobalCIDRs(serviceCIDRs, cluster.Spec.GlobalCIDRsMap)
+		serviceCIDRs = ConvertToGlobalCIDRs(serviceCIDRs, cluster.Spec.ClusterLinkOptions.GlobalCIDRsMap)
 		BuildRoutes(c, target, serviceCIDRs)
 	}
 

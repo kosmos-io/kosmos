@@ -102,7 +102,7 @@ func (c *controller) Start(ctx context.Context) error {
 	clusterInformerFactory.WaitForCacheSync(stopCh)
 
 	// third step: init CNI Adapter
-	if cluster.Spec.CNI == calicoCNI {
+	if cluster.Spec.ClusterLinkOptions.CNI == calicoCNI {
 		c.cniAdapter = NewCalicoAdapter(c.config, c.clusterNodeLister, c.processor)
 	} else {
 		c.cniAdapter = NewCommonAdapter(c.config, c.clusterNodeLister, c.processor)

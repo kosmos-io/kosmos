@@ -27,10 +27,10 @@ func (h *PodRoutes) Do(c *Context) (err error) {
 		if cluster.IsP2P() {
 			podCIDRs = target.Spec.PodCIDRs
 		} else {
-			podCIDRs = cluster.Status.PodCIDRs
+			podCIDRs = cluster.Status.ClusterLinkStatus.PodCIDRs
 		}
 
-		podCIDRs = ConvertToGlobalCIDRs(podCIDRs, cluster.Spec.GlobalCIDRsMap)
+		podCIDRs = ConvertToGlobalCIDRs(podCIDRs, cluster.Spec.ClusterLinkOptions.GlobalCIDRsMap)
 		BuildRoutes(c, target, podCIDRs)
 	}
 
@@ -90,7 +90,7 @@ func BuildRoutes(ctx *Context, target *v1alpha1.ClusterNode, cidrs []string) {
 		for _, n := range otherClusterNodes {
 			srcCluster := ctx.Filter.GetClusterByName(n.Spec.ClusterName)
 
-			allCIDRs := append(srcCluster.Status.PodCIDRs, srcCluster.Status.ServiceCIDRs...)
+			allCIDRs := append(srcCluster.Status.ClusterLinkStatus.PodCIDRs, srcCluster.Status.ClusterLinkStatus.ServiceCIDRs...)
 			if ifCIDRConflictWithSelf(allCIDRs, cidr) {
 				continue
 			}

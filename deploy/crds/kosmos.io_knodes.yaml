@@ -35,6 +35,9 @@ spec:
             properties:
               disableTaint:
                 type: boolean
+              kubeAPIBurst:
+                default: 100
+                type: integer
               kubeconfig:
                 format: byte
                 type: string

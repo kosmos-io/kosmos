@@ -40,18 +40,18 @@ func (h *VxBridgeNetwork) Do(c *Context) (err error) {
 func (h *VxBridgeNetwork) needToCreateVxBridge(c *Context, clusterNode *v1alpha1.ClusterNode, cluster *v1alpha1.Cluster) bool {
 	return c.Filter.SupportIPv4(clusterNode) &&
 		clusterNode.Spec.IP != "" &&
-		cluster.Spec.BridgeCIDRs.IP != ""
+		cluster.Spec.ClusterLinkOptions.BridgeCIDRs.IP != ""
 }
 
 func (h *VxBridgeNetwork) needToCreateVxBridge6(c *Context, clusterNode *v1alpha1.ClusterNode, cluster *v1alpha1.Cluster) bool {
 	return c.Filter.SupportIPv6(clusterNode) &&
 		clusterNode.Spec.IP6 != "" &&
-		cluster.Spec.BridgeCIDRs.IP6 != ""
+		cluster.Spec.ClusterLinkOptions.BridgeCIDRs.IP6 != ""
 }
 
 func (h *VxBridgeNetwork) createVxBridge(c *Context, clusterNode *v1alpha1.ClusterNode, cluster *v1alpha1.Cluster) *v1alpha1.Device {
 	devOld := c.Filter.GetDeviceFromNodeConfig(clusterNode.Name, constants.VXLAN_BRIDGE_NAME)
-	dev := helpers.BuildVxlanDevice(constants.VXLAN_BRIDGE_NAME, clusterNode.Spec.IP, cluster.Spec.BridgeCIDRs.IP, clusterNode.Spec.InterfaceName)
+	dev := helpers.BuildVxlanDevice(constants.VXLAN_BRIDGE_NAME, clusterNode.Spec.IP, cluster.Spec.ClusterLinkOptions.BridgeCIDRs.IP, clusterNode.Spec.InterfaceName)
 	if devOld != nil && devOld.Mac != "" {
 		dev.Mac = devOld.Mac
 	}
@@ -60,7 +60,7 @@ func (h *VxBridgeNetwork) createVxBridge(c *Context, clusterNode *v1alpha1.Clust
 
 func (h *VxBridgeNetwork) createVxBridge6(c *Context, clusterNode *v1alpha1.ClusterNode, cluster *v1alpha1.Cluster) *v1alpha1.Device {
 	devOld := c.Filter.GetDeviceFromNodeConfig(clusterNode.Name, constants.VXLAN_BRIDGE_NAME_6)
-	dev := helpers.BuildVxlanDevice(constants.VXLAN_BRIDGE_NAME_6, clusterNode.Spec.IP6, cluster.Spec.BridgeCIDRs.IP6, clusterNode.Spec.InterfaceName)
+	dev := helpers.BuildVxlanDevice(constants.VXLAN_BRIDGE_NAME_6, clusterNode.Spec.IP6, cluster.Spec.ClusterLinkOptions.BridgeCIDRs.IP6, clusterNode.Spec.InterfaceName)
 	if devOld != nil && devOld.Mac != "" {
 		dev.Mac = devOld.Mac
 	}
