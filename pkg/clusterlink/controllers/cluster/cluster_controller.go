@@ -124,7 +124,7 @@ func (c *Controller) Start(ctx context.Context) error {
 		return err
 	}
 
-	if cluster.Spec.CNI == FlannelCNI {
+	if cluster.Spec.ClusterLinkOptions.CNI == FlannelCNI {
 		c.setClusterPodCIDRFun, err = c.initFlannelInformer(ctx, cluster, c.kubeClient)
 		if err != nil {
 			klog.Errorf("cluster %s initCalicoInformer err: %v", err)
@@ -202,7 +202,7 @@ func (c *Controller) Reconcile(key utils.QueueKey) error {
 		return err
 	}
 
-	reconcileCluster.Status.ServiceCIDRs = serviceCIDRS
+	reconcileCluster.Status.ClusterLinkStatus.ServiceCIDRs = serviceCIDRS
 	//TODO use sub resource
 	_, err = c.clusterLinkClient.KosmosV1alpha1().Clusters().Update(context.TODO(), reconcileCluster, metav1.UpdateOptions{})
 	if err != nil {
@@ -289,7 +289,7 @@ func (c *Controller) initCalicoInformer(context context.Context, cluster *cluste
 				}
 			}
 		}
-		cluster.Status.PodCIDRs = podCIDRS
+		cluster.Status.ClusterLinkStatus.PodCIDRs = podCIDRS
 		return nil
 	}, nil
 }
@@ -364,7 +364,7 @@ func (c *Controller) initCalicoWatcherWithEtcdBackend(ctx context.Context, clust
 				podCIDRs = append(podCIDRs, ippool.Spec.CIDR)
 			}
 		}
-		cluster.Status.PodCIDRs = podCIDRs
+		cluster.Status.ClusterLinkStatus.PodCIDRs = podCIDRs
 		return nil
 	}, nil
 }
@@ -434,7 +434,7 @@ func (c *Controller) initFlannelInformer(context context.Context, cluster *clust
 				break
 			}
 		}
-		cluster.Status.PodCIDRs = podCIDRS
+		cluster.Status.ClusterLinkStatus.PodCIDRs = podCIDRS
 		return nil
 	}, nil
 }

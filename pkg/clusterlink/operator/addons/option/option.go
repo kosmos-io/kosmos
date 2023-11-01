@@ -55,7 +55,7 @@ func (o *AddonOption) GetSpecNamespace() string {
 }
 
 func (o *AddonOption) GetImageRepository() string {
-	return o.Spec.ClusterLinkOptions.ImageRepository
+	return o.Spec.ImageRepository
 }
 
 func (o *AddonOption) GetIPFamily() string {

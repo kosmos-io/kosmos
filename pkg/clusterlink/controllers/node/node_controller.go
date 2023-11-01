@@ -115,7 +115,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 		n.Spec.ClusterName = r.ClusterName
 		n.Spec.IP = internalIP
 		n.Spec.IP6 = internalIP6
-		n.Spec.InterfaceName = interfacepolicy.GetInterfaceName(cluster.Spec.NICNodeNames, node.Name, cluster.Spec.DefaultNICName)
+		n.Spec.InterfaceName = interfacepolicy.GetInterfaceName(cluster.Spec.ClusterLinkOptions.NICNodeNames, node.Name, cluster.Spec.ClusterLinkOptions.DefaultNICName)
 		return nil
 	})
 	if err != nil {

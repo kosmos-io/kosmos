@@ -16,10 +16,10 @@ spec:
   scope: Cluster
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .spec.networkType
+    - jsonPath: .spec.clusterLinkOptions.networkType
       name: NETWORK_TYPE
       type: string
-    - jsonPath: .spec.ipFamily
+    - jsonPath: .spec.clusterLinkOptions.ipFamily
       name: IP_FAMILY
       type: string
     name: v1alpha1
@@ -41,88 +41,103 @@ spec:
           spec:
             description: Spec is the specification for the behaviour of the cluster.
             properties:
-              bridgeCIDRs:
-                default:
-                  ip: 220.0.0.0/8
-                  ip6: 9470::/16
+              clusterLinkOptions:
                 properties:
-                  ip:
+                  bridgeCIDRs:
+                    default:
+                      ip: 220.0.0.0/8
+                      ip6: 9470::/16
+                    properties:
+                      ip:
+                        type: string
+                      ip6:
+                        type: string
+                    required:
+                    - ip
+                    - ip6
+                    type: object
+                  cni:
+                    default: calico
                     type: string
-                  ip6:
+                  defaultNICName:
+                    default: '*'
                     type: string
-                required:
-                - ip
-                - ip6
+                  enable:
+                    default: true
+                    type: boolean
+                  globalCIDRsMap:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  ipFamily:
+                    default: all
+                    type: string
+                  localCIDRs:
+                    default:
+                      ip: 210.0.0.0/8
+                      ip6: 9480::/16
+                    properties:
+                      ip:
+                        type: string
+                      ip6:
+                        type: string
+                    required:
+                    - ip
+                    - ip6
+                    type: object
+                  networkType:
+                    default: p2p
+                    enum:
+                    - p2p
+                    - gateway
+                    type: string
+                  nicNodeNames:
+                    items:
+                      properties:
+                        interfaceName:
+                          type: string
+                        nodeName:
+                          items:
+                            type: string
+                          type: array
+                      required:
+                      - interfaceName
+                      - nodeName
+                      type: object
+                    type: array
+                  useIPPool:
+                    default: false
+                    type: boolean
                 type: object
-              cni:
-                default: calico
-                type: string
-              defaultNICName:
-                default: '*'
-                type: string
-              globalCIDRsMap:
-                additionalProperties:
-                  type: string
+              clusterTreeOptions:
+                properties:
+                  enable:
+                    default: true
+                    type: boolean
                 type: object
               imageRepository:
-                type: string
-              ipFamily:
-                default: all
                 type: string
               kubeconfig:
                 format: byte
                 type: string
-              localCIDRs:
-                default:
-                  ip: 210.0.0.0/8
-                  ip6: 9480::/16
-                properties:
-                  ip:
-                    type: string
-                  ip6:
-                    type: string
-                required:
-                - ip
-                - ip6
-                type: object
               namespace:
-                default: clusterlink-system
+                default: kosmos-system
                 type: string
-              networkType:
-                default: p2p
-                enum:
-                - p2p
-                - gateway
-                type: string
-              nicNodeNames:
-                items:
-                  properties:
-                    interfaceName:
-                      type: string
-                    nodeName:
-                      items:
-                        type: string
-                      type: array
-                  required:
-                  - interfaceName
-                  - nodeName
-                  type: object
-                type: array
-              useIPPool:
-                default: false
-                type: boolean
             type: object
           status:
             description: Status describes the current status of a cluster.
             properties:
-              podCIDRs:
-                items:
-                  type: string
-                type: array
-              serviceCIDRs:
-                items:
-                  type: string
-                type: array
+              clusterLinkStatus:
+                properties:
+                  podCIDRs:
+                    items:
+                      type: string
+                    type: array
+                  serviceCIDRs:
+                    items:
+                      type: string
+                    type: array
+                type: object
             type: object
         required:
         - spec

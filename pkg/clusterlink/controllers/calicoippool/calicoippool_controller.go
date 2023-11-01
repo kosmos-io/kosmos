@@ -339,8 +339,8 @@ func (c *Controller) Reconcile(key utils.QueueKey) error {
 	}
 
 	klog.Infof("start reconcile cluster %s", cluster.Name)
-	if cluster.Spec.CNI != utils.CNITypeCalico {
-		klog.Infof("cluster %s cni type is %s skip reconcile", cluster.Name, cluster.Spec.CNI)
+	if cluster.Spec.ClusterLinkOptions.CNI != utils.CNITypeCalico {
+		klog.Infof("cluster %s cni type is %s skip reconcile", cluster.Name, cluster.Spec.ClusterLinkOptions.CNI)
 		return nil
 	}
 	for ipPool := range c.globalExtIPPoolSet {
@@ -355,9 +355,9 @@ func (c *Controller) Reconcile(key utils.QueueKey) error {
 			return cidr
 		}
 	}
-	cidrMap := cluster.Spec.GlobalCIDRsMap
-	podCIDRS := cluster.Status.PodCIDRs
-	serviceCIDR := cluster.Status.ServiceCIDRs
+	cidrMap := cluster.Spec.ClusterLinkOptions.GlobalCIDRsMap
+	podCIDRS := cluster.Status.ClusterLinkStatus.PodCIDRs
+	serviceCIDR := cluster.Status.ClusterLinkStatus.ServiceCIDRs
 	for _, cidr := range podCIDRS {
 		extIPPool := ExternalClusterIPPool{
 			cluster: cluster.Name,

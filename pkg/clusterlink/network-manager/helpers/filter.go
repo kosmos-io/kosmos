@@ -121,12 +121,12 @@ func (f *Filter) GetGatewayClusterNodes() []*v1alpha1.ClusterNode {
 
 func (f *Filter) SupportIPv4(node *v1alpha1.ClusterNode) bool {
 	cluster := f.GetClusterByName(node.Spec.ClusterName)
-	return cluster.Spec.IPFamily == v1alpha1.IPFamilyTypeALL || cluster.Spec.IPFamily == v1alpha1.IPFamilyTypeIPV4
+	return cluster.Spec.ClusterLinkOptions.IPFamily == v1alpha1.IPFamilyTypeALL || cluster.Spec.ClusterLinkOptions.IPFamily == v1alpha1.IPFamilyTypeIPV4
 }
 
 func (f *Filter) SupportIPv6(node *v1alpha1.ClusterNode) bool {
 	cluster := f.GetClusterByName(node.Spec.ClusterName)
-	return cluster.Spec.IPFamily == v1alpha1.IPFamilyTypeALL || cluster.Spec.IPFamily == v1alpha1.IPFamilyTypeIPV6
+	return cluster.Spec.ClusterLinkOptions.IPFamily == v1alpha1.IPFamilyTypeALL || cluster.Spec.ClusterLinkOptions.IPFamily == v1alpha1.IPFamilyTypeIPV6
 }
 
 func (f *Filter) GetDeviceFromNodeConfig(nodeName string, devName string) *v1alpha1.Device {

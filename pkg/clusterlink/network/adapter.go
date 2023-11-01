@@ -185,5 +185,5 @@ func (n *DefaultNetWork) InitSys() {
 }
 
 func (n *DefaultNetWork) UpdateCidrConfig(cluster *clusterlinkv1alpha1.Cluster) {
-	UpdateCidr(cluster.Spec.BridgeCIDRs.IP, cluster.Spec.BridgeCIDRs.IP6, cluster.Spec.LocalCIDRs.IP, cluster.Spec.LocalCIDRs.IP6)
+	UpdateCidr(cluster.Spec.ClusterLinkOptions.BridgeCIDRs.IP, cluster.Spec.ClusterLinkOptions.BridgeCIDRs.IP6, cluster.Spec.ClusterLinkOptions.LocalCIDRs.IP, cluster.Spec.ClusterLinkOptions.LocalCIDRs.IP6)
 }

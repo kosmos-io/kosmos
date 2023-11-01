@@ -24,13 +24,13 @@ func (h *HostNetwork) Do(c *Context) (err error) {
 			c.Results[n.Name].Iptables = append(c.Results[n.Name].Iptables, v1alpha1.Iptables{
 				Table: "nat",
 				Chain: constants.IPTablesPostRoutingChain,
-				Rule:  fmt.Sprintf("-s %s -o %s -j MASQUERADE", cluster.Spec.LocalCIDRs.IP, constants.VXLAN_BRIDGE_NAME),
+				Rule:  fmt.Sprintf("-s %s -o %s -j MASQUERADE", cluster.Spec.ClusterLinkOptions.LocalCIDRs.IP, constants.VXLAN_BRIDGE_NAME),
 			})
 
 			c.Results[n.Name].Iptables = append(c.Results[n.Name].Iptables, v1alpha1.Iptables{
 				Table: "nat",
 				Chain: constants.IPTablesPostRoutingChain,
-				Rule:  fmt.Sprintf("-s %s -j MASQUERADE", cluster.Spec.BridgeCIDRs.IP),
+				Rule:  fmt.Sprintf("-s %s -j MASQUERADE", cluster.Spec.ClusterLinkOptions.BridgeCIDRs.IP),
 			})
 		}
 
@@ -38,13 +38,13 @@ func (h *HostNetwork) Do(c *Context) (err error) {
 			c.Results[n.Name].Iptables = append(c.Results[n.Name].Iptables, v1alpha1.Iptables{
 				Table: "nat",
 				Chain: constants.IPTablesPostRoutingChain,
-				Rule:  fmt.Sprintf("-s %s -o %s -j MASQUERADE", cluster.Spec.LocalCIDRs.IP6, constants.VXLAN_BRIDGE_NAME_6),
+				Rule:  fmt.Sprintf("-s %s -o %s -j MASQUERADE", cluster.Spec.ClusterLinkOptions.LocalCIDRs.IP6, constants.VXLAN_BRIDGE_NAME_6),
 			})
 
 			c.Results[n.Name].Iptables = append(c.Results[n.Name].Iptables, v1alpha1.Iptables{
 				Table: "nat",
 				Chain: constants.IPTablesPostRoutingChain,
-				Rule:  fmt.Sprintf("-s %s -j MASQUERADE", cluster.Spec.BridgeCIDRs.IP6),
+				Rule:  fmt.Sprintf("-s %s -j MASQUERADE", cluster.Spec.ClusterLinkOptions.BridgeCIDRs.IP6),
 			})
 		}
 	}
