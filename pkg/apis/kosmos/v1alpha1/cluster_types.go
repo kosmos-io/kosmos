@@ -1,6 +1,7 @@
 package v1alpha1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -42,7 +43,13 @@ type ClusterSpec struct {
 }
 
 type ClusterStatus struct {
+	// ClusterLinkStatus contain the cluster network information
+	// +optional
 	ClusterLinkStatus ClusterLinkStatus `json:"clusterLinkStatus,omitempty"`
+
+	// ClusterTreeStatus contain the member cluster leafNode end status
+	// +optional
+	ClusterTreeStatus ClusterTreeStatus `json:"clusterTreeStatus,omitempty"`
 }
 
 type ClusterLinkOptions struct {
@@ -90,6 +97,31 @@ type ClusterTreeOptions struct {
 	// +kubebuilder:default=true
 	// +optional
 	Enable bool `json:"enable"`
+
+	// LeafModel provide an api to arrange the member cluster with some rules to pretend one or more leaf node
+	// +optional
+	LeafModel []LeafModel `json:"leafModel,omitempty"`
+}
+
+type LeafModel struct {
+	// LeafNodeName defines leaf name
+	// If nil or empty, the leaf node name will generate by controller and fill in cluster link status
+	// +optional
+	LeafNodeName string `json:"leafNodeName,omitempty"`
+
+	// Labels that will be setting in the pretended Node labels
+	// +optional
+	Labels map[string]string `json:"labels,omitempty" protobuf:"bytes,11,rep,name=labels"`
+
+	// Taints attached to the leaf pretended Node.
+	// If nil or empty, controller will set the default no-schedule taint
+	// +optional
+	Taints []corev1.Taint `json:"taints,omitempty"`
+
+	// LabelSelector is a filter to select member cluster nodes to pretend a leaf node in clusterTree by labels.
+	// If nil or empty, the hole member cluster nodes will pretend one leaf node.
+	// +optional
+	LabelSelector *metav1.LabelSelector `json:"labelSelector,omitempty"`
 }
 
 type ClusterLinkStatus struct {
@@ -97,6 +129,19 @@ type ClusterLinkStatus struct {
 	PodCIDRs []string `json:"podCIDRs,omitempty"`
 	// +optional
 	ServiceCIDRs []string `json:"serviceCIDRs,omitempty"`
+}
+
+type ClusterTreeStatus struct {
+	// LeafNodeItems represents list of the leaf node Items calculating in each member cluster.
+	// +optional
+	LeafNodeItems []LeafNodeItem `json:"leafNodeItems,omitempty"`
+}
+
+type LeafNodeItem struct {
+	// LeafNodeName represents the leaf node name generate by controller.
+	// suggest name format like cluster-shortLabel-number like member-az1-1
+	// +required
+	LeafNodeName string `json:"leafNodeName"`
 }
 
 type VxlanCIDRs struct {

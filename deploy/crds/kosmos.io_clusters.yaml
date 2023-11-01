@@ -114,6 +114,105 @@ spec:
                   enable:
                     default: true
                     type: boolean
+                  leafModel:
+                    description: LeafModel provide an api to arrange the member cluster
+                      with some rules to pretend one or more leaf node
+                    items:
+                      properties:
+                        labelSelector:
+                          description: LabelSelector is a filter to select member
+                            cluster nodes to pretend a leaf node in clusterTree by
+                            labels. If nil or empty, the hole member cluster nodes
+                            will pretend one leaf node.
+                          properties:
+                            matchExpressions:
+                              description: matchExpressions is a list of label selector
+                                requirements. The requirements are ANDed.
+                              items:
+                                description: A label selector requirement is a selector
+                                  that contains values, a key, and an operator that
+                                  relates the key and values.
+                                properties:
+                                  key:
+                                    description: key is the label key that the selector
+                                      applies to.
+                                    type: string
+                                  operator:
+                                    description: operator represents a key's relationship
+                                      to a set of values. Valid operators are In,
+                                      NotIn, Exists and DoesNotExist.
+                                    type: string
+                                  values:
+                                    description: values is an array of string values.
+                                      If the operator is In or NotIn, the values array
+                                      must be non-empty. If the operator is Exists
+                                      or DoesNotExist, the values array must be empty.
+                                      This array is replaced during a strategic merge
+                                      patch.
+                                    items:
+                                      type: string
+                                    type: array
+                                required:
+                                - key
+                                - operator
+                                type: object
+                              type: array
+                            matchLabels:
+                              additionalProperties:
+                                type: string
+                              description: matchLabels is a map of {key,value} pairs.
+                                A single {key,value} in the matchLabels map is equivalent
+                                to an element of matchExpressions, whose key field
+                                is "key", the operator is "In", and the values array
+                                contains only "value". The requirements are ANDed.
+                              type: object
+                          type: object
+                          x-kubernetes-map-type: atomic
+                        labels:
+                          additionalProperties:
+                            type: string
+                          description: Labels that will be setting in the pretended
+                            Node labels
+                          type: object
+                        leafNodeName:
+                          description: LeafNodeName defines leaf name If nil or empty,
+                            the leaf node name will generate by controller and fill
+                            in cluster link status
+                          type: string
+                        taints:
+                          description: Taints attached to the leaf pretended Node.
+                            If nil or empty, controller will set the default no-schedule
+                            taint
+                          items:
+                            description: The node this Taint is attached to has the
+                              "effect" on any pod that does not tolerate the Taint.
+                            properties:
+                              effect:
+                                description: Required. The effect of the taint on
+                                  pods that do not tolerate the taint. Valid effects
+                                  are NoSchedule, PreferNoSchedule and NoExecute.
+                                type: string
+                              key:
+                                description: Required. The taint key to be applied
+                                  to a node.
+                                type: string
+                              timeAdded:
+                                description: TimeAdded represents the time at which
+                                  the taint was added. It is only written for NoExecute
+                                  taints.
+                                format: date-time
+                                type: string
+                              value:
+                                description: The taint value corresponding to the
+                                  taint key.
+                                type: string
+                            required:
+                            - effect
+                            - key
+                            type: object
+                          type: array
+                      type: object
+                    type: array
                 type: object
               imageRepository:
                 type: string
@@ -128,6 +227,7 @@ spec:
             description: Status describes the current status of a cluster.
             properties:
               clusterLinkStatus:
+                description: ClusterLinkStatus contain the cluster network information
                 properties:
                   podCIDRs:
                     items:
@@ -136,6 +236,25 @@ spec:
                   serviceCIDRs:
                     items:
                       type: string
+                    type: array
+                type: object
+              clusterTreeStatus:
+                description: ClusterTreeStatus contain the member cluster leafNode
+                  end status
+                properties:
+                  leafNodeItems:
+                    description: LeafNodeItems represents list of the leaf node Items
+                      calculating in each member cluster.
+                    items:
+                      properties:
+                        leafNodeName:
+                          description: LeafNodeName represents the leaf node name
+                            generate by controller. suggest name format like cluster-shortLabel-number
+                            like member-az1-1
+                          type: string
+                      required:
+                      - leafNodeName
+                      type: object
                     type: array
                 type: object
             type: object
