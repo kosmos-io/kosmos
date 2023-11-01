@@ -23,22 +23,13 @@ import (
 )
 
 var unjoinExample = templates.Examples(i18n.T(`
-		# Unjoin cluster from Kosmos control plane in any cluster, e.g:
-		kosmosctl unjoin cluster --name=[cluster-name] --cluster-kubeconfig=[member-kubeconfig] --master-kubeconfig=[master-kubeconfig]
-
-		# Unjoin cluster from Kosmos control plane in master cluster, e.g:
-		kosmosctl unjoin cluster --name=[cluster-name] --cluster-kubeconfig=[member-kubeconfig]
-
-		# Unjoin knode from Kosmos control plane in any cluster, e.g:
-		kosmosctl unjoin knode --name=[knode-name] --master-kubeconfig=[master-kubeconfig]
-
-		# Unjoin knode from Kosmos control plane in master cluster, e.g:
-		kosmosctl unjoin knode --name=[knode-name]
+		# Unjoin cluster from Kosmos control plane, e.g:
+		kosmosctl unjoin cluster --name cluster-name --kubeconfig ~/kubeconfig/cluster-kubeconfig
 `))
 
 type CommandUnJoinOptions struct {
-	MasterKubeConfig  string
-	ClusterKubeConfig string
+	KubeConfig     string
+	HostKubeConfig string
 
 	Name string
 
@@ -65,31 +56,31 @@ func NewCmdUnJoin(f ctlutil.Factory) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&o.MasterKubeConfig, "master-kubeconfig", "", "", "Absolute path to the master kubeconfig file.")
-	cmd.Flags().StringVarP(&o.ClusterKubeConfig, "cluster-kubeconfig", "", "", "Absolute path to the cluster kubeconfig file.")
+	cmd.Flags().StringVar(&o.KubeConfig, "kubeconfig", "", "Absolute path to the cluster kubeconfig file.")
+	cmd.Flags().StringVar(&o.HostKubeConfig, "host-kubeconfig", "", "Absolute path to the special host kubeconfig file.")
 	cmd.Flags().StringVar(&o.Name, "name", "", "Specify the name of the resource to unjoin.")
 
 	return cmd
 }
 func (o *CommandUnJoinOptions) Complete(f ctlutil.Factory) error {
-	var masterConfig *restclient.Config
+	var hostConfig *restclient.Config
 	var err error
 
-	if o.MasterKubeConfig != "" {
-		masterConfig, err = clientcmd.BuildConfigFromFlags("", o.MasterKubeConfig)
+	if o.HostKubeConfig != "" {
+		hostConfig, err = clientcmd.BuildConfigFromFlags("", o.HostKubeConfig)
 		if err != nil {
 			return fmt.Errorf("kosmosctl unjoin complete error, generate masterConfig failed: %s", err)
 		}
 	} else {
-		masterConfig, err = f.ToRESTConfig()
+		hostConfig, err = f.ToRESTConfig()
 		if err != nil {
 			return fmt.Errorf("kosmosctl unjoin complete error, get current masterConfig failed: %s", err)
 		}
 	}
 
-	clusterConfig, err := clientcmd.BuildConfigFromFlags("", o.ClusterKubeConfig)
+	clusterConfig, err := clientcmd.BuildConfigFromFlags("", o.KubeConfig)
 	if err != nil {
-		return fmt.Errorf("kosmosctl unjoin complete error, generate memberConfig failed: %s", err)
+		return fmt.Errorf("kosmosctl unjoin complete error, generate clusterConfig failed: %s", err)
 	}
 
 	o.Client, err = kubernetes.NewForConfig(clusterConfig)
@@ -97,7 +88,7 @@ func (o *CommandUnJoinOptions) Complete(f ctlutil.Factory) error {
 		return fmt.Errorf("kosmosctl join complete error, generate basic client failed: %v", err)
 	}
 
-	o.DynamicClient, err = dynamic.NewForConfig(masterConfig)
+	o.DynamicClient, err = dynamic.NewForConfig(hostConfig)
 	if err != nil {
 		return fmt.Errorf("kosmosctl unjoin complete error, generate dynamic client failed: %s", err)
 	}
@@ -107,7 +98,7 @@ func (o *CommandUnJoinOptions) Complete(f ctlutil.Factory) error {
 
 func (o *CommandUnJoinOptions) Validate(args []string) error {
 	if len(o.Name) == 0 {
-		return fmt.Errorf("kosmosctl unjoin validate error, resource name is not valid")
+		return fmt.Errorf("kosmosctl unjoin validate error, name is not valid")
 	}
 
 	switch args[0] {

@@ -16,16 +16,34 @@ import (
 	"k8s.io/klog/v2"
 	ctlutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/i18n"
+	"k8s.io/kubectl/pkg/util/templates"
 
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/manifest"
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/util"
 	"github.com/kosmos.io/kosmos/pkg/utils"
 )
 
+var uninstallExample = templates.Examples(i18n.T(`
+        # Uninstall all module from Kosmos control plane, e.g: 
+        kosmosctl uninstall
+
+		# Uninstall Kosmos control plane, if you need to specify a special control plane cluster kubeconfig, e.g: 
+        kosmosctl uninstall --kubeconfig ~/kubeconfig/cluster-kubeconfig
+
+		# Uninstall clusterlink module from Kosmos control plane, e.g: 
+        kosmosctl uninstall -m clusterlink
+
+		# Uninstall clustertree module from Kosmos control plane, e.g: 
+        kosmosctl uninstall -m clustertree
+
+		# Uninstall coredns module from Kosmos control plane, e.g: 
+        kosmosctl uninstall -m coredns
+`))
+
 type CommandUninstallOptions struct {
-	Namespace      string
-	Module         string
-	HostKubeConfig string
+	Namespace  string
+	Module     string
+	KubeConfig string
 
 	Client           kubernetes.Interface
 	DynamicClient    *dynamic.DynamicClient
@@ -40,7 +58,7 @@ func NewCmdUninstall(f ctlutil.Factory) *cobra.Command {
 		Use:                   "uninstall",
 		Short:                 i18n.T("Uninstall the Kosmos control plane in a Kubernetes cluster"),
 		Long:                  "",
-		Example:               "",
+		Example:               uninstallExample,
 		SilenceUsage:          true,
 		DisableFlagsInUseLine: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -54,7 +72,7 @@ func NewCmdUninstall(f ctlutil.Factory) *cobra.Command {
 	flags := cmd.Flags()
 	flags.StringVarP(&o.Namespace, "namespace", "n", utils.DefaultNamespace, "Kosmos namespace.")
 	flags.StringVarP(&o.Module, "module", "m", utils.DefaultInstallModule, "Kosmos specify the module to uninstall.")
-	flags.StringVar(&o.HostKubeConfig, "host-kubeconfig", "", "Absolute path to the special host kubeconfig file.")
+	flags.StringVar(&o.KubeConfig, "kubeconfig", "", "Absolute path to the special kubeconfig file.")
 
 	return cmd
 }
@@ -63,10 +81,10 @@ func (o *CommandUninstallOptions) Complete(f ctlutil.Factory) error {
 	var config *rest.Config
 	var err error
 
-	if len(o.HostKubeConfig) > 0 {
-		config, err = clientcmd.BuildConfigFromFlags("", o.HostKubeConfig)
+	if len(o.KubeConfig) > 0 {
+		config, err = clientcmd.BuildConfigFromFlags("", o.KubeConfig)
 		if err != nil {
-			return fmt.Errorf("kosmosctl uninstall complete error, generate host config failed: %s", err)
+			return fmt.Errorf("kosmosctl uninstall complete error, generate config failed: %s", err)
 		}
 	} else {
 		config, err = f.ToRESTConfig()

@@ -34,9 +34,13 @@ spec:
         imagePullPolicy: IfNotPresent
         command:
           - clusterlink-floater
+        securityContext:
+          privileged: true
         env: 
           - name: "PORT"
             value: "{{ .Port }}"
+          - name: "ENABLE_ANALYSIS"
+            value: "{{ .EnableAnalysis }}"
       tolerations:
       - effect: NoSchedule
         operator: Exists
@@ -55,4 +59,5 @@ type DaemonSetReplace struct {
 	Port            string
 
 	EnableHostNetwork bool `default:"false"`
+	EnableAnalysis    bool `default:"false"`
 }
