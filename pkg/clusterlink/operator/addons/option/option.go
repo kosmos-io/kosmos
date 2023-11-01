@@ -16,10 +16,12 @@ import (
 // AddonOption for cluster
 type AddonOption struct {
 	clusterlinkv1alpha1.Cluster
+
+	Version  string
+	UseProxy bool
+
 	KubeClientSet          *kubernetes.Clientset
 	ControlPanelKubeConfig *clientcmdapi.Config
-	Version                string
-	UseProxy               bool
 }
 
 func (o *AddonOption) buildClusterConfig(opts *cmdOptions.Options) error {
@@ -42,20 +44,20 @@ func (o *AddonOption) buildClusterConfig(opts *cmdOptions.Options) error {
 	return nil
 }
 
-// preparation for option
+// Complete preparation for option
 func (o *AddonOption) Complete(opts *cmdOptions.Options) error {
 	return o.buildClusterConfig(opts)
 }
 
-// return spec.namespace
+// GetSpecNamespace return spec.namespace
 func (o *AddonOption) GetSpecNamespace() string {
 	return o.Spec.Namespace
 }
 
 func (o *AddonOption) GetImageRepository() string {
-	return o.Spec.ImageRepository
+	return o.Spec.ClusterLinkOptions.ImageRepository
 }
 
 func (o *AddonOption) GetIPFamily() string {
-	return string(o.Spec.IPFamily)
+	return string(o.Spec.ClusterLinkOptions.IPFamily)
 }
