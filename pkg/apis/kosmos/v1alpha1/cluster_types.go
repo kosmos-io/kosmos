@@ -119,6 +119,7 @@ type LeafModel struct {
 	Taints []corev1.Taint `json:"taints,omitempty"`
 
 	// LabelSelector is a filter to select member cluster nodes to pretend a leaf node in clusterTree by labels.
+	// It will work on second level schedule on pod create in member clusters.
 	// If nil or empty, the hole member cluster nodes will pretend one leaf node.
 	// +optional
 	LabelSelector *metav1.LabelSelector `json:"labelSelector,omitempty"`
