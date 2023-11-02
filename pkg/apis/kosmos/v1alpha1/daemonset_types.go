@@ -90,7 +90,7 @@ type ShadowDaemonSet struct {
 	Status DaemonSetStatus `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
 
 	// +optional
-	Knode string `json:"knode"`
+	Cluster string `json:"cluster"`
 
 	RefType RefType `json:"refType"`
 }

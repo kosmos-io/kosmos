@@ -1515,7 +1515,7 @@ func schema_pkg_apis_kosmos_v1alpha1_ShadowDaemonSet(ref common.ReferenceCallbac
 							Ref:     ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.DaemonSetStatus"),
 						},
 					},
-					"knode": {
+					"cluster": {
 						SchemaProps: spec.SchemaProps{
 							Default: "",
 							Type:    []string{"string"},

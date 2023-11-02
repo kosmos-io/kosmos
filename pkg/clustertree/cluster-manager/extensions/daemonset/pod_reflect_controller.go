@@ -41,22 +41,22 @@ type PodReflectorController struct {
 
 	kdsLister kosmoslister.DaemonSetLister
 
-	kNodeLister kosmoslister.KnodeLister
+	clusterLister kosmoslister.ClusterLister
 
 	podLister corelisters.PodLister
 
 	// member cluster podManager map
-	podManagerMap map[string]KNodePodManager
+	podManagerMap map[string]ClusterPodManager
 
 	daemonsetSynced cache.InformerSynced
 
 	kdaemonsetSynced cache.InformerSynced
 
-	kNodeSynced cache.InformerSynced
+	clusterSynced cache.InformerSynced
 
 	podSynced cache.InformerSynced
 
-	kNodeProcessor utils.AsyncWorker
+	clusterProcessor utils.AsyncWorker
 
 	podProcessor utils.AsyncWorker
 
@@ -68,7 +68,7 @@ type PodReflectorController struct {
 func NewPodReflectorController(kubeClient clientset.Interface,
 	dsInformer appsv1informers.DaemonSetInformer,
 	kdsInformer kosmosinformer.DaemonSetInformer,
-	kNodeInformer kosmosinformer.KnodeInformer,
+	clusterInformer kosmosinformer.ClusterInformer,
 	podInformer corev1informers.PodInformer,
 	rateLimiterOptions flags.Options,
 ) *PodReflectorController {
@@ -76,20 +76,20 @@ func NewPodReflectorController(kubeClient clientset.Interface,
 		kubeClient:         kubeClient,
 		dsLister:           dsInformer.Lister(),
 		kdsLister:          kdsInformer.Lister(),
-		kNodeLister:        kNodeInformer.Lister(),
+		clusterLister:      clusterInformer.Lister(),
 		podLister:          podInformer.Lister(),
 		daemonsetSynced:    dsInformer.Informer().HasSynced,
 		kdaemonsetSynced:   kdsInformer.Informer().HasSynced,
-		kNodeSynced:        kNodeInformer.Informer().HasSynced,
-		podSynced:          kNodeInformer.Informer().HasSynced,
-		podManagerMap:      map[string]KNodePodManager{},
+		clusterSynced:      clusterInformer.Informer().HasSynced,
+		podSynced:          clusterInformer.Informer().HasSynced,
+		podManagerMap:      map[string]ClusterPodManager{},
 		rateLimiterOptions: rateLimiterOptions,
 	}
 
 	// nolint:errcheck
-	kNodeInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    pc.addKNode,
-		DeleteFunc: pc.deleteKNode,
+	clusterInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    pc.addCluster,
+		DeleteFunc: pc.deleteCluster,
 	})
 	// nolint:errcheck
 	podInformer.Informer().AddEventHandler(cache.FilteringResourceEventHandler{
@@ -114,15 +114,15 @@ func (pc *PodReflectorController) Run(ctx context.Context, workers int) {
 	klog.Infof("Starting pod reflector controller")
 	defer klog.Infof("Shutting down pod reflector controller")
 
-	knodeOpt := utils.Options{
-		Name: "pod reflector controller: KNode",
+	clusterOpt := utils.Options{
+		Name: "pod reflector controller: cluster",
 		KeyFunc: func(obj interface{}) (utils.QueueKey, error) {
 			return keys.ClusterWideKeyFunc(obj)
 		},
-		ReconcileFunc:      pc.syncKNode,
+		ReconcileFunc:      pc.syncCluster,
 		RateLimiterOptions: pc.rateLimiterOptions,
 	}
-	pc.kNodeProcessor = utils.NewAsyncWorker(knodeOpt)
+	pc.clusterProcessor = utils.NewAsyncWorker(clusterOpt)
 
 	podOpt := utils.Options{
 		Name: "pod reflector controller: pod",
@@ -138,11 +138,11 @@ func (pc *PodReflectorController) Run(ctx context.Context, workers int) {
 		RateLimiterOptions: pc.rateLimiterOptions,
 	}
 	pc.podProcessor = utils.NewAsyncWorker(podOpt)
-	if !cache.WaitForNamedCacheSync("pod_reflector_controller", ctx.Done(), pc.daemonsetSynced, pc.kdaemonsetSynced, pc.podSynced, pc.kNodeSynced) {
+	if !cache.WaitForNamedCacheSync("pod_reflector_controller", ctx.Done(), pc.daemonsetSynced, pc.kdaemonsetSynced, pc.podSynced, pc.clusterSynced) {
 		klog.Errorf("Timed out waiting for caches to sync")
 		return
 	}
-	pc.kNodeProcessor.Run(1, ctx.Done())
+	pc.clusterProcessor.Run(1, ctx.Done())
 	pc.podProcessor.Run(1, ctx.Done())
 }
 
@@ -150,7 +150,7 @@ func getCluster(pod *corev1.Pod) string {
 	return pod.Annotations[ClusterAnnotationKey]
 }
 
-func (pc *PodReflectorController) syncKNode(key utils.QueueKey) error {
+func (pc *PodReflectorController) syncCluster(key utils.QueueKey) error {
 	pc.lock.Lock()
 	defer pc.lock.Unlock()
 	clusterWideKey, exist := key.(keys.ClusterWideKey)
@@ -159,33 +159,33 @@ func (pc *PodReflectorController) syncKNode(key utils.QueueKey) error {
 		return fmt.Errorf("invalid key")
 	}
 	name := clusterWideKey.Name
-	knode, err := pc.kNodeLister.Get(name)
+	cluster, err := pc.clusterLister.Get(name)
 
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.V(3).Infof("knode has been deleted %v", key)
+			klog.V(3).Infof("cluster has been deleted %v", key)
 			return nil
 		}
 		return err
 	}
-	manager, exist := pc.podManagerMap[knode.Name]
-	if knode.DeletionTimestamp != nil {
+	manager, exist := pc.podManagerMap[cluster.Name]
+	if cluster.DeletionTimestamp != nil {
 		if exist {
 			manager.Stop()
-			delete(pc.podManagerMap, knode.Name)
+			delete(pc.podManagerMap, cluster.Name)
 		}
 		return nil
 	}
 
 	if !exist {
-		config, err := clientcmd.RESTConfigFromKubeConfig(knode.Spec.Kubeconfig)
+		config, err := clientcmd.RESTConfigFromKubeConfig(cluster.Spec.Kubeconfig)
 		if err != nil {
-			klog.Errorf("failed to create rest config for knode %s: %v", knode.Name, err)
+			klog.Errorf("failed to create rest config for cluster %s: %v", cluster.Name, err)
 			return err
 		}
 		kubeClient, err := clientset.NewForConfig(config)
 		if err != nil {
-			klog.Errorf("failed to create kube client for knode %s: %v", knode.Name, err)
+			klog.Errorf("failed to create kube client for cluster %s: %v", cluster.Name, err)
 		}
 		kubeFactory := informers.NewSharedInformerFactory(kubeClient, 0)
 		podInformer := kubeFactory.Core().V1().Pods()
@@ -205,8 +205,8 @@ func (pc *PodReflectorController) syncKNode(key utils.QueueKey) error {
 				DeleteFunc: pc.deletePod,
 			},
 		})
-		manager = NewKNodePodManager(kubeClient, podInformer, kubeFactory)
-		pc.podManagerMap[knode.Name] = manager
+		manager = NewClusterPodManager(kubeClient, podInformer, kubeFactory)
+		pc.podManagerMap[cluster.Name] = manager
 		manager.Start()
 	}
 	return nil
@@ -220,12 +220,12 @@ func (pc *PodReflectorController) syncPod(key utils.QueueKey) error {
 		klog.Errorf("invalid key type %T", key)
 		return fmt.Errorf("invalid key")
 	}
-	knode := fedKey.Cluster
+	cluster := fedKey.Cluster
 	name := fedKey.Name
 	namespace := fedKey.Namespace
-	manager, ok := pc.podManagerMap[knode]
+	manager, ok := pc.podManagerMap[cluster]
 	if !ok {
-		msg := fmt.Sprintf("knode %s not found", knode)
+		msg := fmt.Sprintf("cluster %s not found", cluster)
 		return errors.New(msg)
 	}
 	memberClusterPod, err := manager.GetPod(namespace, name)
@@ -238,7 +238,7 @@ func (pc *PodReflectorController) syncPod(key utils.QueueKey) error {
 			}
 			return nil
 		}
-		klog.Errorf("failed to get pod %s/%s from member cluster %s: %v", namespace, name, knode, err)
+		klog.Errorf("failed to get pod %s/%s from member cluster %s: %v", namespace, name, cluster, err)
 		return err
 	}
 	if memberClusterPod.DeletionTimestamp != nil {
@@ -247,7 +247,7 @@ func (pc *PodReflectorController) syncPod(key utils.QueueKey) error {
 			if apierrors.IsNotFound(err) {
 				return nil
 			}
-			klog.Errorf("failed to delete pod %s/%s from member cluster %s: %v", namespace, name, knode, err)
+			klog.Errorf("failed to delete pod %s/%s from member cluster %s: %v", namespace, name, cluster, err)
 			return err
 		}
 	}
@@ -316,14 +316,14 @@ func (pc *PodReflectorController) tryUpdateOrCreate(pod *corev1.Pod) error {
 	return nil
 }
 
-func (pc *PodReflectorController) addKNode(obj interface{}) {
-	knode := obj.(*kosmosv1alpha1.Knode)
-	pc.kNodeProcessor.Enqueue(knode)
+func (pc *PodReflectorController) addCluster(obj interface{}) {
+	cluster := obj.(*kosmosv1alpha1.Cluster)
+	pc.clusterProcessor.Enqueue(cluster)
 }
 
-func (pc *PodReflectorController) deleteKNode(obj interface{}) {
-	knode := obj.(*kosmosv1alpha1.Knode)
-	pc.kNodeProcessor.Enqueue(knode)
+func (pc *PodReflectorController) deleteCluster(obj interface{}) {
+	cluster := obj.(*kosmosv1alpha1.Cluster)
+	pc.clusterProcessor.Enqueue(cluster)
 }
 
 func (pc *PodReflectorController) changeOwnerRef(pod *corev1.Pod) error {
@@ -335,7 +335,8 @@ func (pc *PodReflectorController) changeOwnerRef(pod *corev1.Pod) error {
 			if !ok {
 				continue
 			}
-			ownerName := strings.TrimRight(ownRef.Name, clusterName)
+			suffix := "-" + clusterName
+			ownerName := strings.TrimSuffix(ownRef.Name, suffix)
 			daemonset, err := pc.dsLister.DaemonSets(pod.Namespace).Get(ownerName)
 			if err != nil {
 				return err
@@ -370,7 +371,7 @@ func (pc *PodReflectorController) changeOwnerRef(pod *corev1.Pod) error {
 	return nil
 }
 
-type KNodePodManager struct {
+type ClusterPodManager struct {
 	kubeClient clientset.Interface
 
 	podLister corelisters.PodLister
@@ -384,7 +385,7 @@ type KNodePodManager struct {
 	podSynced cache.InformerSynced
 }
 
-func (k *KNodePodManager) Start() {
+func (k *ClusterPodManager) Start() {
 	k.factory.Start(k.ctx.Done())
 	if !cache.WaitForNamedCacheSync("pod reflect controller", k.ctx.Done(), k.podSynced) {
 		klog.Errorf("failed to wait for pod caches to sync")
@@ -392,7 +393,7 @@ func (k *KNodePodManager) Start() {
 	}
 }
 
-func (k *KNodePodManager) GetPod(namespace, name string) (*corev1.Pod, error) {
+func (k *ClusterPodManager) GetPod(namespace, name string) (*corev1.Pod, error) {
 	pod, err := k.podLister.Pods(namespace).Get(name)
 	if err != nil {
 		pod, err = k.kubeClient.CoreV1().Pods(namespace).Get(context.Background(), name, metav1.GetOptions{})
@@ -404,19 +405,19 @@ func (k *KNodePodManager) GetPod(namespace, name string) (*corev1.Pod, error) {
 	return pod.DeepCopy(), nil
 }
 
-func (k *KNodePodManager) Stop() {
+func (k *ClusterPodManager) Stop() {
 	if k.cancelFun != nil {
 		k.cancelFun()
 	}
 }
 
-func (k KNodePodManager) GetPodLister() corelisters.PodLister {
+func (k ClusterPodManager) GetPodLister() corelisters.PodLister {
 	return k.podLister
 }
 
-func NewKNodePodManager(kubeClient clientset.Interface, podInformer corev1informers.PodInformer, factory informers.SharedInformerFactory) KNodePodManager {
+func NewClusterPodManager(kubeClient clientset.Interface, podInformer corev1informers.PodInformer, factory informers.SharedInformerFactory) ClusterPodManager {
 	ctx, cancelFun := context.WithCancel(context.Background())
-	return KNodePodManager{
+	return ClusterPodManager{
 		kubeClient: kubeClient,
 		podLister:  podInformer.Lister(),
 		factory:    factory,
