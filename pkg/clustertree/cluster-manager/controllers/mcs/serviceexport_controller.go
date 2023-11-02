@@ -42,19 +42,19 @@ func (c *ServiceExportController) Reconcile(ctx context.Context, request reconci
 		klog.V(4).Infof("============ %s has been reconciled =============", request.NamespacedName.String())
 	}()
 
+	var shouldDelete bool
 	serviceExport := &mcsv1alpha1.ServiceExport{}
 	if err := c.RootClient.Get(ctx, request.NamespacedName, serviceExport); err != nil {
 		// The serviceExport no longer exist, in which case we stop processing.
-		if apierrors.IsNotFound(err) {
-			return controllerruntime.Result{}, nil
+		if !apierrors.IsNotFound(err) {
+			return controllerruntime.Result{Requeue: true}, err
 		}
-
-		return controllerruntime.Result{Requeue: true}, err
+		shouldDelete = true
 	}
 
 	// The serviceExport is being deleted, in which case we should clear endpointSlice.
-	if !serviceExport.DeletionTimestamp.IsZero() {
-		if err := c.removeAnnotation(ctx, serviceExport); err != nil {
+	if shouldDelete || !serviceExport.DeletionTimestamp.IsZero() {
+		if err := c.removeAnnotation(ctx, request.Namespace, request.Name); err != nil {
 			return controllerruntime.Result{Requeue: true}, err
 		}
 		return controllerruntime.Result{}, nil
@@ -107,20 +107,20 @@ func (c *ServiceExportController) SetupWithManager(mgr manager.Manager) error {
 		Complete(c)
 }
 
-func (c *ServiceExportController) removeAnnotation(ctx context.Context, export *mcsv1alpha1.ServiceExport) error {
+func (c *ServiceExportController) removeAnnotation(ctx context.Context, namespace, name string) error {
 	var err error
 	selector := labels.SelectorFromSet(
 		map[string]string{
-			utils.ServiceKey: export.Name,
+			utils.ServiceKey: name,
 		},
 	)
 	epsList := &discoveryv1.EndpointSliceList{}
 	err = c.RootClient.List(ctx, epsList, &client.ListOptions{
-		Namespace:     export.Namespace,
+		Namespace:     namespace,
 		LabelSelector: selector,
 	})
 	if err != nil {
-		klog.Errorf("List endpointSlice in %s failed, Error: %v", export.Namespace, err)
+		klog.Errorf("List endpointSlice in %s failed, Error: %v", namespace, err)
 		return err
 	}
 
@@ -128,17 +128,17 @@ func (c *ServiceExportController) removeAnnotation(ctx context.Context, export *
 	for i := range endpointSlices {
 		newEps := &endpointSlices[i]
 		if newEps.DeletionTimestamp != nil {
-			klog.V(4).Infof("EndpointSlice %s/%s is deleting and does not need to remove serviceExport annotation", export.Namespace, newEps.Name)
+			klog.V(4).Infof("EndpointSlice %s/%s is deleting and does not need to remove serviceExport annotation", namespace, newEps.Name)
 			continue
 		}
 		helper.RemoveAnnotation(newEps, utils.ServiceExportLabelKey)
 		err = c.updateEndpointSlice(ctx, newEps, c.RootClient)
 		if err != nil {
-			klog.Errorf("Update endpointSlice (%s/%s) failed, Error: %v", export.Namespace, newEps.Name, err)
+			klog.Errorf("Update endpointSlice (%s/%s) failed, Error: %v", namespace, newEps.Name, err)
 			return err
 		}
 	}
-	klog.Infof("ServiceImport (%s/%s) deleted", export.Namespace, export.Name)
+	klog.Infof("ServiceImport (%s/%s) deleted", namespace, name)
 	return nil
 }
 
