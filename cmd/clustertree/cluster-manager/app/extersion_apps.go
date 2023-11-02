@@ -71,7 +71,7 @@ func StartDistributeController(ctx context.Context, opts *options.Options, workN
 	controller := daemonset.NewDistributeController(
 		kosmosClient,
 		kosmosFactory.Kosmos().V1alpha1().ShadowDaemonSets(),
-		kosmosFactory.Kosmos().V1alpha1().Knodes(),
+		kosmosFactory.Kosmos().V1alpha1().Clusters(),
 		option,
 	)
 	kosmosFactory.Start(ctx.Done())
@@ -102,12 +102,9 @@ func StartDaemonSetsController(ctx context.Context, opts *options.Options, workN
 	controller := daemonset.NewDaemonSetsController(
 		kosmosFactory.Kosmos().V1alpha1().ShadowDaemonSets(),
 		kosmosFactory.Kosmos().V1alpha1().DaemonSets(),
-		kosmosFactory.Kosmos().V1alpha1().Knodes(),
+		kosmosFactory.Kosmos().V1alpha1().Clusters(),
 		kubeClient,
 		kosmosClient,
-		kosmosFactory.Kosmos().V1alpha1().DaemonSets().Lister(),
-		kosmosFactory.Kosmos().V1alpha1().ShadowDaemonSets().Lister(),
-		kosmosFactory.Kosmos().V1alpha1().Knodes().Lister(),
 		option,
 	)
 	kosmosFactory.Start(ctx.Done())
@@ -170,7 +167,7 @@ func StartPodReflectController(ctx context.Context, opts *options.Options, workN
 		kubeClient,
 		kubeFactory.Apps().V1().DaemonSets(),
 		kosmosFactory.Kosmos().V1alpha1().DaemonSets(),
-		kosmosFactory.Kosmos().V1alpha1().Knodes(),
+		kosmosFactory.Kosmos().V1alpha1().Clusters(),
 		kubeFactory.Core().V1().Pods(),
 		option,
 	)

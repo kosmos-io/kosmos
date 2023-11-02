@@ -38,7 +38,7 @@ type DaemonSetsController struct {
 
 	sdsLister kosmoslister.ShadowDaemonSetLister
 
-	kNodeLister kosmoslister.KnodeLister
+	clusterLister kosmoslister.ClusterLister
 
 	eventBroadcaster record.EventBroadcaster
 
@@ -48,7 +48,7 @@ type DaemonSetsController struct {
 
 	shadowDaemonSetSynced cache.InformerSynced
 
-	kNodeSynced cache.InformerSynced
+	clusterSynced cache.InformerSynced
 
 	processor utils.AsyncWorker
 
@@ -59,12 +59,9 @@ type DaemonSetsController struct {
 func NewDaemonSetsController(
 	shadowDaemonSetInformer kosmosinformer.ShadowDaemonSetInformer,
 	daemonSetInformer kosmosinformer.DaemonSetInformer,
-	kNodeInformer kosmosinformer.KnodeInformer,
+	clusterInformer kosmosinformer.ClusterInformer,
 	kubeClient clientset.Interface,
 	kosmosClient versioned.Interface,
-	dsLister kosmoslister.DaemonSetLister,
-	sdsLister kosmoslister.ShadowDaemonSetLister,
-	kNodeLister kosmoslister.KnodeLister,
 	rateLimiterOptions flags.Options,
 ) *DaemonSetsController {
 	err := kosmosv1alpha1.Install(scheme.Scheme)
@@ -76,9 +73,9 @@ func NewDaemonSetsController(
 	dsc := &DaemonSetsController{
 		kubeClient:         kubeClient,
 		kosmosClient:       kosmosClient,
-		dsLister:           dsLister,
-		sdsLister:          sdsLister,
-		kNodeLister:        kNodeLister,
+		dsLister:           daemonSetInformer.Lister(),
+		sdsLister:          shadowDaemonSetInformer.Lister(),
+		clusterLister:      clusterInformer.Lister(),
 		eventBroadcaster:   eventBroadcaster,
 		eventRecorder:      eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: "daemonset-controller"}),
 		rateLimiterOptions: rateLimiterOptions,
@@ -107,11 +104,12 @@ func NewDaemonSetsController(
 	dsc.daemonSetSynced = daemonSetInformer.Informer().HasSynced
 
 	// nolint:errcheck
-	kNodeInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    dsc.addKNode,
+	clusterInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    dsc.addCluster,
+		UpdateFunc: dsc.updateCluster,
 		DeleteFunc: dsc.deleteKNode,
 	})
-	dsc.kNodeSynced = kNodeInformer.Informer().HasSynced
+	dsc.clusterSynced = clusterInformer.Informer().HasSynced
 
 	return dsc
 }
@@ -137,8 +135,8 @@ func (dsc *DaemonSetsController) Run(ctx context.Context, workers int) {
 	}
 	dsc.processor = utils.NewAsyncWorker(opt)
 
-	if !cache.WaitForNamedCacheSync("kosmos_daemonset_controller", ctx.Done(), dsc.daemonSetSynced, dsc.shadowDaemonSetSynced, dsc.kNodeSynced) {
-		klog.V(2).Infof("Timed out waiting for caches to sync")
+	if !cache.WaitForNamedCacheSync("kosmos_daemonset_controller", ctx.Done(), dsc.daemonSetSynced, dsc.shadowDaemonSetSynced, dsc.clusterSynced) {
+		klog.Errorf("Timed out waiting for caches to sync")
 		return
 	}
 	dsc.processor.Run(workers, ctx.Done())
@@ -192,7 +190,7 @@ func (dsc *DaemonSetsController) deleteShadowDaemonSet(obj interface{}) {
 	dsc.processShadowDaemonSet(sds)
 }
 
-func (dsc *DaemonSetsController) processKNode(knode *kosmosv1alpha1.Knode) {
+func (dsc *DaemonSetsController) processCluster(cluster *kosmosv1alpha1.Cluster) {
 	//TODO add should run on node logic
 	list, err := dsc.dsLister.List(labels.Everything())
 	if err != nil {
@@ -204,22 +202,25 @@ func (dsc *DaemonSetsController) processKNode(knode *kosmosv1alpha1.Knode) {
 	}
 }
 
-func (dsc *DaemonSetsController) addKNode(obj interface{}) {
-	kNode := obj.(*kosmosv1alpha1.Knode)
-	klog.V(4).Infof("adding knode %s", kNode.Name)
-	dsc.processKNode(kNode)
+func (dsc *DaemonSetsController) addCluster(obj interface{}) {
+	cluster := obj.(*kosmosv1alpha1.Cluster)
+	dsc.processCluster(cluster)
+}
+
+func (dsc *DaemonSetsController) updateCluster(old interface{}, new interface{}) {
+	cluster := new.(*kosmosv1alpha1.Cluster)
+	dsc.processCluster(cluster)
 }
 
 func (dsc *DaemonSetsController) deleteKNode(obj interface{}) {
-	kNode := obj.(*kosmosv1alpha1.Knode)
-	klog.V(4).Infof("deleting knode %s", kNode.Name)
-	dsc.processKNode(kNode)
+	cluster := obj.(*kosmosv1alpha1.Cluster)
+	dsc.processCluster(cluster)
 }
 
 func (dsc *DaemonSetsController) syncDaemonSet(key utils.QueueKey) error {
 	clusterWideKey, ok := key.(keys.ClusterWideKey)
 	if !ok {
-		klog.V(2).Infof("invalid key type %T", key)
+		klog.Errorf("invalid key type %T", key)
 		return fmt.Errorf("invalid key")
 	}
 
@@ -235,31 +236,33 @@ func (dsc *DaemonSetsController) syncDaemonSet(key utils.QueueKey) error {
 
 	err = dsc.removeOrphanShadowDaemonSet(ds)
 	if err != nil {
-		klog.V(2).Infof("failed to remove orphan shadow daemon set for daemon set %s err: %v", ds.Name, err)
+		klog.Errorf("failed to remove orphan shadow daemon set for daemon set %s err: %v", ds.Name, err)
 		return err
 	}
 
-	kNodeList, err := dsc.kNodeLister.List(labels.Everything())
+	clusterList, err := dsc.clusterLister.List(labels.Everything())
 	if err != nil {
-		return fmt.Errorf("couldn't get list of knodes when syncing daemon set %#v: %v", ds, err)
+		return fmt.Errorf("couldn't get list of cluster when syncing daemon set %#v: %v", ds, err)
 	}
+
 	// sync daemonset
 	// sync host shadowDaemonSet
 	sdsHost := createShadowDaemonSet(ds, kosmosv1alpha1.RefTypeHost, "")
 	err = dsc.createOrUpdate(context.TODO(), sdsHost)
 	if err != nil {
-		klog.V(2).Infof("failed sync ShadowDaemonSet %s err: %v", sdsHost.DaemonSetSpec, err)
+		klog.Errorf("failed sync ShadowDaemonSet %s err: %v", sdsHost.DaemonSetSpec, err)
 		return err
 	}
 
 	// sync member shadowDaemonSet
-	for _, knode := range kNodeList {
-		if knode.DeletionTimestamp == nil {
-			memberSds := createShadowDaemonSet(ds, kosmosv1alpha1.RefTypeMember, knode.Name)
+	for _, cluster := range clusterList {
+		if cluster.DeletionTimestamp == nil {
+			memberSds := createShadowDaemonSet(ds, kosmosv1alpha1.RefTypeMember, cluster.Name)
 			err = dsc.createOrUpdate(context.TODO(), memberSds)
 			if err != nil {
-				klog.V(2).Infof("failed sync ShadowDaemonSet %s err: %v", sdsHost.DaemonSetSpec, err)
-				return err
+				klog.Errorf("failed sync ShadowDaemonSet %s err: %v", memberSds.DaemonSetSpec, err)
+				//klog.Errorf("failed sync ShadowDaemonSet %s err: %v", sdsHost.DaemonSetSpec, err)
+				//return err
 			}
 		}
 	}
@@ -278,7 +281,7 @@ func (dsc *DaemonSetsController) createOrUpdate(ctx context.Context, ds *kosmosv
 			// create new
 			_, err := dsc.kosmosClient.KosmosV1alpha1().ShadowDaemonSets(ds.Namespace).Create(ctx, ds, metav1.CreateOptions{})
 			if err != nil {
-				klog.V(2).Infof("Failed create ShadowDaemonSet %s err: %v", ds.Name, err)
+				klog.Errorf("Failed create ShadowDaemonSet %s err: %v", ds.Name, err)
 				return err
 			}
 			return nil
@@ -290,13 +293,13 @@ func (dsc *DaemonSetsController) createOrUpdate(ctx context.Context, ds *kosmosv
 		desired.SetAnnotations(ds.Annotations)
 		_, err = dsc.kosmosClient.KosmosV1alpha1().ShadowDaemonSets(ds.Namespace).Update(ctx, desired, metav1.UpdateOptions{})
 		if err != nil {
-			klog.V(2).Infof("Failed update ShadowDaemonSet %s err: %v", ds.Name, err)
+			klog.Errorf("Failed update ShadowDaemonSet %s err: %v", ds.Name, err)
 			return err
 		}
 		return nil
 	})
 	if err != nil {
-		klog.V(2).Infof("Failed create or update ShadowDaemonSet %s err: %v", ds.Name, err)
+		klog.Errorf("Failed create or update ShadowDaemonSet %s err: %v", ds.Name, err)
 		return err
 	}
 	return nil
@@ -305,7 +308,7 @@ func (dsc *DaemonSetsController) createOrUpdate(ctx context.Context, ds *kosmosv
 func (dsc *DaemonSetsController) updateStatus(ctx context.Context, ds *kosmosv1alpha1.DaemonSet) error {
 	sds, err := listAllShadowDaemonSet(dsc.sdsLister, ds)
 	if err != nil {
-		klog.V(2).Infof("Failed list ShadowDaemonSet for %s err: %v", ds.Name, err)
+		klog.Errorf("Failed list ShadowDaemonSet for %s err: %v", ds.Name, err)
 		return err
 	}
 	desiredNumberScheduled := int32(0)
@@ -335,7 +338,7 @@ func (dsc *DaemonSetsController) updateStatus(ctx context.Context, ds *kosmosv1a
 	toUpdate.Status.NumberUnavailable = numberUnavailable
 
 	if _, updateErr := dsc.kosmosClient.KosmosV1alpha1().DaemonSets(ds.Namespace).UpdateStatus(ctx, toUpdate, metav1.UpdateOptions{}); updateErr != nil {
-		klog.V(2).Infof("Failed update DaemonSet %s status err: %v", ds.Name, updateErr)
+		klog.Errorf("Failed update DaemonSet %s status err: %v", ds.Name, updateErr)
 		return updateErr
 	}
 	return nil
@@ -347,7 +350,7 @@ func (dsc *DaemonSetsController) resolveControllerRef(namespace string, ref *met
 	}
 	ds, err := dsc.dsLister.DaemonSets(namespace).Get(ref.Name)
 	if err != nil {
-		klog.V(2).Infof("Failed get DaemonSet %s err: %v", ref.Name, err)
+		klog.Errorf("Failed get DaemonSet %s err: %v", ref.Name, err)
 		return nil
 	}
 	return ds
@@ -356,28 +359,28 @@ func (dsc *DaemonSetsController) resolveControllerRef(namespace string, ref *met
 func (dsc *DaemonSetsController) removeOrphanShadowDaemonSet(ds *kosmosv1alpha1.DaemonSet) error {
 	allSds, err := listAllShadowDaemonSet(dsc.sdsLister, ds)
 	if err != nil {
-		klog.V(2).Infof("Failed list ShadowDaemonSet for %s err: %v", ds.Name, err)
+		klog.Errorf("Failed list ShadowDaemonSet for %s err: %v", ds.Name, err)
 		return err
 	}
-	kNodeList, err := dsc.kNodeLister.List(labels.Everything())
+	clusterList, err := dsc.clusterLister.List(labels.Everything())
 	if err != nil {
-		klog.V(2).Infof("couldn't get list of knodes when syncing daemon set %#v: %v", ds, err)
+		klog.Errorf("couldn't get list of clusters when syncing daemon set %#v: %v", ds, err)
 		return err
 	}
-	knodeSet := make(map[string]interface{})
-	for _, kNode := range kNodeList {
-		knodeSet[kNode.Name] = struct{}{}
+	clusterSet := make(map[string]interface{})
+	for _, cluster := range clusterList {
+		clusterSet[cluster.Name] = struct{}{}
 	}
 
 	for _, s := range allSds {
 		if s.RefType == kosmosv1alpha1.RefTypeHost {
 			continue
 		}
-		if _, ok := knodeSet[s.Knode]; !ok {
+		if _, ok := clusterSet[s.Cluster]; !ok {
 			err = dsc.kosmosClient.KosmosV1alpha1().ShadowDaemonSets(s.Namespace).Delete(context.TODO(), s.Name,
 				metav1.DeleteOptions{})
 			if err != nil {
-				klog.V(2).Infof("Failed delete ShadowDaemonSet %s err: %v", s.Name, err)
+				klog.Errorf("Failed delete ShadowDaemonSet %s err: %v", s.Name, err)
 				return err
 			}
 		}
@@ -388,7 +391,7 @@ func (dsc *DaemonSetsController) removeOrphanShadowDaemonSet(ds *kosmosv1alpha1.
 func listAllShadowDaemonSet(lister kosmoslister.ShadowDaemonSetLister, ds *kosmosv1alpha1.DaemonSet) ([]*kosmosv1alpha1.ShadowDaemonSet, error) {
 	list, err := lister.ShadowDaemonSets(ds.Namespace).List(labels.Everything())
 	if err != nil {
-		klog.V(2).Infof("Failed list ShadowDaemonSet for %s err: %v", ds.Name, err)
+		klog.Errorf("Failed list ShadowDaemonSet for %s err: %v", ds.Name, err)
 		return nil, err
 	}
 	var sds []*kosmosv1alpha1.ShadowDaemonSet
@@ -404,13 +407,13 @@ func listAllShadowDaemonSet(lister kosmoslister.ShadowDaemonSetLister, ds *kosmo
 	return sds, nil
 }
 
-func createShadowDaemonSet(ds *kosmosv1alpha1.DaemonSet, refType kosmosv1alpha1.RefType, nodeName string) *kosmosv1alpha1.ShadowDaemonSet {
+func createShadowDaemonSet(ds *kosmosv1alpha1.DaemonSet, refType kosmosv1alpha1.RefType, cluster string) *kosmosv1alpha1.ShadowDaemonSet {
 	suffix := "-host"
 	if refType != kosmosv1alpha1.RefTypeHost {
-		suffix = "-" + nodeName
+		suffix = "-" + cluster
 	}
 	var sds *kosmosv1alpha1.ShadowDaemonSet
-	if nodeName != "" {
+	if cluster != "" {
 		sds = &kosmosv1alpha1.ShadowDaemonSet{
 			ObjectMeta: metav1.ObjectMeta{
 				Annotations:     ds.Annotations,
@@ -420,7 +423,7 @@ func createShadowDaemonSet(ds *kosmosv1alpha1.DaemonSet, refType kosmosv1alpha1.
 				OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(ds, ControllerKind)},
 			},
 			RefType:       refType,
-			Knode:         nodeName,
+			Cluster:       cluster,
 			DaemonSetSpec: ds.Spec,
 		}
 	} else {
