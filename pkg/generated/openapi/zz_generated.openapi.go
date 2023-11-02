@@ -27,6 +27,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterSpec":         schema_pkg_apis_kosmos_v1alpha1_ClusterSpec(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterStatus":       schema_pkg_apis_kosmos_v1alpha1_ClusterStatus(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterTreeOptions":  schema_pkg_apis_kosmos_v1alpha1_ClusterTreeOptions(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterTreeStatus":   schema_pkg_apis_kosmos_v1alpha1_ClusterTreeStatus(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.DaemonSet":           schema_pkg_apis_kosmos_v1alpha1_DaemonSet(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.DaemonSetList":       schema_pkg_apis_kosmos_v1alpha1_DaemonSetList(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.DaemonSetSpec":       schema_pkg_apis_kosmos_v1alpha1_DaemonSetSpec(ref),
@@ -38,6 +39,8 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.KnodeList":           schema_pkg_apis_kosmos_v1alpha1_KnodeList(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.KnodeSpec":           schema_pkg_apis_kosmos_v1alpha1_KnodeSpec(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.KnodeStatus":         schema_pkg_apis_kosmos_v1alpha1_KnodeStatus(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.LeafModel":           schema_pkg_apis_kosmos_v1alpha1_LeafModel(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.LeafNodeItem":        schema_pkg_apis_kosmos_v1alpha1_LeafNodeItem(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NICNodeNames":        schema_pkg_apis_kosmos_v1alpha1_NICNodeNames(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeConfig":          schema_pkg_apis_kosmos_v1alpha1_NodeConfig(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeConfigList":      schema_pkg_apis_kosmos_v1alpha1_NodeConfigList(ref),
@@ -597,15 +600,23 @@ func schema_pkg_apis_kosmos_v1alpha1_ClusterStatus(ref common.ReferenceCallback)
 				Properties: map[string]spec.Schema{
 					"clusterLinkStatus": {
 						SchemaProps: spec.SchemaProps{
-							Default: map[string]interface{}{},
-							Ref:     ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterLinkStatus"),
+							Description: "ClusterLinkStatus contain the cluster network information",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterLinkStatus"),
+						},
+					},
+					"clusterTreeStatus": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ClusterTreeStatus contain the member cluster leafNode end status",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterTreeStatus"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterLinkStatus"},
+			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterLinkStatus", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterTreeStatus"},
 	}
 }
 
@@ -622,9 +633,53 @@ func schema_pkg_apis_kosmos_v1alpha1_ClusterTreeOptions(ref common.ReferenceCall
 							Format:  "",
 						},
 					},
+					"leafModel": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LeafModel provide an api to arrange the member cluster with some rules to pretend one or more leaf node",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.LeafModel"),
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
+		Dependencies: []string{
+			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.LeafModel"},
+	}
+}
+
+func schema_pkg_apis_kosmos_v1alpha1_ClusterTreeStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"leafNodeItems": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LeafNodeItems represents list of the leaf node Items calculating in each member cluster.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.LeafNodeItem"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.LeafNodeItem"},
 	}
 }
 
@@ -1184,6 +1239,84 @@ func schema_pkg_apis_kosmos_v1alpha1_KnodeStatus(ref common.ReferenceCallback) c
 		},
 		Dependencies: []string{
 			"k8s.io/apimachinery/pkg/apis/meta/v1.Condition"},
+	}
+}
+
+func schema_pkg_apis_kosmos_v1alpha1_LeafModel(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"leafNodeName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LeafNodeName defines leaf name If nil or empty, the leaf node name will generate by controller and fill in cluster link status",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"labels": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Labels that will be setting in the pretended Node labels",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"taints": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Taints attached to the leaf pretended Node. If nil or empty, controller will set the default no-schedule taint",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/api/core/v1.Taint"),
+									},
+								},
+							},
+						},
+					},
+					"labelSelector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LabelSelector is a filter to select member cluster nodes to pretend a leaf node in clusterTree by labels. If nil or empty, the hole member cluster nodes will pretend one leaf node.",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/api/core/v1.Taint", "k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
+	}
+}
+
+func schema_pkg_apis_kosmos_v1alpha1_LeafNodeItem(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"leafNodeName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LeafNodeName represents the leaf node name generate by controller. suggest name format like cluster-shortLabel-number like member-az1-1",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"leafNodeName"},
+			},
+		},
 	}
 }
 
