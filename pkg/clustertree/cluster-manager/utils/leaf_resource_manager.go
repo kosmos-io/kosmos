@@ -9,6 +9,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+var (
+	instance LeafResourceManager
+	once     sync.Once
+)
+
 type LeafResource struct {
 	Client               client.Client
 	DynamicClient        dynamic.Interface
@@ -74,8 +79,12 @@ func (l *leafResourceManager) ListNodeNames() []string {
 	return keys
 }
 
-func NewLeafResourceManager() LeafResourceManager {
-	return &leafResourceManager{
-		resourceMap: make(map[string]*LeafResource),
-	}
+func GetGlobalLeafResourceManager() LeafResourceManager {
+	once.Do(func() {
+		instance = &leafResourceManager{
+			resourceMap: make(map[string]*LeafResource),
+		}
+	})
+
+	return instance
 }
