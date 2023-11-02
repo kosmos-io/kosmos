@@ -2,7 +2,6 @@ package join
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,8 +11,6 @@ import (
 	extensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	k8syaml "k8s.io/apimachinery/pkg/runtime/serializer/yaml"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -24,10 +21,11 @@ import (
 	"k8s.io/kubectl/pkg/util/i18n"
 	"k8s.io/kubectl/pkg/util/templates"
 
+	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
+	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/manifest"
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/util"
 	"github.com/kosmos.io/kosmos/pkg/utils"
-	"github.com/kosmos.io/kosmos/pkg/version"
 )
 
 var joinExample = templates.Examples(i18n.T(`
@@ -39,22 +37,29 @@ var joinExample = templates.Examples(i18n.T(`
 `))
 
 type CommandJoinOptions struct {
+	Name                 string
+	Namespace            string
+	ImageRegistry        string
 	KubeConfig           string
+	KubeConfigStream     []byte
 	HostKubeConfig       string
 	HostKubeConfigStream []byte
+	WaitTime             int
+	RootFlag             bool
 
-	Name           string
+	EnableLink     bool
 	CNI            string
 	DefaultNICName string
-	ImageRegistry  string
 	NetworkType    string
 	IpFamily       string
 	UseProxy       string
-	WaitTime       int
 
-	Client           kubernetes.Interface
-	DynamicClient    *dynamic.DynamicClient
-	ExtensionsClient extensionsclient.Interface
+	EnableTree bool
+
+	KosmosClient        versioned.Interface
+	K8sClient           kubernetes.Interface
+	K8sDynamicClient    *dynamic.DynamicClient
+	K8sExtensionsClient extensionsclient.Interface
 }
 
 // NewCmdJoin join resource to Kosmos control plane.
@@ -77,16 +82,18 @@ func NewCmdJoin(f ctlutil.Factory) *cobra.Command {
 	}
 
 	flags := cmd.Flags()
+	flags.StringVar(&o.Name, "name", "", "Specify the name of the resource to join.")
 	flags.StringVar(&o.KubeConfig, "kubeconfig", "", "Absolute path to the cluster kubeconfig file.")
 	flags.StringVar(&o.HostKubeConfig, "host-kubeconfig", "", "Absolute path to the special host kubeconfig file.")
-	flags.StringVar(&o.Name, "name", "", "Specify the name of the resource to join.")
+	flags.StringVar(&o.ImageRegistry, "private-image-registry", utils.DefaultImageRepository, "Private image registry where pull images from. If set, all required images will be downloaded from it, it would be useful in offline installation scenarios.  In addition, you still can use --kube-image-registry to specify the registry for Kubernetes's images.")
+	flags.BoolVar(&o.EnableLink, "enable-link", true, "Turn on clusterlink.")
 	flags.StringVar(&o.CNI, "cni", "", "The cluster is configured using cni and currently supports calico and flannel.")
 	flags.StringVar(&o.DefaultNICName, "default-nic", "", "Set default network interface card.")
-	flags.StringVar(&o.ImageRegistry, "private-image-registry", utils.DefaultImageRepository, "Private image registry where pull images from. If set, all required images will be downloaded from it, it would be useful in offline installation scenarios.  In addition, you still can use --kube-image-registry to specify the registry for Kubernetes's images.")
 	flags.StringVar(&o.NetworkType, "network-type", utils.NetworkTypeGateway, "Set the cluster network connection mode, which supports gateway and p2p modes, gateway is used by default.")
-	flags.StringVar(&o.IpFamily, "ip-family", utils.DefaultIpFamily, "Specify the IP protocol version used by network devices, common IP families include IPv4 and IPv6.")
+	flags.StringVar(&o.IpFamily, "ip-family", utils.DefaultIPv4, "Specify the IP protocol version used by network devices, common IP families include IPv4 and IPv6.")
 	flags.StringVar(&o.UseProxy, "use-proxy", "false", "Set whether to enable proxy.")
-	flags.IntVarP(&o.WaitTime, "wait-time", "", 120, "Wait the specified time for the Kosmos install ready.")
+	flags.BoolVar(&o.EnableTree, "enable-tree", true, "Turn on clustertree.")
+	flags.IntVarP(&o.WaitTime, "wait-time", "", utils.DefaultWaitTime, "Wait the specified time for the Kosmos install ready.")
 
 	return cmd
 }
@@ -116,22 +123,33 @@ func (o *CommandJoinOptions) Complete(f ctlutil.Factory) error {
 		}
 	}
 
-	o.DynamicClient, err = dynamic.NewForConfig(hostConfig)
+	o.KosmosClient, err = versioned.NewForConfig(hostConfig)
+	if err != nil {
+		return fmt.Errorf("kosmosctl install complete error, generate Kosmos client failed: %v", err)
+	}
+
+	o.K8sDynamicClient, err = dynamic.NewForConfig(hostConfig)
 	if err != nil {
 		return fmt.Errorf("kosmosctl join complete error, generate dynamic client failed: %s", err)
 	}
 
 	if len(o.KubeConfig) > 0 {
+		o.KubeConfigStream, err = os.ReadFile(o.KubeConfig)
+		if err != nil {
+			return fmt.Errorf("kosmosctl join run error, read KubeConfigStream failed: %s", err)
+		}
+
 		clusterConfig, err = clientcmd.BuildConfigFromFlags("", o.KubeConfig)
 		if err != nil {
 			return fmt.Errorf("kosmosctl join complete error, generate clusterConfig failed: %s", err)
 		}
 
-		o.Client, err = kubernetes.NewForConfig(clusterConfig)
+		o.K8sClient, err = kubernetes.NewForConfig(clusterConfig)
 		if err != nil {
 			return fmt.Errorf("kosmosctl join complete error, generate basic client failed: %v", err)
 		}
-		o.ExtensionsClient, err = extensionsclient.NewForConfig(clusterConfig)
+
+		o.K8sExtensionsClient, err = extensionsclient.NewForConfig(clusterConfig)
 		if err != nil {
 			return fmt.Errorf("kosmosctl join complete error, generate extensions client failed: %v", err)
 		}
@@ -149,17 +167,10 @@ func (o *CommandJoinOptions) Validate(args []string) error {
 
 	switch args[0] {
 	case "cluster":
-		_, err := o.DynamicClient.Resource(util.ClusterGVR).Get(context.TODO(), o.Name, metav1.GetOptions{})
+		_, err := o.K8sDynamicClient.Resource(util.ClusterGVR).Get(context.TODO(), o.Name, metav1.GetOptions{})
 		if err != nil {
 			if apierrors.IsAlreadyExists(err) {
 				return fmt.Errorf("kosmosctl join validate error, clsuter already exists: %s", err)
-			}
-		}
-	case "knode":
-		_, err := o.DynamicClient.Resource(util.KnodeGVR).Get(context.TODO(), o.Name, metav1.GetOptions{})
-		if err != nil && apierrors.IsAlreadyExists(err) {
-			if apierrors.IsAlreadyExists(err) {
-				return fmt.Errorf("kosmosctl join validate error, knode already exists: %s", err)
 			}
 		}
 	}
@@ -174,11 +185,6 @@ func (o *CommandJoinOptions) Run(args []string) error {
 		if err != nil {
 			return err
 		}
-	case "knode":
-		err := o.runKnode()
-		if err != nil {
-			return err
-		}
 	}
 
 	return nil
@@ -186,45 +192,61 @@ func (o *CommandJoinOptions) Run(args []string) error {
 
 func (o *CommandJoinOptions) runCluster() error {
 	klog.Info("Start registering cluster to kosmos control plane...")
-	// 1. create cluster in master
-	clusterKubeConfigByte, err := os.ReadFile(o.KubeConfig)
-	if err != nil {
-		return fmt.Errorf("kosmosctl join run error, decode cluster cr failed: %s", err)
+	// create cluster in control panel
+	cluster := v1alpha1.Cluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: o.Name,
+		},
+		Spec: v1alpha1.ClusterSpec{
+			ImageRepository: o.ImageRegistry,
+			Kubeconfig:      o.KubeConfigStream,
+			Namespace:       o.Namespace,
+		},
 	}
-	base64ClusterKubeConfig := base64.StdEncoding.EncodeToString(clusterKubeConfigByte)
-	clusterByte, err := util.GenerateCustomResource(manifest.ClusterCR, manifest.ClusterReplace{
-		ClusterName:     o.Name,
-		CNI:             o.CNI,
-		DefaultNICName:  o.DefaultNICName,
-		ImageRepository: o.ImageRegistry,
-		NetworkType:     o.NetworkType,
-		IpFamily:        o.IpFamily,
-		KubeConfig:      base64ClusterKubeConfig,
-	})
-	if err != nil {
-		return err
+
+	cluster.Spec.ClusterLinkOptions.Enable = o.EnableLink
+	cluster.Spec.ClusterTreeOptions.Enable = o.EnableTree
+
+	if o.EnableLink {
+		switch o.NetworkType {
+		case utils.NetworkTypeGateway:
+			cluster.Spec.ClusterLinkOptions.NetworkType = v1alpha1.NetWorkTypeGateWay
+		case utils.NetworkTypeP2P:
+			cluster.Spec.ClusterLinkOptions.NetworkType = v1alpha1.NetworkTypeP2P
+		}
+
+		switch o.IpFamily {
+		case utils.DefaultIPv4:
+			cluster.Spec.ClusterLinkOptions.IPFamily = v1alpha1.IPFamilyTypeIPV4
+		case utils.DefaultIPv6:
+			cluster.Spec.ClusterLinkOptions.IPFamily = v1alpha1.IPFamilyTypeIPV6
+		}
+
+		cluster.Spec.ClusterLinkOptions.CNI = o.CNI
+		cluster.Spec.ClusterLinkOptions.DefaultNICName = o.DefaultNICName
 	}
-	decoder := k8syaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
-	obj := &unstructured.Unstructured{}
-	_, _, err = decoder.Decode(clusterByte, nil, obj)
-	if err != nil {
-		return fmt.Errorf("(cluster) kosmosctl join run error, decode cluster cr failed: %s", err)
+
+	// ToDo if enable ClusterTree
+
+	if o.RootFlag {
+		cluster.Annotations[utils.RootClusterAnnotationKey] = utils.RootClusterAnnotationValue
 	}
-	_, err = o.DynamicClient.Resource(util.ClusterGVR).Namespace("").Create(context.TODO(), obj, metav1.CreateOptions{})
+
+	_, err := o.KosmosClient.KosmosV1alpha1().Clusters().Create(context.TODO(), &cluster, metav1.CreateOptions{})
 	if err != nil {
 		return fmt.Errorf("kosmosctl join run error, create cluster failed: %s", err)
 	}
-	klog.Info("Cluster: " + o.Name + " has been created.")
+	klog.Info("Cluster " + o.Name + " has been created.")
 
-	// 2. create namespace in member
+	// create ns if it does not exist
 	namespace := &corev1.Namespace{}
 	namespace.Name = utils.DefaultNamespace
-	_, err = o.Client.CoreV1().Namespaces().Create(context.TODO(), namespace, metav1.CreateOptions{})
+	_, err = o.K8sClient.CoreV1().Namespaces().Create(context.TODO(), namespace, metav1.CreateOptions{})
 	if err != nil && !apierrors.IsAlreadyExists(err) {
 		return fmt.Errorf("kosmosctl join run error, create namespace failed: %s", err)
 	}
 
-	// 3. create secret in member
+	// create rbac
 	secret := &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
@@ -235,125 +257,49 @@ func (o *CommandJoinOptions) runCluster() error {
 			"kubeconfig": o.HostKubeConfigStream,
 		},
 	}
-	_, err = o.Client.CoreV1().Secrets(secret.Namespace).Create(context.TODO(), secret, metav1.CreateOptions{})
+	_, err = o.K8sClient.CoreV1().Secrets(secret.Namespace).Create(context.TODO(), secret, metav1.CreateOptions{})
 	if err != nil && !apierrors.IsAlreadyExists(err) {
 		return fmt.Errorf("kosmosctl join run error, create secret failed: %s", err)
 	}
-	klog.Info("Secret: " + secret.Name + " has been created.")
+	klog.Info("Secret " + secret.Name + " has been created.")
 
-	// 4. create rbac in member
-	clusterRole, err := util.GenerateClusterRole(manifest.ClusterlinkClusterRole, nil)
+	clusterRole, err := util.GenerateClusterRole(manifest.KosmosClusterRole, nil)
 	if err != nil {
 		return fmt.Errorf("kosmosctl join run error, generate clusterrole failed: %s", err)
 	}
-	_, err = o.Client.RbacV1().ClusterRoles().Create(context.TODO(), clusterRole, metav1.CreateOptions{})
+	_, err = o.K8sClient.RbacV1().ClusterRoles().Create(context.TODO(), clusterRole, metav1.CreateOptions{})
 	if err != nil && !apierrors.IsAlreadyExists(err) {
 		return fmt.Errorf("kosmosctl join run error, create clusterrole failed: %s", err)
 	}
-	klog.Info("ClusterRole: " + clusterRole.Name + " has been created.")
+	klog.Info("ClusterRole " + clusterRole.Name + " has been created.")
 
-	clusterRoleBinding, err := util.GenerateClusterRoleBinding(manifest.ClusterlinkClusterRoleBinding, manifest.ClusterRoleBindingReplace{
+	clusterRoleBinding, err := util.GenerateClusterRoleBinding(manifest.KosmosClusterRoleBinding, manifest.ClusterRoleBindingReplace{
 		Namespace: utils.DefaultNamespace,
 	})
 	if err != nil {
 		return fmt.Errorf("kosmosctl join run error, generate clusterrolebinding failed: %s", err)
 	}
-	_, err = o.Client.RbacV1().ClusterRoleBindings().Create(context.TODO(), clusterRoleBinding, metav1.CreateOptions{})
+	_, err = o.K8sClient.RbacV1().ClusterRoleBindings().Create(context.TODO(), clusterRoleBinding, metav1.CreateOptions{})
 	if err != nil && !apierrors.IsAlreadyExists(err) {
 		return fmt.Errorf("kosmosctl join run error, create clusterrolebinding failed: %s", err)
 	}
-	klog.Info("ClusterRoleBinding: " + clusterRoleBinding.Name + " has been created.")
+	klog.Info("ClusterRoleBinding " + clusterRoleBinding.Name + " has been created.")
 
-	// 5. create operator in member
-	serviceAccount, err := util.GenerateServiceAccount(manifest.ClusterlinkOperatorServiceAccount, manifest.ServiceAccountReplace{
+	serviceAccount, err := util.GenerateServiceAccount(manifest.KosmosOperatorServiceAccount, manifest.ServiceAccountReplace{
 		Namespace: utils.DefaultNamespace,
 	})
 	if err != nil {
 		return fmt.Errorf("kosmosctl join run error, generate serviceaccount failed: %s", err)
 	}
-	_, err = o.Client.CoreV1().ServiceAccounts(serviceAccount.Namespace).Create(context.TODO(), serviceAccount, metav1.CreateOptions{})
+	_, err = o.K8sClient.CoreV1().ServiceAccounts(serviceAccount.Namespace).Create(context.TODO(), serviceAccount, metav1.CreateOptions{})
 	if err != nil && !apierrors.IsAlreadyExists(err) {
 		return fmt.Errorf("kosmosctl join run error, create serviceaccount failed: %s", err)
 	}
-	klog.Info("ServiceAccount: " + serviceAccount.Name + " has been created.")
+	klog.Info("ServiceAccount " + serviceAccount.Name + " has been created.")
 
-	deployment, err := util.GenerateDeployment(manifest.ClusterlinkOperatorDeployment, manifest.ClusterlinkDeploymentReplace{
-		Namespace:       utils.DefaultNamespace,
-		Version:         version.GetReleaseVersion().PatchRelease(),
-		ClusterName:     o.Name,
-		UseProxy:        o.UseProxy,
-		ImageRepository: o.ImageRegistry,
-	})
-	if err != nil {
-		return fmt.Errorf("kosmosctl join run error, generate deployment failed: %s", err)
-	}
-	_, err = o.Client.AppsV1().Deployments(deployment.Namespace).Create(context.TODO(), deployment, metav1.CreateOptions{})
-	if err != nil && !apierrors.IsAlreadyExists(err) {
-		return fmt.Errorf("kosmosctl join run error, create deployment failed: %s", err)
-	}
-	label := map[string]string{"app": deployment.Labels["app"]}
-	if err = util.WaitPodReady(o.Client, deployment.Namespace, util.MapToString(label), o.WaitTime); err != nil {
-		return fmt.Errorf("kosmosctl join run error, create deployment failed: %s", err)
-	} else {
-		klog.Info("Deployment: " + deployment.Name + " has been created.")
-		klog.Info("Cluster [" + o.Name + "] registration successful.")
-	}
+	//ToDo Wait for all services to be running
 
-	return nil
-}
-
-func (o *CommandJoinOptions) runKnode() error {
-	klog.Info("Start registering knode to kosmos control plane...")
-	clusterKubeConfigByte, err := os.ReadFile(o.KubeConfig)
-	if err != nil {
-		return fmt.Errorf("kosmosctl join run error, decode knode cr failed: %s", err)
-	}
-	base64ClusterKubeConfig := base64.StdEncoding.EncodeToString(clusterKubeConfigByte)
-	knodeByte, err := util.GenerateCustomResource(manifest.KnodeCR, manifest.KnodeReplace{
-		KnodeName:       o.Name,
-		KnodeKubeConfig: base64ClusterKubeConfig,
-	})
-	if err != nil {
-		return err
-	}
-	decoder := k8syaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
-	obj := &unstructured.Unstructured{}
-	_, _, err = decoder.Decode(knodeByte, nil, obj)
-	if err != nil {
-		return fmt.Errorf("kosmosctl join run error, decode knode cr failed: %s", err)
-	}
-	_, err = o.DynamicClient.Resource(util.KnodeGVR).Namespace("").Create(context.TODO(), obj, metav1.CreateOptions{})
-	if err != nil && !apierrors.IsAlreadyExists(err) {
-		return fmt.Errorf("kosmosctl join run error, create knode failed: %s", err)
-	}
-	klog.Info("Knode: " + obj.GetName() + " has been created.")
-
-	klog.Info("Attempting to create kosmos mcs CRDs...")
-	serviceExport, err := util.GenerateCustomResourceDefinition(manifest.ServiceExport, nil)
-	if err != nil {
-		return err
-	}
-	_, err = o.ExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Create(context.Background(), serviceExport, metav1.CreateOptions{})
-	if err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			return fmt.Errorf("kosmosctl join run error, crd options failed: %v", err)
-		}
-	}
-	klog.Info("Create CRD " + serviceExport.Name + " successful.")
-
-	serviceImport, err := util.GenerateCustomResourceDefinition(manifest.ServiceImport, nil)
-	if err != nil {
-		return err
-	}
-	_, err = o.ExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Create(context.Background(), serviceImport, metav1.CreateOptions{})
-	if err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			return fmt.Errorf("kosmosctl join run error, crd options failed: %v", err)
-		}
-	}
-	klog.Info("Create CRD " + serviceImport.Name + " successful.")
-
-	klog.Info("Knode [" + obj.GetName() + "] registration successful.")
+	klog.Info("Cluster [" + o.Name + "] registration successful.")
 
 	return nil
 }

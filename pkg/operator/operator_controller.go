@@ -16,11 +16,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	cmdOptions "github.com/kosmos.io/kosmos/cmd/clusterlink/operator/app/options"
-	clusterlinkv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
-	"github.com/kosmos.io/kosmos/pkg/clusterlink/operator/addons"
-	"github.com/kosmos.io/kosmos/pkg/clusterlink/operator/addons/option"
-	clusterlinkv1alpha1lister "github.com/kosmos.io/kosmos/pkg/generated/listers/kosmos/v1alpha1"
+	cmdOptions "github.com/kosmos.io/kosmos/cmd/operator/app/options"
+	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
+	lister "github.com/kosmos.io/kosmos/pkg/generated/listers/kosmos/v1alpha1"
+	"github.com/kosmos.io/kosmos/pkg/operator/clusterlink"
+	"github.com/kosmos.io/kosmos/pkg/operator/clusterlink/option"
 	"github.com/kosmos.io/kosmos/pkg/utils"
 )
 
@@ -33,7 +33,7 @@ const (
 type Reconciler struct {
 	client.Client
 	Scheme                 *runtime.Scheme
-	ClusterLister          clusterlinkv1alpha1lister.ClusterLister
+	ClusterLister          lister.ClusterLister
 	ControlPanelKubeConfig *clientcmdapi.Config
 	ClusterName            string
 	Options                *cmdOptions.Options
@@ -48,11 +48,11 @@ func (r *Reconciler) SetupWithManager(mgr manager.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(controllerName).
 		WithOptions(controller.Options{}).
-		For(&clusterlinkv1alpha1.Cluster{}).
+		For(&v1alpha1.Cluster{}).
 		Complete(r)
 }
 
-func (r *Reconciler) syncCluster(cluster *clusterlinkv1alpha1.Cluster) (reconcile.Result, error) {
+func (r *Reconciler) syncCluster(cluster *v1alpha1.Cluster) (reconcile.Result, error) {
 	klog.Infof("install agent")
 	useProxy := r.Options.UseProxy
 	if value, exist := os.LookupEnv(utils.EnvUseProxy); exist {
@@ -64,33 +64,35 @@ func (r *Reconciler) syncCluster(cluster *clusterlinkv1alpha1.Cluster) (reconcil
 	}
 	opt := &option.AddonOption{
 		Cluster:                *cluster,
+		KubeConfigByte:         cluster.Spec.Kubeconfig,
 		ControlPanelKubeConfig: r.ControlPanelKubeConfig,
 		UseProxy:               useProxy,
 	}
 
-	if err := opt.Complete(r.Options); err != nil {
+	if err := opt.Complete(); err != nil {
 		klog.Error(err)
 		return reconcile.Result{Requeue: true}, err
 	}
 
-	if err := addons.Install(opt); err != nil {
+	if err := clusterlink.Install(opt); err != nil {
 		klog.Error(err)
 		return reconcile.Result{Requeue: true}, err
 	}
 	return r.ensureFinalizer(cluster)
 }
 
-func (r *Reconciler) removeCluster(cluster *clusterlinkv1alpha1.Cluster) (reconcile.Result, error) {
+func (r *Reconciler) removeCluster(cluster *v1alpha1.Cluster) (reconcile.Result, error) {
 	klog.Infof("uninstall agent")
 	opt := &option.AddonOption{
 		Cluster:                *cluster,
+		KubeConfigByte:         cluster.Spec.Kubeconfig,
 		ControlPanelKubeConfig: r.ControlPanelKubeConfig,
 	}
-	if err := opt.Complete(r.Options); err != nil {
+	if err := opt.Complete(); err != nil {
 		klog.Error(err)
 		return reconcile.Result{Requeue: true}, err
 	}
-	if err := addons.Uninstall(opt); err != nil {
+	if err := clusterlink.Uninstall(opt); err != nil {
 		klog.Error(err)
 		return reconcile.Result{Requeue: true}, err
 	}
@@ -98,7 +100,7 @@ func (r *Reconciler) removeCluster(cluster *clusterlinkv1alpha1.Cluster) (reconc
 	return r.removeFinalizer(cluster)
 }
 
-func (r *Reconciler) ensureFinalizer(cluster *clusterlinkv1alpha1.Cluster) (reconcile.Result, error) {
+func (r *Reconciler) ensureFinalizer(cluster *v1alpha1.Cluster) (reconcile.Result, error) {
 	if controllerutil.ContainsFinalizer(cluster, ClusterControllerFinalizer) {
 		return reconcile.Result{}, nil
 	}
@@ -112,7 +114,7 @@ func (r *Reconciler) ensureFinalizer(cluster *clusterlinkv1alpha1.Cluster) (reco
 	return reconcile.Result{}, nil
 }
 
-func (r *Reconciler) removeFinalizer(cluster *clusterlinkv1alpha1.Cluster) (reconcile.Result, error) {
+func (r *Reconciler) removeFinalizer(cluster *v1alpha1.Cluster) (reconcile.Result, error) {
 	if !controllerutil.ContainsFinalizer(cluster, ClusterControllerFinalizer) {
 		return reconcile.Result{}, nil
 	}
@@ -135,7 +137,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 		return reconcile.Result{}, nil
 	}
 
-	cluster := &clusterlinkv1alpha1.Cluster{}
+	cluster := &v1alpha1.Cluster{}
 
 	if err := r.Client.Get(ctx, request.NamespacedName, cluster); err != nil {
 		// The resource may no longer exist, in which case we stop processing.

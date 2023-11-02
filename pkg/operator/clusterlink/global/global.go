@@ -8,9 +8,8 @@ import (
 	clientsetscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/klog/v2"
 
-	"github.com/kosmos.io/kosmos/pkg/clusterlink/operator/addons/option"
-	"github.com/kosmos.io/kosmos/pkg/clusterlink/operator/addons/utils"
-	cmdutil "github.com/kosmos.io/kosmos/pkg/clusterlink/operator/util"
+	"github.com/kosmos.io/kosmos/pkg/operator/clusterlink/option"
+	"github.com/kosmos.io/kosmos/pkg/operator/clusterlink/utils"
 )
 
 type Installer struct {
@@ -39,7 +38,7 @@ func (i *Installer) Install(opt *option.AddonOption) error {
 		return fmt.Errorf("decode namespace error: %v", err)
 	}
 
-	if err := cmdutil.CreateOrUpdateNamespace(opt.KubeClientSet, clNamespace); err != nil {
+	if err := utils.CreateOrUpdateNamespace(opt.KubeClientSet, clNamespace); err != nil {
 		return fmt.Errorf("create clusterlink namespace error: %v", err)
 	}
 

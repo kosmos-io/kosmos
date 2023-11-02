@@ -8,9 +8,19 @@ import (
 )
 
 const (
-	DefaultNamespace       = "kosmos-system"
-	DefaultImageRepository = "ghcr.io/kosmos-io"
-	DefaultInstallModule   = "all"
+	DefaultNamespace           = "kosmos-system"
+	DefaultClusterName         = "kosmos-cluster"
+	DefaultImageRepository     = "ghcr.io/kosmos-io"
+	DefaultWaitTime            = 120
+	RootClusterAnnotationKey   = "kosmos.io/cluster-role"
+	RootClusterAnnotationValue = "root"
+)
+
+const (
+	All         = "all"
+	ClusterLink = "clusterlink"
+	ClusterTree = "clustertree"
+	CoreDNS     = "coredns"
 )
 
 const ExternalIPPoolNamePrefix = "clusterlink"
@@ -19,7 +29,9 @@ const (
 	CNITypeCalico      = "calico"
 	NetworkTypeP2P     = "p2p"
 	NetworkTypeGateway = "gateway"
-	DefaultIpFamily    = "ipv4"
+	DefaultIPv4        = "ipv4"
+	DefaultIPv6        = "ipv6"
+	DefaultPort        = "8889"
 )
 
 const (

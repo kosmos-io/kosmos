@@ -156,7 +156,7 @@ func (o *CommandUnJoinOptions) runCluster() error {
 	klog.Info("Cluster: " + o.Name + " has been deleted.")
 
 	// 2. delete operator
-	clusterlinkOperatorDeployment, err := util.GenerateDeployment(manifest.ClusterlinkOperatorDeployment, nil)
+	clusterlinkOperatorDeployment, err := util.GenerateDeployment(manifest.KosmosOperatorDeployment, nil)
 	if err != nil {
 		return err
 	}
@@ -186,7 +186,7 @@ func (o *CommandUnJoinOptions) runCluster() error {
 	}
 	klog.Info("ClusterRole: " + utils.ExternalIPPoolNamePrefix + " has been deleted.")
 
-	clusterlinkOperatorServiceAccount, err := util.GenerateServiceAccount(manifest.ClusterlinkOperatorServiceAccount, nil)
+	clusterlinkOperatorServiceAccount, err := util.GenerateServiceAccount(manifest.KosmosOperatorServiceAccount, nil)
 	if err != nil {
 		return err
 	}

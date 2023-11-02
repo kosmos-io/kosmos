@@ -78,8 +78,8 @@ func NewCmdAnalysis(f ctlutil.Factory) *cobra.Command {
 	flags.StringVarP(&o.ImageRepository, "image-repository", "r", utils.DefaultImageRepository, "Image repository.")
 	flags.StringVar(&o.Name, "name", "", "Specify the name of the resource to analysis.")
 	flags.StringVar(&o.KubeConfig, "kubeconfig", "", "Absolute path to the cluster kubeconfig file.")
-	flags.StringVar(&o.Port, "port", "8889", "Port used by floater.")
-	flags.IntVarP(&o.PodWaitTime, "pod-wait-time", "w", 30, "Time for wait pod(floater) launch.")
+	flags.StringVar(&o.Port, "port", utils.DefaultPort, "Port used by floater.")
+	flags.IntVarP(&o.PodWaitTime, "pod-wait-time", "w", utils.DefaultWaitTime, "Time for wait pod(floater) launch.")
 	flags.BoolVar(&o.GenGraph, "gen-graph", false, "Configure generate network analysis graph.")
 	flags.StringVar(&o.GenPath, "gen-path", "~/", "Configure save path for generate network analysis graph.")
 

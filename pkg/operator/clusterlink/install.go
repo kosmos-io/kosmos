@@ -1,14 +1,14 @@
-package addons
+package clusterlink
 
 import (
 	"k8s.io/klog/v2"
 
-	"github.com/kosmos.io/kosmos/pkg/clusterlink/operator/addons/agent"
-	"github.com/kosmos.io/kosmos/pkg/clusterlink/operator/addons/elector"
-	"github.com/kosmos.io/kosmos/pkg/clusterlink/operator/addons/global"
-	"github.com/kosmos.io/kosmos/pkg/clusterlink/operator/addons/manager"
-	"github.com/kosmos.io/kosmos/pkg/clusterlink/operator/addons/option"
-	"github.com/kosmos.io/kosmos/pkg/clusterlink/operator/addons/proxy"
+	"github.com/kosmos.io/kosmos/pkg/operator/clusterlink/agent"
+	"github.com/kosmos.io/kosmos/pkg/operator/clusterlink/elector"
+	"github.com/kosmos.io/kosmos/pkg/operator/clusterlink/global"
+	"github.com/kosmos.io/kosmos/pkg/operator/clusterlink/manager"
+	"github.com/kosmos.io/kosmos/pkg/operator/clusterlink/option"
+	"github.com/kosmos.io/kosmos/pkg/operator/clusterlink/proxy"
 )
 
 type AddonInstaller interface {
@@ -21,7 +21,7 @@ var (
 )
 
 func Install(opt *option.AddonOption) error {
-	klog.Infof("install addons")
+	klog.Infof("install clusterlink")
 	for _, ins := range installers {
 		if err := ins.Install(opt); err != nil {
 			return err
@@ -32,7 +32,7 @@ func Install(opt *option.AddonOption) error {
 }
 
 func Uninstall(opt *option.AddonOption) error {
-	klog.Infof("uninstall addons")
+	klog.Infof("uninstall clusterlink")
 	i := len(installers)
 	for i > 0 {
 		i--
