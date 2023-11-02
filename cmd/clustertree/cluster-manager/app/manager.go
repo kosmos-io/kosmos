@@ -58,7 +58,7 @@ func NewAgentCommand(ctx context.Context) *cobra.Command {
 }
 
 func run(ctx context.Context, opts *options.Options) error {
-	globalleafManager := leafUtils.NewLeafResourceManager()
+	globalleafManager := leafUtils.GetGlobalLeafResourceManager()
 
 	config, err := clientcmd.BuildConfigFromFlags(opts.KubernetesOptions.Master, opts.KubernetesOptions.KubeConfig)
 	if err != nil {
