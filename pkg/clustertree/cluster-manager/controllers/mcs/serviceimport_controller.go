@@ -104,19 +104,20 @@ func (c *ServiceImportController) Reconcile(key utils.QueueKey) error {
 		klog.V(4).Infof("============ %s has been reconciled in cluster %s =============", clusterWideKey.NamespaceKey(), c.LeafNodeName)
 	}()
 
+	var shouldDelete bool
 	serviceImport := &mcsv1alpha1.ServiceImport{}
 	if err := c.LeafClient.Get(c.ctx, types.NamespacedName{Namespace: clusterWideKey.Namespace, Name: clusterWideKey.Name}, serviceImport); err != nil {
 		// The serviceImport no longer exist, in which case we stop processing.
-		if apierrors.IsNotFound(err) {
-			return nil
+		if !apierrors.IsNotFound(err) {
+			klog.Errorf("Get %s in cluster %s failed, Error: %v", clusterWideKey.NamespaceKey(), c.LeafNodeName, err)
+			return err
 		}
-		klog.Errorf("Get %s in cluster %s failed, Error: %v", clusterWideKey.NamespaceKey(), c.LeafNodeName, err)
-		return err
+		shouldDelete = true
 	}
 
 	// The serviceImport is being deleted, in which case we should clear endpointSlice.
-	if !serviceImport.DeletionTimestamp.IsZero() {
-		if err := c.cleanupServiceAndEndpointSlice(c.ctx, serviceImport.Namespace, serviceImport.Name); err != nil {
+	if shouldDelete || !serviceImport.DeletionTimestamp.IsZero() {
+		if err := c.cleanupServiceAndEndpointSlice(c.ctx, clusterWideKey.Namespace, clusterWideKey.Name); err != nil {
 			return err
 		}
 		return nil
@@ -441,9 +442,9 @@ func generateService(service *corev1.Service, serviceImport *mcsv1alpha1.Service
 			},
 		},
 		Spec: corev1.ServiceSpec{
-			Type:           corev1.ServiceTypeClusterIP,
+			Type:           service.Spec.Type,
 			ClusterIP:      clusterIP,
-			Ports:          servicePorts(serviceImport),
+			Ports:          servicePorts(service),
 			IPFamilies:     service.Spec.IPFamilies,
 			IPFamilyPolicy: service.Spec.IPFamilyPolicy,
 		},
@@ -454,10 +455,11 @@ func isServiceIPSet(service *corev1.Service) bool {
 	return service.Spec.ClusterIP != corev1.ClusterIPNone && service.Spec.ClusterIP != ""
 }
 
-func servicePorts(serviceImport *mcsv1alpha1.ServiceImport) []corev1.ServicePort {
-	ports := make([]corev1.ServicePort, len(serviceImport.Spec.Ports))
-	for i, p := range serviceImport.Spec.Ports {
+func servicePorts(service *corev1.Service) []corev1.ServicePort {
+	ports := make([]corev1.ServicePort, len(service.Spec.Ports))
+	for i, p := range service.Spec.Ports {
 		ports[i] = corev1.ServicePort{
+			NodePort:    p.NodePort,
 			Name:        p.Name,
 			Protocol:    p.Protocol,
 			Port:        p.Port,
