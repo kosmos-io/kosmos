@@ -7,16 +7,14 @@
 -->
 
 #### What type of PR is this?
+
 <!--
-- **feat:** new feature
-- **fix:** fix bug
-- **docs:** documentation
-- **style:** format(Changes that do not affect code execution)
-- **test:** add test codes
-- **chore:** changes to the build process or accessibility tools
-- **revert:** revoked content
-- **close:** close issue
-- **release:** release version
+Add one of the following kinds:
+/kind bug
+/kind cleanup
+/kind docs 
+/kind feature
+/kind failing-test
 -->
 
 #### What does this PR do?
