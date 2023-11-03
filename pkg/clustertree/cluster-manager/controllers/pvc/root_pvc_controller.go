@@ -75,6 +75,7 @@ func (r *RootPVCController) Reconcile(ctx context.Context, request reconcile.Req
 		return reconcile.Result{}, nil
 	}
 
+	pvc.Annotations = pvcOld.Annotations
 	patch, err := utils.CreateMergePatch(pvcOld, pvc)
 	if err != nil {
 		klog.Errorf("patch pvc error: %v", err)
