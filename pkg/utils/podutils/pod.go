@@ -130,6 +130,14 @@ func FitUnstructuredObjMeta(unstructuredObj *unstructured.Unstructured) {
 	unstructuredObj.SetUID("")
 	unstructuredObj.SetResourceVersion("")
 	unstructuredObj.SetOwnerReferences(nil)
+	anno := unstructuredObj.GetAnnotations()
+	if anno == nil {
+		return
+	}
+	if len(anno[utils.PVCSelectedNodeKey]) != 0 {
+		delete(anno, utils.PVCSelectedNodeKey)
+		unstructuredObj.SetAnnotations(anno)
+	}
 }
 
 func FitPod(pod *corev1.Pod, ignoreLabels []string) *corev1.Pod {
