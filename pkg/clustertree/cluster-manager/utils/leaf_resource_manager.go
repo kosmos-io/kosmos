@@ -7,6 +7,8 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	kosmosversioned "github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 )
 
 var (
@@ -18,6 +20,7 @@ type LeafResource struct {
 	Client               client.Client
 	DynamicClient        dynamic.Interface
 	Clientset            kubernetes.Interface
+	KosmosClient         kosmosversioned.Interface
 	NodeName             string
 	Namespace            string
 	IgnoreLabels         []string

@@ -15,7 +15,7 @@ import (
 
 	"github.com/kosmos.io/kosmos/cmd/clustertree/cluster-manager/app/options"
 	clusterManager "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager"
-	controllers "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers"
+	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/mcs"
 	podcontrollers "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/pod"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/pv"
@@ -104,7 +104,7 @@ func run(ctx context.Context, opts *options.Options) error {
 	}
 
 	// add cluster controller
-	ClusterController := clusterManager.ClusterController{
+	clusterController := clusterManager.ClusterController{
 		Root:                mgr.GetClient(),
 		RootDynamic:         dynamicClient,
 		RootClient:          rootClient,
@@ -113,7 +113,7 @@ func run(ctx context.Context, opts *options.Options) error {
 		RootResourceManager: rootResourceManager,
 		GlobalLeafManager:   globalleafManager,
 	}
-	if err = ClusterController.SetupWithManager(mgr); err != nil {
+	if err = clusterController.SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("error starting %s: %v", clusterManager.ControllerName, err)
 	}
 
@@ -126,6 +126,18 @@ func run(ctx context.Context, opts *options.Options) error {
 		}
 		if err = ServiceExportController.SetupWithManager(mgr); err != nil {
 			return fmt.Errorf("error starting %s: %v", mcs.ServiceExportControllerName, err)
+		}
+
+		// add auto create mcs resources controller
+		autoCreateMCSController := mcs.AutoCreateMCSController{
+			RootClient:        mgr.GetClient(),
+			EventRecorder:     mgr.GetEventRecorderFor(mcs.AutoCreateMCSControllerName),
+			Logger:            mgr.GetLogger(),
+			RootKosmosClient:  rootKosmosClient,
+			GlobalLeafManager: globalleafManager,
+		}
+		if err = autoCreateMCSController.SetupWithManager(mgr); err != nil {
+			return fmt.Errorf("error starting %s: %v", mcs.AutoCreateMCSControllerName, err)
 		}
 	}
 
@@ -141,14 +153,14 @@ func run(ctx context.Context, opts *options.Options) error {
 	}
 
 	// init rootPodController
-	RootPodReconciler := podcontrollers.RootPodReconciler{
+	rootPodReconciler := podcontrollers.RootPodReconciler{
 		GlobalLeafManager: globalleafManager,
 		RootClient:        mgr.GetClient(),
 		DynamicRootClient: dynamicClient,
 		Options:           opts,
 	}
-	if err := RootPodReconciler.SetupWithManager(mgr); err != nil {
-		return fmt.Errorf("error starting RootPodReconciler %s: %v", podcontrollers.RootPodControllerName, err)
+	if err := rootPodReconciler.SetupWithManager(mgr); err != nil {
+		return fmt.Errorf("error starting rootPodReconciler %s: %v", podcontrollers.RootPodControllerName, err)
 	}
 
 	rootPVCController := pvc.RootPVCController{

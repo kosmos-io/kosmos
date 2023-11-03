@@ -45,7 +45,6 @@ func (c *ServiceExportController) Reconcile(ctx context.Context, request reconci
 	var shouldDelete bool
 	serviceExport := &mcsv1alpha1.ServiceExport{}
 	if err := c.RootClient.Get(ctx, request.NamespacedName, serviceExport); err != nil {
-		// The serviceExport no longer exist, in which case we stop processing.
 		if !apierrors.IsNotFound(err) {
 			return controllerruntime.Result{Requeue: true}, err
 		}
@@ -87,10 +86,10 @@ func (c *ServiceExportController) SetupWithManager(mgr manager.Manager) error {
 			return true
 		},
 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
-			return false
+			return true
 		},
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
-			return false
+			return true
 		},
 		GenericFunc: func(genericEvent event.GenericEvent) bool {
 			return false

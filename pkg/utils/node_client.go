@@ -29,7 +29,7 @@ type ClusterDynamicClient struct {
 }
 
 // NewClusterKubeClient create a kube client for a member cluster
-func NewClusterKubeClient(config *rest.Config, ClusterName string, opts Opts) (*ClusterKubeClient, error) {
+func NewClusterKubeClient(config *rest.Config, ClusterName string) (*ClusterKubeClient, error) {
 	kubeClient, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		return nil, err
@@ -42,7 +42,7 @@ func NewClusterKubeClient(config *rest.Config, ClusterName string, opts Opts) (*
 }
 
 // NewClusterKosmosClient create a dynamic client for a member cluster
-func NewClusterKosmosClient(config *rest.Config, ClusterName string, opts Opts) (*ClusterKosmosClient, error) {
+func NewClusterKosmosClient(config *rest.Config, ClusterName string) (*ClusterKosmosClient, error) {
 	kosmosClient, err := kosmosversioned.NewForConfig(config)
 	if err != nil {
 		return nil, err
@@ -55,7 +55,7 @@ func NewClusterKosmosClient(config *rest.Config, ClusterName string, opts Opts) 
 }
 
 // NewClusterDynamicClient create a kosmos crd client for a member cluster
-func NewClusterDynamicClient(config *rest.Config, ClusterName string, opts Opts) (*ClusterDynamicClient, error) {
+func NewClusterDynamicClient(config *rest.Config, ClusterName string) (*ClusterDynamicClient, error) {
 	dynamicClient, err := dynamic.NewForConfig(config)
 	if err != nil {
 		return nil, err
