@@ -56,6 +56,14 @@ func (c *AutoCreateMCSController) Reconcile(ctx context.Context, request reconci
 		shouldDelete = true
 	}
 
+	annotations := service.GetAnnotations()
+	if annotations == nil {
+		shouldDelete = true
+	}
+	if _, exists := annotations[utils.AutoCreateMCSAnnotation]; !exists {
+		shouldDelete = true
+	}
+
 	clusterList := &kosmosv1alpha1.ClusterList{}
 	if err := c.RootClient.List(ctx, clusterList); err != nil {
 		klog.Errorf("Cloud not get cluster in root cluster,Error: %v", err)
@@ -136,7 +144,7 @@ func (c *AutoCreateMCSController) SetupWithManager(mgr manager.Manager) error {
 			return shouldEnqueue(deleteEvent.Object)
 		},
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
-			return shouldEnqueue(updateEvent.ObjectNew)
+			return shouldEnqueue(updateEvent.ObjectOld) != shouldEnqueue(updateEvent.ObjectNew)
 		},
 		GenericFunc: func(genericEvent event.GenericEvent) bool {
 			return false
