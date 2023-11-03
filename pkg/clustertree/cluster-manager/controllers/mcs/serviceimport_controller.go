@@ -107,7 +107,6 @@ func (c *ServiceImportController) Reconcile(key utils.QueueKey) error {
 	var shouldDelete bool
 	serviceImport := &mcsv1alpha1.ServiceImport{}
 	if err := c.LeafClient.Get(c.ctx, types.NamespacedName{Namespace: clusterWideKey.Namespace, Name: clusterWideKey.Name}, serviceImport); err != nil {
-		// The serviceImport no longer exist, in which case we stop processing.
 		if !apierrors.IsNotFound(err) {
 			klog.Errorf("Get %s in cluster %s failed, Error: %v", clusterWideKey.NamespaceKey(), c.LeafNodeName, err)
 			return err

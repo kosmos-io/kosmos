@@ -44,12 +44,7 @@ const (
 	ControllerName = "cluster-controller"
 	RequeueTime    = 10 * time.Second
 
-	ControllerFinalizerName    = "kosmos.io/cluster-manager" // TODO merge to constants
-	RootClusterAnnotationKey   = "kosmos.io/cluster-role"
-	RootClusterAnnotationValue = "root"
-
-	DefaultLeafKubeQPS   = 40.0
-	DefaultLeafKubeBurst = 60
+	ControllerFinalizerName = "kosmos.io/cluster-manager" // TODO merge to constants
 )
 
 type ClusterController struct {
@@ -70,24 +65,16 @@ type ClusterController struct {
 	GlobalLeafManager leafUtils.LeafResourceManager
 }
 
-func isRootCluster(cluster *kosmosv1alpha1.Cluster) bool {
-	annotations := cluster.GetAnnotations()
-	if val, ok := annotations[RootClusterAnnotationKey]; ok {
-		return val == RootClusterAnnotationValue
-	}
-	return false
-}
-
 var predicatesFunc = predicate.Funcs{
 	CreateFunc: func(createEvent event.CreateEvent) bool {
 		obj := createEvent.Object.(*kosmosv1alpha1.Cluster)
-		return !isRootCluster(obj)
+		return !leafUtils.IsRootCluster(obj)
 	},
 	UpdateFunc: func(updateEvent event.UpdateEvent) bool {
 		obj := updateEvent.ObjectNew.(*kosmosv1alpha1.Cluster)
 		old := updateEvent.ObjectOld.(*kosmosv1alpha1.Cluster)
 
-		if isRootCluster(obj) {
+		if leafUtils.IsRootCluster(obj) {
 			return false
 		}
 
@@ -104,7 +91,7 @@ var predicatesFunc = predicate.Funcs{
 	},
 	DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
 		obj := deleteEvent.Object.(*kosmosv1alpha1.Cluster)
-		return !isRootCluster(obj)
+		return !leafUtils.IsRootCluster(obj)
 	},
 	GenericFunc: func(genericEvent event.GenericEvent) bool {
 		return false
@@ -135,8 +122,8 @@ func (c *ClusterController) Reconcile(ctx context.Context, request reconcile.Req
 	}
 
 	config, err := utils.NewConfigFromBytes(cluster.Spec.Kubeconfig, func(config *rest.Config) {
-		config.QPS = DefaultLeafKubeQPS
-		config.Burst = DefaultLeafKubeBurst
+		config.QPS = utils.DefaultLeafKubeQPS
+		config.Burst = utils.DefaultLeafKubeBurst
 	})
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("could not build kubeconfig for cluster %s: %v", cluster.Name, err)
@@ -247,6 +234,7 @@ func (c *ClusterController) setupControllers(mgr manager.Manager, cluster *kosmo
 		Client:               mgr.GetClient(),
 		DynamicClient:        clientDynamic,
 		Clientset:            leafClient,
+		KosmosClient:         kosmosClient,
 		NodeName:             nodeName,
 		Namespace:            "",
 		IgnoreLabels:         strings.Split("", ","),

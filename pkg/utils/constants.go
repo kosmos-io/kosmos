@@ -37,7 +37,6 @@ const (
 
 const ClusterStartControllerFinalizer = "kosmos.io/cluster-start-finazlizer"
 
-// mcs consts
 const (
 	ServiceExportControllerName = "service-export-controller"
 	ServiceKey                  = "kubernetes.io/service-name"
@@ -47,6 +46,7 @@ const (
 	MCSLabelValue               = "ture"
 	ServiceEndpointsKey         = "kosmos.io/address"
 	DisconnectedEndpointsKey    = "kosmos.io/disconnected-address"
+	AutoCreateMCSAnnotation     = "kosmos.io/auto-create-mcs"
 )
 
 // cluster node
@@ -85,6 +85,9 @@ const (
 
 	DefaultTaintEffect = string(corev1.TaintEffectNoSchedule)
 	DefaultTaintKey    = "kosmos-node.io/plugin"
+
+	DefaultLeafKubeQPS   = 40.0
+	DefaultLeafKubeBurst = 60
 )
 
 const (
