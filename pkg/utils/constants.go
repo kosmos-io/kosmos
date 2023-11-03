@@ -7,6 +7,41 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
+var (
+	ImageList = []string{
+		ClusterTreeClusterManager,
+		ClusterLinkOperator,
+		ClusterLinkAgent,
+		ClusterLinkNetworkManager,
+		ClusterLinkControllerManager,
+		ClusterLinkProxy,
+		ClusterLinkElector,
+		ClusterLinkFloater,
+		KosmosOperator,
+		Coredns,
+		EpsProbePlugin}
+)
+
+const (
+	ClusterTreeClusterManager    = "ghcr.io/kosmos-io/clustertree-cluster-manager"
+	ClusterLinkOperator          = "ghcr.io/kosmos-io/clusterlink-operator"
+	ClusterLinkAgent             = "ghcr.io/kosmos-io/clusterlink-agent"
+	ClusterLinkNetworkManager    = "ghcr.io/kosmos-io/clusterlink-network-manager"
+	ClusterLinkControllerManager = "ghcr.io/kosmos-io/clusterlink-controller-manager"
+	ClusterLinkProxy             = "ghcr.io/kosmos-io/clusterlink-proxy"
+	ClusterLinkElector           = "ghcr.io/kosmos-io/clusterlink-elector"
+	ClusterLinkFloater           = "ghcr.io/kosmos-io/clusterlink-floater"
+	Coredns                      = "ghcr.io/kosmos-io/coredns"
+	EpsProbePlugin               = "ghcr.io/kosmos-io/eps-probe-plugin"
+	KosmosOperator               = "ghcr.io/kosmos-io/kosmos-operator"
+	Containerd                   = "containerd"
+	DefaultContainerRuntime      = "docker"
+	DefaultContainerdNamespace   = "default"
+	DefaultContainerdSockAddress = "/run/containerd/containerd.sock"
+	DefaultVersion               = "latest"
+	DefaultTarName               = "kosmos-io.tar.gz"
+)
+
 const (
 	DefaultNamespace           = "kosmos-system"
 	DefaultClusterName         = "kosmos-control-cluster"

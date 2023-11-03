@@ -15,6 +15,7 @@ import (
 
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/floater"
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/get"
+	"github.com/kosmos.io/kosmos/pkg/kosmosctl/image"
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/install"
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/join"
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/rsmigrate"
@@ -79,6 +80,12 @@ func NewKosmosCtlCommand() *cobra.Command {
 			Commands: []*cobra.Command{
 				rsmigrate.NewCmdImport(f),
 				rsmigrate.NewCmdExport(f),
+			},
+		},
+		{
+			Message: "Image Pull/Push commands",
+			Commands: []*cobra.Command{
+				image.NewCmdImage(),
 			},
 		},
 	}
