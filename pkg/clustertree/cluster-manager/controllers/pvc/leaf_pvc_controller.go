@@ -62,17 +62,17 @@ func (l *LeafPVCController) Reconcile(ctx context.Context, request reconcile.Req
 	}
 
 	pvcCopy := pvc.DeepCopy()
+	if reflect.DeepEqual(rootPVC.Status, pvcCopy.Status) {
+		return reconcile.Result{}, nil
+	}
 	if err = filterPVC(pvcCopy, l.NodeName); err != nil {
 		return reconcile.Result{}, nil
 	}
 	pvcCopy.ResourceVersion = rootPVC.ResourceVersion
 	pvcCopy.OwnerReferences = rootPVC.OwnerReferences
 	utils.AddResourceOwnersAnnotations(pvcCopy.Annotations, l.NodeName)
+	pvcCopy.Spec = rootPVC.Spec
 	klog.V(4).Infof("rootPVC %+v\n, pvc %+v", rootPVC, pvcCopy)
-
-	if reflect.DeepEqual(rootPVC.Status, pvcCopy.Status) {
-		return reconcile.Result{}, nil
-	}
 
 	patch, err := utils.CreateMergePatch(rootPVC, pvcCopy)
 	if err != nil {

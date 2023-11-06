@@ -76,6 +76,9 @@ func (r *RootPVCController) Reconcile(ctx context.Context, request reconcile.Req
 	}
 
 	pvc.Annotations = pvcOld.Annotations
+	pvc.ObjectMeta.UID = pvcOld.ObjectMeta.UID
+	pvc.ObjectMeta.ResourceVersion = ""
+	pvc.ObjectMeta.OwnerReferences = pvcOld.ObjectMeta.OwnerReferences
 	patch, err := utils.CreateMergePatch(pvcOld, pvc)
 	if err != nil {
 		klog.Errorf("patch pvc error: %v", err)

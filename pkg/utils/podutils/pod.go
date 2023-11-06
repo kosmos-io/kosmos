@@ -250,6 +250,9 @@ func GetUpdatedPod(orig, update *corev1.Pod, ignoreLabels []string) {
 		}
 	}
 	orig.Labels = update.Labels
+	if orig.Labels == nil {
+		orig.Labels = make(map[string]string)
+	}
 	orig.Labels[utils.KosmosPodLabel] = "true"
 	orig.Annotations = update.Annotations
 	orig.Spec.ActiveDeadlineSeconds = update.Spec.ActiveDeadlineSeconds
