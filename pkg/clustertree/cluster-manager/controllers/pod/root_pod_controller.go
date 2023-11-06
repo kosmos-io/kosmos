@@ -439,19 +439,16 @@ func (r *RootPodReconciler) createCAInLeafCluster(ctx context.Context, lr *leafU
 	return newCA, nil
 }
 
-const CoreDNSNamespace = "kube-system"
-const CoreDNSServiceName = "kube-dns"
-
 // changeToMasterCoreDNS point the dns of the pod to the master cluster, so that the pod can access any service.
 // The master cluster holds all the services in the multi-cluster.
-func (r *RootPodReconciler) changeToMasterCoreDNS(ctx context.Context, pod *corev1.Pod) {
+func (r *RootPodReconciler) changeToMasterCoreDNS(ctx context.Context, pod *corev1.Pod, opts *options.Options) {
 	if pod.Spec.DNSPolicy != corev1.DNSClusterFirst && pod.Spec.DNSPolicy != corev1.DNSClusterFirstWithHostNet {
 		return
 	}
 
 	ns := pod.Namespace
 	svc := &corev1.Service{}
-	err := r.RootClient.Get(ctx, types.NamespacedName{Namespace: CoreDNSNamespace, Name: CoreDNSServiceName}, svc)
+	err := r.RootClient.Get(ctx, types.NamespacedName{Namespace: opts.RootCoreDNSServiceNamespace, Name: opts.RootCoreDNSServiceName}, svc)
 	if err != nil {
 		return
 	}
@@ -674,7 +671,7 @@ func (r *RootPodReconciler) CreatePodInLeafCluster(ctx context.Context, lr *leaf
 	r.convertAuth(ctx, lr, basicPod)
 
 	if !r.Options.MultiClusterService {
-		r.changeToMasterCoreDNS(ctx, basicPod)
+		r.changeToMasterCoreDNS(ctx, basicPod, r.Options)
 	}
 
 	klog.V(5).Infof("Creating pod %+v", basicPod)
@@ -711,7 +708,7 @@ func (r *RootPodReconciler) UpdatePodInLeafCluster(ctx context.Context, lr *leaf
 	r.convertAuth(ctx, lr, podCopy)
 
 	if !r.Options.MultiClusterService {
-		r.changeToMasterCoreDNS(ctx, podCopy)
+		r.changeToMasterCoreDNS(ctx, podCopy, r.Options)
 	}
 
 	klog.V(5).Infof("Updating pod %+v", podCopy)

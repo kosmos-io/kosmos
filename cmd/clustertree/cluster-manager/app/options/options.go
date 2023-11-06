@@ -11,6 +11,9 @@ const (
 
 	DefaultKubeQPS   = 40.0
 	DefaultKubeBurst = 60
+
+	CoreDNSServiceNamespace = "kube-system"
+	CoreDNSServiceName      = "kube-dns"
 )
 
 type Options struct {
@@ -19,6 +22,12 @@ type Options struct {
 	ListenPort          int32
 	DaemonSetController bool
 	MultiClusterService bool
+
+	// If MultiClusterService is disabled, the clustertree will rewrite the dnsPolicy configuration for pods deployed in
+	// the leaf clusters, directing them to the root cluster's CoreDNS, thus facilitating access to services across all
+	// clusters.
+	RootCoreDNSServiceNamespace string
+	RootCoreDNSServiceName      string
 }
 
 type KubernetesOptions struct {
@@ -47,4 +56,6 @@ func (o *Options) AddFlags(flags *pflag.FlagSet) {
 	flags.Int32Var(&o.ListenPort, "listen-port", 10250, "Listen port for requests from the kube-apiserver.")
 	flags.BoolVar(&o.DaemonSetController, "daemonset-controller", false, "Turn on or off daemonset controller.")
 	flags.BoolVar(&o.MultiClusterService, "multi-cluster-service", false, "Turn on or off mcs support.")
+	flags.StringVar(&o.RootCoreDNSServiceNamespace, "root-coredns-service-namespace", CoreDNSServiceNamespace, "The namespace of the CoreDNS service in the root cluster, used to locate the CoreDNS service when MultiClusterService is disabled.")
+	flags.StringVar(&o.RootCoreDNSServiceName, "root-coredns-service-name", CoreDNSServiceName, "The name of the CoreDNS service in the root cluster, used to locate the CoreDNS service when MultiClusterService is disabled.")
 }
