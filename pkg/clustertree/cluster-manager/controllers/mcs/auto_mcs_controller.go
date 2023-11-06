@@ -23,6 +23,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 	mcsv1alpha1 "sigs.k8s.io/mcs-api/pkg/apis/v1alpha1"
 
+	"github.com/kosmos.io/kosmos/cmd/clustertree/cluster-manager/app/register"
 	kosmosv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	leafUtils "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/utils"
 	kosmosversioned "github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
@@ -241,4 +242,22 @@ func (c *AutoCreateMCSController) autoCreateMcsResources(ctx context.Context, se
 		}
 	}
 	return nil
+}
+
+func init() {
+	register.RegisterRootController(AutoCreateMCSControllerName, func(co *register.RootControllerOptions) error {
+		if co.Options.MultiClusterService {
+			autoCreateMCSController := AutoCreateMCSController{
+				RootClient:        co.Mgr.GetClient(),
+				EventRecorder:     co.Mgr.GetEventRecorderFor(AutoCreateMCSControllerName),
+				Logger:            co.Mgr.GetLogger(),
+				RootKosmosClient:  co.RootKosmosClient,
+				GlobalLeafManager: co.GlobalLeafManager,
+			}
+			if err := autoCreateMCSController.SetupWithManager(co.Mgr); err != nil {
+				return fmt.Errorf("error starting %s: %v", AutoCreateMCSControllerName, err)
+			}
+		}
+		return nil
+	})
 }

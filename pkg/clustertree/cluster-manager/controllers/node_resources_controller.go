@@ -22,6 +22,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	"github.com/kosmos.io/kosmos/cmd/clustertree/cluster-manager/app/register"
 	"github.com/kosmos.io/kosmos/pkg/utils"
 )
 
@@ -130,4 +131,19 @@ func (c *NodeResourcesController) Reconcile(ctx context.Context, request reconci
 	}
 
 	return reconcile.Result{}, nil
+}
+
+func init() {
+	register.RegisterLeafController(NodeResourcesControllerName, func(cl *register.LeafControllerOptions) error {
+		nodeResourcesController := NodeResourcesController{
+			Leaf:          cl.Mgr.GetClient(),
+			Root:          cl.RootClient,
+			RootClientset: cl.RootClientSet,
+			Node:          cl.Node,
+		}
+		if err := nodeResourcesController.SetupWithManager(cl.Mgr); err != nil {
+			return fmt.Errorf("error starting %s: %v", NodeResourcesControllerName, err)
+		}
+		return nil
+	})
 }

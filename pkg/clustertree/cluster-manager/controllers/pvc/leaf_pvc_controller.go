@@ -3,6 +3,7 @@ package pvc
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"time"
 
@@ -21,6 +22,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/kosmos.io/kosmos/cmd/clustertree/cluster-manager/app/register"
 	"github.com/kosmos.io/kosmos/pkg/utils"
 	"github.com/kosmos.io/kosmos/pkg/utils/podutils"
 )
@@ -132,4 +134,19 @@ func filterPVC(leafPVC *v1.PersistentVolumeClaim, nodeName string) error {
 		leafPVC.Annotations[utils.PVCSelectedNodeKey] = nodeName
 	}
 	return nil
+}
+
+func init() {
+	register.RegisterLeafController(LeafPVCControllerName, func(cl *register.LeafControllerOptions) error {
+		leafPVCController := LeafPVCController{
+			LeafClient:    cl.Mgr.GetClient(),
+			RootClient:    cl.RootClient,
+			RootClientSet: cl.RootClientSet,
+			NodeName:      cl.Node.Name,
+		}
+		if err := leafPVCController.SetupWithManager(cl.Mgr); err != nil {
+			return fmt.Errorf("error starting leaf pvc controller %v", err)
+		}
+		return nil
+	})
 }

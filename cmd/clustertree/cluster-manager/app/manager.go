@@ -14,12 +14,7 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 
 	"github.com/kosmos.io/kosmos/cmd/clustertree/cluster-manager/app/options"
-	clusterManager "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager"
-	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers"
-	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/mcs"
-	podcontrollers "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/pod"
-	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/pv"
-	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/pvc"
+	"github.com/kosmos.io/kosmos/cmd/clustertree/cluster-manager/app/register"
 	leafUtils "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/utils"
 	"github.com/kosmos.io/kosmos/pkg/scheme"
 	"github.com/kosmos.io/kosmos/pkg/sharedcli/klogflag"
@@ -103,97 +98,20 @@ func run(ctx context.Context, opts *options.Options) error {
 		return err
 	}
 
-	// add cluster controller
-	clusterController := clusterManager.ClusterController{
-		Root:                mgr.GetClient(),
+	rootControllerOptions := &register.RootControllerOptions{
+		Ctx:                 ctx,
+		Mgr:                 mgr,
+		RootKosmosClient:    rootKosmosClient,
 		RootDynamic:         dynamicClient,
 		RootClient:          rootClient,
-		EventRecorder:       mgr.GetEventRecorderFor(clusterManager.ControllerName),
 		Options:             opts,
 		RootResourceManager: rootResourceManager,
 		GlobalLeafManager:   globalleafManager,
 	}
-	if err = clusterController.SetupWithManager(mgr); err != nil {
-		return fmt.Errorf("error starting %s: %v", clusterManager.ControllerName, err)
-	}
-
-	if opts.MultiClusterService {
-		// add serviceExport controller
-		ServiceExportController := mcs.ServiceExportController{
-			RootClient:    mgr.GetClient(),
-			EventRecorder: mgr.GetEventRecorderFor(mcs.ServiceExportControllerName),
-			Logger:        mgr.GetLogger(),
-		}
-		if err = ServiceExportController.SetupWithManager(mgr); err != nil {
-			return fmt.Errorf("error starting %s: %v", mcs.ServiceExportControllerName, err)
-		}
-
-		// add auto create mcs resources controller
-		autoCreateMCSController := mcs.AutoCreateMCSController{
-			RootClient:        mgr.GetClient(),
-			EventRecorder:     mgr.GetEventRecorderFor(mcs.AutoCreateMCSControllerName),
-			Logger:            mgr.GetLogger(),
-			RootKosmosClient:  rootKosmosClient,
-			GlobalLeafManager: globalleafManager,
-		}
-		if err = autoCreateMCSController.SetupWithManager(mgr); err != nil {
-			return fmt.Errorf("error starting %s: %v", mcs.AutoCreateMCSControllerName, err)
-		}
-	}
-
-	if opts.DaemonSetController {
-		daemonSetController := &GlobalDaemonSetService{
-			opts:           opts,
-			ctx:            ctx,
-			defaultWorkNum: 1,
-		}
-		if err = daemonSetController.SetupWithManager(mgr); err != nil {
-			return fmt.Errorf("error starting global daemonset : %v", err)
-		}
-	}
-
-	// init rootPodController
-	rootPodReconciler := podcontrollers.RootPodReconciler{
-		GlobalLeafManager: globalleafManager,
-		RootClient:        mgr.GetClient(),
-		DynamicRootClient: dynamicClient,
-		Options:           opts,
-	}
-	if err := rootPodReconciler.SetupWithManager(mgr); err != nil {
-		return fmt.Errorf("error starting rootPodReconciler %s: %v", podcontrollers.RootPodControllerName, err)
-	}
-
-	rootPVCController := pvc.RootPVCController{
-		RootClient:        mgr.GetClient(),
-		GlobalLeafManager: globalleafManager,
-	}
-	if err := rootPVCController.SetupWithManager(mgr); err != nil {
-		return fmt.Errorf("error starting root pvc controller %v", err)
-	}
-
-	rootPVController := pv.RootPVController{
-		RootClient:        mgr.GetClient(),
-		GlobalLeafManager: globalleafManager,
-	}
-	if err := rootPVController.SetupWithManager(mgr); err != nil {
-		return fmt.Errorf("error starting root pv controller %v", err)
-	}
-
-	// init commonCOntroller
-	for i, gvr := range controllers.SYNC_GVRS {
-		commonController := controllers.SyncResourcesReconciler{
-			GlobalLeafManager:    globalleafManager,
-			GroupVersionResource: gvr,
-			Object:               controllers.SYNC_OBJS[i],
-			DynamicRootClient:    dynamicClient,
-			// DynamicLeafClient:    clientDynamic,
-			ControllerName: "async-controller-" + gvr.Resource,
-			// Namespace:            cluster.Spec.Namespace,
-		}
-		if err := commonController.SetupWithManager(mgr, gvr); err != nil {
-			klog.Errorf("Unable to create cluster node controller: %v", err)
-			return err
-		}
+	err = register.AttachRootControllerToManager(rootControllerOptions)
+	if err != nil {
+		klog.Errorf("Unable to setup controller: %v", err)
+		return err
 	}
 
 	go func() {

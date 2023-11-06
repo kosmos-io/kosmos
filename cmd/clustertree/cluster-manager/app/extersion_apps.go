@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"k8s.io/client-go/informers"
@@ -12,6 +13,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/kosmos.io/kosmos/cmd/clustertree/cluster-manager/app/options"
+	"github.com/kosmos.io/kosmos/cmd/clustertree/cluster-manager/app/register"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/extensions/daemonset"
 	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/generated/informers/externalversions"
@@ -219,4 +221,20 @@ func enableGlobalDaemonSet(ctx context.Context, opts *options.Options, defaultWo
 		return err
 	}
 	return nil
+}
+
+func init() {
+	register.RegisterRootController("GlobalDaemonSet", func(co *register.RootControllerOptions) error {
+		if co.Options.DaemonSetController {
+			daemonSetController := GlobalDaemonSetService{
+				opts:           co.Options,
+				ctx:            co.Ctx,
+				defaultWorkNum: 1,
+			}
+			if err := daemonSetController.SetupWithManager(co.Mgr); err != nil {
+				return fmt.Errorf("error starting global daemonset : %v", err)
+			}
+		}
+		return nil
+	})
 }

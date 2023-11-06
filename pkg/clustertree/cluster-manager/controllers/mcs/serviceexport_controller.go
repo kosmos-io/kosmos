@@ -2,6 +2,7 @@ package mcs
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -23,6 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 	mcsv1alpha1 "sigs.k8s.io/mcs-api/pkg/apis/v1alpha1"
 
+	"github.com/kosmos.io/kosmos/cmd/clustertree/cluster-manager/app/register"
 	"github.com/kosmos.io/kosmos/pkg/utils"
 	"github.com/kosmos.io/kosmos/pkg/utils/helper"
 )
@@ -199,4 +201,20 @@ func (c *ServiceExportController) syncServiceExport(ctx context.Context, export 
 
 	c.EventRecorder.Event(export, corev1.EventTypeNormal, "Synced", "serviceExport has been synced to endpointSlice's annotation successfully")
 	return nil
+}
+
+func init() {
+	register.RegisterRootController(ServiceExportControllerName, func(co *register.RootControllerOptions) error {
+		if co.Options.MultiClusterService {
+			ServiceExportController := ServiceExportController{
+				RootClient:    co.Mgr.GetClient(),
+				EventRecorder: co.Mgr.GetEventRecorderFor(ServiceExportControllerName),
+				Logger:        co.Mgr.GetLogger(),
+			}
+			if err := ServiceExportController.SetupWithManager(co.Mgr); err != nil {
+				return fmt.Errorf("error starting %s: %v", ServiceExportControllerName, err)
+			}
+		}
+		return nil
+	})
 }

@@ -2,6 +2,7 @@ package pv
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	v1 "k8s.io/api/core/v1"
@@ -20,6 +21,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/kosmos.io/kosmos/cmd/clustertree/cluster-manager/app/register"
 	"github.com/kosmos.io/kosmos/pkg/utils"
 )
 
@@ -223,4 +225,19 @@ func filterPV(pv *v1.PersistentVolume, nodeName string) {
 		selectors[k].MatchExpressions = mes
 	}
 	pv.Spec.NodeAffinity.Required.NodeSelectorTerms = selectors
+}
+
+func init() {
+	register.RegisterLeafController(LeafPVControllerName, func(cl *register.LeafControllerOptions) error {
+		leafPVCController := LeafPVController{
+			LeafClient:    cl.Mgr.GetClient(),
+			RootClient:    cl.RootClient,
+			RootClientSet: cl.RootClientSet,
+			NodeName:      cl.Node.Name,
+		}
+		if err := leafPVCController.SetupWithManager(cl.Mgr); err != nil {
+			return fmt.Errorf("error starting leaf pv controller %v", err)
+		}
+		return nil
+	})
 }
