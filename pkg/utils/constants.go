@@ -9,7 +9,7 @@ import (
 
 const (
 	DefaultNamespace           = "kosmos-system"
-	DefaultClusterName         = "kosmos-cluster"
+	DefaultClusterName         = "kosmos-control-cluster"
 	DefaultImageRepository     = "ghcr.io/kosmos-io"
 	DefaultWaitTime            = 120
 	RootClusterAnnotationKey   = "kosmos.io/cluster-role"

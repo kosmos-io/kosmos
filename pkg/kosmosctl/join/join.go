@@ -198,14 +198,21 @@ func (o *CommandJoinOptions) runCluster() error {
 			Name: o.Name,
 		},
 		Spec: v1alpha1.ClusterSpec{
-			ImageRepository: o.ImageRegistry,
 			Kubeconfig:      o.KubeConfigStream,
 			Namespace:       o.Namespace,
+			ImageRepository: o.ImageRegistry,
+			ClusterLinkOptions: v1alpha1.ClusterLinkOptions{
+				Enable:         o.EnableLink,
+				NetworkType:    v1alpha1.NetWorkTypeGateWay,
+				IPFamily:       v1alpha1.IPFamilyTypeIPV4,
+				CNI:            o.CNI,
+				DefaultNICName: o.DefaultNICName,
+			},
+			ClusterTreeOptions: v1alpha1.ClusterTreeOptions{
+				Enable: o.EnableTree,
+			},
 		},
 	}
-
-	cluster.Spec.ClusterLinkOptions.Enable = o.EnableLink
-	cluster.Spec.ClusterTreeOptions.Enable = o.EnableTree
 
 	if o.EnableLink {
 		switch o.NetworkType {
@@ -221,16 +228,13 @@ func (o *CommandJoinOptions) runCluster() error {
 		case utils.DefaultIPv6:
 			cluster.Spec.ClusterLinkOptions.IPFamily = v1alpha1.IPFamilyTypeIPV6
 		}
-
-		cluster.Spec.ClusterLinkOptions.CNI = o.CNI
-		cluster.Spec.ClusterLinkOptions.DefaultNICName = o.DefaultNICName
 	}
 
 	// ToDo if enable ClusterTree
 
-	if o.RootFlag {
-		cluster.Annotations[utils.RootClusterAnnotationKey] = utils.RootClusterAnnotationValue
-	}
+	//if o.RootFlag {
+	//	cluster.Annotations[utils.RootClusterAnnotationKey] = utils.RootClusterAnnotationValue
+	//}
 
 	_, err := o.KosmosClient.KosmosV1alpha1().Clusters().Create(context.TODO(), &cluster, metav1.CreateOptions{})
 	if err != nil {
