@@ -62,8 +62,6 @@ rules:
       - ''
     resources:
       - endpoints
-    resourceNames:
-      - kube-scheduler
   - verbs:
       - get
       - list
