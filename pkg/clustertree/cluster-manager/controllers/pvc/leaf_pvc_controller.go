@@ -68,6 +68,8 @@ func (l *LeafPVCController) Reconcile(ctx context.Context, request reconcile.Req
 	if err = filterPVC(pvcCopy, l.NodeName); err != nil {
 		return reconcile.Result{}, nil
 	}
+
+	delete(pvcCopy.Annotations, utils.PVCSelectedNodeKey)
 	pvcCopy.ResourceVersion = rootPVC.ResourceVersion
 	pvcCopy.OwnerReferences = rootPVC.OwnerReferences
 	utils.AddResourceOwnersAnnotations(pvcCopy.Annotations, l.NodeName)
@@ -127,9 +129,6 @@ func filterPVC(leafPVC *v1.PersistentVolumeClaim, nodeName string) error {
 			return err
 		}
 		leafPVC.Annotations[utils.KosmosPvcLabelSelector] = string(labelStr)
-	}
-	if len(leafPVC.Annotations[utils.PVCSelectedNodeKey]) != 0 {
-		leafPVC.Annotations[utils.PVCSelectedNodeKey] = nodeName
 	}
 	return nil
 }
