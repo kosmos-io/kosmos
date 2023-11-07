@@ -15,9 +15,8 @@ import (
 	bootstrapapi "k8s.io/cluster-bootstrap/token/api"
 	"k8s.io/klog/v2"
 
-	"github.com/kosmos.io/kosmos/pkg/clusterlink/operator/addons/option"
-	"github.com/kosmos.io/kosmos/pkg/clusterlink/operator/addons/utils"
-	cmdutil "github.com/kosmos.io/kosmos/pkg/clusterlink/operator/util"
+	"github.com/kosmos.io/kosmos/pkg/operator/clusterlink/option"
+	"github.com/kosmos.io/kosmos/pkg/operator/clusterlink/utils"
 	utils2 "github.com/kosmos.io/kosmos/pkg/utils"
 )
 
@@ -57,7 +56,7 @@ func applyDaemonSet(opt *option.AddonOption) error {
 		return fmt.Errorf("decode agent daemonset error: %v", err)
 	}
 
-	if err := cmdutil.CreateOrUpdateDaemonSet(opt.KubeClientSet, clAgentDaemonSet); err != nil {
+	if err := utils.CreateOrUpdateDaemonSet(opt.KubeClientSet, clAgentDaemonSet); err != nil {
 		return fmt.Errorf("create clusterlink agent daemonset error: %v", err)
 	}
 
@@ -92,7 +91,7 @@ func applySecret(opt *option.AddonOption) error {
 	// Create or update the Secret in the kube-public namespace
 	klog.Infof("[bootstrap-token] creating/updating Secret in kube-public namespace")
 
-	return cmdutil.CreateOrUpdateSecret(opt.KubeClientSet, &corev1.Secret{
+	return utils.CreateOrUpdateSecret(opt.KubeClientSet, &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      utils2.ProxySecretName,
 			Namespace: opt.GetSpecNamespace(),

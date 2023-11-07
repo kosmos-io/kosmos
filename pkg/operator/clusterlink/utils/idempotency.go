@@ -1,5 +1,5 @@
 // nolint:dupl
-package util
+package utils
 
 import (
 	"context"

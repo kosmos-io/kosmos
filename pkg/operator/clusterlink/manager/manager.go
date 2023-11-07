@@ -13,9 +13,8 @@ import (
 	clientsetscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/klog/v2"
 
-	"github.com/kosmos.io/kosmos/pkg/clusterlink/operator/addons/option"
-	"github.com/kosmos.io/kosmos/pkg/clusterlink/operator/addons/utils"
-	cmdutil "github.com/kosmos.io/kosmos/pkg/clusterlink/operator/util"
+	"github.com/kosmos.io/kosmos/pkg/operator/clusterlink/option"
+	"github.com/kosmos.io/kosmos/pkg/operator/clusterlink/utils"
 	utils2 "github.com/kosmos.io/kosmos/pkg/utils"
 )
 
@@ -45,7 +44,7 @@ func applyServiceAccount(opt *option.AddonOption) error {
 		return fmt.Errorf("decode controller-manager serviceaccount error: %v", err)
 	}
 
-	if err := cmdutil.CreateOrUpdateServiceAccount(opt.KubeClientSet, clCtrManagerServiceAccount); err != nil {
+	if err := utils.CreateOrUpdateServiceAccount(opt.KubeClientSet, clCtrManagerServiceAccount); err != nil {
 		return fmt.Errorf("create clusterlink agent serviceaccount error: %v", err)
 	}
 
@@ -78,7 +77,7 @@ func applyDeployment(opt *option.AddonOption) error {
 		return fmt.Errorf("decode controller-manager deployment error: %v", err)
 	}
 
-	if err := cmdutil.CreateOrUpdateDeployment(opt.KubeClientSet, clCtrManagerDeployment); err != nil {
+	if err := utils.CreateOrUpdateDeployment(opt.KubeClientSet, clCtrManagerDeployment); err != nil {
 		return fmt.Errorf("create clusterlink controller-manager deployment error: %v", err)
 	}
 
@@ -106,7 +105,7 @@ func applyClusterRole(opt *option.AddonOption) error {
 		return fmt.Errorf("decode controller-manager clusterrole error: %v", err)
 	}
 
-	if err := cmdutil.CreateOrUpdateClusterRole(opt.KubeClientSet, clCtrManagerClusterRole); err != nil {
+	if err := utils.CreateOrUpdateClusterRole(opt.KubeClientSet, clCtrManagerClusterRole); err != nil {
 		return fmt.Errorf("create clusterlink controller-manager clusterrole error: %v", err)
 	}
 
@@ -135,7 +134,7 @@ func applyClusterRoleBinding(opt *option.AddonOption) error {
 		return fmt.Errorf("decode controller-manager clusterrolebinding error: %v", err)
 	}
 
-	if err := cmdutil.CreateOrUpdateClusterRoleBinding(opt.KubeClientSet, clCtrManagerClusterRoleBinding); err != nil {
+	if err := utils.CreateOrUpdateClusterRoleBinding(opt.KubeClientSet, clCtrManagerClusterRoleBinding); err != nil {
 		return fmt.Errorf("create clusterlink controller-manager clusterrolebinding error: %v", err)
 	}
 

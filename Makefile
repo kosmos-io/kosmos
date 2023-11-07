@@ -9,7 +9,7 @@ REGISTRY_PASSWORD?=""
 REGISTRY_SERVER_ADDRESS?=""
 
 TARGETS :=  clusterlink-controller-manager  \
-			clusterlink-operator \
+			kosmos-operator \
 			clusterlink-agent \
             clusterlink-elector \
 			clusterlink-floater \
@@ -100,7 +100,7 @@ test:
 upload-images: images
 	@echo "push images to $(REGISTRY)"
 	docker push ${REGISTRY}/clusterlink-controller-manager:${VERSION}
-	docker push ${REGISTRY}/clusterlink-operator:${VERSION}
+	docker push ${REGISTRY}/kosmos-operator:${VERSION}
 	docker push ${REGISTRY}/clusterlink-agent:${VERSION}
 	docker push ${REGISTRY}/clusterlink-proxy:${VERSION}
 	docker push ${REGISTRY}/clusterlink-network-manager:${VERSION}

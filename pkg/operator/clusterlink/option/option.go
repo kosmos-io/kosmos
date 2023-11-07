@@ -5,29 +5,29 @@ import (
 	"os"
 
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 
-	cmdOptions "github.com/kosmos.io/kosmos/cmd/clusterlink/operator/app/options"
-	clusterlinkv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
+	kosmosv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
+	"github.com/kosmos.io/kosmos/pkg/utils"
 	"github.com/kosmos.io/kosmos/pkg/version"
 )
 
 // AddonOption for cluster
 type AddonOption struct {
-	clusterlinkv1alpha1.Cluster
+	kosmosv1alpha1.Cluster
 
 	Version  string
 	UseProxy bool
 
+	KubeConfigByte         []byte
 	KubeClientSet          *kubernetes.Clientset
 	ControlPanelKubeConfig *clientcmdapi.Config
 }
 
-func (o *AddonOption) buildClusterConfig(opts *cmdOptions.Options) error {
-	restConfig, err := clientcmd.BuildConfigFromFlags("", opts.KubeConfig)
+func (o *AddonOption) buildClusterConfig() error {
+	restConfig, err := utils.NewConfigFromBytes(o.KubeConfigByte)
 	if err != nil {
-		return fmt.Errorf("error building kubeconfig: %s", err.Error())
+		return fmt.Errorf("error building restConfig: %s", err.Error())
 	}
 
 	clusterClientSet, err := kubernetes.NewForConfig(restConfig)
@@ -45,8 +45,8 @@ func (o *AddonOption) buildClusterConfig(opts *cmdOptions.Options) error {
 }
 
 // Complete preparation for option
-func (o *AddonOption) Complete(opts *cmdOptions.Options) error {
-	return o.buildClusterConfig(opts)
+func (o *AddonOption) Complete() error {
+	return o.buildClusterConfig()
 }
 
 // GetSpecNamespace return spec.namespace

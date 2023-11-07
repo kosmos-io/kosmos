@@ -30,37 +30,38 @@ subjects:
     name: clusterlink-floater
     namespace: {{ .Namespace }}
 `
-	ClusterlinkClusterRoleBinding = `
+
+	KosmosClusterRoleBinding = `
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: clusterlink
+  name: kosmos
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: clusterlink
+  name: kosmos
 subjects:
   - kind: ServiceAccount
     name: clusterlink-controller-manager
     namespace: {{ .Namespace }}
   - kind: ServiceAccount
-    name: clusterlink-operator
+    name: kosmos-operator
     namespace: {{ .Namespace }}
 `
 
-	ClusterTreeKnodeManagerClusterRoleBinding = `
+	ClusterTreeClusterRoleBinding = `
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: clustertree-cluster-manager
+  name: clustertree
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: clustertree-cluster-manager
+  name: clustertree
 subjects:
   - kind: ServiceAccount
-    name: clustertree-cluster-manager
+    name: clustertree
     namespace: {{ .Namespace }}
 `
 

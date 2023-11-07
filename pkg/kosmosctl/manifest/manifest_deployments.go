@@ -36,11 +36,11 @@ spec:
               memory: 500Mi
 `
 
-	ClusterlinkOperatorDeployment = `
+	KosmosOperatorDeployment = `
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: clusterlink-operator
+  name: kosmos-operator
   namespace: {{ .Namespace }}
   labels:
     app: operator
@@ -54,7 +54,7 @@ spec:
       labels:
         app: operator
     spec:
-      serviceAccountName: clusterlink-operator
+      serviceAccountName: kosmos-operator
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -69,11 +69,11 @@ spec:
               topologyKey: kubernetes.io/hostname
       containers:
       - name: operator
-        image: {{ .ImageRepository }}/clusterlink-operator:v{{ .Version }}
+        image: {{ .ImageRepository }}/kosmos-operator:v{{ .Version }}
         imagePullPolicy: IfNotPresent
         command:
-          - clusterlink-operator
-          - --controlpanelconfig=/etc/clusterlink/kubeconfig
+          - kosmos-operator
+          - --controlpanelconfig=/etc/kosmos-operator/kubeconfig
         resources:
           limits:
             memory: 200Mi
@@ -84,12 +84,10 @@ spec:
         env:
         - name: VERSION
           value: v{{ .Version }}
-        - name: CLUSTER_NAME
-          value: {{ .ClusterName }}
         - name: USE_PROXY
           value: "{{ .UseProxy }}"
         volumeMounts:
-          - mountPath: /etc/clusterlink
+          - mountPath: /etc/kosmos-operator
             name: proxy-config
             readOnly: true
       volumes:
@@ -99,7 +97,7 @@ spec:
 
 `
 
-	ClusterTreeKnodeManagerDeployment = `---
+	ClusterTreeClusterManagerDeployment = `---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -117,29 +115,15 @@ spec:
       labels:
         app: clustertree-cluster-manager
     spec:
-      serviceAccountName: clustertree-cluster-manager
+      serviceAccountName: clustertree
       containers:
         - name: manager
           image: {{ .ImageRepository }}/clustertree-cluster-manager:v{{ .Version }}
           imagePullPolicy: IfNotPresent
           command:
             - clustertree-cluster-manager
-            - --kube-api-qps=500
-            - --kube-api-burst=1000
-            - --kubeconfig=/etc/kube/config
-            - --leader-elect=false
-          volumeMounts:
-            - mountPath: /etc/kube
-              name: config-volume
-              readOnly: true
-      volumes:
-        - configMap:
-            defaultMode: 420
-            items:
-              - key: kubeconfig
-                path: config
-            name: host-kubeconfig
-          name: config-volume
+            - --multi-cluster-service=true
+            - --v=4
 `
 
 	CorednsDeployment = `
@@ -266,12 +250,6 @@ type DeploymentReplace struct {
 	Namespace       string
 	ImageRepository string
 	Version         string
-}
 
-type ClusterlinkDeploymentReplace struct {
-	Namespace       string
-	Version         string
-	ClusterName     string
-	UseProxy        string
-	ImageRepository string
+	UseProxy string
 }

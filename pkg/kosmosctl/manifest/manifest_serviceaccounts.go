@@ -1,6 +1,14 @@
 package manifest
 
 const (
+	KosmosOperatorServiceAccount = `
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name:  kosmos-operator
+  namespace: {{ .Namespace }}
+`
+
 	ClusterlinkNetworkManagerServiceAccount = `
 apiVersion: v1
 kind: ServiceAccount
@@ -17,19 +25,11 @@ metadata:
   namespace: {{ .Namespace }}
 `
 
-	ClusterlinkOperatorServiceAccount = `
+	ClusterTreeServiceAccount = `
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name:  clusterlink-operator
-  namespace: {{ .Namespace }}
-`
-
-	ClusterTreeKnodeManagerServiceAccount = `
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: clustertree-cluster-manager
+  name: clustertree
   namespace: {{ .Namespace }}
 `
 

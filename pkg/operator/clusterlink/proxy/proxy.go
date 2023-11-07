@@ -14,9 +14,8 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 
-	"github.com/kosmos.io/kosmos/pkg/clusterlink/operator/addons/option"
-	"github.com/kosmos.io/kosmos/pkg/clusterlink/operator/addons/utils"
-	cmdutil "github.com/kosmos.io/kosmos/pkg/clusterlink/operator/util"
+	"github.com/kosmos.io/kosmos/pkg/operator/clusterlink/option"
+	"github.com/kosmos.io/kosmos/pkg/operator/clusterlink/utils"
 	utils2 "github.com/kosmos.io/kosmos/pkg/utils"
 )
 
@@ -57,7 +56,7 @@ func applySecret(opt *option.AddonOption) error {
 		},
 	}
 
-	if err := cmdutil.CreateOrUpdateSecret(opt.KubeClientSet, secret); err != nil {
+	if err := utils.CreateOrUpdateSecret(opt.KubeClientSet, secret); err != nil {
 		return fmt.Errorf("create clusterlink agent secret error: %v", err)
 	}
 
@@ -79,7 +78,7 @@ func applyService(opt *option.AddonOption) error {
 		return fmt.Errorf("decode controller-proxy service error: %v", err)
 	}
 
-	if err := cmdutil.CreateOrUpdateService(opt.KubeClientSet, proxyService); err != nil {
+	if err := utils.CreateOrUpdateService(opt.KubeClientSet, proxyService); err != nil {
 		return fmt.Errorf("create clusterlink-proxy service error: %v", err)
 	}
 
@@ -107,7 +106,7 @@ func applyDeployment(opt *option.AddonOption) error {
 		return fmt.Errorf("decode clusterlink-proxy deployment error: %v", err)
 	}
 
-	if err := cmdutil.CreateOrUpdateDeployment(opt.KubeClientSet, proxyDeployment); err != nil {
+	if err := utils.CreateOrUpdateDeployment(opt.KubeClientSet, proxyDeployment); err != nil {
 		return fmt.Errorf("create controller-proxy deployment error: %v", err)
 	}
 

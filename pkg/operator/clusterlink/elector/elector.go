@@ -13,9 +13,8 @@ import (
 	clientsetscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/klog/v2"
 
-	"github.com/kosmos.io/kosmos/pkg/clusterlink/operator/addons/option"
-	"github.com/kosmos.io/kosmos/pkg/clusterlink/operator/addons/utils"
-	cmdutil "github.com/kosmos.io/kosmos/pkg/clusterlink/operator/util"
+	"github.com/kosmos.io/kosmos/pkg/operator/clusterlink/option"
+	"github.com/kosmos.io/kosmos/pkg/operator/clusterlink/utils"
 	utils2 "github.com/kosmos.io/kosmos/pkg/utils"
 )
 
@@ -49,7 +48,7 @@ func applyServiceAccount(opt *option.AddonOption) error {
 		return fmt.Errorf("decode elector serviceaccount error: %v", err)
 	}
 
-	if err := cmdutil.CreateOrUpdateServiceAccount(opt.KubeClientSet, clElectorServiceAccount); err != nil {
+	if err := utils.CreateOrUpdateServiceAccount(opt.KubeClientSet, clElectorServiceAccount); err != nil {
 		return fmt.Errorf("create clusterlink agent serviceaccount error: %v", err)
 	}
 
@@ -82,7 +81,7 @@ func applyDeployment(opt *option.AddonOption) error {
 		return fmt.Errorf("decode elector deployment error: %v", err)
 	}
 
-	if err := cmdutil.CreateOrUpdateDeployment(opt.KubeClientSet, clElectorDeployment); err != nil {
+	if err := utils.CreateOrUpdateDeployment(opt.KubeClientSet, clElectorDeployment); err != nil {
 		return fmt.Errorf("create clusterlink elector deployment error: %v", err)
 	}
 
@@ -110,7 +109,7 @@ func applyClusterRole(opt *option.AddonOption) error {
 		return fmt.Errorf("decode elector clusterrole error: %v", err)
 	}
 
-	if err := cmdutil.CreateOrUpdateClusterRole(opt.KubeClientSet, clElectorClusterRole); err != nil {
+	if err := utils.CreateOrUpdateClusterRole(opt.KubeClientSet, clElectorClusterRole); err != nil {
 		return fmt.Errorf("create clusterlink elector clusterrole error: %v", err)
 	}
 
@@ -139,7 +138,7 @@ func applyClusterRoleBinding(opt *option.AddonOption) error {
 		return fmt.Errorf("decode elector clusterrolebinding error: %v", err)
 	}
 
-	if err := cmdutil.CreateOrUpdateClusterRoleBinding(opt.KubeClientSet, clElectorClusterRoleBinding); err != nil {
+	if err := utils.CreateOrUpdateClusterRoleBinding(opt.KubeClientSet, clElectorClusterRoleBinding); err != nil {
 		return fmt.Errorf("create clusterlink elector clusterrolebinding error: %v", err)
 	}
 

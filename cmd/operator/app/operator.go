@@ -16,8 +16,8 @@ import (
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	"github.com/kosmos.io/kosmos/cmd/clusterlink/operator/app/options"
-	"github.com/kosmos.io/kosmos/pkg/clusterlink/operator"
+	"github.com/kosmos.io/kosmos/cmd/operator/app/options"
+	"github.com/kosmos.io/kosmos/pkg/operator"
 	"github.com/kosmos.io/kosmos/pkg/scheme"
 	"github.com/kosmos.io/kosmos/pkg/sharedcli"
 	"github.com/kosmos.io/kosmos/pkg/sharedcli/klogflag"
@@ -29,8 +29,8 @@ func NewOperatorCommand(ctx context.Context) *cobra.Command {
 	opts := options.NewOptions()
 
 	cmd := &cobra.Command{
-		Use:  "clusterlink-operator",
-		Long: `Configure the network based on clusternodes and clusters`,
+		Use:  "kosmos-operator",
+		Long: `Deploy Kosmos components according to the cluster`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// validate options
 			if errs := opts.Validate(); len(errs) != 0 {

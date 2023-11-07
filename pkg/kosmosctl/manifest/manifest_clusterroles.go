@@ -27,11 +27,11 @@ rules:
     verbs: ["get"]
 `
 
-	ClusterlinkClusterRole = `
+	KosmosClusterRole = `
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: clusterlink
+  name: kosmos
 rules:
   - apiGroups: ['*']
     resources: ['*']
@@ -40,11 +40,11 @@ rules:
     verbs: ["get"]
 `
 
-	ClusterTreeKnodeManagerClusterRole = `
+	ClusterTreeClusterRole = `
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: clustertree-cluster-manager
+  name: clustertree
 rules:
   - apiGroups: ['*']
     resources: ['*']
