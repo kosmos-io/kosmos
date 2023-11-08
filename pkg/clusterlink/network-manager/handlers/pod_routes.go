@@ -30,11 +30,33 @@ func (h *PodRoutes) Do(c *Context) (err error) {
 			podCIDRs = cluster.Status.ClusterLinkStatus.PodCIDRs
 		}
 
+		podCIDRs = FilterByIPFamily(podCIDRs, cluster.Spec.ClusterLinkOptions.IPFamily)
 		podCIDRs = ConvertToGlobalCIDRs(podCIDRs, cluster.Spec.ClusterLinkOptions.GlobalCIDRsMap)
 		BuildRoutes(c, target, podCIDRs)
 	}
 
 	return nil
+}
+
+func convertIPFamilyTypeToIPType(familyType v1alpha1.IPFamilyType) helpers.IPType {
+	if familyType == v1alpha1.IPFamilyTypeIPV4 {
+		return helpers.IPV4
+	}
+	return helpers.IPV6
+}
+
+func FilterByIPFamily(cidrs []string, familyType v1alpha1.IPFamilyType) (results []string) {
+	if familyType == v1alpha1.IPFamilyTypeALL {
+		return cidrs
+	}
+	specifiedIPType := convertIPFamilyTypeToIPType(familyType)
+	for _, cidr := range cidrs {
+		ipType := helpers.GetIPType(cidr)
+		if ipType == specifiedIPType {
+			results = append(results, cidr)
+		}
+	}
+	return
 }
 
 func ConvertToGlobalCIDRs(cidrs []string, globalCIDRMap map[string]string) []string {
@@ -64,6 +86,14 @@ func ifCIDRConflictWithSelf(selfCIDRs []string, tarCIDR string) bool {
 	return false
 }
 
+func SupportIPType(cluster *v1alpha1.Cluster, ipType helpers.IPType) bool {
+	if cluster.Spec.ClusterLinkOptions.IPFamily == v1alpha1.IPFamilyTypeALL {
+		return true
+	}
+	specifiedIPType := convertIPFamilyTypeToIPType(cluster.Spec.ClusterLinkOptions.IPFamily)
+	return specifiedIPType == ipType
+}
+
 func BuildRoutes(ctx *Context, target *v1alpha1.ClusterNode, cidrs []string) {
 	otherClusterNodes := ctx.Filter.GetAllNodesExceptCluster(target.Spec.ClusterName)
 
@@ -81,6 +111,11 @@ func BuildRoutes(ctx *Context, target *v1alpha1.ClusterNode, cidrs []string) {
 		}
 
 		targetDev := ctx.GetDeviceFromResults(target.Name, vxBridge)
+		if targetDev == nil {
+			klog.Warning("cannot find the target dev, nodeName: %s, devName: %s", target.Name, vxBridge)
+			continue
+		}
+
 		targetIP, _, err := net.ParseCIDR(targetDev.Addr)
 		if err != nil {
 			klog.Warning("cannot parse target dev addr, nodeName: %s, devName: %s", target.Name, vxBridge)
@@ -89,6 +124,9 @@ func BuildRoutes(ctx *Context, target *v1alpha1.ClusterNode, cidrs []string) {
 
 		for _, n := range otherClusterNodes {
 			srcCluster := ctx.Filter.GetClusterByName(n.Spec.ClusterName)
+			if !SupportIPType(srcCluster, ipType) {
+				continue
+			}
 
 			allCIDRs := append(srcCluster.Status.ClusterLinkStatus.PodCIDRs, srcCluster.Status.ClusterLinkStatus.ServiceCIDRs...)
 			if ifCIDRConflictWithSelf(allCIDRs, cidr) {
