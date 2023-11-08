@@ -20,7 +20,7 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: clusterlink-controller-manager
-    namespace: clusterlink-system
+    namespace: kosmos-system
   - kind: ServiceAccount
     name: clusterlink-operator
-    namespace: clusterlink-system
+    namespace: kosmos-system

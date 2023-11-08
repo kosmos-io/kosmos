@@ -2,13 +2,13 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name:  clusterlink-controller-manager
-  namespace: clusterlink-system
+  namespace: kosmos-system
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: clusterlink-controller-manager
-  namespace: clusterlink-system
+  namespace: kosmos-system
   labels:
     app: clusterlink-controller-manager
 spec:
