@@ -69,6 +69,7 @@ func (d *stateData) Clone() framework.StateData {
 type VolumeBinding struct {
 	Binder           scheduling.SchedulerVolumeBinder
 	PVCLister        corelisters.PersistentVolumeClaimLister
+	NodeLister       corelisters.NodeLister
 	frameworkHandler framework.Handle
 }
 
@@ -232,6 +233,15 @@ func (pl *VolumeBinding) Filter(_ context.Context, cs *framework.CycleState, pod
 
 // Reserve reserves volumes of pod and saves binding status in cycle state.
 func (pl *VolumeBinding) Reserve(_ context.Context, cs *framework.CycleState, pod *corev1.Pod, nodeName string) *framework.Status {
+	node, err := pl.NodeLister.Get(nodeName)
+	if err == nil {
+		return framework.NewStatus(framework.Error, "node not found")
+	}
+
+	if helpers.HasKnodeTaint(node) {
+		return nil
+	}
+
 	state, err := getStateData(cs)
 	if err != nil {
 		return framework.AsStatus(err)
@@ -257,6 +267,15 @@ func (pl *VolumeBinding) Reserve(_ context.Context, cs *framework.CycleState, po
 // If binding errors, times out or gets undone, then an error will be returned to
 // retry scheduling.
 func (pl *VolumeBinding) PreBind(ctx context.Context, cs *framework.CycleState, pod *corev1.Pod, nodeName string) *framework.Status {
+	node, err := pl.NodeLister.Get(nodeName)
+	if err == nil {
+		return framework.NewStatus(framework.Error, "node not found")
+	}
+
+	if helpers.HasKnodeTaint(node) {
+		return nil
+	}
+
 	s, err := getStateData(cs)
 	if err != nil {
 		return framework.AsStatus(err)
@@ -283,6 +302,15 @@ func (pl *VolumeBinding) PreBind(ctx context.Context, cs *framework.CycleState, 
 // Unreserve clears assumed PV and PVC cache.
 // It's idempotent, and does nothing if no cache found for the given pod.
 func (pl *VolumeBinding) Unreserve(_ context.Context, cs *framework.CycleState, _ *corev1.Pod, nodeName string) {
+	node, err := pl.NodeLister.Get(nodeName)
+	if err != nil {
+		return
+	}
+
+	if helpers.HasKnodeTaint(node) {
+		return
+	}
+
 	s, err := getStateData(cs)
 	if err != nil {
 		return
@@ -317,6 +345,7 @@ func New(plArgs runtime.Object, fh framework.Handle) (framework.Plugin, error) {
 	return &VolumeBinding{
 		Binder:           binder,
 		PVCLister:        pvcInformer.Lister(),
+		NodeLister:       nodeInformer.Lister(),
 		frameworkHandler: fh,
 	}, nil
 }
