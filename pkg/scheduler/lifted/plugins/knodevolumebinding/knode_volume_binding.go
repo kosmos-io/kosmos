@@ -234,7 +234,7 @@ func (pl *VolumeBinding) Filter(_ context.Context, cs *framework.CycleState, pod
 // Reserve reserves volumes of pod and saves binding status in cycle state.
 func (pl *VolumeBinding) Reserve(_ context.Context, cs *framework.CycleState, pod *corev1.Pod, nodeName string) *framework.Status {
 	node, err := pl.NodeLister.Get(nodeName)
-	if err == nil {
+	if err != nil {
 		return framework.NewStatus(framework.Error, "node not found")
 	}
 
@@ -268,7 +268,7 @@ func (pl *VolumeBinding) Reserve(_ context.Context, cs *framework.CycleState, po
 // retry scheduling.
 func (pl *VolumeBinding) PreBind(ctx context.Context, cs *framework.CycleState, pod *corev1.Pod, nodeName string) *framework.Status {
 	node, err := pl.NodeLister.Get(nodeName)
-	if err == nil {
+	if err != nil {
 		return framework.NewStatus(framework.Error, "node not found")
 	}
 
