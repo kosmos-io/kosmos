@@ -92,7 +92,7 @@ func (pl *VolumeBinding) PreFilterExtensions() framework.PreFilterExtensions {
 // retry scheduling.
 func (pl *VolumeBinding) PreBind(ctx context.Context, cs *framework.CycleState, pod *corev1.Pod, nodeName string) *framework.Status {
 	node, err := pl.NodeLister.Get(nodeName)
-	if err == nil {
+	if err != nil {
 		return framework.NewStatus(framework.Error, "node not found")
 	}
 
@@ -126,7 +126,7 @@ func (pl *VolumeBinding) PreBind(ctx context.Context, cs *framework.CycleState, 
 // Reserve reserves volumes of pod and saves binding status in cycle state.
 func (pl *VolumeBinding) Reserve(_ context.Context, cs *framework.CycleState, p *corev1.Pod, nodeName string) *framework.Status {
 	node, err := pl.NodeLister.Get(nodeName)
-	if err == nil {
+	if err != nil {
 		return framework.NewStatus(framework.Error, "node not found")
 	}
 
