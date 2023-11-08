@@ -32,6 +32,10 @@ func (c *FakeKosmosV1alpha1) NodeConfigs() v1alpha1.NodeConfigInterface {
 	return &FakeNodeConfigs{c}
 }
 
+func (c *FakeKosmosV1alpha1) PodConvertPolicies(namespace string) v1alpha1.PodConvertPolicyInterface {
+	return &FakePodConvertPolicies{c, namespace}
+}
+
 func (c *FakeKosmosV1alpha1) ShadowDaemonSets(namespace string) v1alpha1.ShadowDaemonSetInterface {
 	return &FakeShadowDaemonSets{c, namespace}
 }

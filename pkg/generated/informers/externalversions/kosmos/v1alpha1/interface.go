@@ -18,6 +18,8 @@ type Interface interface {
 	Knodes() KnodeInformer
 	// NodeConfigs returns a NodeConfigInformer.
 	NodeConfigs() NodeConfigInformer
+	// PodConvertPolicies returns a PodConvertPolicyInformer.
+	PodConvertPolicies() PodConvertPolicyInformer
 	// ShadowDaemonSets returns a ShadowDaemonSetInformer.
 	ShadowDaemonSets() ShadowDaemonSetInformer
 }
@@ -56,6 +58,11 @@ func (v *version) Knodes() KnodeInformer {
 // NodeConfigs returns a NodeConfigInformer.
 func (v *version) NodeConfigs() NodeConfigInformer {
 	return &nodeConfigInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
+}
+
+// PodConvertPolicies returns a PodConvertPolicyInformer.
+func (v *version) PodConvertPolicies() PodConvertPolicyInformer {
+	return &podConvertPolicyInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // ShadowDaemonSets returns a ShadowDaemonSetInformer.

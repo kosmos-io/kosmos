@@ -26,6 +26,14 @@ type KnodeListerExpansion interface{}
 // NodeConfigLister.
 type NodeConfigListerExpansion interface{}
 
+// PodConvertPolicyListerExpansion allows custom methods to be added to
+// PodConvertPolicyLister.
+type PodConvertPolicyListerExpansion interface{}
+
+// PodConvertPolicyNamespaceListerExpansion allows custom methods to be added to
+// PodConvertPolicyNamespaceLister.
+type PodConvertPolicyNamespaceListerExpansion interface{}
+
 // ShadowDaemonSetListerExpansion allows custom methods to be added to
 // ShadowDaemonSetLister.
 type ShadowDaemonSetListerExpansion interface{}
