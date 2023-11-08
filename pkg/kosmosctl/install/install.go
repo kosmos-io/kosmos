@@ -152,7 +152,7 @@ func (o *CommandInstallOptions) Complete(f ctlutil.Factory) error {
 
 func (o *CommandInstallOptions) Validate() error {
 	if len(o.Namespace) == 0 {
-		return fmt.Errorf("namespace must be specified")
+		return fmt.Errorf("kosmosctl install validate error, namespace is not valid")
 	}
 
 	return nil
@@ -496,7 +496,7 @@ func (o *CommandInstallOptions) runClustertree() error {
 func (o *CommandInstallOptions) createOperator() error {
 	klog.Info("Start creating Kosmos-Operator...")
 	operatorDeploy, err := util.GenerateDeployment(manifest.KosmosOperatorDeployment, manifest.DeploymentReplace{
-		Namespace:       utils.DefaultNamespace,
+		Namespace:       o.Namespace,
 		Version:         version.GetReleaseVersion().PatchRelease(),
 		UseProxy:        o.UseProxy,
 		ImageRepository: o.ImageRegistry,
@@ -513,7 +513,7 @@ func (o *CommandInstallOptions) createOperator() error {
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      utils.ControlPanelSecretName,
-			Namespace: utils.DefaultNamespace,
+			Namespace: o.Namespace,
 		},
 		Data: map[string][]byte{
 			"kubeconfig": o.HostKubeConfigStream,
@@ -534,7 +534,7 @@ func (o *CommandInstallOptions) createOperator() error {
 	}
 
 	operatorCRB, err := util.GenerateClusterRoleBinding(manifest.KosmosClusterRoleBinding, manifest.ClusterRoleBindingReplace{
-		Namespace: utils.DefaultNamespace,
+		Namespace: o.Namespace,
 	})
 	if err != nil {
 		return fmt.Errorf("kosmosctl install operator run error, generate operator clusterrolebinding failed: %s", err)
@@ -545,7 +545,7 @@ func (o *CommandInstallOptions) createOperator() error {
 	}
 
 	operatorSA, err := util.GenerateServiceAccount(manifest.KosmosOperatorServiceAccount, manifest.ServiceAccountReplace{
-		Namespace: utils.DefaultNamespace,
+		Namespace: o.Namespace,
 	})
 	if err != nil {
 		return fmt.Errorf("kosmosctl install operator run error, generate operator serviceaccount failed: %s", err)

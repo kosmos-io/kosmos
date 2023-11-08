@@ -32,6 +32,12 @@ var joinExample = templates.Examples(i18n.T(`
         # Join cluster resource, e.g: 
         kosmosctl join cluster --name cluster-name --kubeconfig ~/kubeconfig/cluster-kubeconfig
 
+        # Join cluster resource and turn on Clusterlink, e.g: 
+        kosmosctl join cluster --name cluster-name --kubeconfig ~/kubeconfig/cluster-kubeconfig --enable-link
+
+        # Join cluster resource and turn on Clustertree, e.g: 
+        kosmosctl join cluster --name cluster-name --kubeconfig ~/kubeconfig/cluster-kubeconfig --enable-tree
+
         # Join cluster resource use param values other than default, e.g: 
         kosmosctl join cluster --name cluster-name --kubeconfig ~/kubeconfig/cluster-kubeconfig --cni cni-name --default-nic nic-name
 `))
@@ -46,6 +52,7 @@ type CommandJoinOptions struct {
 	HostKubeConfigStream []byte
 	WaitTime             int
 	RootFlag             bool
+	EnableAll            bool
 
 	EnableLink     bool
 	CNI            string
@@ -83,16 +90,19 @@ func NewCmdJoin(f ctlutil.Factory) *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.StringVar(&o.Name, "name", "", "Specify the name of the resource to join.")
+	flags.StringVarP(&o.Namespace, "namespace", "n", utils.DefaultNamespace, "Kosmos namespace.")
 	flags.StringVar(&o.KubeConfig, "kubeconfig", "", "Absolute path to the cluster kubeconfig file.")
 	flags.StringVar(&o.HostKubeConfig, "host-kubeconfig", "", "Absolute path to the special host kubeconfig file.")
-	flags.StringVar(&o.ImageRegistry, "private-image-registry", utils.DefaultImageRepository, "Private image registry where pull images from. If set, all required images will be downloaded from it, it would be useful in offline installation scenarios.  In addition, you still can use --kube-image-registry to specify the registry for Kubernetes's images.")
-	flags.BoolVar(&o.EnableLink, "enable-link", true, "Turn on clusterlink.")
+	flags.StringVar(&o.ImageRegistry, "private-image-registry", utils.DefaultImageRepository, "Private image registry where pull images from. If set, all required images will be downloaded from it, it would be useful in offline installation scenarios.")
+	flags.BoolVar(&o.RootFlag, "root-flag", false, "Tag control cluster.")
+	flags.BoolVar(&o.EnableAll, "enable-all", false, "Turn on all module.")
+	flags.BoolVar(&o.EnableLink, "enable-link", false, "Turn on clusterlink.")
 	flags.StringVar(&o.CNI, "cni", "", "The cluster is configured using cni and currently supports calico and flannel.")
 	flags.StringVar(&o.DefaultNICName, "default-nic", "", "Set default network interface card.")
 	flags.StringVar(&o.NetworkType, "network-type", utils.NetworkTypeGateway, "Set the cluster network connection mode, which supports gateway and p2p modes, gateway is used by default.")
 	flags.StringVar(&o.IpFamily, "ip-family", utils.DefaultIPv4, "Specify the IP protocol version used by network devices, common IP families include IPv4 and IPv6.")
 	flags.StringVar(&o.UseProxy, "use-proxy", "false", "Set whether to enable proxy.")
-	flags.BoolVar(&o.EnableTree, "enable-tree", true, "Turn on clustertree.")
+	flags.BoolVar(&o.EnableTree, "enable-tree", false, "Turn on clustertree.")
 	flags.IntVarP(&o.WaitTime, "wait-time", "", utils.DefaultWaitTime, "Wait the specified time for the Kosmos install ready.")
 
 	return cmd
@@ -165,6 +175,10 @@ func (o *CommandJoinOptions) Validate(args []string) error {
 		return fmt.Errorf("kosmosctl join validate error, name is not valid")
 	}
 
+	if len(o.Namespace) == 0 {
+		return fmt.Errorf("kosmosctl join validate error, namespace is not valid")
+	}
+
 	switch args[0] {
 	case "cluster":
 		_, err := o.K8sDynamicClient.Resource(util.ClusterGVR).Get(context.TODO(), o.Name, metav1.GetOptions{})
@@ -192,6 +206,11 @@ func (o *CommandJoinOptions) Run(args []string) error {
 
 func (o *CommandJoinOptions) runCluster() error {
 	klog.Info("Start registering cluster to kosmos control plane...")
+	if o.EnableAll {
+		o.EnableLink = true
+		o.EnableTree = true
+	}
+
 	// create cluster in control panel
 	cluster := v1alpha1.Cluster{
 		ObjectMeta: metav1.ObjectMeta{
@@ -202,11 +221,17 @@ func (o *CommandJoinOptions) runCluster() error {
 			Namespace:       o.Namespace,
 			ImageRepository: o.ImageRegistry,
 			ClusterLinkOptions: v1alpha1.ClusterLinkOptions{
-				Enable:         o.EnableLink,
-				NetworkType:    v1alpha1.NetWorkTypeGateWay,
-				IPFamily:       v1alpha1.IPFamilyTypeIPV4,
-				CNI:            o.CNI,
-				DefaultNICName: o.DefaultNICName,
+				Enable: o.EnableLink,
+				BridgeCIDRs: v1alpha1.VxlanCIDRs{
+					IP:  "220.0.0.0/8",
+					IP6: "9480::0/16",
+				},
+				LocalCIDRs: v1alpha1.VxlanCIDRs{
+					IP:  "210.0.0.0/8",
+					IP6: "9470::0/16",
+				},
+				NetworkType: v1alpha1.NetWorkTypeGateWay,
+				IPFamily:    v1alpha1.IPFamilyTypeIPV4,
 			},
 			ClusterTreeOptions: v1alpha1.ClusterTreeOptions{
 				Enable: o.EnableTree,
@@ -216,10 +241,10 @@ func (o *CommandJoinOptions) runCluster() error {
 
 	if o.EnableLink {
 		switch o.NetworkType {
-		case utils.NetworkTypeGateway:
-			cluster.Spec.ClusterLinkOptions.NetworkType = v1alpha1.NetWorkTypeGateWay
 		case utils.NetworkTypeP2P:
 			cluster.Spec.ClusterLinkOptions.NetworkType = v1alpha1.NetworkTypeP2P
+		default:
+			cluster.Spec.ClusterLinkOptions.NetworkType = v1alpha1.NetWorkTypeGateWay
 		}
 
 		switch o.IpFamily {
@@ -227,14 +252,24 @@ func (o *CommandJoinOptions) runCluster() error {
 			cluster.Spec.ClusterLinkOptions.IPFamily = v1alpha1.IPFamilyTypeIPV4
 		case utils.DefaultIPv6:
 			cluster.Spec.ClusterLinkOptions.IPFamily = v1alpha1.IPFamilyTypeIPV6
+		default:
+			cluster.Spec.ClusterLinkOptions.IPFamily = v1alpha1.IPFamilyTypeALL
 		}
+
+		cluster.Spec.ClusterLinkOptions.DefaultNICName = o.DefaultNICName
+		cluster.Spec.ClusterLinkOptions.CNI = o.CNI
 	}
 
-	// ToDo if enable ClusterTree
-
-	//if o.RootFlag {
-	//	cluster.Annotations[utils.RootClusterAnnotationKey] = utils.RootClusterAnnotationValue
+	// ToDo ClusterTree currently has no init parameters, can be expanded later.
+	//if o.EnableTree {
+	//
 	//}
+
+	if o.RootFlag {
+		cluster.Annotations = map[string]string{
+			utils.RootClusterAnnotationKey: utils.RootClusterAnnotationValue,
+		}
+	}
 
 	_, err := o.KosmosClient.KosmosV1alpha1().Clusters().Create(context.TODO(), &cluster, metav1.CreateOptions{})
 	if err != nil {
