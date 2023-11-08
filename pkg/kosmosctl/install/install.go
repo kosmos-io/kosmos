@@ -2,7 +2,6 @@ package install
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -173,9 +172,17 @@ func (o *CommandInstallOptions) Run() error {
 		if err != nil {
 			return err
 		}
+		err = o.createControlCluster()
+		if err != nil {
+			return err
+		}
 		util.CheckInstall("Clusterlink")
 	case utils.ClusterTree:
 		err := o.runClustertree()
+		if err != nil {
+			return err
+		}
+		err = o.createControlCluster()
 		if err != nil {
 			return err
 		}
@@ -186,6 +193,10 @@ func (o *CommandInstallOptions) Run() error {
 			return err
 		}
 		err = o.runClustertree()
+		if err != nil {
+			return err
+		}
+		err = o.createControlCluster()
 		if err != nil {
 			return err
 		}
@@ -250,17 +261,17 @@ func (o *CommandInstallOptions) runClusterlink() error {
 
 	klog.Info("Attempting to create Kosmos-Clusterlink CRDs...")
 	crds := apiextensionsv1.CustomResourceDefinitionList{}
-	clusterlinkCluster, err := util.GenerateCustomResourceDefinition(manifest.ClusterlinkCluster, manifest.ClusterlinkReplace{
+	clusterlinkCluster, err := util.GenerateCustomResourceDefinition(manifest.Cluster, manifest.CRDReplace{
 		Namespace: o.Namespace,
 	})
 	if err != nil {
 		return err
 	}
-	clusterlinkClusterNode, err := util.GenerateCustomResourceDefinition(manifest.ClusterlinkClusterNode, nil)
+	clusterlinkClusterNode, err := util.GenerateCustomResourceDefinition(manifest.ClusterNode, nil)
 	if err != nil {
 		return err
 	}
-	clusterlinkNodeConfig, err := util.GenerateCustomResourceDefinition(manifest.ClusterlinkNodeConfig, nil)
+	clusterlinkNodeConfig, err := util.GenerateCustomResourceDefinition(manifest.NodeConfig, nil)
 	if err != nil {
 		return err
 	}
@@ -268,7 +279,10 @@ func (o *CommandInstallOptions) runClusterlink() error {
 	for i := range crds.Items {
 		_, err = o.K8sExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Create(context.Background(), &crds.Items[i], metav1.CreateOptions{})
 		if err != nil {
-			if !apierrors.IsAlreadyExists(err) {
+			if apierrors.IsAlreadyExists(err) {
+				klog.Warningf("CRD %v is existed, creation process will skip", &crds.Items[i].Name)
+				continue
+			} else {
 				return fmt.Errorf("kosmosctl install clusterlink run error, crd options failed: %v", err)
 			}
 		}
@@ -315,59 +329,6 @@ func (o *CommandInstallOptions) runClusterlink() error {
 			}
 		} else {
 			return fmt.Errorf("kosmosctl install operator run error, get operator deployment failed: %s", err)
-		}
-	}
-
-	controlCluster, err := o.KosmosClient.KosmosV1alpha1().Clusters().Get(context.TODO(), utils.DefaultClusterName, metav1.GetOptions{})
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			clusterArgs := []string{"cluster"}
-			base64ClusterKubeConfig := base64.StdEncoding.EncodeToString(o.HostKubeConfigStream)
-			joinOptions := join.CommandJoinOptions{
-				Name:             utils.DefaultClusterName,
-				KubeConfig:       base64ClusterKubeConfig,
-				WaitTime:         o.WaitTime,
-				KosmosClient:     o.KosmosClient,
-				K8sClient:        o.K8sClient,
-				K8sDynamicClient: o.K8sDynamicClient,
-				RootFlag:         true,
-			}
-
-			joinOptions.CNI = o.CNI
-			joinOptions.DefaultNICName = o.DefaultNICName
-			joinOptions.NetworkType = o.NetworkType
-			joinOptions.IpFamily = o.IpFamily
-			joinOptions.UseProxy = o.UseProxy
-
-			err = joinOptions.Run(clusterArgs)
-			if err != nil {
-				return fmt.Errorf("kosmosctl install run error, join control panel cluster failed: %s", err)
-			}
-		} else {
-			return fmt.Errorf("kosmosctl install run error, get control panel cluster failed: %s", err)
-		}
-	}
-
-	if !controlCluster.Spec.ClusterLinkOptions.Enable {
-		controlCluster.Spec.ClusterLinkOptions.Enable = true
-		controlCluster.Spec.ClusterLinkOptions.CNI = o.CNI
-		controlCluster.Spec.ClusterLinkOptions.DefaultNICName = o.DefaultNICName
-		switch o.NetworkType {
-		case utils.NetworkTypeGateway:
-			controlCluster.Spec.ClusterLinkOptions.NetworkType = v1alpha1.NetWorkTypeGateWay
-		case utils.NetworkTypeP2P:
-			controlCluster.Spec.ClusterLinkOptions.NetworkType = v1alpha1.NetworkTypeP2P
-		}
-
-		switch o.IpFamily {
-		case utils.DefaultIPv4:
-			controlCluster.Spec.ClusterLinkOptions.IPFamily = v1alpha1.IPFamilyTypeIPV4
-		case utils.DefaultIPv6:
-			controlCluster.Spec.ClusterLinkOptions.IPFamily = v1alpha1.IPFamilyTypeIPV6
-		}
-		_, err = o.KosmosClient.KosmosV1alpha1().Clusters().Update(context.TODO(), controlCluster, metav1.UpdateOptions{})
-		if err != nil {
-			return fmt.Errorf("kosmosctl install clusterlink run error, update control panel cluster failed: %s", err)
 		}
 	}
 
@@ -429,18 +390,20 @@ func (o *CommandInstallOptions) runClustertree() error {
 	}
 	klog.Info("ClusterRoleBinding " + clustertreeCRB.Name + " has been created.")
 
-	klog.Info("Attempting to create kosmos-clustertree knode CRDs...")
-	clustertreeKnode, err := util.GenerateCustomResourceDefinition(manifest.ClusterTreeKnode, nil)
+	klog.Info("Attempting to create kosmos-clustertree CRDs...")
+	clustertreeCluster, err := util.GenerateCustomResourceDefinition(manifest.Cluster, nil)
 	if err != nil {
 		return err
 	}
-	_, err = o.K8sExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Create(context.Background(), clustertreeKnode, metav1.CreateOptions{})
+	_, err = o.K8sExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Create(context.Background(), clustertreeCluster, metav1.CreateOptions{})
 	if err != nil {
-		if !apierrors.IsAlreadyExists(err) {
+		if apierrors.IsAlreadyExists(err) {
+			klog.Warningf("CRD %v is existed, creation process will skip", clustertreeCluster.Name)
+		} else {
 			return fmt.Errorf("kosmosctl install clustertree run error, crd options failed: %v", err)
 		}
 	}
-	klog.Info("Create CRD " + clustertreeKnode.Name + " successful.")
+	klog.Info("Create CRD " + clustertreeCluster.Name + " successful.")
 
 	serviceExport, err := util.GenerateCustomResourceDefinition(manifest.ServiceExport, nil)
 	if err != nil {
@@ -527,38 +490,6 @@ func (o *CommandInstallOptions) runClustertree() error {
 		}
 	}
 
-	controlCluster, err := o.KosmosClient.KosmosV1alpha1().Clusters().Get(context.TODO(), utils.DefaultClusterName, metav1.GetOptions{})
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			clusterArgs := []string{"cluster"}
-			base64ClusterKubeConfig := base64.StdEncoding.EncodeToString(o.HostKubeConfigStream)
-			joinOptions := join.CommandJoinOptions{
-				Name:             utils.DefaultClusterName,
-				KubeConfig:       base64ClusterKubeConfig,
-				WaitTime:         o.WaitTime,
-				KosmosClient:     o.KosmosClient,
-				K8sClient:        o.K8sClient,
-				K8sDynamicClient: o.K8sDynamicClient,
-				RootFlag:         true,
-			}
-
-			err = joinOptions.Run(clusterArgs)
-			if err != nil {
-				return fmt.Errorf("kosmosctl install run error, join control panel cluster failed: %s", err)
-			}
-		} else {
-			return fmt.Errorf("kosmosctl install run error, get control panel cluster failed: %s", err)
-		}
-	}
-
-	if !controlCluster.Spec.ClusterTreeOptions.Enable {
-		controlCluster.Spec.ClusterTreeOptions.Enable = true
-		_, err = o.KosmosClient.KosmosV1alpha1().Clusters().Update(context.TODO(), controlCluster, metav1.UpdateOptions{})
-		if err != nil {
-			return fmt.Errorf("kosmosctl install clustertree run error, update control panel cluster failed: %s", err)
-		}
-	}
-
 	return nil
 }
 
@@ -634,6 +565,166 @@ func (o *CommandInstallOptions) createOperator() error {
 	return nil
 }
 
+func (o *CommandInstallOptions) createControlCluster() error {
+	switch o.Module {
+	case utils.ClusterLink:
+		controlCluster, err := o.KosmosClient.KosmosV1alpha1().Clusters().Get(context.TODO(), utils.DefaultClusterName, metav1.GetOptions{})
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				clusterArgs := []string{"cluster"}
+				joinOptions := join.CommandJoinOptions{
+					Name:             utils.DefaultClusterName,
+					Namespace:        o.Namespace,
+					ImageRegistry:    o.ImageRegistry,
+					KubeConfigStream: o.HostKubeConfigStream,
+					WaitTime:         o.WaitTime,
+					KosmosClient:     o.KosmosClient,
+					K8sClient:        o.K8sClient,
+					K8sDynamicClient: o.K8sDynamicClient,
+					RootFlag:         true,
+					EnableLink:       true,
+					CNI:              o.CNI,
+					DefaultNICName:   o.DefaultNICName,
+					NetworkType:      o.NetworkType,
+					IpFamily:         o.IpFamily,
+					UseProxy:         o.UseProxy,
+				}
+
+				err = joinOptions.Run(clusterArgs)
+				if err != nil {
+					return fmt.Errorf("kosmosctl install run error, join control panel cluster failed: %s", err)
+				}
+			} else {
+				return fmt.Errorf("kosmosctl install run error, get control panel cluster failed: %s", err)
+			}
+		}
+
+		if len(controlCluster.Name) > 0 {
+			if !controlCluster.Spec.ClusterLinkOptions.Enable {
+				controlCluster.Spec.ClusterLinkOptions.Enable = true
+				controlCluster.Spec.ClusterLinkOptions.CNI = o.CNI
+				controlCluster.Spec.ClusterLinkOptions.DefaultNICName = o.DefaultNICName
+				switch o.NetworkType {
+				case utils.NetworkTypeGateway:
+					controlCluster.Spec.ClusterLinkOptions.NetworkType = v1alpha1.NetWorkTypeGateWay
+				case utils.NetworkTypeP2P:
+					controlCluster.Spec.ClusterLinkOptions.NetworkType = v1alpha1.NetworkTypeP2P
+				}
+
+				switch o.IpFamily {
+				case utils.DefaultIPv4:
+					controlCluster.Spec.ClusterLinkOptions.IPFamily = v1alpha1.IPFamilyTypeIPV4
+				case utils.DefaultIPv6:
+					controlCluster.Spec.ClusterLinkOptions.IPFamily = v1alpha1.IPFamilyTypeIPV6
+				}
+				_, err = o.KosmosClient.KosmosV1alpha1().Clusters().Update(context.TODO(), controlCluster, metav1.UpdateOptions{})
+				if err != nil {
+					klog.Infof("ControlCluster-Link: ", controlCluster)
+					return fmt.Errorf("kosmosctl install clusterlink run error, update control panel cluster failed: %s", err)
+				}
+			}
+		}
+	case utils.ClusterTree:
+		controlCluster, err := o.KosmosClient.KosmosV1alpha1().Clusters().Get(context.TODO(), utils.DefaultClusterName, metav1.GetOptions{})
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				clusterArgs := []string{"cluster"}
+				joinOptions := join.CommandJoinOptions{
+					Name:             utils.DefaultClusterName,
+					Namespace:        o.Namespace,
+					ImageRegistry:    o.ImageRegistry,
+					KubeConfigStream: o.HostKubeConfigStream,
+					WaitTime:         o.WaitTime,
+					KosmosClient:     o.KosmosClient,
+					K8sClient:        o.K8sClient,
+					K8sDynamicClient: o.K8sDynamicClient,
+					RootFlag:         true,
+					EnableTree:       true,
+				}
+
+				err = joinOptions.Run(clusterArgs)
+				if err != nil {
+					return fmt.Errorf("kosmosctl install run error, join control panel cluster failed: %s", err)
+				}
+			} else {
+				return fmt.Errorf("kosmosctl install run error, get control panel cluster failed: %s", err)
+			}
+		}
+
+		if len(controlCluster.Name) > 0 {
+			if !controlCluster.Spec.ClusterTreeOptions.Enable {
+				controlCluster.Spec.ClusterTreeOptions.Enable = true
+				_, err = o.KosmosClient.KosmosV1alpha1().Clusters().Update(context.TODO(), controlCluster, metav1.UpdateOptions{})
+				if err != nil {
+					klog.Infof("ControlCluster-Tree: ", controlCluster)
+					return fmt.Errorf("kosmosctl install clustertree run error, update control panel cluster failed: %s", err)
+				}
+			}
+		}
+	case utils.All:
+		controlCluster, err := o.KosmosClient.KosmosV1alpha1().Clusters().Get(context.TODO(), utils.DefaultClusterName, metav1.GetOptions{})
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				clusterArgs := []string{"cluster"}
+				joinOptions := join.CommandJoinOptions{
+					Name:             utils.DefaultClusterName,
+					Namespace:        o.Namespace,
+					ImageRegistry:    o.ImageRegistry,
+					KubeConfigStream: o.HostKubeConfigStream,
+					WaitTime:         o.WaitTime,
+					KosmosClient:     o.KosmosClient,
+					K8sClient:        o.K8sClient,
+					K8sDynamicClient: o.K8sDynamicClient,
+					RootFlag:         true,
+					EnableLink:       true,
+					CNI:              o.CNI,
+					DefaultNICName:   o.DefaultNICName,
+					NetworkType:      o.NetworkType,
+					IpFamily:         o.IpFamily,
+					UseProxy:         o.UseProxy,
+					EnableTree:       true,
+				}
+
+				err = joinOptions.Run(clusterArgs)
+				if err != nil {
+					return fmt.Errorf("kosmosctl install run error, join control panel cluster failed: %s", err)
+				}
+			} else {
+				return fmt.Errorf("kosmosctl install run error, get control panel cluster failed: %s", err)
+			}
+		}
+
+		if len(controlCluster.Name) > 0 {
+			if !controlCluster.Spec.ClusterTreeOptions.Enable || !controlCluster.Spec.ClusterLinkOptions.Enable {
+				controlCluster.Spec.ClusterTreeOptions.Enable = true
+				controlCluster.Spec.ClusterLinkOptions.Enable = true
+				controlCluster.Spec.ClusterLinkOptions.CNI = o.CNI
+				controlCluster.Spec.ClusterLinkOptions.DefaultNICName = o.DefaultNICName
+				switch o.NetworkType {
+				case utils.NetworkTypeGateway:
+					controlCluster.Spec.ClusterLinkOptions.NetworkType = v1alpha1.NetWorkTypeGateWay
+				case utils.NetworkTypeP2P:
+					controlCluster.Spec.ClusterLinkOptions.NetworkType = v1alpha1.NetworkTypeP2P
+				}
+
+				switch o.IpFamily {
+				case utils.DefaultIPv4:
+					controlCluster.Spec.ClusterLinkOptions.IPFamily = v1alpha1.IPFamilyTypeIPV4
+				case utils.DefaultIPv6:
+					controlCluster.Spec.ClusterLinkOptions.IPFamily = v1alpha1.IPFamilyTypeIPV6
+				}
+				_, err = o.KosmosClient.KosmosV1alpha1().Clusters().Update(context.TODO(), controlCluster, metav1.UpdateOptions{})
+				if err != nil {
+					klog.Infof("ControlCluster-All: ", controlCluster)
+					return fmt.Errorf("kosmosctl install clustertree run error, update control panel cluster failed: %s", err)
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
 func (o *CommandInstallOptions) runCoreDNS() error {
 	klog.Info("Start creating kosmos-coredns...")
 	namespace := &corev1.Namespace{}
@@ -702,7 +793,7 @@ func (o *CommandInstallOptions) runCoreDNS() error {
 			return fmt.Errorf("kosmosctl install coredns coreFile run error, configmap options failed: %v", err)
 		}
 	}
-	klog.Info("ConfigMap corefile has been created.")
+	klog.Infof("ConfigMap %s has been created.", coreFile.Name)
 
 	customerHosts, err := util.GenerateConfigMap(manifest.CorednsCustomerHosts, manifest.ConfigmapReplace{
 		Namespace: o.Namespace,
@@ -716,10 +807,10 @@ func (o *CommandInstallOptions) runCoreDNS() error {
 			return fmt.Errorf("kosmosctl install coredns customerHosts run error, configmap options failed: %v", err)
 		}
 	}
-	klog.Info("ConfigMap customerHosts has been created.")
+	klog.Infof("ConfigMap %s has been created.", customerHosts.Name)
 
 	klog.Info("Attempting to create coredns CRDs, coredns reuses clusterlink's cluster CRD")
-	crd, err := util.GenerateCustomResourceDefinition(manifest.ClusterlinkCluster, manifest.ClusterlinkReplace{
+	crd, err := util.GenerateCustomResourceDefinition(manifest.Cluster, manifest.CRDReplace{
 		Namespace: o.Namespace,
 	})
 	if err != nil {
@@ -727,7 +818,9 @@ func (o *CommandInstallOptions) runCoreDNS() error {
 	}
 	_, err = o.K8sExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Create(context.Background(), crd, metav1.CreateOptions{})
 	if err != nil {
-		if !apierrors.IsAlreadyExists(err) {
+		if apierrors.IsAlreadyExists(err) {
+			klog.Warningf("CRD %v is existed, creation process will skip", crd.Name)
+		} else {
 			return fmt.Errorf("kosmosctl install coredns run error, crd options failed: %v", err)
 		}
 	}

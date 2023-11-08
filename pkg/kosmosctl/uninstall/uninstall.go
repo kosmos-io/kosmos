@@ -186,7 +186,7 @@ func (o *CommandUninstallOptions) runClusterlink() error {
 	} else if clusters != nil && len(clusters.Items) > 0 {
 		klog.Info("kosmosctl uninstall warning, skip removing cluster crd because cr instance exists")
 	} else {
-		clusterCRD, err := util.GenerateCustomResourceDefinition(manifest.ClusterlinkCluster, nil)
+		clusterCRD, err := util.GenerateCustomResourceDefinition(manifest.Cluster, nil)
 		if err != nil {
 			return err
 		}
@@ -205,7 +205,7 @@ func (o *CommandUninstallOptions) runClusterlink() error {
 	} else if clusternodes != nil && len(clusternodes.Items) > 0 {
 		klog.Info("kosmosctl uninstall warning, skip removing clusternode crd because cr instance exists")
 	} else {
-		clusternodeCRD, err := util.GenerateCustomResourceDefinition(manifest.ClusterlinkClusterNode, nil)
+		clusternodeCRD, err := util.GenerateCustomResourceDefinition(manifest.ClusterNode, nil)
 		if err != nil {
 			return err
 		}
@@ -224,7 +224,7 @@ func (o *CommandUninstallOptions) runClusterlink() error {
 	} else if nodeconfigs != nil && len(nodeconfigs.Items) > 0 {
 		klog.Info("kosmosctl uninstall warning, skip removing nodeconfig crd because cr instance exists")
 	} else {
-		nodeConfigCRD, err := util.GenerateCustomResourceDefinition(manifest.ClusterlinkNodeConfig, nil)
+		nodeConfigCRD, err := util.GenerateCustomResourceDefinition(manifest.NodeConfig, nil)
 		if err != nil {
 			return err
 		}
@@ -329,7 +329,7 @@ func (o *CommandUninstallOptions) runClustertree() error {
 	} else if clusters != nil && len(clusters.Items) > 0 {
 		klog.Info("kosmosctl uninstall warning, skip removing cluster crd because cr instance exists")
 	} else {
-		clusterCRD, err := util.GenerateCustomResourceDefinition(manifest.ClusterlinkCluster, nil)
+		clusterCRD, err := util.GenerateCustomResourceDefinition(manifest.Cluster, nil)
 		if err != nil {
 			return err
 		}
@@ -466,7 +466,7 @@ func (o *CommandUninstallOptions) runCoredns() error {
 	} else if len(clusters.Items) > 0 {
 		klog.Info("kosmosctl uninstall warning, skip removing cluster crd because cr instance exists")
 	} else {
-		clusterCRD, _ := util.GenerateCustomResourceDefinition(manifest.ClusterlinkCluster, nil)
+		clusterCRD, _ := util.GenerateCustomResourceDefinition(manifest.Cluster, nil)
 		if err != nil {
 			return err
 		}

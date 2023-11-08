@@ -130,12 +130,12 @@ func (r *Reconciler) removeFinalizer(cluster *v1alpha1.Cluster) (reconcile.Resul
 
 // Reconcile is for controller reconcile
 func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
-	klog.Infof("Reconciling cluster %s, operator cluster name %s", request.NamespacedName.Name, r.ClusterName)
+	klog.Infof("Reconciling cluster %s", request.NamespacedName.Name)
 
-	if request.NamespacedName.Name != r.ClusterName {
-		klog.Infof("Skip this event")
-		return reconcile.Result{}, nil
-	}
+	//if request.NamespacedName.Name != r.ClusterName {
+	//	klog.Infof("Skip this event")
+	//	return reconcile.Result{}, nil
+	//}
 
 	cluster := &v1alpha1.Cluster{}
 
