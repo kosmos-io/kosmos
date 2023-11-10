@@ -2,7 +2,10 @@ package options
 
 import (
 	"github.com/spf13/pflag"
+	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	componentbaseconfig "k8s.io/component-base/config"
+	"k8s.io/component-base/config/options"
+	componentbaseconfigv1alpha1 "k8s.io/component-base/config/v1alpha1"
 )
 
 const (
@@ -37,8 +40,20 @@ type KubernetesOptions struct {
 	Burst      int     `json:"burst,omitempty" yaml:"burst,omitempty"`
 }
 
-func NewOptions() *Options {
-	return &Options{}
+func NewOptions() (*Options, error) {
+	var leaderElection componentbaseconfigv1alpha1.LeaderElectionConfiguration
+	componentbaseconfigv1alpha1.RecommendedDefaultLeaderElectionConfiguration(&leaderElection)
+
+	leaderElection.ResourceName = LeaderElectionResourceName
+	leaderElection.ResourceNamespace = LeaderElectionNamespace
+	leaderElection.ResourceLock = resourcelock.LeasesResourceLock
+
+	var opts Options
+	if err := componentbaseconfigv1alpha1.Convert_v1alpha1_LeaderElectionConfiguration_To_config_LeaderElectionConfiguration(&leaderElection, &opts.LeaderElection, nil); err != nil {
+		return nil, err
+	}
+
+	return &opts, nil
 }
 
 func (o *Options) AddFlags(flags *pflag.FlagSet) {
@@ -46,9 +61,6 @@ func (o *Options) AddFlags(flags *pflag.FlagSet) {
 		return
 	}
 
-	flags.BoolVar(&o.LeaderElection.LeaderElect, "leader-elect", true, "Start a leader election client and gain leadership before executing the main loop. Enable this when running replicated components for high availability.")
-	flags.StringVar(&o.LeaderElection.ResourceName, "leader-elect-resource-name", LeaderElectionResourceName, "The name of resource object that is used for locking during leader election.")
-	flags.StringVar(&o.LeaderElection.ResourceNamespace, "leader-elect-resource-namespace", LeaderElectionNamespace, "The namespace of resource object that is used for locking during leader election.")
 	flags.Float32Var(&o.KubernetesOptions.QPS, "kube-qps", DefaultKubeQPS, "QPS to use while talking with kube-apiserver.")
 	flags.IntVar(&o.KubernetesOptions.Burst, "kube-burst", DefaultKubeBurst, "Burst to use while talking with kube-apiserver.")
 	flags.StringVar(&o.KubernetesOptions.KubeConfig, "kubeconfig", "", "Path for kubernetes kubeconfig file, if left blank, will use in cluster way.")
@@ -58,4 +70,6 @@ func (o *Options) AddFlags(flags *pflag.FlagSet) {
 	flags.BoolVar(&o.MultiClusterService, "multi-cluster-service", false, "Turn on or off mcs support.")
 	flags.StringVar(&o.RootCoreDNSServiceNamespace, "root-coredns-service-namespace", CoreDNSServiceNamespace, "The namespace of the CoreDNS service in the root cluster, used to locate the CoreDNS service when MultiClusterService is disabled.")
 	flags.StringVar(&o.RootCoreDNSServiceName, "root-coredns-service-name", CoreDNSServiceName, "The name of the CoreDNS service in the root cluster, used to locate the CoreDNS service when MultiClusterService is disabled.")
+
+	options.BindLeaderElectionFlags(&o.LeaderElection, flags)
 }
