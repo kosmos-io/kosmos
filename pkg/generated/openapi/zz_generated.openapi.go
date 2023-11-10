@@ -46,6 +46,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeConfigList":      schema_pkg_apis_kosmos_v1alpha1_NodeConfigList(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeConfigSpec":      schema_pkg_apis_kosmos_v1alpha1_NodeConfigSpec(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeConfigStatus":    schema_pkg_apis_kosmos_v1alpha1_NodeConfigStatus(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeSelector":        schema_pkg_apis_kosmos_v1alpha1_NodeSelector(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Proxy":               schema_pkg_apis_kosmos_v1alpha1_Proxy(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Route":               schema_pkg_apis_kosmos_v1alpha1_Route(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ShadowDaemonSet":     schema_pkg_apis_kosmos_v1alpha1_ShadowDaemonSet(ref),
@@ -635,7 +636,7 @@ func schema_pkg_apis_kosmos_v1alpha1_ClusterTreeOptions(ref common.ReferenceCall
 					},
 					"leafModel": {
 						SchemaProps: spec.SchemaProps{
-							Description: "LeafModel provide an api to arrange the member cluster with some rules to pretend one or more leaf node",
+							Description: "LeafModel provide an api to arrange the member cluster with some rules to pretend one or more leaf node If nil or empty, the hole member cluster nodes will pretend one leaf node.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -1285,17 +1286,18 @@ func schema_pkg_apis_kosmos_v1alpha1_LeafModel(ref common.ReferenceCallback) com
 							},
 						},
 					},
-					"labelSelector": {
+					"nodeSelector": {
 						SchemaProps: spec.SchemaProps{
-							Description: "LabelSelector is a filter to select member cluster nodes to pretend a leaf node in clusterTree by labels. If nil or empty, the hole member cluster nodes will pretend one leaf node.",
-							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"),
+							Description: "NodeSelector is a selector to select member cluster nodes to pretend a leaf node in clusterTree.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeSelector"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"k8s.io/api/core/v1.Taint", "k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
+			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeSelector", "k8s.io/api/core/v1.Taint"},
 	}
 }
 
@@ -1551,6 +1553,33 @@ func schema_pkg_apis_kosmos_v1alpha1_NodeConfigStatus(ref common.ReferenceCallba
 		},
 		Dependencies: []string{
 			"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+	}
+}
+
+func schema_pkg_apis_kosmos_v1alpha1_NodeSelector(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"nodeName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "NodeName is Member cluster origin node Name",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"labelSelector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LabelSelector is a filter to select member cluster nodes to pretend a leaf node in clusterTree by labels. It will work on second level schedule on pod create in member clusters.",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
 	}
 }
 
