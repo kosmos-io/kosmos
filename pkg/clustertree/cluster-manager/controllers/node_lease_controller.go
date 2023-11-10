@@ -38,16 +38,16 @@ type NodeLeaseController struct {
 	leaseInterval  time.Duration
 	statusInterval time.Duration
 
-	node     *corev1.Node
+	nodes    []*corev1.Node
 	nodeLock sync.Mutex
 }
 
-func NewNodeLeaseController(leafClient kubernetes.Interface, root client.Client, node *corev1.Node, rootClient kubernetes.Interface) *NodeLeaseController {
+func NewNodeLeaseController(leafClient kubernetes.Interface, root client.Client, nodes []*corev1.Node, rootClient kubernetes.Interface) *NodeLeaseController {
 	c := &NodeLeaseController{
 		leafClient:     leafClient,
 		rootClient:     rootClient,
 		root:           root,
-		node:           node,
+		nodes:          nodes,
 		leaseInterval:  getRenewInterval(),
 		statusInterval: DefaultNodeStatusUpdateInterval,
 	}
@@ -64,7 +64,7 @@ func (c *NodeLeaseController) Start(ctx context.Context) error {
 
 func (c *NodeLeaseController) syncNodeStatus(ctx context.Context) {
 	c.nodeLock.Lock()
-	node := c.node.DeepCopy()
+	node := c.nodes[0].DeepCopy()
 	c.nodeLock.Unlock()
 
 	err := c.updateNodeStatus(ctx, node)
@@ -103,12 +103,12 @@ func (c *NodeLeaseController) updateNodeStatus(ctx context.Context, n *corev1.No
 
 func (c *NodeLeaseController) syncLease(ctx context.Context) {
 	c.nodeLock.Lock()
-	node := c.node.DeepCopy()
+	node := c.nodes[0].DeepCopy()
 	c.nodeLock.Unlock()
 
 	_, err := c.leafClient.Discovery().ServerVersion()
 	if err != nil {
-		klog.Errorf("failed to ping leaf %s", c.node.Name)
+		klog.Errorf("failed to ping leaf %s", c.nodes[0].Name)
 		return
 	}
 

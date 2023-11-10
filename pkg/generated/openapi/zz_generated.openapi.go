@@ -636,7 +636,7 @@ func schema_pkg_apis_kosmos_v1alpha1_ClusterTreeOptions(ref common.ReferenceCall
 					},
 					"leafModel": {
 						SchemaProps: spec.SchemaProps{
-							Description: "LeafModel provide an api to arrange the member cluster with some rules to pretend one or more leaf node If nil or empty, the hole member cluster nodes will pretend one leaf node.",
+							Description: "LeafModels provide an api to arrange the member cluster with some rules to pretend one or more leaf node",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
