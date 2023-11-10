@@ -98,10 +98,9 @@ type ClusterTreeOptions struct {
 	// +optional
 	Enable bool `json:"enable"`
 
-	// LeafModel provide an api to arrange the member cluster with some rules to pretend one or more leaf node
-	// If nil or empty, the hole member cluster nodes will pretend one leaf node.
+	// LeafModels provide an api to arrange the member cluster with some rules to pretend one or more leaf node
 	// +optional
-	LeafModel []LeafModel `json:"leafModel,omitempty"`
+	LeafModels []LeafModel `json:"leafModel,omitempty"`
 }
 
 type LeafModel struct {

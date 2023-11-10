@@ -22,6 +22,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	kosmosv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/utils"
 )
 
@@ -35,7 +36,8 @@ type NodeResourcesController struct {
 	Root          client.Client
 	RootClientset kubernetes.Interface
 
-	Node          *corev1.Node
+	Nodes         []*corev1.Node
+	Cluster       *kosmosv1alpha1.Cluster
 	EventRecorder record.EventRecorder
 }
 
@@ -106,11 +108,11 @@ func (c *NodeResourcesController) Reconcile(ctx context.Context, request reconci
 	clusterResources := utils.CalculateClusterResources(&nodes, &pods)
 
 	node := &corev1.Node{}
-	err := c.Root.Get(ctx, types.NamespacedName{Name: c.Node.Name}, node)
+	err := c.Root.Get(ctx, types.NamespacedName{Name: c.Nodes[0].Name}, node)
 	if err != nil {
 		return reconcile.Result{
 			RequeueAfter: RequeueTime,
-		}, fmt.Errorf("cannot get node while update node resources %s, err: %v", c.Node.Name, err)
+		}, fmt.Errorf("cannot get node while update node resources %s, err: %v", c.Nodes[0].Name, err)
 	}
 
 	clone := node.DeepCopy()
@@ -123,7 +125,7 @@ func (c *NodeResourcesController) Reconcile(ctx context.Context, request reconci
 		return reconcile.Result{}, err
 	}
 
-	if _, err := c.RootClientset.CoreV1().Nodes().PatchStatus(ctx, c.Node.Name, patch); err != nil {
+	if _, err := c.RootClientset.CoreV1().Nodes().PatchStatus(ctx, c.Nodes[0].Name, patch); err != nil {
 		return reconcile.Result{
 			RequeueAfter: RequeueTime,
 		}, fmt.Errorf("failed to patch node resources: %v, will requeue", err)
