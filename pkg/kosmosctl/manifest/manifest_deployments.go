@@ -26,7 +26,7 @@ spec:
           imagePullPolicy: IfNotPresent
           command:
             - clusterlink-network-manager
-            - v=4
+            - --v=4
           resources:
             limits:
               memory: 500Mi
