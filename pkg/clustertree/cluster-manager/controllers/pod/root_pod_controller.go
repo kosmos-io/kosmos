@@ -27,6 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/kosmos.io/kosmos/cmd/clustertree/cluster-manager/app/options"
+	"github.com/kosmos.io/kosmos/cmd/clustertree/cluster-manager/app/register"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/extensions/daemonset"
 	leafUtils "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/utils"
 	"github.com/kosmos.io/kosmos/pkg/utils"
@@ -249,6 +250,10 @@ func (r *RootPodReconciler) SetupWithManager(mgr manager.Manager) error {
 }
 
 func (r *RootPodReconciler) createStorageInLeafCluster(ctx context.Context, lr *leafUtils.LeafResource, gvr schema.GroupVersionResource, resourcenames []string, ns string) error {
+	storageHandler, err := NewStorageHandler(gvr)
+	if err != nil {
+		return err
+	}
 	for _, rname := range resourcenames {
 		// add annotations for root
 		rootobj, err := r.DynamicRootClient.Resource(gvr).Namespace(ns).Get(ctx, rname, metav1.GetOptions{})
@@ -272,24 +277,12 @@ func (r *RootPodReconciler) createStorageInLeafCluster(ctx context.Context, lr *
 			continue
 		}
 		if errors.IsNotFound(err) {
-			unstructuredObj, err := r.DynamicRootClient.Resource(gvr).Namespace(ns).Get(ctx, rname, metav1.GetOptions{})
-			if err != nil {
-				return fmt.Errorf("find gvr(%v) %v error %v", gvr, rname, err)
-			}
+			unstructuredObj := rootobj
 
 			podutils.FitUnstructuredObjMeta(unstructuredObj)
-			if gvr.Resource == "secrets" {
-				secretObj := &corev1.Secret{}
-				err = runtime.DefaultUnstructuredConverter.FromUnstructured(unstructuredObj.Object, secretObj)
-				if err != nil {
-					panic(err.Error())
-				}
-				if secretObj.Type == corev1.SecretTypeServiceAccountToken {
-					if err := r.createServiceAccountInLeafCluster(ctx, lr, secretObj); err != nil {
-						klog.Error(err)
-						return err
-					}
-				}
+
+			if err := storageHandler.BeforeCreateInLeaf(ctx, r, lr, unstructuredObj); err != nil {
+				return err
 			}
 
 			podutils.SetUnstructuredObjGlobal(unstructuredObj)
@@ -750,4 +743,19 @@ func (r *RootPodReconciler) DeletePodInLeafCluster(ctx context.Context, lr *leaf
 	}
 	klog.V(5).Infof("Delete pod %v/%+v success", leafPod.Namespace, leafPod.Name)
 	return nil
+}
+
+func init() {
+	register.RegisterRootController(RootPodControllerName, func(co *register.RootControllerOptions) error {
+		rootPodReconciler := RootPodReconciler{
+			GlobalLeafManager: co.GlobalLeafManager,
+			RootClient:        co.Mgr.GetClient(),
+			DynamicRootClient: co.RootDynamic,
+			Options:           co.Options,
+		}
+		if err := rootPodReconciler.SetupWithManager(co.Mgr); err != nil {
+			return fmt.Errorf("error starting rootPodReconciler %s: %v", RootPodControllerName, err)
+		}
+		return nil
+	})
 }

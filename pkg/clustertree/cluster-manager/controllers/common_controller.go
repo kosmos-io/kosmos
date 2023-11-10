@@ -20,6 +20,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/kosmos.io/kosmos/cmd/clustertree/cluster-manager/app/register"
 	leafUtils "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/utils"
 	"github.com/kosmos.io/kosmos/pkg/utils"
 )
@@ -183,4 +184,24 @@ func (r *SyncResourcesReconciler) SyncResource(ctx context.Context, request reco
 		return err
 	}
 	return nil
+}
+
+func init() {
+	for i, gvr := range SYNC_GVRS {
+		register.RegisterRootController("async-controller-"+gvr.Resource, func(co *register.RootControllerOptions) error {
+			commonController := SyncResourcesReconciler{
+				GlobalLeafManager:    co.GlobalLeafManager,
+				GroupVersionResource: gvr,
+				Object:               SYNC_OBJS[i],
+				DynamicRootClient:    co.RootDynamic,
+				ControllerName:       "async-controller-" + gvr.Resource,
+			}
+
+			if err := commonController.SetupWithManager(co.Mgr, gvr); err != nil {
+				klog.Errorf("Unable to create cluster node controller: %v", err)
+				return err
+			}
+			return nil
+		})
+	}
 }

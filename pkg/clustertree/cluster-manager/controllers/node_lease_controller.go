@@ -18,6 +18,7 @@ import (
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/kosmos.io/kosmos/cmd/clustertree/cluster-manager/app/register"
 	"github.com/kosmos.io/kosmos/pkg/utils"
 )
 
@@ -206,4 +207,14 @@ func getRenewInterval() time.Duration {
 	interval := DefaultLeaseDuration * DefaultRenewIntervalFraction
 	intervalDuration := time.Second * time.Duration(int(interval))
 	return intervalDuration
+}
+
+func init() {
+	register.RegisterLeafController(NodeLeaseControllerName, func(cl *register.LeafControllerOptions) error {
+		nodeLeaseController := NewNodeLeaseController(cl.LeafClientSet, cl.RootClient, cl.Node, cl.RootClientSet)
+		if err := cl.Mgr.Add(nodeLeaseController); err != nil {
+			return fmt.Errorf("error starting %s: %v", NodeLeaseControllerName, err)
+		}
+		return nil
+	})
 }

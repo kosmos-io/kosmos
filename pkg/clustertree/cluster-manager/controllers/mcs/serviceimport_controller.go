@@ -21,6 +21,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	mcsv1alpha1 "sigs.k8s.io/mcs-api/pkg/apis/v1alpha1"
 
+	"github.com/kosmos.io/kosmos/cmd/clustertree/cluster-manager/app/register"
 	kosmosversioned "github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/generated/informers/externalversions"
 	"github.com/kosmos.io/kosmos/pkg/utils"
@@ -466,4 +467,24 @@ func servicePorts(service *corev1.Service) []corev1.ServicePort {
 		}
 	}
 	return ports
+}
+
+func init() {
+	register.RegisterLeafController(LeafServiceImportControllerName, func(cl *register.LeafControllerOptions) error {
+		if cl.Options.MultiClusterService {
+			serviceImportController := ServiceImportController{
+				LeafClient:          cl.Mgr.GetClient(),
+				RootKosmosClient:    cl.RootKosmosClient,
+				EventRecorder:       cl.Mgr.GetEventRecorderFor(LeafServiceImportControllerName),
+				Logger:              cl.Mgr.GetLogger(),
+				LeafNodeName:        cl.Node.Name,
+				RootResourceManager: cl.RootResourceManager,
+			}
+
+			if err := serviceImportController.AddController(cl.Mgr); err != nil {
+				return fmt.Errorf("error starting %s: %v", LeafServiceImportControllerName, err)
+			}
+		}
+		return nil
+	})
 }

@@ -28,12 +28,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/kosmos.io/kosmos/cmd/clustertree/cluster-manager/app/options"
+	"github.com/kosmos.io/kosmos/cmd/clustertree/cluster-manager/app/register"
 	kosmosv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
-	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers"
-	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/mcs"
-	podcontrollers "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/pod"
-	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/pv"
-	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/pvc"
 	leafUtils "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/utils"
 	kosmosversioned "github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/scheme"
@@ -241,72 +237,20 @@ func (c *ClusterController) setupControllers(mgr manager.Manager, cluster *kosmo
 		EnableServiceAccount: true,
 	})
 
-	nodeResourcesController := controllers.NodeResourcesController{
-		Leaf:          mgr.GetClient(),
-		Root:          c.Root,
-		RootClientset: c.RootClient,
-		Node:          node,
-	}
-	if err := nodeResourcesController.SetupWithManager(mgr); err != nil {
-		return fmt.Errorf("error starting %s: %v", controllers.NodeResourcesControllerName, err)
-	}
-
-	nodeLeaseController := controllers.NewNodeLeaseController(leafClient, c.Root, node, c.RootClient)
-	if err := mgr.Add(nodeLeaseController); err != nil {
-		return fmt.Errorf("error starting %s: %v", controllers.NodeLeaseControllerName, err)
-	}
-
-	if c.Options.MultiClusterService {
-		serviceImportController := &mcs.ServiceImportController{
-			LeafClient:          mgr.GetClient(),
-			RootKosmosClient:    kosmosClient,
-			EventRecorder:       mgr.GetEventRecorderFor(mcs.LeafServiceImportControllerName),
-			Logger:              mgr.GetLogger(),
-			LeafNodeName:        nodeName,
-			RootResourceManager: c.RootResourceManager,
-		}
-		if err := serviceImportController.AddController(mgr); err != nil {
-			return fmt.Errorf("error starting %s: %v", mcs.LeafServiceImportControllerName, err)
-		}
-	}
-
-	leafPodController := podcontrollers.LeafPodReconciler{
-		RootClient: c.Root,
-		Namespace:  "",
-	}
-
-	if err := leafPodController.SetupWithManager(mgr); err != nil {
-		return fmt.Errorf("error starting podUpstreamReconciler %s: %v", podcontrollers.LeafPodControllerName, err)
-	}
-
-	err := c.setupStorageControllers(mgr, node, leafClient)
+	err := register.AttachLeafControllerToManager(&register.LeafControllerOptions{
+		Mgr:                 mgr,
+		RootClient:          c.Root,
+		RootClientSet:       c.RootClient,
+		LeafClientSet:       leafClient,
+		Node:                node,
+		RootResourceManager: c.RootResourceManager,
+		RootKosmosClient:    kosmosClient,
+		Options:             c.Options,
+	})
 	if err != nil {
 		return err
 	}
 
-	return nil
-}
-
-func (c *ClusterController) setupStorageControllers(mgr manager.Manager, node *corev1.Node, leafClient kubernetes.Interface) error {
-	leafPVCController := pvc.LeafPVCController{
-		LeafClient:    mgr.GetClient(),
-		RootClient:    c.Root,
-		RootClientSet: c.RootClient,
-		NodeName:      node.Name,
-	}
-	if err := leafPVCController.SetupWithManager(mgr); err != nil {
-		return fmt.Errorf("error starting leaf pvc controller %v", err)
-	}
-
-	leafPVController := pv.LeafPVController{
-		LeafClient:    mgr.GetClient(),
-		RootClient:    c.Root,
-		RootClientSet: c.RootClient,
-		NodeName:      node.Name,
-	}
-	if err := leafPVController.SetupWithManager(mgr); err != nil {
-		return fmt.Errorf("error starting leaf pv controller %v", err)
-	}
 	return nil
 }
 
@@ -347,4 +291,22 @@ func (c *ClusterController) deleteNode(ctx context.Context, cluster *kosmosv1alp
 		return err
 	}
 	return nil
+}
+
+func init() {
+	register.RegisterRootController(ControllerName, func(co *register.RootControllerOptions) error {
+		clusterController := ClusterController{
+			Root:                co.Mgr.GetClient(),
+			RootDynamic:         co.RootDynamic,
+			RootClient:          co.RootClient,
+			EventRecorder:       co.Mgr.GetEventRecorderFor(ControllerName),
+			Options:             co.Options,
+			RootResourceManager: co.RootResourceManager,
+			GlobalLeafManager:   co.GlobalLeafManager,
+		}
+		if err := clusterController.SetupWithManager(co.Mgr); err != nil {
+			return fmt.Errorf("error starting %s: %v", ControllerName, err)
+		}
+		return nil
+	})
 }

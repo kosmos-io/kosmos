@@ -2,6 +2,7 @@ package pod
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
@@ -18,6 +19,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/kosmos.io/kosmos/cmd/clustertree/cluster-manager/app/register"
 	"github.com/kosmos.io/kosmos/pkg/utils"
 	"github.com/kosmos.io/kosmos/pkg/utils/podutils"
 )
@@ -169,3 +171,18 @@ func (r *LeafPodReconciler) SetupWithManager(mgr manager.Manager) error {
 // 	return pod.Status.Phase == corev1.PodSucceeded ||
 // 		pod.Status.Phase == corev1.PodFailed
 // }
+
+func init() {
+	register.RegisterLeafController(LeafPodControllerName, func(cl *register.LeafControllerOptions) error {
+		leafPodController := LeafPodReconciler{
+			RootClient: cl.RootClient,
+			Namespace:  "",
+		}
+
+		if err := leafPodController.SetupWithManager(cl.Mgr); err != nil {
+			return fmt.Errorf("error starting podUpstreamReconciler %s: %v", LeafPodControllerName, err)
+		}
+
+		return nil
+	})
+}

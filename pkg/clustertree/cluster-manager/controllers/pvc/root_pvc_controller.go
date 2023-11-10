@@ -2,6 +2,7 @@ package pvc
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"time"
 
@@ -19,6 +20,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/kosmos.io/kosmos/cmd/clustertree/cluster-manager/app/register"
 	leafUtils "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/utils"
 	"github.com/kosmos.io/kosmos/pkg/utils"
 )
@@ -142,4 +144,17 @@ func (r *RootPVCController) SetupWithManager(mgr manager.Manager) error {
 			},
 		})).
 		Complete(r)
+}
+
+func init() {
+	register.RegisterRootController(RootPVCControllerName, func(co *register.RootControllerOptions) error {
+		rootPVCController := RootPVCController{
+			RootClient:        co.Mgr.GetClient(),
+			GlobalLeafManager: co.GlobalLeafManager,
+		}
+		if err := rootPVCController.SetupWithManager(co.Mgr); err != nil {
+			return fmt.Errorf("error starting root pvc controller %v", err)
+		}
+		return nil
+	})
 }
