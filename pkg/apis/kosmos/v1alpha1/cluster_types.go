@@ -99,6 +99,7 @@ type ClusterTreeOptions struct {
 	Enable bool `json:"enable"`
 
 	// LeafModel provide an api to arrange the member cluster with some rules to pretend one or more leaf node
+	// If nil or empty, the hole member cluster nodes will pretend one leaf node.
 	// +optional
 	LeafModel []LeafModel `json:"leafModel,omitempty"`
 }
@@ -118,9 +119,18 @@ type LeafModel struct {
 	// +optional
 	Taints []corev1.Taint `json:"taints,omitempty"`
 
+	// NodeSelector is a selector to select member cluster nodes to pretend a leaf node in clusterTree.
+	// +optional
+	NodeSelector NodeSelector `json:"nodeSelector,omitempty"`
+}
+
+type NodeSelector struct {
+	// NodeName is Member cluster origin node Name
+	// +optional
+	NodeName string `json:"nodeName,omitempty"`
+
 	// LabelSelector is a filter to select member cluster nodes to pretend a leaf node in clusterTree by labels.
 	// It will work on second level schedule on pod create in member clusters.
-	// If nil or empty, the hole member cluster nodes will pretend one leaf node.
 	// +optional
 	LabelSelector *metav1.LabelSelector `json:"labelSelector,omitempty"`
 }
