@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	jsonpatch "github.com/evanphx/json-patch"
-	jsonpatch1 "github.com/mattbaird/jsonpatch"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -18,9 +17,6 @@ import (
 
 	kosmosversioned "github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 )
-
-const SYNC_KIND_CONFIGMAP = "ConfigMap"
-const SYNC_KIND_SECRET = "SECRET"
 
 type ClustersNodeSelection struct {
 	NodeSelector map[string]string   `json:"nodeSelector,omitempty"`
@@ -35,98 +31,22 @@ type EnvResourceManager interface {
 }
 
 func CreateMergePatch(original, new interface{}) ([]byte, error) {
-	pvByte, err := json.Marshal(original)
+	originBytes, err := json.Marshal(original)
 	if err != nil {
 		return nil, err
 	}
-	cloneByte, err := json.Marshal(new)
+	cloneBytes, err := json.Marshal(new)
 	if err != nil {
 		return nil, err
 	}
-	patch, err := jsonpatch.CreateMergePatch(pvByte, cloneByte)
+	patch, err := jsonpatch.CreateMergePatch(originBytes, cloneBytes)
 	if err != nil {
 		return nil, err
 	}
 	return patch, nil
 }
 
-func CreateJSONPatch(original, new interface{}) ([]byte, error) {
-	pvByte, err := json.Marshal(original)
-	if err != nil {
-		return nil, err
-	}
-	cloneByte, err := json.Marshal(new)
-	if err != nil {
-		return nil, err
-	}
-	patchs, err := jsonpatch1.CreatePatch(pvByte, cloneByte)
-	if err != nil {
-		return nil, err
-	}
-	patchBytes, err := json.Marshal(patchs)
-	if err != nil {
-		return nil, err
-	}
-	return patchBytes, nil
-}
-
 type Opts func(*rest.Config)
-
-func NewClient(configPath string, opts ...Opts) (kubernetes.Interface, error) {
-	var (
-		config *rest.Config
-		err    error
-	)
-	config, err = clientcmd.BuildConfigFromFlags("", configPath)
-	if err != nil {
-		config, err = rest.InClusterConfig()
-		if err != nil {
-			return nil, fmt.Errorf("could not read config file for cluster: %v", err)
-		}
-	}
-
-	for _, opt := range opts {
-		if opt == nil {
-			continue
-		}
-		opt(config)
-	}
-
-	client, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return nil, fmt.Errorf("could not create client for root cluster: %v", err)
-	}
-	return client, nil
-}
-
-func NewClientFromByte(kubeConfig []byte, opts ...Opts) (kubernetes.Interface, error) {
-	var (
-		config *rest.Config
-		err    error
-	)
-
-	clientconfig, err := clientcmd.NewClientConfigFromBytes(kubeConfig)
-	if err != nil {
-		return nil, err
-	}
-	config, err = clientconfig.ClientConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	for _, opt := range opts {
-		if opt == nil {
-			continue
-		}
-		opt(config)
-	}
-
-	client, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return nil, fmt.Errorf("could not create client for root cluster: %v", err)
-	}
-	return client, nil
-}
 
 func NewConfigFromBytes(kubeConfig []byte, opts ...Opts) (*rest.Config, error) {
 	var (
@@ -286,35 +206,6 @@ func NewMetricClient(configPath string, opts ...Opts) (versioned.Interface, erro
 	return metricClient, nil
 }
 
-func NewMetricClientFromByte(kubeConfig []byte, opts ...Opts) (versioned.Interface, error) {
-	var (
-		config *rest.Config
-		err    error
-	)
-
-	clientconfig, err := clientcmd.NewClientConfigFromBytes(kubeConfig)
-	if err != nil {
-		return nil, err
-	}
-	config, err = clientconfig.ClientConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	for _, opt := range opts {
-		if opt == nil {
-			continue
-		}
-		opt(config)
-	}
-
-	metricClient, err := versioned.NewForConfig(config)
-	if err != nil {
-		return nil, fmt.Errorf("could not create client for root cluster: %v", err)
-	}
-	return metricClient, nil
-}
-
 func IsKosmosNode(node *corev1.Node) bool {
 	if node == nil {
 		return false
@@ -411,26 +302,6 @@ func AddResourceOwnersAnnotations(anno map[string]string, owner string) map[stri
 
 	if !flag {
 		newowners = append(newowners, owner)
-	}
-
-	anno[KosmosResourceOwnersAnnotations] = strings.Join(newowners, ",")
-	return anno
-}
-
-func RemoveResourceOwnersAnnotations(anno map[string]string, owner string) map[string]string {
-	if anno == nil {
-		anno = map[string]string{}
-	}
-	owners := strings.Split(anno[KosmosResourceOwnersAnnotations], ",")
-	newowners := make([]string, len(owners)-1)
-
-	for _, v := range owners {
-		if len(v) == 0 {
-			continue
-		}
-		if v != owner {
-			newowners = append(newowners, v)
-		}
 	}
 
 	anno[KosmosResourceOwnersAnnotations] = strings.Join(newowners, ",")

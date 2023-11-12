@@ -235,9 +235,6 @@ github.com/liggitt/tabwriter
 github.com/mailru/easyjson/buffer
 github.com/mailru/easyjson/jlexer
 github.com/mailru/easyjson/jwriter
-# github.com/mattbaird/jsonpatch v0.0.0-20230413205102-771768614e91
-## explicit
-github.com/mattbaird/jsonpatch
 # github.com/mattn/go-runewidth v0.0.7
 ## explicit; go 1.9
 github.com/mattn/go-runewidth
@@ -831,7 +828,6 @@ k8s.io/apimachinery/pkg/runtime/serializer/protobuf
 k8s.io/apimachinery/pkg/runtime/serializer/recognizer
 k8s.io/apimachinery/pkg/runtime/serializer/streaming
 k8s.io/apimachinery/pkg/runtime/serializer/versioning
-k8s.io/apimachinery/pkg/runtime/serializer/yaml
 k8s.io/apimachinery/pkg/selection
 k8s.io/apimachinery/pkg/types
 k8s.io/apimachinery/pkg/util/cache
