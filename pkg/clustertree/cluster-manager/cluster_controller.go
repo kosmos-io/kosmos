@@ -324,6 +324,46 @@ func (c *ClusterController) setupStorageControllers(mgr manager.Manager, nodes [
 	return nil
 }
 
+func (c *ClusterController) setNodeStatus(ctx context.Context, nodeName string, leafClient kubernetes.Interface, node *corev1.Node, isNode2Node bool) error {
+	if isNode2Node {
+		if leafnode, err := leafClient.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{}); err != nil {
+			klog.Errorf("create node %s failed, cannot get node from leaf cluster, err: %v", nodeName, err)
+			return err
+		} else {
+			node.Status = leafnode.Status
+			address, err := leafUtils.SortAddress(ctx, c.RootClient, nodeName, leafClient, node.Status.Addresses)
+			if err != nil {
+				return err
+			}
+			node.Status.Addresses = address
+			return nil
+		}
+	}
+
+	leafnodes, err := leafClient.CoreV1().Nodes().List(ctx, metav1.ListOptions{
+		// TODO: LabelSelector
+	})
+	if err != nil {
+		klog.Errorf("create node %s failed, cannot get node from leaf cluster, err: %v", nodeName, err)
+		return err
+	}
+
+	if len(leafnodes.Items) == 0 {
+		klog.Errorf("create node %s failed, cannot get node from leaf cluster, len of leafnodes is 0", nodeName)
+		return err
+	}
+
+	address, err := leafUtils.SortAddress(ctx, c.RootClient, nodeName, leafClient, leafnodes.Items[0].Status.Addresses)
+
+	if err != nil {
+		return err
+	}
+
+	node.Status.Addresses = address
+
+	return nil
+}
+
 func (c *ClusterController) createNode(ctx context.Context, cluster *kosmosv1alpha1.Cluster, leafClient kubernetes.Interface) ([]*corev1.Node, error) {
 	getNodeLen := func(cluster *kosmosv1alpha1.Cluster) int32 {
 		if cluster.Spec.ClusterTreeOptions.Enable {
@@ -351,12 +391,18 @@ func (c *ClusterController) createNode(ctx context.Context, cluster *kosmosv1alp
 					nodeAnnotations[utils.KosmosNodeOwnedByClusterAnnotations] = clusterName
 					node.SetAnnotations(nodeAnnotations)
 				}
+
+				if err := c.setNodeStatus(ctx, nodeName, leafClient, node, isNode2Node); err != nil {
+					return nil, err
+				}
+
 				node.Status.NodeInfo.KubeletVersion = serverVersion.GitVersion
 				node.Status.DaemonEndpoints = corev1.NodeDaemonEndpoints{
 					KubeletEndpoint: corev1.DaemonEndpoint{
 						Port: c.Options.ListenPort,
 					},
 				}
+
 				node, err = c.RootClient.CoreV1().Nodes().Create(ctx, node, metav1.CreateOptions{})
 				if err != nil {
 					if !errors.IsAlreadyExists(err) {

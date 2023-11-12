@@ -128,7 +128,7 @@ func (c *NodeResourcesController) Reconcile(ctx context.Context, request reconci
 				}, err
 			}
 		} else {
-			leafNodeName := fmt.Sprintf("%s%s", utils.KosmosNodePrefix, c.Cluster.Name)
+			leafNodeName := c.Cluster.Name
 			leafResource, err := c.GlobalLeafManager.GetLeafResource(leafNodeName)
 			if err != nil {
 				klog.Errorf("Could not get leafResource,Error: %v", err)
@@ -174,6 +174,23 @@ func (c *NodeResourcesController) Reconcile(ctx context.Context, request reconci
 				clone.Labels = mergeMap(rootNode.GetLabels(), node.GetLabels())
 				clone.Annotations = mergeMap(rootNode.GetAnnotations(), node.GetAnnotations())
 				clone.Status = node.Status
+				// TODO: @duanmengkk
+				leafNodeName := c.Cluster.Name
+				leafResource, err := c.GlobalLeafManager.GetLeafResource(leafNodeName)
+				if err != nil {
+					klog.Errorf("Could not get leafResource,Error: %v", err)
+					return controllerruntime.Result{
+						RequeueAfter: RequeueTime,
+					}, err
+				}
+				address, err := leafUtils.SortAddress(ctx, c.RootClientset, rootNode.Name, leafResource.Clientset, node.Status.Addresses)
+				if err != nil {
+					return controllerruntime.Result{
+						RequeueAfter: RequeueTime,
+					}, err
+				}
+
+				node.Status.Addresses = address
 			}
 		}
 
