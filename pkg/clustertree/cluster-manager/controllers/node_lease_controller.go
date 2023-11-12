@@ -56,12 +56,13 @@ func NewNodeLeaseController(leafClient kubernetes.Interface, root client.Client,
 
 func (c *NodeLeaseController) Start(ctx context.Context) error {
 	go wait.UntilWithContext(ctx, c.syncLease, c.leaseInterval)
-	go wait.UntilWithContext(ctx, c.syncNodeStatus, c.statusInterval)
+	//go wait.UntilWithContext(ctx, c.syncNodeStatus, c.statusInterval)
 
 	<-ctx.Done()
 	return nil
 }
 
+// nolint
 func (c *NodeLeaseController) syncNodeStatus(ctx context.Context) {
 	c.nodeLock.Lock()
 	node := c.nodes[0].DeepCopy()
@@ -73,6 +74,8 @@ func (c *NodeLeaseController) syncNodeStatus(ctx context.Context) {
 	}
 }
 
+// TODO @yizhi useless code ?
+// nolint
 func (c *NodeLeaseController) updateNodeStatus(ctx context.Context, n *corev1.Node) error {
 	node := &corev1.Node{}
 	namespacedName := types.NamespacedName{
@@ -102,22 +105,26 @@ func (c *NodeLeaseController) updateNodeStatus(ctx context.Context, n *corev1.No
 }
 
 func (c *NodeLeaseController) syncLease(ctx context.Context) {
+	nodes := make([]*corev1.Node, 0)
 	c.nodeLock.Lock()
-	node := c.nodes[0].DeepCopy()
+	for _, nodeIndex := range c.nodes {
+		nodeCopy := nodeIndex.DeepCopy()
+		nodes = append(nodes, nodeCopy)
+	}
 	c.nodeLock.Unlock()
 
 	_, err := c.leafClient.Discovery().ServerVersion()
 	if err != nil {
-		klog.Errorf("failed to ping leaf %s", c.nodes[0].Name)
+		klog.Errorf("failed to ping leaf cluster")
 		return
 	}
 
-	_, _, err = c.createLeaseIfNotExists(ctx, node)
+	err = c.createLeaseIfNotExists(ctx, nodes)
 	if err != nil {
 		return
 	}
 
-	err = c.updateLeaseWithRetry(ctx, node)
+	err = c.updateLeaseWithRetry(ctx, nodes)
 	if err != nil {
 		klog.Errorf("lease has failed, and the maximum number of retries has been reached, %v", err)
 		return
@@ -126,57 +133,65 @@ func (c *NodeLeaseController) syncLease(ctx context.Context) {
 	klog.V(5).Infof("Successfully updated lease")
 }
 
-func (c *NodeLeaseController) createLeaseIfNotExists(ctx context.Context, node *corev1.Node) (*coordinationv1.Lease, bool, error) {
-	namespaceName := types.NamespacedName{
-		Namespace: corev1.NamespaceNodeLease,
-		Name:      node.Name,
-	}
-	lease := &coordinationv1.Lease{}
-	err := c.root.Get(ctx, namespaceName, lease)
-	if apierrors.IsNotFound(err) {
-		leaseToCreate := c.newLease(node)
-		err := c.root.Create(ctx, leaseToCreate)
-		if err != nil {
-			klog.Errorf("create lease %s failed", node.Name)
-			return nil, false, err
-		}
-		return lease, true, nil
-	} else if err != nil {
-		klog.Errorf("get lease %s failed", node.Name, err)
-		return nil, false, err
-	}
-	return lease, true, nil
-}
-
-func (c *NodeLeaseController) updateLeaseWithRetry(ctx context.Context, node *corev1.Node) error {
-	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		lease := &coordinationv1.Lease{}
+func (c *NodeLeaseController) createLeaseIfNotExists(ctx context.Context, nodes []*corev1.Node) error {
+	for _, node := range nodes {
 		namespaceName := types.NamespacedName{
 			Namespace: corev1.NamespaceNodeLease,
 			Name:      node.Name,
 		}
-		if err := c.root.Get(ctx, namespaceName, lease); err != nil {
-			klog.Warningf("get lease %s failed with err %v", node.Name, err)
-			return err
-		}
-
-		lease.Spec.RenewTime = &metav1.MicroTime{Time: time.Now()}
-		lease.OwnerReferences = []metav1.OwnerReference{
-			{
-				APIVersion: corev1.SchemeGroupVersion.WithKind("Node").Version,
-				Kind:       corev1.SchemeGroupVersion.WithKind("Node").Kind,
-				Name:       node.Name,
-				UID:        node.UID,
-			},
-		}
-		err := c.root.Update(ctx, lease)
+		lease := &coordinationv1.Lease{}
+		err := c.root.Get(ctx, namespaceName, lease)
 		if err != nil {
-			klog.Warningf("update lease %s failed with err %v", node.Name, err)
+			if apierrors.IsNotFound(err) {
+				leaseToCreate := c.newLease(node)
+				err = c.root.Create(ctx, leaseToCreate)
+				if err != nil {
+					klog.Errorf("create lease %s failed", node.Name)
+					return err
+				}
+			} else {
+				klog.Errorf("get lease %s failed", node.Name, err)
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (c *NodeLeaseController) updateLeaseWithRetry(ctx context.Context, nodes []*corev1.Node) error {
+	for _, node := range nodes {
+		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			lease := &coordinationv1.Lease{}
+			namespaceName := types.NamespacedName{
+				Namespace: corev1.NamespaceNodeLease,
+				Name:      node.Name,
+			}
+			if err := c.root.Get(ctx, namespaceName, lease); err != nil {
+				klog.Warningf("get lease %s failed with err %v", node.Name, err)
+				return err
+			}
+
+			lease.Spec.RenewTime = &metav1.MicroTime{Time: time.Now()}
+			lease.OwnerReferences = []metav1.OwnerReference{
+				{
+					APIVersion: corev1.SchemeGroupVersion.WithKind("Node").Version,
+					Kind:       corev1.SchemeGroupVersion.WithKind("Node").Kind,
+					Name:       node.Name,
+					UID:        node.UID,
+				},
+			}
+			err := c.root.Update(ctx, lease)
+			if err != nil {
+				klog.Warningf("update lease %s failed with err %v", node.Name, err)
+				return err
+			}
+			return nil
+		})
+		if err != nil {
 			return err
 		}
-		return nil
-	})
-	return err
+	}
+	return nil
 }
 
 func (c *NodeLeaseController) newLease(node *corev1.Node) *coordinationv1.Lease {

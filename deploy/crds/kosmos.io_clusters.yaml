@@ -114,7 +114,7 @@ spec:
                   enable:
                     default: true
                     type: boolean
-                  leafModel:
+                  leafModels:
                     description: LeafModels provide an api to arrange the member cluster
                       with some rules to pretend one or more leaf node
                     items:

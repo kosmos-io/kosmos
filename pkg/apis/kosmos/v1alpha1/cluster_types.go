@@ -100,7 +100,7 @@ type ClusterTreeOptions struct {
 
 	// LeafModels provide an api to arrange the member cluster with some rules to pretend one or more leaf node
 	// +optional
-	LeafModels []LeafModel `json:"leafModel,omitempty"`
+	LeafModels []LeafModel `json:"leafModels,omitempty"`
 }
 
 type LeafModel struct {

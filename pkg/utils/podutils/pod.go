@@ -13,8 +13,9 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/utils"
 )
 
-func GetSecrets(pod *corev1.Pod) []string {
+func GetSecrets(pod *corev1.Pod) ([]string, []string) {
 	secretNames := []string{}
+	imagePullSecrets := []string{}
 	for _, v := range pod.Spec.Volumes {
 		switch {
 		case v.Secret != nil:
@@ -39,11 +40,11 @@ func GetSecrets(pod *corev1.Pod) []string {
 	}
 	if pod.Spec.ImagePullSecrets != nil {
 		for _, s := range pod.Spec.ImagePullSecrets {
-			secretNames = append(secretNames, s.Name)
+			imagePullSecrets = append(imagePullSecrets, s.Name)
 		}
 	}
-	klog.Infof("pod %s depends on secrets %s", pod.Name, secretNames)
-	return secretNames
+	klog.Infof("pod %s depends on secrets %s, imagePullSecrets %s", pod.Name, secretNames, imagePullSecrets)
+	return secretNames, imagePullSecrets
 }
 
 func GetConfigmaps(pod *corev1.Pod) []string {
@@ -140,7 +141,7 @@ func FitUnstructuredObjMeta(unstructuredObj *unstructured.Unstructured) {
 	}
 }
 
-func FitPod(pod *corev1.Pod, ignoreLabels []string) *corev1.Pod {
+func FitPod(pod *corev1.Pod, ignoreLabels []string, cleanNodeName bool) *corev1.Pod {
 	vols := []corev1.Volume{}
 	for _, v := range pod.Spec.Volumes {
 		if strings.HasPrefix(v.Name, "default-token") {
@@ -163,10 +164,13 @@ func FitPod(pod *corev1.Pod, ignoreLabels []string) *corev1.Pod {
 	podCopy.Spec.Containers = fitContainers(pod.Spec.Containers)
 	podCopy.Spec.InitContainers = fitContainers(pod.Spec.InitContainers)
 	podCopy.Spec.Volumes = vols
-	podCopy.Spec.NodeName = ""
 	podCopy.Status = corev1.PodStatus{}
 
 	podCopy.Spec.SchedulerName = ""
+
+	if cleanNodeName {
+		podCopy.Spec.NodeName = ""
+	}
 
 	tripped := FitLabels(podCopy.ObjectMeta.Labels, ignoreLabels)
 	if tripped != nil {
