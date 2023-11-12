@@ -15,7 +15,7 @@ import (
 )
 
 type StorageHandler interface {
-	BeforeCreateInLeaf(context.Context, *RootPodReconciler, *leafUtils.LeafResource, *unstructured.Unstructured, *corev1.Pod) error
+	BeforeCreateInLeaf(context.Context, *RootPodReconciler, *leafUtils.LeafResource, *unstructured.Unstructured, *corev1.Pod, *leafUtils.ClusterNode) error
 }
 
 func NewStorageHandler(gvr schema.GroupVersionResource) (StorageHandler, error) {
@@ -33,14 +33,14 @@ func NewStorageHandler(gvr schema.GroupVersionResource) (StorageHandler, error) 
 type ConfigMapHandler struct {
 }
 
-func (c *ConfigMapHandler) BeforeCreateInLeaf(context.Context, *RootPodReconciler, *leafUtils.LeafResource, *unstructured.Unstructured, *corev1.Pod) error {
+func (c *ConfigMapHandler) BeforeCreateInLeaf(context.Context, *RootPodReconciler, *leafUtils.LeafResource, *unstructured.Unstructured, *corev1.Pod, *leafUtils.ClusterNode) error {
 	return nil
 }
 
 type SecretHandler struct {
 }
 
-func (s *SecretHandler) BeforeCreateInLeaf(ctx context.Context, r *RootPodReconciler, lr *leafUtils.LeafResource, unstructuredObj *unstructured.Unstructured, rootpod *corev1.Pod) error {
+func (s *SecretHandler) BeforeCreateInLeaf(ctx context.Context, r *RootPodReconciler, lr *leafUtils.LeafResource, unstructuredObj *unstructured.Unstructured, rootpod *corev1.Pod, _ *leafUtils.ClusterNode) error {
 	secretObj := &corev1.Secret{}
 	err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstructuredObj.Object, secretObj)
 	if err != nil {
@@ -58,7 +58,7 @@ func (s *SecretHandler) BeforeCreateInLeaf(ctx context.Context, r *RootPodReconc
 type PVCHandler struct {
 }
 
-func (v *PVCHandler) BeforeCreateInLeaf(_ context.Context, _ *RootPodReconciler, _ *leafUtils.LeafResource, unstructuredObj *unstructured.Unstructured, rootpod *corev1.Pod) error {
+func (v *PVCHandler) BeforeCreateInLeaf(_ context.Context, _ *RootPodReconciler, lr *leafUtils.LeafResource, unstructuredObj *unstructured.Unstructured, rootpod *corev1.Pod, cn *leafUtils.ClusterNode) error {
 	if rootpod == nil || len(rootpod.Spec.NodeName) == 0 {
 		return nil
 	}
@@ -67,7 +67,9 @@ func (v *PVCHandler) BeforeCreateInLeaf(_ context.Context, _ *RootPodReconciler,
 		annotationsMap = map[string]string{}
 	}
 	// TODO: rootpod.Spec.NodeSelector
-	annotationsMap[utils.PVCSelectedNodeKey] = rootpod.Spec.NodeName
+	if cn.LeafMode == leafUtils.Node {
+		annotationsMap[utils.PVCSelectedNodeKey] = rootpod.Spec.NodeName
+	}
 
 	unstructuredObj.SetAnnotations(annotationsMap)
 

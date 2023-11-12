@@ -74,7 +74,7 @@ const (
 	KosmosTrippedLabels    = "kosmos-io/tripped"
 	KosmosPvcLabelSelector = "kosmos-io/label-selector"
 
-	KosmosResourceOwnersAnnotations     = "kosmos-io/owners"
+	KosmosResourceOwnersAnnotations     = "kosmos-io/cluster-owners"
 	KosmosNodeOwnedByClusterAnnotations = "kosmos-io/owned-by-cluster"
 
 	NodeRoleLabel         = "kubernetes.io/role"

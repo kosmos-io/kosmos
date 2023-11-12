@@ -3,12 +3,16 @@ package app
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
+	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/tools/leaderelection"
+	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	cliflag "k8s.io/component-base/cli/flag"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -26,8 +30,11 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/utils"
 )
 
-func NewAgentCommand(ctx context.Context) *cobra.Command {
-	opts := options.NewOptions()
+func NewAgentCommand(ctx context.Context) (*cobra.Command, error) {
+	opts, err := options.NewOptions()
+	if err != nil {
+		return nil, err
+	}
 
 	cmd := &cobra.Command{
 		Use:  "clustertree-cluster-manager",
@@ -36,7 +43,7 @@ func NewAgentCommand(ctx context.Context) *cobra.Command {
 			if errs := opts.Validate(); len(errs) != 0 {
 				return errs.ToAggregate()
 			}
-			if err := run(ctx, opts); err != nil {
+			if err := leaderElectionRun(ctx, opts); err != nil {
 				return err
 			}
 			return nil
@@ -54,7 +61,59 @@ func NewAgentCommand(ctx context.Context) *cobra.Command {
 	cmd.Flags().AddFlagSet(genericFlagSet)
 	cmd.Flags().AddFlagSet(logsFlagSet)
 
-	return cmd
+	return cmd, nil
+}
+
+func leaderElectionRun(ctx context.Context, opts *options.Options) error {
+	if !opts.LeaderElection.LeaderElect {
+		return run(ctx, opts)
+	}
+
+	kubeConfig, err := clientcmd.BuildConfigFromFlags("", opts.KubernetesOptions.KubeConfig)
+	if err != nil {
+		return err
+	}
+
+	id, err := os.Hostname()
+	if err != nil {
+		return err
+	}
+	id += "_" + string(uuid.NewUUID())
+
+	rl, err := resourcelock.NewFromKubeconfig(
+		opts.LeaderElection.ResourceLock,
+		opts.LeaderElection.ResourceNamespace,
+		opts.LeaderElection.ResourceName,
+		resourcelock.ResourceLockConfig{
+			Identity: id,
+		},
+		kubeConfig,
+		opts.LeaderElection.RenewDeadline.Duration,
+	)
+	if err != nil {
+		return err
+	}
+
+	leaderelection.RunOrDie(ctx, leaderelection.LeaderElectionConfig{
+		Lock:          rl,
+		Name:          opts.LeaderElection.ResourceName,
+		LeaseDuration: opts.LeaderElection.LeaseDuration.Duration,
+		RenewDeadline: opts.LeaderElection.RenewDeadline.Duration,
+		RetryPeriod:   opts.LeaderElection.RetryPeriod.Duration,
+
+		Callbacks: leaderelection.LeaderCallbacks{
+			OnStartedLeading: func(ctx context.Context) {
+				klog.Warning("leader-election got, clustertree is awaking")
+				_ = run(ctx, opts)
+				os.Exit(0)
+			},
+			OnStoppedLeading: func() {
+				klog.Warning("leader-election lost, clustertree is dying")
+				os.Exit(0)
+			},
+		},
+	})
+	return nil
 }
 
 func run(ctx context.Context, opts *options.Options) error {
@@ -85,13 +144,11 @@ func run(ctx context.Context, opts *options.Options) error {
 
 	rootResourceManager := utils.NewResourceManager(rootClient, rootKosmosClient)
 	mgr, err := controllerruntime.NewManager(config, controllerruntime.Options{
-		Logger:                  klog.Background(),
-		Scheme:                  scheme.NewSchema(),
-		LeaderElection:          opts.LeaderElection.LeaderElect,
-		LeaderElectionID:        opts.LeaderElection.ResourceName,
-		LeaderElectionNamespace: opts.LeaderElection.ResourceNamespace,
-		MetricsBindAddress:      "0",
-		HealthProbeBindAddress:  "0",
+		Logger:                 klog.Background(),
+		Scheme:                 scheme.NewSchema(),
+		LeaderElection:         false,
+		MetricsBindAddress:     "0",
+		HealthProbeBindAddress: "0",
 	})
 	if err != nil {
 		return fmt.Errorf("failed to build controller manager: %v", err)
@@ -179,7 +236,7 @@ func run(ctx context.Context, opts *options.Options) error {
 		return fmt.Errorf("error starting root pv controller %v", err)
 	}
 
-	// init commonCOntroller
+	// init commonController
 	for i, gvr := range controllers.SYNC_GVRS {
 		commonController := controllers.SyncResourcesReconciler{
 			GlobalLeafManager:    globalleafManager,

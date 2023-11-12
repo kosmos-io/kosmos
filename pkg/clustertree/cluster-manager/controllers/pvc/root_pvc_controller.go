@@ -50,7 +50,6 @@ func (r *RootPVCController) Reconcile(ctx context.Context, request reconcile.Req
 		return reconcile.Result{RequeueAfter: RootPVCRequeueTime}, nil
 	}
 
-	// TODO: @zhangyongxi
 	lr, err := r.GlobalLeafManager.GetLeafResource(clusters[0])
 	if err != nil {
 		klog.Warningf("pvc leaf %q: %q doesn't existed in LeafResources", request.NamespacedName.Namespace, request.NamespacedName.Name)
@@ -121,7 +120,6 @@ func (r *RootPVCController) SetupWithManager(mgr manager.Manager) error {
 					return false
 				}
 
-				// TODO: @zhangyongxi
 				lr, err := r.GlobalLeafManager.GetLeafResource(clusters[0])
 				if err != nil {
 					klog.Warningf("pvc leaf %q: %q doesn't existed in LeafResources", deleteEvent.Object.GetNamespace(),
