@@ -231,7 +231,15 @@ func (c *ClusterController) clearClusterControllers(cluster *kosmosv1alpha1.Clus
 }
 
 func (c *ClusterController) setupControllers(mgr manager.Manager, cluster *kosmosv1alpha1.Cluster, nodes []*corev1.Node, clientDynamic *dynamic.DynamicClient, leafClient kubernetes.Interface, kosmosClient kosmosversioned.Interface) error {
+	isNode2NodeFunc := func(cluster *kosmosv1alpha1.Cluster) bool {
+		return cluster.Spec.ClusterTreeOptions.LeafModels != nil
+	}
+
 	clusterName := fmt.Sprintf("%s%s", utils.KosmosNodePrefix, cluster.Name)
+	if isNode2NodeFunc(cluster) {
+		clusterName = cluster.Name
+	}
+
 	c.GlobalLeafManager.AddLeafResource(clusterName, &leafUtils.LeafResource{
 		Client:        mgr.GetClient(),
 		DynamicClient: clientDynamic,
@@ -243,10 +251,6 @@ func (c *ClusterController) setupControllers(mgr manager.Manager, cluster *kosmo
 		IgnoreLabels:         strings.Split("", ","),
 		EnableServiceAccount: true,
 	}, cluster.Spec.ClusterTreeOptions.LeafModels, nodes)
-
-	isNode2NodeFunc := func(cluster *kosmosv1alpha1.Cluster) bool {
-		return cluster.Spec.ClusterTreeOptions.LeafModels != nil
-	}
 
 	nodeResourcesController := controllers.NodeResourcesController{
 		Leaf:              mgr.GetClient(),
@@ -289,7 +293,7 @@ func (c *ClusterController) setupControllers(mgr manager.Manager, cluster *kosmo
 		return fmt.Errorf("error starting podUpstreamReconciler %s: %v", podcontrollers.LeafPodControllerName, err)
 	}
 
-	err := c.setupStorageControllers(mgr, nodes, leafClient)
+	err := c.setupStorageControllers(mgr, nodes, leafClient, cluster.Name)
 	if err != nil {
 		return err
 	}
@@ -297,12 +301,12 @@ func (c *ClusterController) setupControllers(mgr manager.Manager, cluster *kosmo
 	return nil
 }
 
-func (c *ClusterController) setupStorageControllers(mgr manager.Manager, nodes []*corev1.Node, leafClient kubernetes.Interface) error {
+func (c *ClusterController) setupStorageControllers(mgr manager.Manager, nodes []*corev1.Node, leafClient kubernetes.Interface, clustername string) error {
 	leafPVCController := pvc.LeafPVCController{
 		LeafClient:    mgr.GetClient(),
 		RootClient:    c.Root,
 		RootClientSet: c.RootClient,
-		NodeName:      nodes[0].Name,
+		ClusterName:   clustername,
 	}
 	if err := leafPVCController.SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("error starting leaf pvc controller %v", err)
@@ -312,7 +316,7 @@ func (c *ClusterController) setupStorageControllers(mgr manager.Manager, nodes [
 		LeafClient:    mgr.GetClient(),
 		RootClient:    c.Root,
 		RootClientSet: c.RootClient,
-		NodeName:      nodes[0].Name,
+		ClusterName:   clustername,
 	}
 	if err := leafPVController.SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("error starting leaf pv controller %v", err)

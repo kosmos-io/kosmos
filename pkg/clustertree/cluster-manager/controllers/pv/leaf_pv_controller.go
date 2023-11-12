@@ -32,7 +32,7 @@ type LeafPVController struct {
 	LeafClient    client.Client
 	RootClient    client.Client
 	RootClientSet kubernetes.Interface
-	NodeName      string
+	ClusterName   string
 }
 
 func (l *LeafPVController) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
@@ -84,7 +84,7 @@ func (l *LeafPVController) Reconcile(ctx context.Context, request reconcile.Requ
 		}
 
 		rootPV = pv.DeepCopy()
-		filterPV(rootPV, l.NodeName)
+		filterPV(rootPV, l.ClusterName)
 		nn := types.NamespacedName{
 			Name:      rootPV.Spec.ClaimRef.Name,
 			Namespace: rootPV.Spec.ClaimRef.Namespace,
@@ -101,7 +101,7 @@ func (l *LeafPVController) Reconcile(ctx context.Context, request reconcile.Requ
 
 		rootPV.Spec.ClaimRef.UID = rootPVC.UID
 		rootPV.Spec.ClaimRef.ResourceVersion = rootPVC.ResourceVersion
-		utils.AddResourceOwnersAnnotations(rootPV.Annotations, l.NodeName)
+		utils.AddResourceOwnersAnnotations(rootPV.Annotations, l.ClusterName)
 
 		rootPV, err = l.RootClientSet.CoreV1().PersistentVolumes().Create(ctx, rootPV, metav1.CreateOptions{})
 		if err != nil || rootPV == nil {
@@ -112,7 +112,7 @@ func (l *LeafPVController) Reconcile(ctx context.Context, request reconcile.Requ
 		return reconcile.Result{}, nil
 	}
 
-	if !utils.HasResourceOwnersAnnotations(rootPV.Annotations, l.NodeName) {
+	if !utils.HasResourceOwnersAnnotations(rootPV.Annotations, l.ClusterName) {
 		klog.Errorf("meet the same name root pv name: %q !", request.NamespacedName.Name)
 		return reconcile.Result{}, nil
 	}
@@ -128,7 +128,7 @@ func (l *LeafPVController) Reconcile(ctx context.Context, request reconcile.Requ
 		return reconcile.Result{}, nil
 	}
 
-	filterPV(rootPV, l.NodeName)
+	filterPV(rootPV, l.ClusterName)
 	if pvCopy.Spec.ClaimRef != nil || rootPV.Spec.ClaimRef == nil {
 		nn := types.NamespacedName{
 			Name:      pvCopy.Spec.ClaimRef.Name,
@@ -151,7 +151,7 @@ func (l *LeafPVController) Reconcile(ctx context.Context, request reconcile.Requ
 	pvCopy.Spec.NodeAffinity = rootPV.Spec.NodeAffinity
 	pvCopy.UID = rootPV.UID
 	pvCopy.ResourceVersion = rootPV.ResourceVersion
-	utils.AddResourceOwnersAnnotations(pvCopy.Annotations, l.NodeName)
+	utils.AddResourceOwnersAnnotations(pvCopy.Annotations, l.ClusterName)
 
 	if utils.IsPVEqual(rootPV, pvCopy) {
 		return reconcile.Result{}, nil
