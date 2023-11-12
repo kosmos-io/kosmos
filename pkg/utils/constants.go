@@ -77,6 +77,8 @@ const (
 	KosmosResourceOwnersAnnotations     = "kosmos-io/cluster-owners"
 	KosmosNodeOwnedByClusterAnnotations = "kosmos-io/owned-by-cluster"
 
+	KosmosDaemonsetAllowAnnotations = "kosmos-io/daemonset-allow"
+
 	NodeRoleLabel         = "kubernetes.io/role"
 	NodeRoleValue         = "agent"
 	NodeOSLabelBeta       = "beta.kubernetes.io/os"
