@@ -176,6 +176,7 @@ func (c *AutoCreateMCSController) cleanUpMcsResources(ctx context.Context, names
 			continue
 		}
 		leafNodeName := fmt.Sprintf("%s%s", utils.KosmosNodePrefix, cluster.Name)
+		// TODO: @duanmengkk
 		leafManager, err := c.GlobalLeafManager.GetLeafResource(leafNodeName)
 		if err != nil {
 			klog.Errorf("get leafManager for cluster %s failed,Error: %v", cluster.Name, err)
@@ -213,6 +214,7 @@ func (c *AutoCreateMCSController) autoCreateMcsResources(ctx context.Context, se
 			continue
 		}
 		leafNodeName := fmt.Sprintf("%s%s", utils.KosmosNodePrefix, cluster.Name)
+		// TODO: @duanmengkk
 		leafManager, err := c.GlobalLeafManager.GetLeafResource(leafNodeName)
 		if err != nil {
 			klog.Errorf("get leafManager for cluster %s failed,Error: %v", cluster.Name, err)

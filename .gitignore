@@ -29,3 +29,5 @@ _delete/
 kube-config
 
 __debug_bin*
+
+ignore_dir
