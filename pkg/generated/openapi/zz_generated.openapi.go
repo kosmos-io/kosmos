@@ -634,7 +634,7 @@ func schema_pkg_apis_kosmos_v1alpha1_ClusterTreeOptions(ref common.ReferenceCall
 							Format:  "",
 						},
 					},
-					"leafModel": {
+					"leafModels": {
 						SchemaProps: spec.SchemaProps{
 							Description: "LeafModels provide an api to arrange the member cluster with some rules to pretend one or more leaf node",
 							Type:        []string{"array"},

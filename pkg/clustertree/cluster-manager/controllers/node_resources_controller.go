@@ -7,6 +7,7 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
@@ -23,6 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	kosmosv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
+	leafUtils "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/utils"
 	"github.com/kosmos.io/kosmos/pkg/utils"
 )
 
@@ -32,9 +34,10 @@ const (
 )
 
 type NodeResourcesController struct {
-	Leaf          client.Client
-	Root          client.Client
-	RootClientset kubernetes.Interface
+	Leaf              client.Client
+	Root              client.Client
+	GlobalLeafManager leafUtils.LeafResourceManager
+	RootClientset     kubernetes.Interface
 
 	Nodes         []*corev1.Node
 	Cluster       *kosmosv1alpha1.Cluster
@@ -95,41 +98,120 @@ func (c *NodeResourcesController) Reconcile(ctx context.Context, request reconci
 		klog.V(4).Infof("============ %s has been reconciled =============", request.Name)
 	}()
 
-	nodes := corev1.NodeList{}
-	if err := c.Leaf.List(ctx, &nodes); err != nil {
-		return controllerruntime.Result{}, err
+	isNode2Node := func(cluster *kosmosv1alpha1.Cluster) bool {
+		// todo support labelSelector for leafNode
+		return cluster.Spec.ClusterTreeOptions.LeafModels != nil
 	}
 
-	pods := corev1.PodList{}
-	if err := c.Leaf.List(ctx, &pods); err != nil {
-		return controllerruntime.Result{}, err
+	for _, rootNode := range c.Nodes {
+		nodeInRoot := &corev1.Node{}
+		err := c.Root.Get(ctx, types.NamespacedName{Name: rootNode.Name}, nodeInRoot)
+		if err != nil {
+			klog.Errorf("Could not get node in root cluster,Error: %v", err)
+			return reconcile.Result{
+				Requeue:      true,
+				RequeueAfter: RequeueTime,
+			}, fmt.Errorf("cannot get node while update nodeInRoot resources %s, err: %v", rootNode.Name, err)
+		}
+
+		var nodesInLeaf *corev1.NodeList
+		var pods *corev1.PodList
+
+		if !isNode2Node(c.Cluster) {
+			if err = c.Leaf.List(ctx, nodesInLeaf); err != nil {
+				klog.Errorf("Could not list node in leaf cluster,Error: %v", err)
+				return controllerruntime.Result{
+					RequeueAfter: RequeueTime,
+				}, err
+			}
+
+			if err = c.Leaf.List(ctx, pods); err != nil {
+				klog.Errorf("Could not list pod in leaf cluster,Error: %v", err)
+				return controllerruntime.Result{
+					RequeueAfter: RequeueTime,
+				}, err
+			}
+		} else {
+			leafNodeName := fmt.Sprintf("%s%s", utils.KosmosNodePrefix, c.Cluster.Name)
+			leafResource, err := c.GlobalLeafManager.GetLeafResource(leafNodeName)
+			if err != nil {
+				klog.Errorf("Could not get leafResource,Error: %v", err)
+				return controllerruntime.Result{
+					RequeueAfter: RequeueTime,
+				}, err
+			}
+			nodesInLeaf, err = leafResource.Clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{FieldSelector: fmt.Sprintf("metadata.name=%s", rootNode.Name)})
+			if err != nil {
+				klog.Errorf("Could not get node in leaf cluster %s,Error: %v", c.Cluster.Name, err)
+				return controllerruntime.Result{
+					RequeueAfter: RequeueTime,
+				}, err
+			}
+
+			pods, err = leafResource.Clientset.CoreV1().Pods("").List(ctx, metav1.ListOptions{FieldSelector: fmt.Sprintf("spec.nodeName=%s", rootNode.Name)})
+			if err != nil {
+				klog.Errorf("Could not list pod in leaf cluster %s,Error: %v", c.Cluster.Name, err)
+				return controllerruntime.Result{
+					RequeueAfter: RequeueTime,
+				}, err
+			}
+		}
+
+		clusterResources := utils.CalculateClusterResources(nodesInLeaf, pods)
+		clone := nodeInRoot.DeepCopy()
+		clone.Status.Allocatable = clusterResources
+		clone.Status.Capacity = clusterResources
+		clone.Status.Conditions = utils.NodeConditions()
+
+		// Node2Node mode should sync leaf node's labels and annotations to root nodeInRoot
+		if isNode2Node(c.Cluster) {
+			getNode := func(nodes *corev1.NodeList) *corev1.Node {
+				for _, nodeInLeaf := range nodes.Items {
+					if nodeInLeaf.Name == rootNode.Name {
+						return &nodeInLeaf
+					}
+				}
+				return nil
+			}
+			node := getNode(nodesInLeaf)
+			if node != nil {
+				clone.Labels = mergeMap(rootNode.GetLabels(), node.GetLabels())
+				clone.Annotations = mergeMap(rootNode.GetAnnotations(), node.GetAnnotations())
+				clone.Status = node.Status
+			}
+		}
+
+		patch, err := utils.CreateMergePatch(nodeInRoot, clone)
+		if err != nil {
+			klog.Errorf("Could not CreateMergePatch,Error: %v", err)
+			return reconcile.Result{}, err
+		}
+
+		if _, err = c.RootClientset.CoreV1().Nodes().Patch(ctx, rootNode.Name, types.MergePatchType, patch, metav1.PatchOptions{}); err != nil {
+			return reconcile.Result{
+				RequeueAfter: RequeueTime,
+			}, fmt.Errorf("failed to patch node resources: %v, will requeue", err)
+		}
+
+		if _, err = c.RootClientset.CoreV1().Nodes().PatchStatus(ctx, rootNode.Name, patch); err != nil {
+			return reconcile.Result{
+				RequeueAfter: RequeueTime,
+			}, fmt.Errorf("failed to patch node resources: %v, will requeue", err)
+		}
 	}
-
-	clusterResources := utils.CalculateClusterResources(&nodes, &pods)
-
-	node := &corev1.Node{}
-	err := c.Root.Get(ctx, types.NamespacedName{Name: c.Nodes[0].Name}, node)
-	if err != nil {
-		return reconcile.Result{
-			RequeueAfter: RequeueTime,
-		}, fmt.Errorf("cannot get node while update node resources %s, err: %v", c.Nodes[0].Name, err)
-	}
-
-	clone := node.DeepCopy()
-	clone.Status.Allocatable = clusterResources
-	clone.Status.Capacity = clusterResources
-	clone.Status.Conditions = utils.NodeConditions()
-
-	patch, err := utils.CreateMergePatch(node, clone)
-	if err != nil {
-		return reconcile.Result{}, err
-	}
-
-	if _, err := c.RootClientset.CoreV1().Nodes().PatchStatus(ctx, c.Nodes[0].Name, patch); err != nil {
-		return reconcile.Result{
-			RequeueAfter: RequeueTime,
-		}, fmt.Errorf("failed to patch node resources: %v, will requeue", err)
-	}
-
 	return reconcile.Result{}, nil
+}
+
+func mergeMap(origin, new map[string]string) map[string]string {
+	if origin == nil {
+		return new
+	}
+	if new != nil {
+		for k, v := range origin {
+			if _, exists := new[k]; !exists {
+				new[k] = v
+			}
+		}
+	}
+	return new
 }

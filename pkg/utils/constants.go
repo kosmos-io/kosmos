@@ -49,16 +49,15 @@ const (
 
 const ClusterStartControllerFinalizer = "kosmos.io/cluster-start-finazlizer"
 
+// mcs
 const (
-	ServiceExportControllerName = "service-export-controller"
-	ServiceKey                  = "kubernetes.io/service-name"
-	ServiceImportControllerName = "serviceimport-controller"
-	ServiceExportLabelKey       = "kosmos.io/service-export"
-	ServiceImportLabelKey       = "kosmos.io/service-import"
-	MCSLabelValue               = "ture"
-	ServiceEndpointsKey         = "kosmos.io/address"
-	DisconnectedEndpointsKey    = "kosmos.io/disconnected-address"
-	AutoCreateMCSAnnotation     = "kosmos.io/auto-create-mcs"
+	ServiceKey               = "kubernetes.io/service-name"
+	ServiceExportLabelKey    = "kosmos.io/service-export"
+	ServiceImportLabelKey    = "kosmos.io/service-import"
+	MCSLabelValue            = "ture"
+	ServiceEndpointsKey      = "kosmos.io/address"
+	DisconnectedEndpointsKey = "kosmos.io/disconnected-address"
+	AutoCreateMCSAnnotation  = "kosmos.io/auto-create-mcs"
 )
 
 // cluster node
@@ -75,7 +74,8 @@ const (
 	KosmosTrippedLabels    = "kosmos-io/tripped"
 	KosmosPvcLabelSelector = "kosmos-io/label-selector"
 
-	KosmosResourceOwnersAnnotations = "kosmos-io/owners"
+	KosmosResourceOwnersAnnotations     = "kosmos-io/owners"
+	KosmosNodeOwnedByClusterAnnotations = "kosmos-io/owned-by-cluster"
 
 	NodeRoleLabel         = "kubernetes.io/role"
 	NodeRoleValue         = "agent"
