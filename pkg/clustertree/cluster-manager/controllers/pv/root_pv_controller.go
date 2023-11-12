@@ -58,7 +58,6 @@ func (r *RootPVController) SetupWithManager(mgr manager.Manager) error {
 					return false
 				}
 
-				// TODO: @zhangyongxi
 				lr, err := r.GlobalLeafManager.GetLeafResource(clusters[0])
 				if err != nil {
 					klog.Warningf("pv leaf %q doesn't existed in LeafResources", deleteEvent.Object.GetName())

@@ -237,7 +237,7 @@ func (c *ClusterController) setupControllers(mgr manager.Manager, cluster *kosmo
 		DynamicClient: clientDynamic,
 		Clientset:     leafClient,
 		KosmosClient:  kosmosClient,
-		// NodeName:             clusterName,
+		ClusterName:   clusterName,
 		// TODO: define node options
 		Namespace:            "",
 		IgnoreLabels:         strings.Split("", ","),

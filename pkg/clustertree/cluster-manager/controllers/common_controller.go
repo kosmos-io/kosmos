@@ -60,7 +60,7 @@ func (r *SyncResourcesReconciler) Reconcile(ctx context.Context, request reconci
 
 	for _, owner := range owners {
 		if r.GlobalLeafManager.Has(owner) {
-			lr, err := r.GlobalLeafManager.GetLeafResourceByNodeName(owner)
+			lr, err := r.GlobalLeafManager.GetLeafResource(owner)
 			if err != nil {
 				klog.Errorf("get lr(owner: %s) err: %v", owner, err)
 				return reconcile.Result{RequeueAfter: SyncResourcesRequeueTime}, nil

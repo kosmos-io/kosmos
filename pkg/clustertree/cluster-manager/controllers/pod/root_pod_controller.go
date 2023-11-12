@@ -168,7 +168,7 @@ func (r *RootPodReconciler) Reconcile(ctx context.Context, request reconcile.Req
 
 	// TODO: GlobalLeafResourceManager may not inited....
 	// belongs to the current node
-	if !r.GlobalLeafManager.Has(rootpod.Spec.NodeName) {
+	if !r.GlobalLeafManager.HasNodeName(rootpod.Spec.NodeName) {
 		return reconcile.Result{RequeueAfter: RootPodRequeueTime}, nil
 	}
 
@@ -283,7 +283,7 @@ func (r *RootPodReconciler) createStorageInLeafCluster(ctx context.Context, lr *
 			return fmt.Errorf("could not get resource gvr(%v) %s from root cluster: %v", gvr, rname, err)
 		}
 		rootannotations := rootobj.GetAnnotations()
-		rootannotations = utils.AddResourceOwnersAnnotations(rootannotations, cn.NodeName)
+		rootannotations = utils.AddResourceOwnersAnnotations(rootannotations, lr.ClusterName)
 
 		rootobj.SetAnnotations(rootannotations)
 
@@ -303,7 +303,7 @@ func (r *RootPodReconciler) createStorageInLeafCluster(ctx context.Context, lr *
 
 			podutils.FitUnstructuredObjMeta(unstructuredObj)
 
-			if err := storageHandler.BeforeCreateInLeaf(ctx, r, lr, unstructuredObj, rootpod); err != nil {
+			if err := storageHandler.BeforeCreateInLeaf(ctx, r, lr, unstructuredObj, rootpod, cn); err != nil {
 				return err
 			}
 

@@ -32,11 +32,11 @@ type ClusterNode struct {
 }
 
 type LeafResource struct {
-	Client        client.Client
-	DynamicClient dynamic.Interface
-	Clientset     kubernetes.Interface
-	KosmosClient  kosmosversioned.Interface
-	// NodeName             string
+	Client               client.Client
+	DynamicClient        dynamic.Interface
+	Clientset            kubernetes.Interface
+	KosmosClient         kosmosversioned.Interface
+	ClusterName          string
 	Namespace            string
 	IgnoreLabels         []string
 	EnableServiceAccount bool
@@ -52,6 +52,7 @@ type LeafResourceManager interface {
 	GetLeafResourceByNodeName(string) (*LeafResource, error)
 	// judge if the map has leafresource of nodename
 	Has(string) bool
+	HasNodeName(string) bool
 	ListNodeNames() []string
 	GetClusterNode(string) *ClusterNode
 }
@@ -131,9 +132,19 @@ func (l *leafResourceManager) GetLeafResourceByNodeName(nodename string) (*LeafR
 	return nil, fmt.Errorf("cannot get leaf resource, nodename: %s", nodename)
 }
 
-func (l *leafResourceManager) Has(nodename string) bool {
+func (l *leafResourceManager) HasNodeName(nodename string) bool {
 	for k := range l.resourceMap {
 		if has(l.resourceMap[k].Nodes, nodename) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (l *leafResourceManager) Has(clustername string) bool {
+	for k := range l.resourceMap {
+		if k == clustername {
 			return true
 		}
 	}
