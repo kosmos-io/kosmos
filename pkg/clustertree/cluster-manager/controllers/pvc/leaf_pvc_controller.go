@@ -34,7 +34,7 @@ type LeafPVCController struct {
 	LeafClient    client.Client
 	RootClient    client.Client
 	RootClientSet kubernetes.Interface
-	NodeName      string
+	ClusterName   string
 }
 
 func (l *LeafPVCController) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
@@ -65,14 +65,14 @@ func (l *LeafPVCController) Reconcile(ctx context.Context, request reconcile.Req
 	if reflect.DeepEqual(rootPVC.Status, pvcCopy.Status) {
 		return reconcile.Result{}, nil
 	}
-	if err = filterPVC(pvcCopy, l.NodeName); err != nil {
+	if err = filterPVC(pvcCopy, l.ClusterName); err != nil {
 		return reconcile.Result{}, nil
 	}
 
 	delete(pvcCopy.Annotations, utils.PVCSelectedNodeKey)
 	pvcCopy.ResourceVersion = rootPVC.ResourceVersion
 	pvcCopy.OwnerReferences = rootPVC.OwnerReferences
-	utils.AddResourceOwnersAnnotations(pvcCopy.Annotations, l.NodeName)
+	utils.AddResourceOwnersAnnotations(pvcCopy.Annotations, l.ClusterName)
 	pvcCopy.Spec = rootPVC.Spec
 	klog.V(4).Infof("rootPVC %+v\n, pvc %+v", rootPVC, pvcCopy)
 
