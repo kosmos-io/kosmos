@@ -40,6 +40,7 @@ type NodeResourcesController struct {
 	RootClientset     kubernetes.Interface
 
 	Nodes         []*corev1.Node
+	Node2Node     bool
 	Cluster       *kosmosv1alpha1.Cluster
 	EventRecorder record.EventRecorder
 }
@@ -98,11 +99,6 @@ func (c *NodeResourcesController) Reconcile(ctx context.Context, request reconci
 		klog.V(4).Infof("============ %s has been reconciled =============", request.Name)
 	}()
 
-	isNode2Node := func(cluster *kosmosv1alpha1.Cluster) bool {
-		// todo support labelSelector for leafNode
-		return cluster.Spec.ClusterTreeOptions.LeafModels != nil
-	}
-
 	for _, rootNode := range c.Nodes {
 		nodeInRoot := &corev1.Node{}
 		err := c.Root.Get(ctx, types.NamespacedName{Name: rootNode.Name}, nodeInRoot)
@@ -114,10 +110,10 @@ func (c *NodeResourcesController) Reconcile(ctx context.Context, request reconci
 			}, fmt.Errorf("cannot get node while update nodeInRoot resources %s, err: %v", rootNode.Name, err)
 		}
 
-		var nodesInLeaf *corev1.NodeList
-		var pods *corev1.PodList
+		nodesInLeaf := &corev1.NodeList{}
+		pods := &corev1.PodList{}
 
-		if !isNode2Node(c.Cluster) {
+		if !c.Node2Node {
 			if err = c.Leaf.List(ctx, nodesInLeaf); err != nil {
 				klog.Errorf("Could not list node in leaf cluster,Error: %v", err)
 				return controllerruntime.Result{
@@ -164,7 +160,7 @@ func (c *NodeResourcesController) Reconcile(ctx context.Context, request reconci
 		clone.Status.Conditions = utils.NodeConditions()
 
 		// Node2Node mode should sync leaf node's labels and annotations to root nodeInRoot
-		if isNode2Node(c.Cluster) {
+		if c.Node2Node {
 			getNode := func(nodes *corev1.NodeList) *corev1.Node {
 				for _, nodeInLeaf := range nodes.Items {
 					if nodeInLeaf.Name == rootNode.Name {
@@ -213,5 +209,8 @@ func mergeMap(origin, new map[string]string) map[string]string {
 			}
 		}
 	}
+	delete(new, utils.LabelNodeRoleControlPlane)
+	delete(new, utils.LabelNodeRoleOldControlPlane)
+	delete(new, utils.LabelNodeRoleNode)
 	return new
 }

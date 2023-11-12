@@ -244,19 +244,24 @@ func (c *ClusterController) setupControllers(mgr manager.Manager, cluster *kosmo
 		EnableServiceAccount: true,
 	}, cluster.Spec.ClusterTreeOptions.LeafModels, nodes)
 
+	isNode2NodeFunc := func(cluster *kosmosv1alpha1.Cluster) bool {
+		return cluster.Spec.ClusterTreeOptions.LeafModels != nil
+	}
+
 	nodeResourcesController := controllers.NodeResourcesController{
 		Leaf:              mgr.GetClient(),
 		GlobalLeafManager: c.GlobalLeafManager,
 		Root:              c.Root,
 		RootClientset:     c.RootClient,
 		Nodes:             nodes,
+		Node2Node:         isNode2NodeFunc(cluster),
 		Cluster:           cluster,
 	}
 	if err := nodeResourcesController.SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("error starting %s: %v", controllers.NodeResourcesControllerName, err)
 	}
 
-	nodeLeaseController := controllers.NewNodeLeaseController(leafClient, c.Root, nodes, c.RootClient)
+	nodeLeaseController := controllers.NewNodeLeaseController(leafClient, c.Root, nodes, c.RootClient, isNode2NodeFunc(cluster))
 	if err := mgr.Add(nodeLeaseController); err != nil {
 		return fmt.Errorf("error starting %s: %v", controllers.NodeLeaseControllerName, err)
 	}

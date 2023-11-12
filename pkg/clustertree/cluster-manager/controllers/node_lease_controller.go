@@ -34,6 +34,7 @@ type NodeLeaseController struct {
 	leafClient kubernetes.Interface
 	rootClient kubernetes.Interface
 	root       client.Client
+	Node2Node  bool
 
 	leaseInterval  time.Duration
 	statusInterval time.Duration
@@ -42,12 +43,13 @@ type NodeLeaseController struct {
 	nodeLock sync.Mutex
 }
 
-func NewNodeLeaseController(leafClient kubernetes.Interface, root client.Client, nodes []*corev1.Node, rootClient kubernetes.Interface) *NodeLeaseController {
+func NewNodeLeaseController(leafClient kubernetes.Interface, root client.Client, nodes []*corev1.Node, rootClient kubernetes.Interface, node2Node bool) *NodeLeaseController {
 	c := &NodeLeaseController{
 		leafClient:     leafClient,
 		rootClient:     rootClient,
 		root:           root,
 		nodes:          nodes,
+		Node2Node:      node2Node,
 		leaseInterval:  getRenewInterval(),
 		statusInterval: DefaultNodeStatusUpdateInterval,
 	}
@@ -56,52 +58,61 @@ func NewNodeLeaseController(leafClient kubernetes.Interface, root client.Client,
 
 func (c *NodeLeaseController) Start(ctx context.Context) error {
 	go wait.UntilWithContext(ctx, c.syncLease, c.leaseInterval)
-	//go wait.UntilWithContext(ctx, c.syncNodeStatus, c.statusInterval)
-
+	go wait.UntilWithContext(ctx, c.syncNodeStatus, c.statusInterval)
 	<-ctx.Done()
 	return nil
 }
 
-// nolint
 func (c *NodeLeaseController) syncNodeStatus(ctx context.Context) {
+	nodes := make([]*corev1.Node, 0)
 	c.nodeLock.Lock()
-	node := c.nodes[0].DeepCopy()
+	for _, nodeIndex := range c.nodes {
+		nodeCopy := nodeIndex.DeepCopy()
+		nodes = append(nodes, nodeCopy)
+	}
 	c.nodeLock.Unlock()
 
-	err := c.updateNodeStatus(ctx, node)
+	err := c.updateNodeStatus(ctx, nodes)
 	if err != nil {
 		klog.Errorf(err.Error())
 	}
 }
 
-// TODO @yizhi useless code ?
 // nolint
-func (c *NodeLeaseController) updateNodeStatus(ctx context.Context, n *corev1.Node) error {
-	node := &corev1.Node{}
-	namespacedName := types.NamespacedName{
-		Name: n.Name,
+func (c *NodeLeaseController) updateNodeStatus(ctx context.Context, n []*corev1.Node) error {
+	if !c.Node2Node {
+		var name string
+		if len(n) > 0 {
+			name = n[0].Name
+		}
+
+		node := &corev1.Node{}
+		namespacedName := types.NamespacedName{
+			Name: name,
+		}
+		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			err := c.root.Get(ctx, namespacedName, node)
+			if err != nil {
+				// TODO: If a node is accidentally deleted, recreate it
+				return fmt.Errorf("cannot get node while update node status %s, err: %v", name, err)
+			}
+
+			clone := node.DeepCopy()
+			clone.Status.Conditions = utils.NodeConditions()
+
+			patch, err := utils.CreateMergePatch(node, clone)
+			if err != nil {
+				return fmt.Errorf("cannot get node while update node status %s, err: %v", node.Name, err)
+			}
+
+			if node, err = c.rootClient.CoreV1().Nodes().PatchStatus(ctx, node.Name, patch); err != nil {
+				return err
+			}
+			return nil
+		})
+		return err
 	}
-	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		err := c.root.Get(ctx, namespacedName, node)
-		if err != nil {
-			// TODO: If a node is accidentally deleted, recreate it
-			return fmt.Errorf("cannot get node while update node status %s, err: %v", n.Name, err)
-		}
-
-		clone := node.DeepCopy()
-		clone.Status.Conditions = utils.NodeConditions()
-
-		patch, err := utils.CreateMergePatch(node, clone)
-		if err != nil {
-			return fmt.Errorf("cannot get node while update node status %s, err: %v", node.Name, err)
-		}
-
-		if node, err = c.rootClient.CoreV1().Nodes().PatchStatus(ctx, node.Name, patch); err != nil {
-			return err
-		}
-		return nil
-	})
-	return err
+	return nil
 }
 
 func (c *NodeLeaseController) syncLease(ctx context.Context) {

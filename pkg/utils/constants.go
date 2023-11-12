@@ -100,6 +100,15 @@ const (
 
 	DefaultLeafKubeQPS   = 40.0
 	DefaultLeafKubeBurst = 60
+
+	// LabelNodeRoleControlPlane specifies that a node hosts control-plane components
+	LabelNodeRoleControlPlane = "node-role.kubernetes.io/control-plane"
+
+	// LabelNodeRoleOldControlPlane specifies that a node hosts control-plane components
+	LabelNodeRoleOldControlPlane = "node-role.kubernetes.io/master"
+
+	// LabelNodeRoleNode specifies that a node hosts node components
+	LabelNodeRoleNode = "node-role.kubernetes.io/node"
 )
 
 const (
