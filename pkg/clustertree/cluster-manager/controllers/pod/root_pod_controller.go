@@ -199,6 +199,7 @@ func (r *RootPodReconciler) Reconcile(ctx context.Context, request reconcile.Req
 	if err != nil {
 		if errors.IsNotFound(err) {
 			if err := r.CreatePodInLeafCluster(ctx, lr, &rootpod); err != nil {
+				klog.Errorf("create pod inleaf error, err: %s", err)
 				return reconcile.Result{RequeueAfter: RootPodRequeueTime}, nil
 			} else {
 				return reconcile.Result{}, nil
@@ -689,8 +690,8 @@ func (r *RootPodReconciler) CreatePodInLeafCluster(ctx context.Context, lr *leaf
 		}
 
 		// try to create image pull secrets, ignore err
-		if err = r.createStorageInLeafCluster(ctx, lr, utils.GVR_SECRET, imagePullSecrets, basicPod, clusterNodeInfo); err != nil {
-			klog.Warning(err)
+		if errignore := r.createStorageInLeafCluster(ctx, lr, utils.GVR_SECRET, imagePullSecrets, basicPod, clusterNodeInfo); errignore != nil {
+			klog.Warning(errignore)
 		}
 		return true, nil
 	})
