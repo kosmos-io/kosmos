@@ -123,7 +123,7 @@ func (r *RootPodReconciler) Reconcile(ctx context.Context, request reconcile.Req
 			// TODO: we cannot get leaf pod when we donnot known the node name of pod, so delete all ...
 			owners := r.GlobalLeafManager.ListNodeNames()
 			for _, owner := range owners {
-				lr, err := r.GlobalLeafManager.GetLeafResource(owner)
+				lr, err := r.GlobalLeafManager.GetLeafResourceByNodeName(owner)
 				if err != nil {
 					// wait for leaf resource init
 					return reconcile.Result{RequeueAfter: RootPodRequeueTime}, nil
@@ -141,13 +141,38 @@ func (r *RootPodReconciler) Reconcile(ctx context.Context, request reconcile.Req
 
 	rootpod := *(cachepod.DeepCopy())
 
+	// node filter
+	if !strings.HasPrefix(rootpod.Spec.NodeName, utils.KosmosNodePrefix) {
+		// ignore the pod who donnot has the annotations "kosmos-io/owned-by-cluster"
+		// TODO： use const
+		nn := types.NamespacedName{
+			Namespace: "",
+			Name:      rootpod.Spec.NodeName,
+		}
+
+		targetNode := &corev1.Node{}
+		if err := r.RootClient.Get(ctx, nn, targetNode); err != nil {
+			return reconcile.Result{RequeueAfter: RootPodRequeueTime}, nil
+		}
+
+		if targetNode.Annotations == nil {
+			return reconcile.Result{}, nil
+		}
+
+		clusterName := targetNode.Annotations[utils.KosmosNodeOwnedByClusterAnnotations]
+
+		if len(clusterName) == 0 {
+			return reconcile.Result{}, nil
+		}
+	}
+
 	// TODO: GlobalLeafResourceManager may not inited....
 	// belongs to the current node
 	if !r.GlobalLeafManager.Has(rootpod.Spec.NodeName) {
 		return reconcile.Result{RequeueAfter: RootPodRequeueTime}, nil
 	}
 
-	lr, err := r.GlobalLeafManager.GetLeafResource(rootpod.Spec.NodeName)
+	lr, err := r.GlobalLeafManager.GetLeafResourceByNodeName(rootpod.Spec.NodeName)
 	if err != nil {
 		// wait for leaf resource init
 		return reconcile.Result{RequeueAfter: RootPodRequeueTime}, nil
@@ -212,11 +237,8 @@ func (r *RootPodReconciler) SetupWithManager(mgr manager.Manager) error {
 		}
 
 		p := obj.(*corev1.Pod)
-		// skip daemonset
-		if !strings.HasPrefix(p.Spec.NodeName, utils.KosmosNodePrefix) {
-			return false
-		}
 
+		// skip daemonset
 		if p.OwnerReferences != nil && len(p.OwnerReferences) > 0 {
 			for _, or := range p.OwnerReferences {
 				if or.Kind == "DaemonSet" {
@@ -248,7 +270,12 @@ func (r *RootPodReconciler) SetupWithManager(mgr manager.Manager) error {
 		Complete(r)
 }
 
-func (r *RootPodReconciler) createStorageInLeafCluster(ctx context.Context, lr *leafUtils.LeafResource, gvr schema.GroupVersionResource, resourcenames []string, ns string) error {
+func (r *RootPodReconciler) createStorageInLeafCluster(ctx context.Context, lr *leafUtils.LeafResource, gvr schema.GroupVersionResource, resourcenames []string, rootpod *corev1.Pod, cn *leafUtils.ClusterNode) error {
+	ns := rootpod.Namespace
+	storageHandler, err := NewStorageHandler(gvr)
+	if err != nil {
+		return err
+	}
 	for _, rname := range resourcenames {
 		// add annotations for root
 		rootobj, err := r.DynamicRootClient.Resource(gvr).Namespace(ns).Get(ctx, rname, metav1.GetOptions{})
@@ -256,7 +283,7 @@ func (r *RootPodReconciler) createStorageInLeafCluster(ctx context.Context, lr *
 			return fmt.Errorf("could not get resource gvr(%v) %s from root cluster: %v", gvr, rname, err)
 		}
 		rootannotations := rootobj.GetAnnotations()
-		rootannotations = utils.AddResourceOwnersAnnotations(rootannotations, lr.NodeName)
+		rootannotations = utils.AddResourceOwnersAnnotations(rootannotations, cn.NodeName)
 
 		rootobj.SetAnnotations(rootannotations)
 
@@ -272,24 +299,12 @@ func (r *RootPodReconciler) createStorageInLeafCluster(ctx context.Context, lr *
 			continue
 		}
 		if errors.IsNotFound(err) {
-			unstructuredObj, err := r.DynamicRootClient.Resource(gvr).Namespace(ns).Get(ctx, rname, metav1.GetOptions{})
-			if err != nil {
-				return fmt.Errorf("find gvr(%v) %v error %v", gvr, rname, err)
-			}
+			unstructuredObj := rootobj
 
 			podutils.FitUnstructuredObjMeta(unstructuredObj)
-			if gvr.Resource == "secrets" {
-				secretObj := &corev1.Secret{}
-				err = runtime.DefaultUnstructuredConverter.FromUnstructured(unstructuredObj.Object, secretObj)
-				if err != nil {
-					panic(err.Error())
-				}
-				if secretObj.Type == corev1.SecretTypeServiceAccountToken {
-					if err := r.createServiceAccountInLeafCluster(ctx, lr, secretObj); err != nil {
-						klog.Error(err)
-						return err
-					}
-				}
+
+			if err := storageHandler.BeforeCreateInLeaf(ctx, r, lr, unstructuredObj, rootpod); err != nil {
+				return err
 			}
 
 			podutils.SetUnstructuredObjGlobal(unstructuredObj)
@@ -602,7 +617,12 @@ func (r *RootPodReconciler) CreatePodInLeafCluster(ctx context.Context, lr *leaf
 		return err
 	}
 
-	basicPod := podutils.FitPod(pod, lr.IgnoreLabels)
+	clusterNodeInfo := r.GlobalLeafManager.GetClusterNode(pod.Spec.NodeName)
+	if clusterNodeInfo == nil {
+		return fmt.Errorf("clusternode info is nil , name: %s", pod.Spec.NodeName)
+	}
+
+	basicPod := podutils.FitPod(pod, lr.IgnoreLabels, clusterNodeInfo.LeafMode == leafUtils.ALL)
 	klog.V(5).Infof("Creating pod %v/%+v", pod.Namespace, pod.Name)
 
 	// create ns
@@ -634,19 +654,19 @@ func (r *RootPodReconciler) CreatePodInLeafCluster(ctx context.Context, lr *leaf
 	}
 
 	// create secret configmap pvc
-	secretNames := podutils.GetSecrets(basicPod)
+	secretNames, imagePullSecrets := podutils.GetSecrets(basicPod)
 	configMaps := podutils.GetConfigmaps(basicPod)
 	pvcs := podutils.GetPVCs(basicPod)
 	// nolint:errcheck
 	go wait.PollImmediate(500*time.Millisecond, 10*time.Minute, func() (bool, error) {
 		klog.V(5).Info("Trying to creating base dependent")
-		if err := r.createStorageInLeafCluster(ctx, lr, utils.GVR_CONFIGMAP, configMaps, basicPod.Namespace); err != nil {
+		if err := r.createStorageInLeafCluster(ctx, lr, utils.GVR_CONFIGMAP, configMaps, basicPod, clusterNodeInfo); err != nil {
 			klog.Error(err)
 			return false, nil
 		}
 
 		klog.V(5).Infof("Create configmaps %v of %v/%v success", configMaps, basicPod.Namespace, basicPod.Name)
-		if err := r.createStorageInLeafCluster(ctx, lr, utils.GVR_PVC, pvcs, basicPod.Namespace); err != nil {
+		if err := r.createStorageInLeafCluster(ctx, lr, utils.GVR_PVC, pvcs, basicPod, clusterNodeInfo); err != nil {
 			klog.Error(err)
 			return false, nil
 		}
@@ -658,9 +678,14 @@ func (r *RootPodReconciler) CreatePodInLeafCluster(ctx context.Context, lr *leaf
 	wait.PollImmediate(100*time.Millisecond, 1*time.Second, func() (bool, error) {
 		klog.V(5).Info("Trying to creating secret and service account")
 
-		if err = r.createStorageInLeafCluster(ctx, lr, utils.GVR_SECRET, secretNames, basicPod.Namespace); err != nil {
+		if err = r.createStorageInLeafCluster(ctx, lr, utils.GVR_SECRET, secretNames, basicPod, clusterNodeInfo); err != nil {
 			klog.Error(err)
 			return false, nil
+		}
+
+		// try to create image pull secrets, ignore err
+		if err = r.createStorageInLeafCluster(ctx, lr, utils.GVR_SECRET, imagePullSecrets, basicPod, clusterNodeInfo); err != nil {
+			klog.Warning(err)
 		}
 		return true, nil
 	})
