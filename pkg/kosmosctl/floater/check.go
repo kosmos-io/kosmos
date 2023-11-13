@@ -101,13 +101,13 @@ func (o *CommandCheckOptions) Complete() error {
 		o.DstImageRepository = o.ImageRepository
 	}
 
-	srcFloater := NewCheckFloater(o)
+	srcFloater := NewCheckFloater(o, false)
 	if err := srcFloater.completeFromKubeConfigPath(o.SrcKubeConfig); err != nil {
 		return err
 	}
 	o.SrcFloater = srcFloater
 
-	dstFloater := NewCheckFloater(o)
+	dstFloater := NewCheckFloater(o, true)
 	if err := dstFloater.completeFromKubeConfigPath(o.DstKubeConfig); err != nil {
 		return err
 	}
