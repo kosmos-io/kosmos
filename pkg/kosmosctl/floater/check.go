@@ -45,6 +45,8 @@ type CommandCheckOptions struct {
 
 	SrcFloater *Floater
 	DstFloater *Floater
+
+	routinesMaxNum int
 }
 
 type PrintCheckData struct {
@@ -92,6 +94,7 @@ func NewCmdCheck() *cobra.Command {
 	flags.StringVar(&o.Port, "port", "8889", "Port used by floater.")
 	flags.IntVarP(&o.PodWaitTime, "pod-wait-time", "w", 30, "Time for wait pod(floater) launch.")
 	flags.StringVar(&o.Protocol, "protocol", string(TCP), "Protocol for the network problem.")
+	flags.IntVarP(&o.routinesMaxNum, "routines-max-number", "", 5, "Number of goroutines to use.")
 
 	return cmd
 }
@@ -199,35 +202,45 @@ func (o *CommandCheckOptions) Run() error {
 func (o *CommandCheckOptions) RunRange(iPodInfos []*FloatInfo, jPodInfos []*FloatInfo) []*PrintCheckData {
 	var resultData []*PrintCheckData
 
+	goroutinePool := utils.NewGoroutinePool(o.routinesMaxNum)
+
 	if len(iPodInfos) > 0 && len(jPodInfos) > 0 {
 		for _, iPodInfo := range iPodInfos {
 			for _, jPodInfo := range jPodInfos {
 				for _, ip := range jPodInfo.PodIPs {
-					var targetIP string
-					var err error
-					var cmdResult *command.Result
-					if o.DstFloater != nil {
-						targetIP, err = netmap.NetMap(ip, o.DstFloater.CIDRsMap)
-					} else {
-						targetIP = ip
-					}
-					if err != nil {
-						cmdResult = command.ParseError(err)
-					} else {
-						// ToDo RunRange && RunNative func support multiple commands, and the code needs to be optimized
-						cmdObj := &command.Ping{
-							TargetIP: targetIP,
+					routineIPodInfo := iPodInfo
+					routineJPodInfo := jPodInfo
+					routineIp := ip
+					goroutinePool.Submit(func(args ...interface{}) {
+						var targetIP string
+						var err error
+						var cmdResult *command.Result
+						if o.DstFloater != nil {
+							targetIP, err = netmap.NetMap(routineIp, o.DstFloater.CIDRsMap)
+						} else {
+							targetIP = routineIp
 						}
-						cmdResult = o.SrcFloater.CommandExec(iPodInfo, cmdObj)
-					}
-					resultData = append(resultData, &PrintCheckData{
-						*cmdResult,
-						iPodInfo.NodeName, jPodInfo.NodeName, targetIP,
-					})
+						if err != nil {
+							cmdResult = command.ParseError(err)
+						} else {
+							// ToDo RunRange && RunNative func support multiple commands, and the code needs to be optimized
+							cmdObj := &command.Ping{
+								TargetIP: targetIP,
+							}
+							cmdResult = o.SrcFloater.CommandExec(routineIPodInfo, cmdObj)
+						}
+						resultData = append(resultData, &PrintCheckData{
+							*cmdResult,
+							routineIPodInfo.NodeName, routineJPodInfo.NodeName, targetIP,
+						})
+					}, routineIPodInfo, routineJPodInfo, routineIp)
 				}
 			}
 		}
 	}
+
+	goroutinePool.Wait()
+	goroutinePool.Shutdown()
 
 	return resultData
 }
@@ -235,23 +248,33 @@ func (o *CommandCheckOptions) RunRange(iPodInfos []*FloatInfo, jPodInfos []*Floa
 func (o *CommandCheckOptions) RunNative(iNodeInfos []*FloatInfo, jNodeInfos []*FloatInfo) []*PrintCheckData {
 	var resultData []*PrintCheckData
 
+	goroutinePool := utils.NewGoroutinePool(o.routinesMaxNum)
+
 	if len(iNodeInfos) > 0 && len(jNodeInfos) > 0 {
 		for _, iNodeInfo := range iNodeInfos {
 			for _, jNodeInfo := range jNodeInfos {
 				for _, ip := range jNodeInfo.NodeIPs {
-					// ToDo RunRange && RunNative func support multiple commands, and the code needs to be optimized
-					cmdObj := &command.Ping{
-						TargetIP: ip,
-					}
-					cmdResult := o.SrcFloater.CommandExec(iNodeInfo, cmdObj)
-					resultData = append(resultData, &PrintCheckData{
-						*cmdResult,
-						iNodeInfo.NodeName, jNodeInfo.NodeName, ip,
-					})
+					routineINodeInfo := iNodeInfo
+					routineJNodeInfo := jNodeInfo
+					routineIp := ip
+					goroutinePool.Submit(func(args ...interface{}) {
+						// ToDo RunRange && RunNative func support multiple commands, and the code needs to be optimized
+						cmdObj := &command.Ping{
+							TargetIP: routineIp,
+						}
+						cmdResult := o.SrcFloater.CommandExec(routineINodeInfo, cmdObj)
+						resultData = append(resultData, &PrintCheckData{
+							*cmdResult,
+							routineINodeInfo.NodeName, routineJNodeInfo.NodeName, routineIp,
+						})
+					}, routineINodeInfo, routineJNodeInfo, routineIp)
 				}
 			}
 		}
 	}
+
+	goroutinePool.Wait()
+	goroutinePool.Shutdown()
 
 	return resultData
 }
