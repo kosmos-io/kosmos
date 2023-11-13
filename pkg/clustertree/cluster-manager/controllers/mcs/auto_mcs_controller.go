@@ -2,7 +2,6 @@ package mcs
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -24,7 +23,7 @@ import (
 	mcsv1alpha1 "sigs.k8s.io/mcs-api/pkg/apis/v1alpha1"
 
 	kosmosv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
-	leafUtils "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/utils"
+	clustertreeutils "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/utils"
 	kosmosversioned "github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/utils"
 )
@@ -37,7 +36,7 @@ type AutoCreateMCSController struct {
 	RootKosmosClient  kosmosversioned.Interface
 	EventRecorder     record.EventRecorder
 	Logger            logr.Logger
-	GlobalLeafManager leafUtils.LeafResourceManager
+	GlobalLeafManager clustertreeutils.LeafResourceManager
 }
 
 func (c *AutoCreateMCSController) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
@@ -172,12 +171,11 @@ func (c *AutoCreateMCSController) cleanUpMcsResources(ctx context.Context, names
 	// delete serviceImport in all leaf cluster
 	for _, cluster := range clusterList.Items {
 		newCluster := cluster.DeepCopy()
-		if leafUtils.IsRootCluster(newCluster) {
+		if clustertreeutils.IsRootCluster(newCluster) {
 			continue
 		}
-		leafNodeName := fmt.Sprintf("%s%s", utils.KosmosNodePrefix, cluster.Name)
-		// TODO: @duanmengkk
-		leafManager, err := c.GlobalLeafManager.GetLeafResource(leafNodeName)
+
+		leafManager, err := c.GlobalLeafManager.GetLeafResource(cluster.Name)
 		if err != nil {
 			klog.Errorf("get leafManager for cluster %s failed,Error: %v", cluster.Name, err)
 			return err
@@ -210,12 +208,11 @@ func (c *AutoCreateMCSController) autoCreateMcsResources(ctx context.Context, se
 	// create serviceImport in leaf cluster
 	for _, cluster := range clusterList.Items {
 		newCluster := cluster.DeepCopy()
-		if leafUtils.IsRootCluster(newCluster) {
+		if clustertreeutils.IsRootCluster(newCluster) {
 			continue
 		}
-		leafNodeName := fmt.Sprintf("%s%s", utils.KosmosNodePrefix, cluster.Name)
-		// TODO: @duanmengkk
-		leafManager, err := c.GlobalLeafManager.GetLeafResource(leafNodeName)
+
+		leafManager, err := c.GlobalLeafManager.GetLeafResource(cluster.Name)
 		if err != nil {
 			klog.Errorf("get leafManager for cluster %s failed,Error: %v", cluster.Name, err)
 			return err

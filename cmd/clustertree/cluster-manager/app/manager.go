@@ -164,7 +164,7 @@ func run(ctx context.Context, opts *options.Options) error {
 	clusterController := clusterManager.ClusterController{
 		Root:                mgr.GetClient(),
 		RootDynamic:         dynamicClient,
-		RootClient:          rootClient,
+		RootClientset:       rootClient,
 		EventRecorder:       mgr.GetEventRecorderFor(clusterManager.ControllerName),
 		Options:             opts,
 		RootResourceManager: rootResourceManager,

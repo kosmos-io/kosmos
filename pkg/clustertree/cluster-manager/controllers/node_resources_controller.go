@@ -39,10 +39,10 @@ type NodeResourcesController struct {
 	GlobalLeafManager leafUtils.LeafResourceManager
 	RootClientset     kubernetes.Interface
 
-	Nodes         []*corev1.Node
-	Node2Node     bool
-	Cluster       *kosmosv1alpha1.Cluster
-	EventRecorder record.EventRecorder
+	Nodes            []*corev1.Node
+	LeafModelHandler leafUtils.LeafModelHandler
+	Cluster          *kosmosv1alpha1.Cluster
+	EventRecorder    record.EventRecorder
 }
 
 var predicatesFunc = predicate.Funcs{
@@ -110,47 +110,20 @@ func (c *NodeResourcesController) Reconcile(ctx context.Context, request reconci
 			}, fmt.Errorf("cannot get node while update nodeInRoot resources %s, err: %v", rootNode.Name, err)
 		}
 
-		nodesInLeaf := &corev1.NodeList{}
-		pods := &corev1.PodList{}
+		nodesInLeaf, err := c.LeafModelHandler.GetLeafNodes(ctx, rootNode)
+		if err != nil {
+			klog.Errorf("Could not get node in leaf cluster %s,Error: %v", c.Cluster.Name, err)
+			return controllerruntime.Result{
+				RequeueAfter: RequeueTime,
+			}, err
+		}
 
-		if !c.Node2Node {
-			if err = c.Leaf.List(ctx, nodesInLeaf); err != nil {
-				klog.Errorf("Could not list node in leaf cluster,Error: %v", err)
-				return controllerruntime.Result{
-					RequeueAfter: RequeueTime,
-				}, err
-			}
-
-			if err = c.Leaf.List(ctx, pods); err != nil {
-				klog.Errorf("Could not list pod in leaf cluster,Error: %v", err)
-				return controllerruntime.Result{
-					RequeueAfter: RequeueTime,
-				}, err
-			}
-		} else {
-			leafNodeName := c.Cluster.Name
-			leafResource, err := c.GlobalLeafManager.GetLeafResource(leafNodeName)
-			if err != nil {
-				klog.Errorf("Could not get leafResource,Error: %v", err)
-				return controllerruntime.Result{
-					RequeueAfter: RequeueTime,
-				}, err
-			}
-			nodesInLeaf, err = leafResource.Clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{FieldSelector: fmt.Sprintf("metadata.name=%s", rootNode.Name)})
-			if err != nil {
-				klog.Errorf("Could not get node in leaf cluster %s,Error: %v", c.Cluster.Name, err)
-				return controllerruntime.Result{
-					RequeueAfter: RequeueTime,
-				}, err
-			}
-
-			pods, err = leafResource.Clientset.CoreV1().Pods("").List(ctx, metav1.ListOptions{FieldSelector: fmt.Sprintf("spec.nodeName=%s", rootNode.Name)})
-			if err != nil {
-				klog.Errorf("Could not list pod in leaf cluster %s,Error: %v", c.Cluster.Name, err)
-				return controllerruntime.Result{
-					RequeueAfter: RequeueTime,
-				}, err
-			}
+		pods, err := c.LeafModelHandler.GetLeafPods(ctx, rootNode)
+		if err != nil {
+			klog.Errorf("Could not list pod in leaf cluster %s,Error: %v", c.Cluster.Name, err)
+			return controllerruntime.Result{
+				RequeueAfter: RequeueTime,
+			}, err
 		}
 
 		clusterResources := utils.CalculateClusterResources(nodesInLeaf, pods)
@@ -160,7 +133,7 @@ func (c *NodeResourcesController) Reconcile(ctx context.Context, request reconci
 		clone.Status.Conditions = utils.NodeConditions()
 
 		// Node2Node mode should sync leaf node's labels and annotations to root nodeInRoot
-		if c.Node2Node {
+		if c.LeafModelHandler.GetLeafModelType() == leafUtils.DispersionModel {
 			getNode := func(nodes *corev1.NodeList) *corev1.Node {
 				for _, nodeInLeaf := range nodes.Items {
 					if nodeInLeaf.Name == rootNode.Name {
@@ -174,23 +147,6 @@ func (c *NodeResourcesController) Reconcile(ctx context.Context, request reconci
 				clone.Labels = mergeMap(rootNode.GetLabels(), node.GetLabels())
 				clone.Annotations = mergeMap(rootNode.GetAnnotations(), node.GetAnnotations())
 				clone.Status = node.Status
-				// TODO: @duanmengkk
-				leafNodeName := c.Cluster.Name
-				leafResource, err := c.GlobalLeafManager.GetLeafResource(leafNodeName)
-				if err != nil {
-					klog.Errorf("Could not get leafResource,Error: %v", err)
-					return controllerruntime.Result{
-						RequeueAfter: RequeueTime,
-					}, err
-				}
-				address, err := leafUtils.SortAddress(ctx, c.RootClientset, rootNode.Name, leafResource.Clientset, node.Status.Addresses)
-				if err != nil {
-					return controllerruntime.Result{
-						RequeueAfter: RequeueTime,
-					}, err
-				}
-
-				node.Status.Addresses = address
 			}
 		}
 
