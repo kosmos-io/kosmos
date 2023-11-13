@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 
@@ -18,7 +17,7 @@ import (
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/kosmos.io/kosmos/pkg/utils"
+	leafUtils "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/utils"
 )
 
 const (
@@ -31,10 +30,10 @@ const (
 )
 
 type NodeLeaseController struct {
-	leafClient kubernetes.Interface
-	rootClient kubernetes.Interface
-	root       client.Client
-	Node2Node  bool
+	leafClient       kubernetes.Interface
+	rootClient       kubernetes.Interface
+	root             client.Client
+	LeafModelHandler leafUtils.LeafModelHandler
 
 	leaseInterval  time.Duration
 	statusInterval time.Duration
@@ -43,15 +42,15 @@ type NodeLeaseController struct {
 	nodeLock sync.Mutex
 }
 
-func NewNodeLeaseController(leafClient kubernetes.Interface, root client.Client, nodes []*corev1.Node, rootClient kubernetes.Interface, node2Node bool) *NodeLeaseController {
+func NewNodeLeaseController(leafClient kubernetes.Interface, root client.Client, nodes []*corev1.Node, rootClient kubernetes.Interface, LeafModelHandler leafUtils.LeafModelHandler) *NodeLeaseController {
 	c := &NodeLeaseController{
-		leafClient:     leafClient,
-		rootClient:     rootClient,
-		root:           root,
-		nodes:          nodes,
-		Node2Node:      node2Node,
-		leaseInterval:  getRenewInterval(),
-		statusInterval: DefaultNodeStatusUpdateInterval,
+		leafClient:       leafClient,
+		rootClient:       rootClient,
+		root:             root,
+		nodes:            nodes,
+		LeafModelHandler: LeafModelHandler,
+		leaseInterval:    getRenewInterval(),
+		statusInterval:   DefaultNodeStatusUpdateInterval,
 	}
 	return c
 }
@@ -80,37 +79,9 @@ func (c *NodeLeaseController) syncNodeStatus(ctx context.Context) {
 
 // nolint
 func (c *NodeLeaseController) updateNodeStatus(ctx context.Context, n []*corev1.Node) error {
-	if !c.Node2Node {
-		var name string
-		if len(n) > 0 {
-			name = n[0].Name
-		}
-
-		node := &corev1.Node{}
-		namespacedName := types.NamespacedName{
-			Name: name,
-		}
-		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-			err := c.root.Get(ctx, namespacedName, node)
-			if err != nil {
-				// TODO: If a node is accidentally deleted, recreate it
-				return fmt.Errorf("cannot get node while update node status %s, err: %v", name, err)
-			}
-
-			clone := node.DeepCopy()
-			clone.Status.Conditions = utils.NodeConditions()
-
-			patch, err := utils.CreateMergePatch(node, clone)
-			if err != nil {
-				return fmt.Errorf("cannot get node while update node status %s, err: %v", node.Name, err)
-			}
-
-			if node, err = c.rootClient.CoreV1().Nodes().PatchStatus(ctx, node.Name, patch); err != nil {
-				return err
-			}
-			return nil
-		})
-		return err
+	err := c.LeafModelHandler.UpdateNodeStatus(ctx, n)
+	if err != nil {
+		klog.Errorf("Could not update node status in root cluster,Error: %v", err)
 	}
 	return nil
 }
