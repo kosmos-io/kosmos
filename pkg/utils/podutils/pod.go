@@ -286,6 +286,7 @@ func recoverSelectors(pod *corev1.Pod, cns *utils.ClustersNodeSelection) {
 	if cns != nil {
 		pod.Spec.NodeSelector = cns.NodeSelector
 		pod.Spec.Tolerations = cns.Tolerations
+		pod.Spec.TopologySpreadConstraints = cns.TopologySpreadConstraints
 		if pod.Spec.Affinity == nil {
 			pod.Spec.Affinity = cns.Affinity
 		} else {
@@ -302,6 +303,7 @@ func recoverSelectors(pod *corev1.Pod, cns *utils.ClustersNodeSelection) {
 	} else {
 		pod.Spec.NodeSelector = nil
 		pod.Spec.Tolerations = nil
+		pod.Spec.TopologySpreadConstraints = nil
 		if pod.Spec.Affinity != nil && pod.Spec.Affinity.NodeAffinity != nil {
 			pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution = nil
 		}

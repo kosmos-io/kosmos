@@ -19,9 +19,10 @@ import (
 )
 
 type ClustersNodeSelection struct {
-	NodeSelector map[string]string   `json:"nodeSelector,omitempty"`
-	Affinity     *corev1.Affinity    `json:"affinity,omitempty"`
-	Tolerations  []corev1.Toleration `json:"tolerations,omitempty"`
+	NodeSelector              map[string]string                 `json:"nodeSelector,omitempty"`
+	Affinity                  *corev1.Affinity                  `json:"affinity,omitempty"`
+	Tolerations               []corev1.Toleration               `json:"tolerations,omitempty"`
+	TopologySpreadConstraints []corev1.TopologySpreadConstraint `json:"topologySpreadConstraints,omitempty"`
 }
 
 type EnvResourceManager interface {
