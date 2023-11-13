@@ -2,13 +2,13 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name:  clusterlink-operator
-  namespace: clusterlink-system
+  namespace: kosmos-system
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: clusterlink-operator
-  namespace: clusterlink-system
+  namespace: kosmos-system
   labels:
     app: operator
 spec:
@@ -32,7 +32,7 @@ spec:
                     values:
                       - operator
               namespaces:
-                - clusterlink-system
+                - kosmos-system
               topologyKey: kubernetes.io/hostname
       containers:
       - name: operator

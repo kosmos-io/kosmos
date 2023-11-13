@@ -6,7 +6,7 @@ set -o pipefail
 
 CURRENT="$(dirname "${BASH_SOURCE[0]}")"
 ROOT=$(dirname "${BASH_SOURCE[0]}")/..
-DEFAULT_NAMESPACE="clusterlink-system"
+DEFAULT_NAMESPACE="kosmos-system"
 KIND_IMAGE="ghcr.io/kosmos-io/kindest/node:v1.25.3_1"
 # true: when cluster is exist, reuse exist one!
 REUSE=${REUSE:-false}
@@ -114,49 +114,63 @@ function join_cluster() {
   local host_cluster=$1
   local member_cluster=$2
   local container_ip_port
+  local kubeconfig_path="${ROOT}/environments/${member_cluster}/kubeconfig"
+  local base64_kubeconfig=$(base64 < "$kubeconfig_path")
+  echo " base64 kubeconfig successfully converted: $base64_kubeconfig "
   cat <<EOF | kubectl --context="kind-${host_cluster}" apply -f -
 apiVersion: kosmos.io/v1alpha1
 kind: Cluster
 metadata:
   name: ${member_cluster}
 spec:
-  cni: "calico"
-  defaultNICName: eth0
-  imageRepository: "ghcr.io/kosmos-io/clusterlink"
-  networkType: "gateway"
+  imageRepository: "ghcr.io/kosmos-io"
+  kubeconfig: "$base64_kubeconfig"
+  clusterLinkOptions:
+    cni: "calico"
+    defaultNICName: eth0
+    networkType: "gateway"
+  clusterTreeOptions:
+    enable: true
 EOF
   kubectl --context="kind-${member_cluster}" apply -f "$ROOT"/deploy/clusterlink-namespace.yml
-  kubectl --context="kind-${member_cluster}" -n clusterlink-system delete secret controlpanel-config || true
-  kubectl --context="kind-${member_cluster}" -n clusterlink-system create secret generic controlpanel-config --from-file=kubeconfig="${ROOT}/environments/${host_cluster}/kubeconfig"
+  kubectl --context="kind-${member_cluster}" -n kosmos-system delete secret controlpanel-config || true
+  kubectl --context="kind-${member_cluster}" -n kosmos-system create secret generic controlpanel-config --from-file=kubeconfig="${ROOT}/environments/${host_cluster}/kubeconfig"
   kubectl --context="kind-${member_cluster}" apply -f "$ROOT"/deploy/clusterlink-datapanel-rbac.yml
   sed -e "s|__VERSION__|$VERSION|g" -e "s|__CLUSTER_NAME__|$member_cluster|g" -e "w ${ROOT}/environments/${member_cluster}/clusterlink-operator.yml" "$ROOT"/deploy/clusterlink-operator.yml
   kubectl --context="kind-${member_cluster}" apply -f "${ROOT}/environments/${member_cluster}/clusterlink-operator.yml"
 }
 
-function deploy_clusterlink() {
+function deploy_cluster() {
    local -r clustername=$1
    kubectl config use-context "kind-${clustername}"
-   load_clusterlink_images "$clustername"
+   load_cluster_images "$clustername"
 
    kubectl --context="kind-${clustername}" apply -f "$ROOT"/deploy/clusterlink-namespace.yml
    kubectl --context="kind-${clustername}" apply -f "$ROOT"/deploy/crds
+   kubectl --context="kind-${clustername}" apply -f "$ROOT"/deploy/crds/mcs
    util::wait_for_crd clusternodes.kosmos.io clusters.kosmos.io
 
    sed -e "s|__VERSION__|$VERSION|g" -e "w ${ROOT}/environments/clusterlink-network-manager.yml" "$ROOT"/deploy/clusterlink-network-manager.yml
    kubectl --context="kind-${clustername}" apply -f "${ROOT}/environments/clusterlink-network-manager.yml"
 
    echo "cluster $clustername deploy clusterlink success"
+
+   sed -e "s|__VERSION__|$VERSION|g" -e "w ${ROOT}/environments/clustertree-cluster-manager.yml" "$ROOT"/deploy/clustertree-cluster-manager.yml
+   kubectl --context="kind-${clustername}" apply -f "${ROOT}/environments/clustertree-cluster-manager.yml"
+
+   echo "cluster $clustername deploy clustertree success"
 }
 
-function load_clusterlink_images() {
+function load_cluster_images() {
     local -r clustername=$1
 
-    kind load docker-image -n "$clustername" ghcr.io/kosmos-io/clusterlink/clusterlink-network-manager:"${VERSION}"
-    kind load docker-image -n "$clustername" ghcr.io/kosmos-io/clusterlink/clusterlink-controller-manager:"${VERSION}"
-    kind load docker-image -n "$clustername" ghcr.io/kosmos-io/clusterlink/clusterlink-elector:"${VERSION}"
-    kind load docker-image -n "$clustername" ghcr.io/kosmos-io/clusterlink/clusterlink-operator:"${VERSION}"
-    kind load docker-image -n "$clustername" ghcr.io/kosmos-io/clusterlink/clusterlink-agent:"${VERSION}"
-    kind load docker-image -n "$clustername" ghcr.io/kosmos-io/clusterlink/clusterlink-proxy:"${VERSION}"
+    kind load docker-image -n "$clustername" ghcr.io/kosmos-io/clusterlink-network-manager:"${VERSION}"
+    kind load docker-image -n "$clustername" ghcr.io/kosmos-io/clusterlink-controller-manager:"${VERSION}"
+    kind load docker-image -n "$clustername" ghcr.io/kosmos-io/clusterlink-elector:"${VERSION}"
+    kind load docker-image -n "$clustername" ghcr.io/kosmos-io/clusterlink-operator:"${VERSION}"
+    kind load docker-image -n "$clustername" ghcr.io/kosmos-io/clusterlink-agent:"${VERSION}"
+    kind load docker-image -n "$clustername" ghcr.io/kosmos-io/clusterlink-proxy:"${VERSION}"
+    kind load docker-image -n "$clustername" ghcr.io/kosmos-io/clustertree-cluster-manager:"${VERSION}"
 }
 
 function delete_cluster() {

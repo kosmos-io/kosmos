@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: clusterlink-agent
-  namespace: clusterlink-system
+  namespace: kosmos-system
 spec:
   selector:
     matchLabels:

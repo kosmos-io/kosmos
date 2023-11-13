@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: clusterlink-agent-proxy
-  namespace: clusterlink-system
+  namespace: kosmos-system
 data:
   kubeconfig: |
     apiVersion: v1
