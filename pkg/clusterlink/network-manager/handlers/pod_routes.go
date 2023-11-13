@@ -143,6 +143,11 @@ func BuildRoutes(ctx *Context, target *v1alpha1.ClusterNode, cidrs []string) {
 			}
 
 			gw := ctx.Filter.GetGatewayNodeByClusterName(n.Spec.ClusterName)
+			if gw == nil {
+				klog.Warning("cannot find gateway node, cluster name: %s", n.Spec.ClusterName)
+				continue
+			}
+
 			gwDev := ctx.GetDeviceFromResults(gw.Name, vxLocal)
 			gwIP, _, err := net.ParseCIDR(gwDev.Addr)
 			if err != nil {

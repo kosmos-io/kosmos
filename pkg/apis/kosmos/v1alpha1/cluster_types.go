@@ -173,9 +173,15 @@ type ClusterList struct {
 }
 
 func (c *Cluster) IsP2P() bool {
+	if &c.Spec.ClusterLinkOptions == nil {
+		return false
+	}
 	return c.Spec.ClusterLinkOptions.NetworkType == NetworkTypeP2P
 }
 
 func (c *Cluster) IsGateway() bool {
+	if &c.Spec.ClusterLinkOptions == nil {
+		return false
+	}
 	return c.Spec.ClusterLinkOptions.NetworkType == NetWorkTypeGateWay
 }
