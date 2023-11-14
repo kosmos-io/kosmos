@@ -68,6 +68,8 @@ func (h AggregationModelHandler) CreateNodeInRoot(ctx context.Context, cluster *
 				},
 			}
 
+			node.Status.Addresses = GetAddress()
+
 			node, err = h.RootClientset.CoreV1().Nodes().Create(ctx, node, metav1.CreateOptions{})
 			if err != nil {
 				if !errors.IsAlreadyExists(err) {
@@ -189,6 +191,8 @@ func (h DispersionModelHandler) CreateNodeInRoot(ctx context.Context, cluster *k
 						},
 					}
 
+					node.Status.Addresses = GetAddress()
+
 					node, err = h.RootClientset.CoreV1().Nodes().Create(ctx, node, metav1.CreateOptions{})
 					if err != nil {
 						if !errors.IsAlreadyExists(err) {
@@ -231,6 +235,7 @@ func (h DispersionModelHandler) UpdateNodeStatus(ctx context.Context, n []*corev
 			}
 
 			nodeRoot.Status = nodeInLeaf.Status
+			nodeRoot.Status.Addresses = GetAddress()
 
 			if node, err = h.RootClientset.CoreV1().Nodes().UpdateStatus(ctx, nodeRoot, metav1.UpdateOptions{}); err != nil {
 				return err

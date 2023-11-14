@@ -31,6 +31,8 @@ type Options struct {
 	// clusters.
 	RootCoreDNSServiceNamespace string
 	RootCoreDNSServiceName      string
+
+	HTTPListenAddr string
 }
 
 type KubernetesOptions struct {
@@ -70,6 +72,8 @@ func (o *Options) AddFlags(flags *pflag.FlagSet) {
 	flags.BoolVar(&o.MultiClusterService, "multi-cluster-service", false, "Turn on or off mcs support.")
 	flags.StringVar(&o.RootCoreDNSServiceNamespace, "root-coredns-service-namespace", CoreDNSServiceNamespace, "The namespace of the CoreDNS service in the root cluster, used to locate the CoreDNS service when MultiClusterService is disabled.")
 	flags.StringVar(&o.RootCoreDNSServiceName, "root-coredns-service-name", CoreDNSServiceName, "The name of the CoreDNS service in the root cluster, used to locate the CoreDNS service when MultiClusterService is disabled.")
+
+	flags.StringVar(&o.HTTPListenAddr, "http-listen-addr", ":10250", "Http listen addr, default is :10250.")
 
 	options.BindLeaderElectionFlags(&o.LeaderElection, flags)
 }

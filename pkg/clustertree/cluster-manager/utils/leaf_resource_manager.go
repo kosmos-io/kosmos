@@ -7,6 +7,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	kosmosv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
@@ -41,6 +42,7 @@ type LeafResource struct {
 	IgnoreLabels         []string
 	EnableServiceAccount bool
 	Nodes                []ClusterNode
+	RestConfig           *rest.Config
 }
 
 type LeafResourceManager interface {

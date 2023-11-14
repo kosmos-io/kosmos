@@ -206,7 +206,7 @@ func (c *ClusterController) Reconcile(ctx context.Context, request reconcile.Req
 	c.ManagerCancelFuncs[cluster.Name] = &cancel
 	c.ControllerManagersLock.Unlock()
 
-	if err = c.setupControllers(mgr, cluster, nodes, leafDynamic, leafClient, kosmosClient); err != nil {
+	if err = c.setupControllers(mgr, cluster, nodes, leafDynamic, leafClient, kosmosClient, config); err != nil {
 		return reconcile.Result{}, fmt.Errorf("failed to setup cluster %s controllers: %v", cluster.Name, err)
 	}
 
@@ -235,8 +235,17 @@ func (c *ClusterController) clearClusterControllers(cluster *kosmosv1alpha1.Clus
 	c.GlobalLeafManager.RemoveLeafResource(cluster.Name)
 }
 
-func (c *ClusterController) setupControllers(mgr manager.Manager, cluster *kosmosv1alpha1.Cluster, nodes []*corev1.Node, clientDynamic *dynamic.DynamicClient, leafClientset kubernetes.Interface, kosmosClient kosmosversioned.Interface) error {
-	leafResource := &leafUtils.LeafResource{
+func (c *ClusterController) setupControllers(mgr manager.Manager, cluster *kosmosv1alpha1.Cluster, nodes []*corev1.Node, clientDynamic *dynamic.DynamicClient, leafClientset kubernetes.Interface, kosmosClient kosmosversioned.Interface, leafRestConfig *rest.Config) error {
+	isNode2NodeFunc := func(cluster *kosmosv1alpha1.Cluster) bool {
+		return cluster.Spec.ClusterTreeOptions.LeafModels != nil
+	}
+
+	clusterName := fmt.Sprintf("%s%s", utils.KosmosNodePrefix, cluster.Name)
+	if isNode2NodeFunc(cluster) {
+		clusterName = cluster.Name
+	}
+
+	c.GlobalLeafManager.AddLeafResource(clusterName, &leafUtils.LeafResource{
 		Client:        mgr.GetClient(),
 		DynamicClient: clientDynamic,
 		Clientset:     leafClientset,
@@ -246,9 +255,8 @@ func (c *ClusterController) setupControllers(mgr manager.Manager, cluster *kosmo
 		Namespace:            "",
 		IgnoreLabels:         strings.Split("", ","),
 		EnableServiceAccount: true,
-	}
-
-	c.GlobalLeafManager.AddLeafResource(cluster.Name, leafResource, cluster.Spec.ClusterTreeOptions.LeafModels, nodes)
+		RestConfig:           leafRestConfig,
+	}, cluster.Spec.ClusterTreeOptions.LeafModels, nodes)
 
 	nodeResourcesController := controllers.NodeResourcesController{
 		Leaf:              mgr.GetClient(),
@@ -319,47 +327,6 @@ func (c *ClusterController) setupStorageControllers(mgr manager.Manager, nodes [
 	if err := leafPVController.SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("error starting leaf pv controller %v", err)
 	}
-	return nil
-}
-
-// nolint
-func (c *ClusterController) setNodeStatus(ctx context.Context, nodeName string, leafClient kubernetes.Interface, node *corev1.Node, isNode2Node bool) error {
-	if isNode2Node {
-		if leafnode, err := leafClient.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{}); err != nil {
-			klog.Errorf("create node %s failed, cannot get node from leaf cluster, err: %v", nodeName, err)
-			return err
-		} else {
-			node.Status = leafnode.Status
-			address, err := leafUtils.SortAddress(ctx, c.RootClientset, nodeName, leafClient, node.Status.Addresses)
-			if err != nil {
-				return err
-			}
-			node.Status.Addresses = address
-			return nil
-		}
-	}
-
-	leafnodes, err := leafClient.CoreV1().Nodes().List(ctx, metav1.ListOptions{
-		// TODO: LabelSelector
-	})
-	if err != nil {
-		klog.Errorf("create node %s failed, cannot get node from leaf cluster, err: %v", nodeName, err)
-		return err
-	}
-
-	if len(leafnodes.Items) == 0 {
-		klog.Errorf("create node %s failed, cannot get node from leaf cluster, len of leafnodes is 0", nodeName)
-		return err
-	}
-
-	address, err := leafUtils.SortAddress(ctx, c.RootClientset, nodeName, leafClient, leafnodes.Items[0].Status.Addresses)
-
-	if err != nil {
-		return err
-	}
-
-	node.Status.Addresses = address
-
 	return nil
 }
 
