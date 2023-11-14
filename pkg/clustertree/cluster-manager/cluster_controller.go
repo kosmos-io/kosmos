@@ -270,11 +270,13 @@ func (c *ClusterController) setupControllers(mgr manager.Manager, cluster *kosmo
 
 	if c.Options.MultiClusterService {
 		serviceImportController := &mcs.ServiceImportController{
-			LeafClient:          mgr.GetClient(),
-			RootKosmosClient:    kosmosClient,
-			EventRecorder:       mgr.GetEventRecorderFor(mcs.LeafServiceImportControllerName),
-			Logger:              mgr.GetLogger(),
-			LeafNodeName:        cluster.Name,
+			LeafClient:       mgr.GetClient(),
+			RootKosmosClient: kosmosClient,
+			EventRecorder:    mgr.GetEventRecorderFor(mcs.LeafServiceImportControllerName),
+			Logger:           mgr.GetLogger(),
+			LeafNodeName:     cluster.Name,
+			// todo @wyz
+			IPFamilyType:        cluster.Spec.ClusterLinkOptions.IPFamily,
 			RootResourceManager: c.RootResourceManager,
 		}
 		if err := serviceImportController.AddController(mgr); err != nil {
