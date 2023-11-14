@@ -149,6 +149,7 @@ func (c *NodeResourcesController) Reconcile(ctx context.Context, request reconci
 				clone.Spec = node.Spec
 				clone.Spec.Taints = rootNode.Spec.Taints
 				clone.Status = node.Status
+				clone.Status.Addresses = leafUtils.GetAddress()
 			}
 		}
 

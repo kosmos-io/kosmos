@@ -9,6 +9,7 @@ require (
 	github.com/go-logr/logr v1.2.3
 	github.com/gogo/protobuf v1.3.2
 	github.com/google/go-cmp v0.5.9
+	github.com/gorilla/mux v1.8.1
 	github.com/olekukonko/tablewriter v0.0.4
 	github.com/onsi/ginkgo/v2 v2.9.2
 	github.com/onsi/gomega v1.27.4

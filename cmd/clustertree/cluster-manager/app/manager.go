@@ -24,6 +24,7 @@ import (
 	podcontrollers "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/pod"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/pv"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/pvc"
+	nodeserver "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/node-server"
 	leafUtils "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/utils"
 	"github.com/kosmos.io/kosmos/pkg/scheme"
 	"github.com/kosmos.io/kosmos/pkg/sharedcli/klogflag"
@@ -256,6 +257,16 @@ func run(ctx context.Context, opts *options.Options) error {
 	go func() {
 		if err = mgr.Start(ctx); err != nil {
 			klog.Errorf("failed to start controller manager: %v", err)
+		}
+	}()
+
+	nodeServer := nodeserver.NodeServer{
+		RootClient:        mgr.GetClient(),
+		GlobalLeafManager: globalleafManager,
+	}
+	go func() {
+		if err := nodeServer.Start(ctx, opts); err != nil {
+			klog.Errorf("failed to start node server: %v", err)
 		}
 	}()
 
