@@ -147,6 +147,7 @@ func (c *NodeResourcesController) Reconcile(ctx context.Context, request reconci
 				clone.Labels = mergeMap(clone.GetLabels(), node.GetLabels())
 				clone.Annotations = mergeMap(clone.GetAnnotations(), node.GetAnnotations())
 				clone.Spec = node.Spec
+				clone.Spec.Taints = rootNode.Spec.Taints
 				clone.Status = node.Status
 			}
 		}
