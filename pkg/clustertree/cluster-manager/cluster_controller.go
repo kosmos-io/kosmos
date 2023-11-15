@@ -192,7 +192,7 @@ func (c *ClusterController) Reconcile(ctx context.Context, request reconcile.Req
 
 	nodes, err := c.createNode(ctx, cluster, leafClient)
 	if err != nil {
-		return reconcile.Result{}, fmt.Errorf("create node with err %v, cluster %s", err, cluster.Name)
+		return reconcile.Result{RequeueAfter: RequeueTime}, fmt.Errorf("create node with err %v, cluster %s", err, cluster.Name)
 	}
 	// TODO @wyz
 	for _, node := range nodes {
