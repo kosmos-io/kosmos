@@ -10,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	mergetypes "k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -65,6 +66,29 @@ func (l *LeafPVCController) Reconcile(ctx context.Context, request reconcile.Req
 	if reflect.DeepEqual(rootPVC.Status, pvcCopy.Status) {
 		return reconcile.Result{}, nil
 	}
+
+	//when root pvc is not bound, it's status can't be changed to bound
+	if pvcCopy.Status.Phase == v1.ClaimBound {
+		err = wait.PollImmediate(500*time.Millisecond, 1*time.Minute, func() (bool, error) {
+			if rootPVC.Spec.VolumeName == "" {
+				klog.Warningf("pvc namespace: %q, name: %q is not bounded", request.NamespacedName.Namespace,
+					request.NamespacedName.Name)
+				err = l.RootClient.Get(ctx, request.NamespacedName, rootPVC)
+				if err != nil {
+					return false, err
+				}
+				return false, nil
+			}
+			return true, nil
+		})
+		if err != nil {
+			if !errors.IsNotFound(err) {
+				return reconcile.Result{RequeueAfter: LeafPVCRequeueTime}, nil
+			}
+			return reconcile.Result{}, nil
+		}
+	}
+
 	if err = filterPVC(pvcCopy, l.ClusterName); err != nil {
 		return reconcile.Result{}, nil
 	}
