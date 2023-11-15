@@ -445,7 +445,7 @@ func (r *RootPodReconciler) createCAInLeafCluster(ctx context.Context, lr *leafU
 		Name:      utils.RooTCAConfigMapName,
 	}
 
-	err = lr.Client.Get(ctx, rootCAConfigmapKey, ca)
+	err = r.Client.Get(ctx, rootCAConfigmapKey, ca)
 	if err != nil {
 		return nil, fmt.Errorf("could not find configmap %s in master cluster: %v", ca, err)
 	}
