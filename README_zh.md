@@ -23,33 +23,17 @@ Kosmos多集群网络模块目前包含以下几个关键组件：
 - `Multi-Cluster-Coredns`: 实现多集群服务发现；
 - `Elector`：负责gateway节点选举；
 
-### 快速开始
-
-#### 本地启动
-通过以下命令可以快速在本地运行一个实验环境，该命令将基于`kind`（因此需要先安装docker）创建两个k8s集群，并部署ClusterLink。
-```bash
-./hack/local-up-clusterlink.sh
-```
-检查服务是否正常运行
-```bash
-kubectl --context=kind-cluster-host-local get pods -nclusterlink-system
-kubectl --context=kind-cluster-member1-local get pods -nclusterlink-system
-```
-确认跨集群网络是否打通
-```bash
-kubectl --context=kind-cluster-host-local exec -it <any-host-pod> -- ping <any-member1-pod-ip>
-```
 
 ## 多集群管理编排
 Kosmos多集群管理编排模块实现了Kubernetes的树形扩展和应用的跨集群编排。
-<div><img src="docs/images/knode-arch.png" style="width:900px;" /></div>
+<div><img src="docs/images/clustertree-arch.png" style="width:900px;" /></div>
 
 目前主要支持以下功能：
 1. **完全兼容k8s api**：用户可以像往常那样，使用 `kubectl`、`client-go`等工具与host集群的`kube-apiserver`交互，而`Pod`实际上是分布在整个多云多集群中。
 2. **有状态应用、k8s-native应用支持**：除了无状态应用，Kosmos还支持对有状态应用和 k8s-native（与 `kube-apiserver`存在交互）应用的编排。Kosmos会自动检测`Pod`依赖的存储、权限资源，例如：pv/pvc、sa等，并自动进行双向同步。
 3. **多样化Pod拓扑分布约束**：用户可以轻易的控制Pod在联邦集群中的分布，如：区域（Region）、可用区（Zone）、集群或者节点，有助于实现高可用并提升资源利用率。
 
-## 多集群调度（建设中）
+## 多集群调度
 Kosmos调度模块是基于Kubernetes调度框架的扩展开发，旨在满足混合节点和子集群环境下的容器管理需求。这一调度器经过精心设计与定制，提供了以下核心功能，以增强容器管理的灵活性和效率：
 
 1. **灵活的节点和集群混合调度**： Kosmos调度模块允许用户依据自定义配置，轻松地将工作负载在真实节点和子集群之间智能地调度。这使得用户能够充分利用不同节点的资源，以确保工作负载在性能和可用性方面的最佳表现。基于该功能，Kosmos可以让工作负载实现灵活的跨云跨集群部署。
@@ -58,8 +42,21 @@ Kosmos调度模块是基于Kubernetes调度框架的扩展开发，旨在满足�
 
 无论是构建混合云环境还是需要在不同集群中进行工作负载的灵活部署，Kosmos调度模块都可作为可靠的解决方案，协助用户更高效地管理容器化应用。
 
-## 贡献者
+## 快速开始
+通过以下命令可以快速在本地运行一个三个集群的实验环境:
+在主集群部署管理组件
+```bash
+kosmosctl install  --cni calico --default-nic eth0 (参数default-nic 表示基于哪个网卡创建网络隧道)
+```
+加入两个子集群
+```bash
+kosmosctl join cluster --name cluster1 --kubeconfig ~/kubeconfig/cluster1-kubeconfig  --cni calico --default-nic eth0  --enable-all
+kosmosctl join cluster --name cluster2 --kubeconfig ~/kubeconfig/cluster2-kubeconfig  --cni calico --default-nic eth0  --enable-all
+```
 
+然后我们就可以像使用单集群一样去使用多集群了
+
+## 贡献者
 <a href="https://github.com/kosmos-io/kosmos/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=kosmos-io/kosmos" />
 </a>
