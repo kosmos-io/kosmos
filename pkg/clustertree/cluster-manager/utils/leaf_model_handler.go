@@ -59,29 +59,23 @@ func (h AggregationModelHandler) CreateNodeInRoot(ctx context.Context, cluster *
 	nodeName := fmt.Sprintf("%s%s", utils.KosmosNodePrefix, cluster.Name)
 	node, err := h.RootClientset.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
 	if err != nil {
-		if errors.IsNotFound(err) {
-			node = utils.BuildNodeTemplate(nodeName)
-			node.Status.NodeInfo.KubeletVersion = gitVersion
-			node.Status.DaemonEndpoints = corev1.NodeDaemonEndpoints{
-				KubeletEndpoint: corev1.DaemonEndpoint{
-					Port: listenPort,
-				},
-			}
-
-			node, err = h.RootClientset.CoreV1().Nodes().Create(ctx, node, metav1.CreateOptions{})
-			if err != nil {
-				if !errors.IsAlreadyExists(err) {
-					return nil, err
-				} else {
-					nodes = append(nodes, node)
-				}
-			}
-		} else {
+		if !errors.IsNotFound(err) {
 			return nil, err
 		}
-	} else {
-		nodes = append(nodes, node)
+		node = utils.BuildNodeTemplate(nodeName)
+		node.Status.NodeInfo.KubeletVersion = gitVersion
+		node.Status.DaemonEndpoints = corev1.NodeDaemonEndpoints{
+			KubeletEndpoint: corev1.DaemonEndpoint{
+				Port: listenPort,
+			},
+		}
+
+		node, err = h.RootClientset.CoreV1().Nodes().Create(ctx, node, metav1.CreateOptions{})
+		if err != nil {
+			return nil, err
+		}
 	}
+	nodes = append(nodes, node)
 	return nodes, nil
 }
 
@@ -169,40 +163,33 @@ func (h DispersionModelHandler) CreateNodeInRoot(ctx context.Context, cluster *k
 		// todo only support nodeName now
 		if leafModel.NodeSelector.NodeName != "" {
 			nodeName := leafModel.NodeSelector.NodeName
-
 			node, err := h.RootClientset.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
 			if err != nil {
-				if errors.IsNotFound(err) {
-					node = utils.BuildNodeTemplate(nodeName)
-
-					nodeAnnotations := node.GetAnnotations()
-					if nodeAnnotations == nil {
-						nodeAnnotations = make(map[string]string, 1)
-					}
-					nodeAnnotations[utils.KosmosNodeOwnedByClusterAnnotations] = cluster.Name
-					node.SetAnnotations(nodeAnnotations)
-
-					node.Status.NodeInfo.KubeletVersion = gitVersion
-					node.Status.DaemonEndpoints = corev1.NodeDaemonEndpoints{
-						KubeletEndpoint: corev1.DaemonEndpoint{
-							Port: listenPort,
-						},
-					}
-
-					node, err = h.RootClientset.CoreV1().Nodes().Create(ctx, node, metav1.CreateOptions{})
-					if err != nil {
-						if !errors.IsAlreadyExists(err) {
-							return nil, err
-						} else {
-							nodes = append(nodes, node)
-						}
-					}
-				} else {
+				if !errors.IsNotFound(err) {
 					return nil, err
 				}
-			} else {
-				nodes = append(nodes, node)
+
+				node = utils.BuildNodeTemplate(nodeName)
+				nodeAnnotations := node.GetAnnotations()
+				if nodeAnnotations == nil {
+					nodeAnnotations = make(map[string]string, 1)
+				}
+				nodeAnnotations[utils.KosmosNodeOwnedByClusterAnnotations] = cluster.Name
+				node.SetAnnotations(nodeAnnotations)
+
+				node.Status.NodeInfo.KubeletVersion = gitVersion
+				node.Status.DaemonEndpoints = corev1.NodeDaemonEndpoints{
+					KubeletEndpoint: corev1.DaemonEndpoint{
+						Port: listenPort,
+					},
+				}
+
+				node, err = h.RootClientset.CoreV1().Nodes().Create(ctx, node, metav1.CreateOptions{})
+				if err != nil {
+					return nil, err
+				}
 			}
+			nodes = append(nodes, node)
 		}
 	}
 	return nodes, nil
