@@ -33,12 +33,13 @@ type LeafPVController struct {
 	RootClient    client.Client
 	RootClientSet kubernetes.Interface
 	ClusterName   string
+	IsOne2OneMode bool
 }
 
 func (l *LeafPVController) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
 	pv := &v1.PersistentVolume{}
-	err := l.LeafClient.Get(ctx, request.NamespacedName, pv)
 	pvNeedDelete := false
+	err := l.LeafClient.Get(ctx, request.NamespacedName, pv)
 	if err != nil {
 		if !errors.IsNotFound(err) {
 			klog.Errorf("get pv from leaf cluster failed, error: %v", err)
@@ -56,7 +57,7 @@ func (l *LeafPVController) Reconcile(ctx context.Context, request reconcile.Requ
 			return reconcile.Result{RequeueAfter: LeafPVRequeueTime}, nil
 		}
 
-		if pv.DeletionTimestamp != nil {
+		if pvNeedDelete || pv.DeletionTimestamp != nil {
 			return reconcile.Result{}, nil
 		}
 
@@ -84,7 +85,7 @@ func (l *LeafPVController) Reconcile(ctx context.Context, request reconcile.Requ
 		}
 
 		rootPV = pv.DeepCopy()
-		filterPV(rootPV, l.ClusterName)
+		filterPV(rootPV, utils.NodeAffinity4RootPV(pv, l.IsOne2OneMode, l.ClusterName))
 		nn := types.NamespacedName{
 			Name:      rootPV.Spec.ClaimRef.Name,
 			Namespace: rootPV.Spec.ClaimRef.Namespace,
@@ -128,7 +129,7 @@ func (l *LeafPVController) Reconcile(ctx context.Context, request reconcile.Requ
 		return reconcile.Result{}, nil
 	}
 
-	filterPV(rootPV, l.ClusterName)
+	filterPV(rootPV, utils.NodeAffinity4RootPV(pv, l.IsOne2OneMode, l.ClusterName))
 	if pvCopy.Spec.ClaimRef != nil || rootPV.Spec.ClaimRef == nil {
 		nn := types.NamespacedName{
 			Name:      pvCopy.Spec.ClaimRef.Name,

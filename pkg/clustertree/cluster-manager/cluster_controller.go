@@ -291,7 +291,7 @@ func (c *ClusterController) setupControllers(mgr manager.Manager, cluster *kosmo
 		return fmt.Errorf("error starting podUpstreamReconciler %s: %v", podcontrollers.LeafPodControllerName, err)
 	}
 
-	err := c.setupStorageControllers(mgr, nodes, leafClientset, cluster.Name)
+	err := c.setupStorageControllers(mgr, utils.IsOne2OneMode(cluster), cluster.Name)
 	if err != nil {
 		return err
 	}
@@ -299,7 +299,7 @@ func (c *ClusterController) setupControllers(mgr manager.Manager, cluster *kosmo
 	return nil
 }
 
-func (c *ClusterController) setupStorageControllers(mgr manager.Manager, nodes []*corev1.Node, leafClient kubernetes.Interface, clustername string) error {
+func (c *ClusterController) setupStorageControllers(mgr manager.Manager, isOne2OneMode bool, clustername string) error {
 	leafPVCController := pvc.LeafPVCController{
 		LeafClient:    mgr.GetClient(),
 		RootClient:    c.Root,
@@ -315,6 +315,7 @@ func (c *ClusterController) setupStorageControllers(mgr manager.Manager, nodes [
 		RootClient:    c.Root,
 		RootClientSet: c.RootClientset,
 		ClusterName:   clustername,
+		IsOne2OneMode: isOne2OneMode,
 	}
 	if err := leafPVController.SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("error starting leaf pv controller %v", err)
