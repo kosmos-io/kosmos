@@ -137,7 +137,6 @@ func (c *ServiceExportController) removeAnnotation(ctx context.Context, namespac
 			return err
 		}
 	}
-	klog.Infof("ServiceImport (%s/%s) deleted", namespace, name)
 	return nil
 }
 
