@@ -1,0 +1,22 @@
+name: E2e Workflow
+on:
+  push:
+  pull_request:
+jobs:
+  e2e:
+    name: E2e test
+    needs: build
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Run e2e test
+        run: ./hack/rune2e.sh
+      - name: Upload logs
+        uses: actions/upload-artifact@v3
+        if: failure()
+        with:
+          name: kosmos-e2e-logs-${{ github.run_id }}
+          path: ${{ github.workspace }}/e2e-test/logs-*
