@@ -19,6 +19,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	apivalidation "k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/klog"
+	"k8s.io/utils/pointer"
 
 	"github.com/kosmos.io/kosmos/pkg/utils"
 )
@@ -295,13 +296,13 @@ func makeEnvironmentMap(ctx context.Context, pod *corev1.Pod, container *corev1.
 	// If the variable's Value is set, expand the `$(var)` references to other
 	// variables in the .Value field; the sources of variables are the declared
 	// variables of the container and the service environment variables.
-	// mappingFunc := expansion.MappingFuncFor(res, svcEnv)
+	mappingFunc := MappingFuncFor(res, svcEnv)
 
 	// Iterate over environment variables in order to populate the map.
 	var keys []corev1.EnvVar
 	for _, env := range container.Env {
 		envptr := env
-		val, err := getEnvironmentVariableValue(ctx, &envptr, pod, container, rm)
+		val, err := getEnvironmentVariableValue(ctx, &envptr, mappingFunc, pod, container, rm)
 		if err != nil {
 			keys = append(keys, env)
 		}
@@ -320,12 +321,12 @@ func makeEnvironmentMap(ctx context.Context, pod *corev1.Pod, container *corev1.
 	return keys, nil
 }
 
-func getEnvironmentVariableValue(ctx context.Context, env *corev1.EnvVar, pod *corev1.Pod, container *corev1.Container, rm utils.EnvResourceManager) (*string, error) {
+func getEnvironmentVariableValue(ctx context.Context, env *corev1.EnvVar, mappingFunc func(string) string, pod *corev1.Pod, container *corev1.Container, rm utils.EnvResourceManager) (*string, error) {
 	if env.ValueFrom != nil {
 		return getEnvironmentVariableValueWithValueFrom(ctx, env, pod, container, rm)
 	}
 	// Handle values that have been directly provided after expanding variable references.
-	return &env.Value, nil
+	return pointer.String(Expand(env.Value, mappingFunc)), nil
 }
 
 func getEnvironmentVariableValueWithValueFrom(ctx context.Context, env *corev1.EnvVar, pod *corev1.Pod, container *corev1.Container, rm utils.EnvResourceManager) (*string, error) {
