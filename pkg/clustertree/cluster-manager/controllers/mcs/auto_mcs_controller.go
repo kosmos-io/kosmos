@@ -2,6 +2,7 @@ package mcs
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -37,6 +38,8 @@ type AutoCreateMCSController struct {
 	EventRecorder     record.EventRecorder
 	Logger            logr.Logger
 	GlobalLeafManager clustertreeutils.LeafResourceManager
+	// AutoCreateMCSPrefix is the prefix of the namespace for service to auto create in leaf cluster
+	AutoCreateMCSPrefix []string
 }
 
 func (c *AutoCreateMCSController) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
@@ -55,11 +58,7 @@ func (c *AutoCreateMCSController) Reconcile(ctx context.Context, request reconci
 		shouldDelete = true
 	}
 
-	annotations := service.GetAnnotations()
-	if annotations == nil {
-		shouldDelete = true
-	}
-	if _, exists := annotations[utils.AutoCreateMCSAnnotation]; !exists {
+	if !matchNamespace(service.Namespace, c.AutoCreateMCSPrefix) && !hasAutoMCSAnnotation(service) {
 		shouldDelete = true
 	}
 
@@ -82,6 +81,41 @@ func (c *AutoCreateMCSController) Reconcile(ctx context.Context, request reconci
 		return controllerruntime.Result{Requeue: true, RequeueAfter: 10 * time.Second}, err
 	}
 	return controllerruntime.Result{}, nil
+}
+
+func matchNamespace(namespace string, prefix []string) bool {
+	for _, p := range prefix {
+		if strings.HasPrefix(namespace, p) {
+			return true
+		}
+	}
+	return false
+}
+
+func hasAutoMCSAnnotation(service *corev1.Service) bool {
+	annotations := service.GetAnnotations()
+	if annotations == nil {
+		return false
+	}
+	if _, exists := annotations[utils.AutoCreateMCSAnnotation]; exists {
+		return true
+	}
+	return false
+}
+
+func (c *AutoCreateMCSController) shouldEnqueue(service *corev1.Service) bool {
+	if len(c.AutoCreateMCSPrefix) > 0 {
+		for _, prefix := range c.AutoCreateMCSPrefix {
+			if strings.HasPrefix(service.GetNamespace(), prefix) {
+				return true
+			}
+		}
+	}
+
+	if hasAutoMCSAnnotation(service) {
+		return true
+	}
+	return false
 }
 
 func (c *AutoCreateMCSController) SetupWithManager(mgr manager.Manager) error {
@@ -123,27 +157,35 @@ func (c *AutoCreateMCSController) SetupWithManager(mgr manager.Manager) error {
 	},
 	)
 
-	shouldEnqueue := func(obj client.Object) bool {
-		annotations := obj.GetAnnotations()
-		if annotations == nil {
-			return false
-		}
-		if _, exists := annotations[utils.AutoCreateMCSAnnotation]; exists {
-			return true
-		} else {
-			return false
-		}
-	}
-
 	servicePredicate := builder.WithPredicates(predicate.Funcs{
 		CreateFunc: func(event event.CreateEvent) bool {
-			return shouldEnqueue(event.Object)
+			service, ok := event.Object.(*corev1.Service)
+			if !ok {
+				return false
+			}
+
+			return c.shouldEnqueue(service)
 		},
 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
-			return shouldEnqueue(deleteEvent.Object)
+			service, ok := deleteEvent.Object.(*corev1.Service)
+			if !ok {
+				return false
+			}
+
+			return c.shouldEnqueue(service)
 		},
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
-			return shouldEnqueue(updateEvent.ObjectOld) != shouldEnqueue(updateEvent.ObjectNew)
+			newService, ok := updateEvent.ObjectNew.(*corev1.Service)
+			if !ok {
+				return false
+			}
+
+			oldService, ok := updateEvent.ObjectOld.(*corev1.Service)
+			if !ok {
+				return false
+			}
+
+			return c.shouldEnqueue(newService) != c.shouldEnqueue(oldService)
 		},
 		GenericFunc: func(genericEvent event.GenericEvent) bool {
 			return false

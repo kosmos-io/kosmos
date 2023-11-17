@@ -188,11 +188,12 @@ func run(ctx context.Context, opts *options.Options) error {
 
 		// add auto create mcs resources controller
 		autoCreateMCSController := mcs.AutoCreateMCSController{
-			RootClient:        mgr.GetClient(),
-			EventRecorder:     mgr.GetEventRecorderFor(mcs.AutoCreateMCSControllerName),
-			Logger:            mgr.GetLogger(),
-			RootKosmosClient:  rootKosmosClient,
-			GlobalLeafManager: globalleafManager,
+			RootClient:          mgr.GetClient(),
+			EventRecorder:       mgr.GetEventRecorderFor(mcs.AutoCreateMCSControllerName),
+			Logger:              mgr.GetLogger(),
+			AutoCreateMCSPrefix: opts.AutoCreateMCSPrefix,
+			RootKosmosClient:    rootKosmosClient,
+			GlobalLeafManager:   globalleafManager,
 		}
 		if err = autoCreateMCSController.SetupWithManager(mgr); err != nil {
 			return fmt.Errorf("error starting %s: %v", mcs.AutoCreateMCSControllerName, err)

@@ -34,6 +34,9 @@ type Options struct {
 
 	// Enable oneway storage controllers
 	OnewayStorageControllers bool
+
+	// AutoCreateMCSPrefix is the prefix of the namespace for service to auto create in leaf cluster
+	AutoCreateMCSPrefix []string
 }
 
 type KubernetesOptions struct {
@@ -74,6 +77,6 @@ func (o *Options) AddFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&o.RootCoreDNSServiceNamespace, "root-coredns-service-namespace", CoreDNSServiceNamespace, "The namespace of the CoreDNS service in the root cluster, used to locate the CoreDNS service when MultiClusterService is disabled.")
 	flags.StringVar(&o.RootCoreDNSServiceName, "root-coredns-service-name", CoreDNSServiceName, "The name of the CoreDNS service in the root cluster, used to locate the CoreDNS service when MultiClusterService is disabled.")
 	flags.BoolVar(&o.OnewayStorageControllers, "oneway-storage-controllers", false, "Turn on or off oneway storage controllers.")
-
+	flags.StringSliceVar(&o.AutoCreateMCSPrefix, "auto-mcs-prefix", []string{}, "The prefix of namespace for service to auto create mcs resources")
 	options.BindLeaderElectionFlags(&o.LeaderElection, flags)
 }
