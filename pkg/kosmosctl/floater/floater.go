@@ -66,11 +66,15 @@ type Floater struct {
 	Client kubernetes.Interface
 }
 
-func NewCheckFloater(o *CommandCheckOptions) *Floater {
+func NewCheckFloater(o *CommandCheckOptions, isDst bool) *Floater {
+	imageRepository := o.ImageRepository
+	if isDst {
+		imageRepository = o.DstImageRepository
+	}
 	floater := &Floater{
 		Namespace:         o.Namespace,
 		Name:              DefaultFloaterName,
-		ImageRepository:   o.DstImageRepository,
+		ImageRepository:   imageRepository,
 		Version:           o.Version,
 		PodWaitTime:       o.PodWaitTime,
 		Port:              o.Port,
