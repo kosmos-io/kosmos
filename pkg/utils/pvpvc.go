@@ -40,3 +40,12 @@ func NodeAffinity4RootPV(pv *v1.PersistentVolume, isOne2OneMode bool, clusterNam
 	}
 	return node4RootPV
 }
+
+func IsPVCEqual(pvc *v1.PersistentVolumeClaim, clone *v1.PersistentVolumeClaim) bool {
+	if reflect.DeepEqual(pvc.Annotations, clone.Annotations) &&
+		reflect.DeepEqual(pvc.Spec, clone.Spec) &&
+		reflect.DeepEqual(pvc.Status, clone.Status) {
+		return true
+	}
+	return false
+}

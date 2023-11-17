@@ -221,20 +221,40 @@ func run(ctx context.Context, opts *options.Options) error {
 		return fmt.Errorf("error starting rootPodReconciler %s: %v", podcontrollers.RootPodControllerName, err)
 	}
 
-	rootPVCController := pvc.RootPVCController{
-		RootClient:        mgr.GetClient(),
-		GlobalLeafManager: globalleafManager,
-	}
-	if err := rootPVCController.SetupWithManager(mgr); err != nil {
-		return fmt.Errorf("error starting root pvc controller %v", err)
-	}
+	if !opts.OnewayStorageControllers {
+		rootPVCController := pvc.RootPVCController{
+			RootClient:        mgr.GetClient(),
+			GlobalLeafManager: globalleafManager,
+		}
+		if err := rootPVCController.SetupWithManager(mgr); err != nil {
+			return fmt.Errorf("error starting root pvc controller %v", err)
+		}
 
-	rootPVController := pv.RootPVController{
-		RootClient:        mgr.GetClient(),
-		GlobalLeafManager: globalleafManager,
-	}
-	if err := rootPVController.SetupWithManager(mgr); err != nil {
-		return fmt.Errorf("error starting root pv controller %v", err)
+		rootPVController := pv.RootPVController{
+			RootClient:        mgr.GetClient(),
+			GlobalLeafManager: globalleafManager,
+		}
+		if err := rootPVController.SetupWithManager(mgr); err != nil {
+			return fmt.Errorf("error starting root pv controller %v", err)
+		}
+	} else {
+		onewayPVController := pv.OnewayPVController{
+			Root:              mgr.GetClient(),
+			RootDynamic:       dynamicClient,
+			GlobalLeafManager: globalleafManager,
+		}
+		if err := onewayPVController.SetupWithManager(mgr); err != nil {
+			return fmt.Errorf("error starting oneway pv controller %v", err)
+		}
+
+		onewayPVCController := pvc.OnewayPVCController{
+			Root:              mgr.GetClient(),
+			RootDynamic:       dynamicClient,
+			GlobalLeafManager: globalleafManager,
+		}
+		if err := onewayPVCController.SetupWithManager(mgr); err != nil {
+			return fmt.Errorf("error starting oneway pvc controller %v", err)
+		}
 	}
 
 	// init commonController

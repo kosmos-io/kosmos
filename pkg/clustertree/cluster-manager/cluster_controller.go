@@ -301,9 +301,11 @@ func (c *ClusterController) setupControllers(mgr manager.Manager, cluster *kosmo
 		return fmt.Errorf("error starting podUpstreamReconciler %s: %v", podcontrollers.LeafPodControllerName, err)
 	}
 
-	err := c.setupStorageControllers(mgr, utils.IsOne2OneMode(cluster), cluster.Name)
-	if err != nil {
-		return err
+	if !c.Options.OnewayStorageControllers {
+		err := c.setupStorageControllers(mgr, utils.IsOne2OneMode(cluster), cluster.Name)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
