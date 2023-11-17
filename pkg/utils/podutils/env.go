@@ -1,4 +1,4 @@
-// This code is directly lifted from the karmada
+// This code is directly lifted from the VIRTUAL-KUBELET
 // For reference:
 // https://github.com/virtual-kubelet/virtual-kubelet/blob/master/internal/podutils/env.go
 
