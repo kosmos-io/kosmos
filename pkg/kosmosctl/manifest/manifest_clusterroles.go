@@ -37,7 +37,7 @@ rules:
     resources: ['*']
     verbs: ["*"]
   - nonResourceURLs: ['*']
-    verbs: ["get"]
+    verbs: ["*"]
 `
 
 	ClusterTreeClusterRole = `

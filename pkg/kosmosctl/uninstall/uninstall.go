@@ -340,7 +340,7 @@ func (o *CommandUninstallOptions) runClustertree() error {
 		klog.Info("CRD " + clusterCRD.Name + " is deleted.")
 	}
 
-	err = o.K8sClient.CoreV1().ConfigMaps(utils.DefaultNamespace).Delete(context.TODO(), utils.HostKubeConfigName, metav1.DeleteOptions{})
+	err = o.K8sClient.CoreV1().ConfigMaps(o.Namespace).Delete(context.TODO(), utils.HostKubeConfigName, metav1.DeleteOptions{})
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return fmt.Errorf("kosmosctl uninstall clustertree run error, configmap options failed: %v", err)
