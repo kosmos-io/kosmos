@@ -236,15 +236,7 @@ func (c *ClusterController) clearClusterControllers(cluster *kosmosv1alpha1.Clus
 }
 
 func (c *ClusterController) setupControllers(mgr manager.Manager, cluster *kosmosv1alpha1.Cluster, nodes []*corev1.Node, clientDynamic *dynamic.DynamicClient, leafClientset kubernetes.Interface, kosmosClient kosmosversioned.Interface, leafRestConfig *rest.Config) error {
-	isNode2NodeFunc := func(cluster *kosmosv1alpha1.Cluster) bool {
-		return cluster.Spec.ClusterTreeOptions.LeafModels != nil
-	}
-
-	clusterName := fmt.Sprintf("%s%s", utils.KosmosNodePrefix, cluster.Name)
-	if isNode2NodeFunc(cluster) {
-		clusterName = cluster.Name
-	}
-
+	clusterName := c.LeafModelHandler.GetGlobalLeafManagerClusterName(cluster)
 	c.GlobalLeafManager.AddLeafResource(clusterName, &leafUtils.LeafResource{
 		Client:        mgr.GetClient(),
 		DynamicClient: clientDynamic,
