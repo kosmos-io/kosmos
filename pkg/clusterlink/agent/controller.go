@@ -2,7 +2,6 @@ package agent
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -19,6 +18,7 @@ import (
 
 	kosmosv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	networkmanager "github.com/kosmos.io/kosmos/pkg/clusterlink/agent/network-manager"
+	"github.com/kosmos.io/kosmos/pkg/clusterlink/controllers/node"
 	"github.com/kosmos.io/kosmos/pkg/clusterlink/network"
 	kosmosv1alpha1lister "github.com/kosmos.io/kosmos/pkg/generated/listers/kosmos/v1alpha1"
 )
@@ -44,30 +44,42 @@ func NetworkManager() *networkmanager.NetworkManager {
 	return networkmanager.NewNetworkManager(net)
 }
 
-var predicatesFunc = predicate.Funcs{
-	CreateFunc: func(createEvent event.CreateEvent) bool {
-		return true
-	},
-	UpdateFunc: func(updateEvent event.UpdateEvent) bool {
-		return true
-	},
-	DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
-		return true
-	},
-	GenericFunc: func(genericEvent event.GenericEvent) bool {
-		return true
-	},
-}
-
 func (r *Reconciler) SetupWithManager(mgr manager.Manager) error {
 	if r.Client == nil {
 		r.Client = mgr.GetClient()
 	}
 
+	skipEvent := func(obj client.Object) bool {
+		eventObj, ok := obj.(*kosmosv1alpha1.NodeConfig)
+		if !ok {
+			return false
+		}
+
+		if eventObj.Name != node.ClusterNodeName(r.ClusterName, r.NodeName) {
+			klog.Infof("reconcile node name: %s, current node name: %s-%s", eventObj.Name, r.ClusterName, r.NodeName)
+			return false
+		}
+
+		return true
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(controllerName).
 		WithOptions(controller.Options{}).
-		For(&kosmosv1alpha1.NodeConfig{}, builder.WithPredicates(predicatesFunc)).
+		For(&kosmosv1alpha1.NodeConfig{}, builder.WithPredicates(predicate.Funcs{
+			CreateFunc: func(createEvent event.CreateEvent) bool {
+				return skipEvent(createEvent.Object)
+			},
+			UpdateFunc: func(updateEvent event.UpdateEvent) bool {
+				return skipEvent(updateEvent.ObjectNew)
+			},
+			DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
+				return skipEvent(deleteEvent.Object)
+			},
+			GenericFunc: func(genericEvent event.GenericEvent) bool {
+				return skipEvent(genericEvent.Object)
+			},
+		})).
 		Complete(r)
 }
 
@@ -95,12 +107,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 		}
 		klog.Errorf("get clusternode %s error: %v", request.NamespacedName, err)
 		return reconcile.Result{RequeueAfter: RequeueTime}, nil
-	}
-
-	klog.Infof("reconcile node name: %s, current node name: %s-%s", reconcileNode.Name, r.ClusterName, r.NodeName)
-	if reconcileNode.Name != fmt.Sprintf("%s-%s", r.ClusterName, r.NodeName) {
-		klog.Infof("not match, drop this event.")
-		return reconcile.Result{}, nil
 	}
 
 	localCluster, err := r.ClusterLister.Get(r.ClusterName)
