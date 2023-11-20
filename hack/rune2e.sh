@@ -21,19 +21,23 @@ MEMBER2_CLUSTER_SERVICE_CIDR="10.235.0.0/18"
 
 ROOT="$(dirname "${BASH_SOURCE[0]}")"
 export VERSION="latest"
+source "$(dirname "${BASH_SOURCE[0]}")/install_kind_kubectl.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/cluster.sh"
 make images GOOS="linux" --directory="${ROOT}"
 
 #cluster cluster
 create_cluster $HOST_CLUSTER_NAME $HOST_CLUSTER_POD_CIDR $HOST_CLUSTER_SERVICE_CIDR
 create_cluster $MEMBER1_CLUSTER_NAME $MEMBER1_CLUSTER_POD_CIDR $MEMBER1_CLUSTER_SERVICE_CIDR true
-#deploy clusterlink
-deploy_clusterlink $HOST_CLUSTER_NAME
-load_clusterlink_images $MEMBER1_CLUSTER_NAME
+create_cluster $MEMBER2_CLUSTER_NAME $MEMBER2_CLUSTER_POD_CIDR $MEMBER2_CLUSTER_SERVICE_CIDR true
+#deploy cluster
+deploy_cluster $HOST_CLUSTER_NAME
+load_cluster_images $MEMBER1_CLUSTER_NAME
+load_cluster_images $MEMBER2_CLUSTER_NAME
 
 #join cluster
 join_cluster $HOST_CLUSTER_NAME $HOST_CLUSTER_NAME
 join_cluster $HOST_CLUSTER_NAME $MEMBER1_CLUSTER_NAME
+join_cluster $HOST_CLUSTER_NAME $MEMBER2_CLUSTER_NAME
 
 echo "e2e test enviroment init success"
 
@@ -55,6 +59,10 @@ kind export logs --name="$HOST_CLUSTER_NAME" "$LOG_PATH/$HOST_CLUSTER_NAME"
 echo "Collecting $MEMBER1_CLUSTER_NAME logs..."
 mkdir -p "$MEMBER1_CLUSTER_NAME/$MEMBER1_CLUSTER_NAME"
 kind export logs --name="$MEMBER1_CLUSTER_NAME" "$LOG_PATH/$MEMBER1_CLUSTER_NAME"
+
+echo "Collecting $MEMBER2_CLUSTER_NAME logs..."
+mkdir -p "$MEMBER2_CLUSTER_NAME/$MEMBER2_CLUSTER_NAME"
+kind export logs --name="$MEMBER2_CLUSTER_NAME" "$LOG_PATH/$MEMBER2_CLUSTER_NAME"
 
 #TODO delete cluster
 
