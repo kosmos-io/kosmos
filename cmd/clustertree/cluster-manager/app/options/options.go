@@ -31,6 +31,9 @@ type Options struct {
 	// clusters.
 	RootCoreDNSServiceNamespace string
 	RootCoreDNSServiceName      string
+
+	// Enable oneway storage controllers
+	OnewayStorageControllers bool
 }
 
 type KubernetesOptions struct {
@@ -70,6 +73,7 @@ func (o *Options) AddFlags(flags *pflag.FlagSet) {
 	flags.BoolVar(&o.MultiClusterService, "multi-cluster-service", false, "Turn on or off mcs support.")
 	flags.StringVar(&o.RootCoreDNSServiceNamespace, "root-coredns-service-namespace", CoreDNSServiceNamespace, "The namespace of the CoreDNS service in the root cluster, used to locate the CoreDNS service when MultiClusterService is disabled.")
 	flags.StringVar(&o.RootCoreDNSServiceName, "root-coredns-service-name", CoreDNSServiceName, "The name of the CoreDNS service in the root cluster, used to locate the CoreDNS service when MultiClusterService is disabled.")
+	flags.BoolVar(&o.OnewayStorageControllers, "oneway-storage-controllers", false, "Turn on or off oneway storage controllers.")
 
 	options.BindLeaderElectionFlags(&o.LeaderElection, flags)
 }

@@ -672,13 +672,15 @@ func (r *RootPodReconciler) CreatePodInLeafCluster(ctx context.Context, lr *leaf
 			klog.Error(err)
 			return false, nil
 		}
-
 		klog.V(5).Infof("Create configmaps %v of %v/%v success", configMaps, basicPod.Namespace, basicPod.Name)
-		if err := r.createStorageInLeafCluster(ctx, lr, utils.GVR_PVC, pvcs, basicPod, clusterNodeInfo); err != nil {
-			klog.Error(err)
-			return false, nil
+
+		if !r.Options.OnewayStorageControllers {
+			if err := r.createStorageInLeafCluster(ctx, lr, utils.GVR_PVC, pvcs, basicPod, clusterNodeInfo); err != nil {
+				klog.Error(err)
+				return false, nil
+			}
+			klog.V(5).Infof("Create pvc %v of %v/%v success", pvcs, basicPod.Namespace, basicPod.Name)
 		}
-		klog.V(5).Infof("Create pvc %v of %v/%v success", pvcs, basicPod.Namespace, basicPod.Name)
 		return true, nil
 	})
 	var err error
