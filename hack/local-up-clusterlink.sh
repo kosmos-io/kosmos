@@ -18,6 +18,7 @@ MEMBER2_CLUSTER_SERVICE_CIDR="10.235.0.0/18"
 
 export VERSION="latest"
 ROOT="$(dirname "${BASH_SOURCE[0]}")"
+source "$(dirname "${BASH_SOURCE[0]}")/install_kind_kubectl.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/cluster.sh"
 make images GOOS="linux" --directory="${ROOT}"
 

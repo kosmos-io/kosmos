@@ -117,10 +117,18 @@ function join_cluster() {
   local kubeconfig_path="${ROOT}/environments/${member_cluster}/kubeconfig"
   local base64_kubeconfig=$(base64 < "$kubeconfig_path")
   echo " base64 kubeconfig successfully converted: $base64_kubeconfig "
+
+  local common_metadata=""
+  if [ "$host_cluster" == "$member_cluster" ]; then
+    common_metadata="annotations:
+    kosmos.io/cluster-role: root"
+  fi
+
   cat <<EOF | kubectl --context="kind-${host_cluster}" apply -f -
 apiVersion: kosmos.io/v1alpha1
 kind: Cluster
 metadata:
+  $common_metadata
   name: ${member_cluster}
 spec:
   imageRepository: "ghcr.io/kosmos-io"

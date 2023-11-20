@@ -60,7 +60,7 @@ spec:
       containers:
         - name: clustertree-cluster-manager
           image: ghcr.io/kosmos-io/clustertree-cluster-manager:__VERSION__
-          imagePullPolicy: Always
+          imagePullPolicy: IfNotPresent
           env:
             - name: APISERVER_CERT_LOCATION
               value: /etc/cluster-tree/cert/cert.pem
