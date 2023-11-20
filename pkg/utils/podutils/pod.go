@@ -166,7 +166,9 @@ func FitPod(pod *corev1.Pod, ignoreLabels []string, cleanNodeName bool) *corev1.
 	podCopy.Spec.Volumes = vols
 	podCopy.Status = corev1.PodStatus{}
 
-	podCopy.Spec.SchedulerName = ""
+	if podCopy.Spec.SchedulerName == utils.KosmosSchedulerName {
+		podCopy.Spec.SchedulerName = ""
+	}
 
 	if cleanNodeName {
 		podCopy.Spec.NodeName = ""
