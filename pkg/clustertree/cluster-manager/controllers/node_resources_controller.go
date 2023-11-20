@@ -146,8 +146,11 @@ func (c *NodeResourcesController) Reconcile(ctx context.Context, request reconci
 			if node != nil {
 				clone.Labels = mergeMap(clone.GetLabels(), node.GetLabels())
 				clone.Annotations = mergeMap(clone.GetAnnotations(), node.GetAnnotations())
-				clone.Spec = node.Spec
-				clone.Spec.Taints = rootNode.Spec.Taints
+				spec := corev1.NodeSpec{
+					Taints: rootNode.Spec.Taints,
+				}
+
+				clone.Spec = spec
 				clone.Status = node.Status
 				clone.Status.Addresses = leafUtils.GetAddress()
 			}
