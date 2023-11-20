@@ -12,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/strings/slices"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -38,8 +39,10 @@ type AutoCreateMCSController struct {
 	EventRecorder     record.EventRecorder
 	Logger            logr.Logger
 	GlobalLeafManager clustertreeutils.LeafResourceManager
-	// AutoCreateMCSPrefix is the prefix of the namespace for service to auto create in leaf cluster
+	// AutoCreateMCSPrefix are the prefix of the namespace for service to auto create in leaf cluster
 	AutoCreateMCSPrefix []string
+	// ReservedNamespaces are the protected namespaces to prevent Kosmos for deleting system resources
+	ReservedNamespaces []string
 }
 
 func (c *AutoCreateMCSController) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
@@ -104,6 +107,10 @@ func hasAutoMCSAnnotation(service *corev1.Service) bool {
 }
 
 func (c *AutoCreateMCSController) shouldEnqueue(service *corev1.Service) bool {
+	if slices.Contains(c.ReservedNamespaces, service.Namespace) {
+		return false
+	}
+
 	if len(c.AutoCreateMCSPrefix) > 0 {
 		for _, prefix := range c.AutoCreateMCSPrefix {
 			if strings.HasPrefix(service.GetNamespace(), prefix) {
