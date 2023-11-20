@@ -14,6 +14,7 @@ const (
 	DefaultWaitTime            = 120
 	RootClusterAnnotationKey   = "kosmos.io/cluster-role"
 	RootClusterAnnotationValue = "root"
+	KosmosSchedulerName        = "kosmos-scheduler"
 )
 
 const (

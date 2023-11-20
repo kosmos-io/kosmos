@@ -30,7 +30,7 @@ var SYNC_GVRS = []schema.GroupVersionResource{utils.GVR_CONFIGMAP, utils.GVR_SEC
 var SYNC_OBJS = []client.Object{&corev1.ConfigMap{}, &corev1.Secret{}}
 
 const SYNC_KIND_CONFIGMAP = "ConfigMap"
-const SYNC_KIND_SECRET = "SECRET"
+const SYNC_KIND_SECRET = "Secret"
 
 type SyncResourcesReconciler struct {
 	GroupVersionResource schema.GroupVersionResource
