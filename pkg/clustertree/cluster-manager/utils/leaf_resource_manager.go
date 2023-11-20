@@ -12,6 +12,7 @@ import (
 
 	kosmosv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	kosmosversioned "github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
+	"github.com/kosmos.io/kosmos/pkg/utils"
 )
 
 var (
@@ -62,6 +63,13 @@ type LeafResourceManager interface {
 type leafResourceManager struct {
 	resourceMap              map[string]*LeafResource
 	leafResourceManagersLock sync.Mutex
+}
+
+func GetLeafResourceClusterName(cluster *kosmosv1alpha1.Cluster) string {
+	if cluster.Spec.ClusterTreeOptions.LeafModels != nil {
+		return cluster.Name
+	}
+	return fmt.Sprintf("%s%s", utils.KosmosNodePrefix, cluster.Name)
 }
 
 func has(clusternodes []ClusterNode, target string) bool {

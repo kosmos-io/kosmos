@@ -175,9 +175,10 @@ func (c *AutoCreateMCSController) cleanUpMcsResources(ctx context.Context, names
 			continue
 		}
 
-		leafManager, err := c.GlobalLeafManager.GetLeafResource(cluster.Name)
+		clusterName := clustertreeutils.GetLeafResourceClusterName(newCluster)
+		leafManager, err := c.GlobalLeafManager.GetLeafResource(clusterName)
 		if err != nil {
-			klog.Errorf("get leafManager for cluster %s failed,Error: %v", cluster.Name, err)
+			klog.Errorf("get leafManager for cluster %s failed,Error: %v", clusterName, err)
 			return err
 		}
 		if err = leafManager.KosmosClient.MulticlusterV1alpha1().ServiceImports(namespace).Delete(ctx, name, metav1.DeleteOptions{}); err != nil {
@@ -212,9 +213,10 @@ func (c *AutoCreateMCSController) autoCreateMcsResources(ctx context.Context, se
 			continue
 		}
 
-		leafManager, err := c.GlobalLeafManager.GetLeafResource(cluster.Name)
+		clusterName := clustertreeutils.GetLeafResourceClusterName(newCluster)
+		leafManager, err := c.GlobalLeafManager.GetLeafResource(clusterName)
 		if err != nil {
-			klog.Errorf("get leafManager for cluster %s failed,Error: %v", cluster.Name, err)
+			klog.Errorf("get leafManager for cluster %s failed,Error: %v", clusterName, err)
 			return err
 		}
 		serviceImport := &mcsv1alpha1.ServiceImport{
