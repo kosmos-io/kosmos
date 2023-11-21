@@ -212,8 +212,11 @@ func (h DispersionModelHandler) UpdateNodeStatus(ctx context.Context, n []*corev
 				return fmt.Errorf("cannot get node in root cluster while update node status %s, err: %v", nodeCopy.Name, err)
 			}
 
+			rootCopy := nodeRoot.DeepCopy()
 			nodeRoot.Status = nodeInLeaf.Status
 			nodeRoot.Status.Addresses = GetAddress()
+			nodeRoot.Status.Allocatable = rootCopy.Status.Allocatable
+			nodeRoot.Status.Capacity = rootCopy.Status.Capacity
 
 			if node, err = h.RootClientset.CoreV1().Nodes().UpdateStatus(ctx, nodeRoot, metav1.UpdateOptions{}); err != nil {
 				return err
