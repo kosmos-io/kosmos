@@ -40,7 +40,10 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: kosmos
-subjects:
+subjects: 
+  - kind: ServiceAccount
+    name: kosmos-control
+    namespace: {{ .Namespace }}
   - kind: ServiceAccount
     name: clusterlink-controller-manager
     namespace: {{ .Namespace }}

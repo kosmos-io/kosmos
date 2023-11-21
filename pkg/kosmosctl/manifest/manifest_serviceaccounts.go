@@ -1,6 +1,14 @@
 package manifest
 
 const (
+	KosmosControlServiceAccount = `
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name:  kosmos-control
+  namespace: {{ .Namespace }}
+`
+
 	KosmosOperatorServiceAccount = `
 apiVersion: v1
 kind: ServiceAccount

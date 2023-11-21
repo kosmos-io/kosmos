@@ -12,7 +12,6 @@ import (
 	extensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -32,21 +31,20 @@ import (
 )
 
 var installExample = templates.Examples(i18n.T(`
-        # Install all module to Kosmos control plane, e.g: 
-        kosmosctl install --cni cni-name --default-nic nic-name
-
+		# Install all module to Kosmos control plane, e.g: 
+		kosmosctl install --cni cni-name --default-nic nic-name
+		
 		# Install Kosmos control plane, if you need to specify a special control plane cluster kubeconfig, e.g: 
-        kosmosctl install --kubeconfig ~/kubeconfig/cluster-kubeconfig
-
-		# Install clusterlink module to Kosmos control plane, e.g: 
-        kosmosctl install -m clusterlink --cni cni-name --default-nic nic-name
-
+		kosmosctl install --kubeconfig ~/kubeconfig/cluster-kubeconfig
+		
 		# Install clustertree module to Kosmos control plane, e.g: 
-        kosmosctl install -m clustertree
-
+		kosmosctl install -m clustertree
+		
+		# Install clusterlink module to Kosmos control plane and set the necessary parameters, e.g: 
+		kosmosctl install -m clusterlink --cni cni-name --default-nic nic-name
+		
 		# Install coredns module to Kosmos control plane, e.g: 
-        kosmosctl install -m coredns
-`))
+		kosmosctl install -m coredns`))
 
 type CommandInstallOptions struct {
 	Namespace            string
@@ -65,7 +63,6 @@ type CommandInstallOptions struct {
 
 	KosmosClient        versioned.Interface
 	K8sClient           kubernetes.Interface
-	K8sDynamicClient    *dynamic.DynamicClient
 	K8sExtensionsClient extensionsclient.Interface
 }
 
@@ -135,11 +132,6 @@ func (o *CommandInstallOptions) Complete(f ctlutil.Factory) error {
 	o.K8sClient, err = kubernetes.NewForConfig(config)
 	if err != nil {
 		return fmt.Errorf("kosmosctl install complete error, generate K8s basic client failed: %v", err)
-	}
-
-	o.K8sDynamicClient, err = dynamic.NewForConfig(config)
-	if err != nil {
-		return fmt.Errorf("kosmosctl install complete error, generate K8s dynamic client failed: %s", err)
 	}
 
 	o.K8sExtensionsClient, err = extensionsclient.NewForConfig(config)
@@ -312,7 +304,7 @@ func (o *CommandInstallOptions) runClusterlink() error {
 	}
 
 	operatorDeploy, err := util.GenerateDeployment(manifest.KosmosOperatorDeployment, manifest.DeploymentReplace{
-		Namespace:       utils.DefaultNamespace,
+		Namespace:       o.Namespace,
 		Version:         version.GetReleaseVersion().PatchRelease(),
 		UseProxy:        o.UseProxy,
 		ImageRepository: o.ImageRegistry,
@@ -470,7 +462,7 @@ func (o *CommandInstallOptions) runClustertree() error {
 	}
 
 	operatorDeploy, err := util.GenerateDeployment(manifest.KosmosOperatorDeployment, manifest.DeploymentReplace{
-		Namespace:       utils.DefaultNamespace,
+		Namespace:       o.Namespace,
 		Version:         version.GetReleaseVersion().PatchRelease(),
 		UseProxy:        o.UseProxy,
 		ImageRepository: o.ImageRegistry,
@@ -580,7 +572,6 @@ func (o *CommandInstallOptions) createControlCluster() error {
 					WaitTime:         o.WaitTime,
 					KosmosClient:     o.KosmosClient,
 					K8sClient:        o.K8sClient,
-					K8sDynamicClient: o.K8sDynamicClient,
 					RootFlag:         true,
 					EnableLink:       true,
 					CNI:              o.CNI,
@@ -637,7 +628,6 @@ func (o *CommandInstallOptions) createControlCluster() error {
 					WaitTime:         o.WaitTime,
 					KosmosClient:     o.KosmosClient,
 					K8sClient:        o.K8sClient,
-					K8sDynamicClient: o.K8sDynamicClient,
 					RootFlag:         true,
 					EnableTree:       true,
 				}
@@ -674,7 +664,6 @@ func (o *CommandInstallOptions) createControlCluster() error {
 					WaitTime:         o.WaitTime,
 					KosmosClient:     o.KosmosClient,
 					K8sClient:        o.K8sClient,
-					K8sDynamicClient: o.K8sDynamicClient,
 					RootFlag:         true,
 					EnableLink:       true,
 					CNI:              o.CNI,

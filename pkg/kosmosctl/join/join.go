@@ -8,10 +8,8 @@ import (
 
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
-	extensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -63,10 +61,8 @@ type CommandJoinOptions struct {
 
 	EnableTree bool
 
-	KosmosClient        versioned.Interface
-	K8sClient           kubernetes.Interface
-	K8sDynamicClient    *dynamic.DynamicClient
-	K8sExtensionsClient extensionsclient.Interface
+	KosmosClient versioned.Interface
+	K8sClient    kubernetes.Interface
 }
 
 // NewCmdJoin join resource to Kosmos control plane.
@@ -138,11 +134,6 @@ func (o *CommandJoinOptions) Complete(f ctlutil.Factory) error {
 		return fmt.Errorf("kosmosctl install complete error, generate Kosmos client failed: %v", err)
 	}
 
-	o.K8sDynamicClient, err = dynamic.NewForConfig(hostConfig)
-	if err != nil {
-		return fmt.Errorf("kosmosctl join complete error, generate dynamic client failed: %s", err)
-	}
-
 	if len(o.KubeConfig) > 0 {
 		o.KubeConfigStream, err = os.ReadFile(o.KubeConfig)
 		if err != nil {
@@ -157,11 +148,6 @@ func (o *CommandJoinOptions) Complete(f ctlutil.Factory) error {
 		o.K8sClient, err = kubernetes.NewForConfig(clusterConfig)
 		if err != nil {
 			return fmt.Errorf("kosmosctl join complete error, generate basic client failed: %v", err)
-		}
-
-		o.K8sExtensionsClient, err = extensionsclient.NewForConfig(clusterConfig)
-		if err != nil {
-			return fmt.Errorf("kosmosctl join complete error, generate extensions client failed: %v", err)
 		}
 	} else {
 		return fmt.Errorf("kosmosctl join complete error, arg ClusterKubeConfig is required")
@@ -181,7 +167,7 @@ func (o *CommandJoinOptions) Validate(args []string) error {
 
 	switch args[0] {
 	case "cluster":
-		_, err := o.K8sDynamicClient.Resource(util.ClusterGVR).Get(context.TODO(), o.Name, metav1.GetOptions{})
+		_, err := o.KosmosClient.KosmosV1alpha1().Clusters().Get(context.TODO(), o.Name, metav1.GetOptions{})
 		if err != nil {
 			if apierrors.IsAlreadyExists(err) {
 				return fmt.Errorf("kosmosctl join validate error, clsuter already exists: %s", err)
@@ -278,63 +264,75 @@ func (o *CommandJoinOptions) runCluster() error {
 	klog.Info("Cluster " + o.Name + " has been created.")
 
 	// create ns if it does not exist
-	namespace := &corev1.Namespace{}
-	namespace.Name = utils.DefaultNamespace
-	_, err = o.K8sClient.CoreV1().Namespaces().Create(context.TODO(), namespace, metav1.CreateOptions{})
+	kosmosNS := &corev1.Namespace{}
+	kosmosNS.Name = o.Namespace
+	_, err = o.K8sClient.CoreV1().Namespaces().Create(context.TODO(), kosmosNS, metav1.CreateOptions{})
 	if err != nil && !apierrors.IsAlreadyExists(err) {
 		return fmt.Errorf("kosmosctl join run error, create namespace failed: %s", err)
 	}
 
 	// create rbac
-	secret := &corev1.Secret{
+	kosmosControlSA, err := util.GenerateServiceAccount(manifest.KosmosControlServiceAccount, manifest.ServiceAccountReplace{
+		Namespace: o.Namespace,
+	})
+	if err != nil {
+		return fmt.Errorf("kosmosctl join run error, generate kosmos serviceaccount failed: %s", err)
+	}
+	_, err = o.K8sClient.CoreV1().ServiceAccounts(kosmosControlSA.Namespace).Create(context.TODO(), kosmosControlSA, metav1.CreateOptions{})
+	if err != nil && !apierrors.IsAlreadyExists(err) {
+		return fmt.Errorf("kosmosctl join run error, create kosmos serviceaccount failed: %s", err)
+	}
+	klog.Info("ServiceAccount " + kosmosControlSA.Name + " has been created.")
+
+	controlPanelSecret := &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      utils.ControlPanelSecretName,
-			Namespace: utils.DefaultNamespace,
+			Namespace: o.Namespace,
 		},
 		Data: map[string][]byte{
 			"kubeconfig": o.HostKubeConfigStream,
 		},
 	}
-	_, err = o.K8sClient.CoreV1().Secrets(secret.Namespace).Create(context.TODO(), secret, metav1.CreateOptions{})
+	_, err = o.K8sClient.CoreV1().Secrets(controlPanelSecret.Namespace).Create(context.TODO(), controlPanelSecret, metav1.CreateOptions{})
 	if err != nil && !apierrors.IsAlreadyExists(err) {
 		return fmt.Errorf("kosmosctl join run error, create secret failed: %s", err)
 	}
-	klog.Info("Secret " + secret.Name + " has been created.")
+	klog.Info("Secret " + controlPanelSecret.Name + " has been created.")
 
-	clusterRole, err := util.GenerateClusterRole(manifest.KosmosClusterRole, nil)
+	kosmosCR, err := util.GenerateClusterRole(manifest.KosmosClusterRole, nil)
 	if err != nil {
 		return fmt.Errorf("kosmosctl join run error, generate clusterrole failed: %s", err)
 	}
-	_, err = o.K8sClient.RbacV1().ClusterRoles().Create(context.TODO(), clusterRole, metav1.CreateOptions{})
+	_, err = o.K8sClient.RbacV1().ClusterRoles().Create(context.TODO(), kosmosCR, metav1.CreateOptions{})
 	if err != nil && !apierrors.IsAlreadyExists(err) {
 		return fmt.Errorf("kosmosctl join run error, create clusterrole failed: %s", err)
 	}
-	klog.Info("ClusterRole " + clusterRole.Name + " has been created.")
+	klog.Info("ClusterRole " + kosmosCR.Name + " has been created.")
 
-	clusterRoleBinding, err := util.GenerateClusterRoleBinding(manifest.KosmosClusterRoleBinding, manifest.ClusterRoleBindingReplace{
-		Namespace: utils.DefaultNamespace,
+	kosmosCRB, err := util.GenerateClusterRoleBinding(manifest.KosmosClusterRoleBinding, manifest.ClusterRoleBindingReplace{
+		Namespace: o.Namespace,
 	})
 	if err != nil {
 		return fmt.Errorf("kosmosctl join run error, generate clusterrolebinding failed: %s", err)
 	}
-	_, err = o.K8sClient.RbacV1().ClusterRoleBindings().Create(context.TODO(), clusterRoleBinding, metav1.CreateOptions{})
+	_, err = o.K8sClient.RbacV1().ClusterRoleBindings().Create(context.TODO(), kosmosCRB, metav1.CreateOptions{})
 	if err != nil && !apierrors.IsAlreadyExists(err) {
 		return fmt.Errorf("kosmosctl join run error, create clusterrolebinding failed: %s", err)
 	}
-	klog.Info("ClusterRoleBinding " + clusterRoleBinding.Name + " has been created.")
+	klog.Info("ClusterRoleBinding " + kosmosCRB.Name + " has been created.")
 
-	serviceAccount, err := util.GenerateServiceAccount(manifest.KosmosOperatorServiceAccount, manifest.ServiceAccountReplace{
-		Namespace: utils.DefaultNamespace,
+	kosmosOperatorSA, err := util.GenerateServiceAccount(manifest.KosmosOperatorServiceAccount, manifest.ServiceAccountReplace{
+		Namespace: o.Namespace,
 	})
 	if err != nil {
 		return fmt.Errorf("kosmosctl join run error, generate serviceaccount failed: %s", err)
 	}
-	_, err = o.K8sClient.CoreV1().ServiceAccounts(serviceAccount.Namespace).Create(context.TODO(), serviceAccount, metav1.CreateOptions{})
+	_, err = o.K8sClient.CoreV1().ServiceAccounts(kosmosOperatorSA.Namespace).Create(context.TODO(), kosmosOperatorSA, metav1.CreateOptions{})
 	if err != nil && !apierrors.IsAlreadyExists(err) {
 		return fmt.Errorf("kosmosctl join run error, create serviceaccount failed: %s", err)
 	}
-	klog.Info("ServiceAccount " + serviceAccount.Name + " has been created.")
+	klog.Info("ServiceAccount " + kosmosOperatorSA.Name + " has been created.")
 
 	//ToDo Wait for all services to be running
 
