@@ -2,13 +2,20 @@ package utils
 
 import (
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	v1resource "k8s.io/kubernetes/pkg/api/v1/resource"
+)
+
+const (
+	podResourceName corev1.ResourceName = "pods"
 )
 
 func CalculateClusterResources(nodes *corev1.NodeList, pods *corev1.PodList) corev1.ResourceList {
 	base := GetNodesTotalResources(nodes)
 	reqs, _ := GetPodsTotalRequestsAndLimits(pods)
+	podNums := GetUsedPodNums(pods)
 	SubResourceList(base, reqs)
+	SubResourceList(base, podNums)
 	return base
 }
 
@@ -68,5 +75,20 @@ func GetPodsTotalRequestsAndLimits(podList *corev1.PodList) (reqs corev1.Resourc
 			}
 		}
 	}
+	return
+}
+
+func GetUsedPodNums(podList *corev1.PodList) (res corev1.ResourceList) {
+	podQuantity := resource.Quantity{}
+	res = corev1.ResourceList{}
+	for _, p := range podList.Items {
+		pod := p
+		if IsVirtualPod(&pod) {
+			continue
+		}
+		q := resource.MustParse("1")
+		podQuantity.Add(q)
+	}
+	res[podResourceName] = podQuantity
 	return
 }

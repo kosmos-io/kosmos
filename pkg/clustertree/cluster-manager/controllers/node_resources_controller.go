@@ -126,10 +126,7 @@ func (c *NodeResourcesController) Reconcile(ctx context.Context, request reconci
 			}, err
 		}
 
-		clusterResources := utils.CalculateClusterResources(nodesInLeaf, pods)
 		clone := nodeInRoot.DeepCopy()
-		clone.Status.Allocatable = clusterResources
-		clone.Status.Capacity = clusterResources
 		clone.Status.Conditions = utils.NodeConditions()
 
 		// Node2Node mode should sync leaf node's labels and annotations to root nodeInRoot
@@ -155,6 +152,10 @@ func (c *NodeResourcesController) Reconcile(ctx context.Context, request reconci
 				clone.Status.Addresses = leafUtils.GetAddress()
 			}
 		}
+
+		clusterResources := utils.CalculateClusterResources(nodesInLeaf, pods)
+		clone.Status.Allocatable = clusterResources
+		clone.Status.Capacity = clusterResources
 
 		patch, err := utils.CreateMergePatch(nodeInRoot, clone)
 		if err != nil {
