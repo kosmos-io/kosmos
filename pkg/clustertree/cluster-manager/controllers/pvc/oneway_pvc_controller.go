@@ -153,7 +153,7 @@ func (c *OnewayPVCController) ensureLeafPVC(ctx context.Context, leaf *leafUtils
 	newPVC := pvc.DeepCopy()
 
 	anno := newPVC.GetAnnotations()
-	anno = utils.AddResourceOwnersAnnotations(anno, leaf.ClusterName)
+	anno = utils.AddResourceClusters(anno, leaf.ClusterName)
 	anno[utils.KosmosGlobalLabel] = "true"
 	newPVC.SetAnnotations(anno)
 

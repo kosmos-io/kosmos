@@ -235,9 +235,15 @@ func (c *ClusterController) clearClusterControllers(cluster *kosmosv1alpha1.Clus
 	c.GlobalLeafManager.RemoveLeafResource(cluster.Name)
 }
 
-func (c *ClusterController) setupControllers(mgr manager.Manager, cluster *kosmosv1alpha1.Cluster, nodes []*corev1.Node, clientDynamic *dynamic.DynamicClient, leafClientset kubernetes.Interface, kosmosClient kosmosversioned.Interface, leafRestConfig *rest.Config) error {
-	clusterName := c.LeafModelHandler.GetGlobalLeafManagerClusterName(cluster)
-	c.GlobalLeafManager.AddLeafResource(clusterName, &leafUtils.LeafResource{
+func (c *ClusterController) setupControllers(
+	mgr manager.Manager,
+	cluster *kosmosv1alpha1.Cluster,
+	nodes []*corev1.Node,
+	clientDynamic *dynamic.DynamicClient,
+	leafClientset kubernetes.Interface,
+	kosmosClient kosmosversioned.Interface,
+	leafRestConfig *rest.Config) error {
+	c.GlobalLeafManager.AddLeafResource(&leafUtils.LeafResource{
 		Client:        mgr.GetClient(),
 		DynamicClient: clientDynamic,
 		Clientset:     leafClientset,
@@ -248,7 +254,7 @@ func (c *ClusterController) setupControllers(mgr manager.Manager, cluster *kosmo
 		IgnoreLabels:         strings.Split("", ","),
 		EnableServiceAccount: true,
 		RestConfig:           leafRestConfig,
-	}, cluster.Spec.ClusterTreeOptions.LeafModels, nodes)
+	}, cluster, nodes)
 
 	nodeResourcesController := controllers.NodeResourcesController{
 		Leaf:              mgr.GetClient(),

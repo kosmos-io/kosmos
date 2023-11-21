@@ -282,7 +282,7 @@ func IsObjectUnstructuredGlobal(obj map[string]string) bool {
 	return false
 }
 
-func AddResourceOwnersAnnotations(anno map[string]string, owner string) map[string]string {
+func AddResourceClusters(anno map[string]string, clusterName string) map[string]string {
 	if anno == nil {
 		anno = map[string]string{}
 	}
@@ -295,28 +295,28 @@ func AddResourceOwnersAnnotations(anno map[string]string, owner string) map[stri
 			continue
 		}
 		newowners = append(newowners, v)
-		if v == owner {
+		if v == clusterName {
 			// already existed
 			flag = true
 		}
 	}
 
 	if !flag {
-		newowners = append(newowners, owner)
+		newowners = append(newowners, clusterName)
 	}
 
 	anno[KosmosResourceOwnersAnnotations] = strings.Join(newowners, ",")
 	return anno
 }
 
-func HasResourceOwnersAnnotations(anno map[string]string, owner string) bool {
+func HasResourceClusters(anno map[string]string, clusterName string) bool {
 	if anno == nil {
 		anno = map[string]string{}
 	}
 	owners := strings.Split(anno[KosmosResourceOwnersAnnotations], ",")
 
 	for _, v := range owners {
-		if v == owner {
+		if v == clusterName {
 			// already existed
 			return true
 		}
@@ -324,7 +324,7 @@ func HasResourceOwnersAnnotations(anno map[string]string, owner string) bool {
 	return false
 }
 
-func ListResourceOwnersAnnotations(anno map[string]string) []string {
+func ListResourceClusters(anno map[string]string) []string {
 	if anno == nil || anno[KosmosResourceOwnersAnnotations] == "" {
 		return []string{}
 	}

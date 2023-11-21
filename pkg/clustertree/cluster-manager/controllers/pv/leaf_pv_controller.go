@@ -102,7 +102,7 @@ func (l *LeafPVController) Reconcile(ctx context.Context, request reconcile.Requ
 
 		rootPV.Spec.ClaimRef.UID = rootPVC.UID
 		rootPV.Spec.ClaimRef.ResourceVersion = rootPVC.ResourceVersion
-		utils.AddResourceOwnersAnnotations(rootPV.Annotations, l.ClusterName)
+		utils.AddResourceClusters(rootPV.Annotations, l.ClusterName)
 
 		rootPV, err = l.RootClientSet.CoreV1().PersistentVolumes().Create(ctx, rootPV, metav1.CreateOptions{})
 		if err != nil || rootPV == nil {
@@ -113,7 +113,7 @@ func (l *LeafPVController) Reconcile(ctx context.Context, request reconcile.Requ
 		return reconcile.Result{}, nil
 	}
 
-	if !utils.HasResourceOwnersAnnotations(rootPV.Annotations, l.ClusterName) {
+	if !utils.HasResourceClusters(rootPV.Annotations, l.ClusterName) {
 		klog.Errorf("meet the same name root pv name: %q !", request.NamespacedName.Name)
 		return reconcile.Result{}, nil
 	}
@@ -152,7 +152,7 @@ func (l *LeafPVController) Reconcile(ctx context.Context, request reconcile.Requ
 	pvCopy.Spec.NodeAffinity = rootPV.Spec.NodeAffinity
 	pvCopy.UID = rootPV.UID
 	pvCopy.ResourceVersion = rootPV.ResourceVersion
-	utils.AddResourceOwnersAnnotations(pvCopy.Annotations, l.ClusterName)
+	utils.AddResourceClusters(pvCopy.Annotations, l.ClusterName)
 
 	if utils.IsPVEqual(rootPV, pvCopy) {
 		return reconcile.Result{}, nil

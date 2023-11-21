@@ -75,7 +75,9 @@ const (
 	KosmosTrippedLabels    = "kosmos-io/tripped"
 	KosmosPvcLabelSelector = "kosmos-io/label-selector"
 
-	KosmosResourceOwnersAnnotations     = "kosmos-io/cluster-owners"
+	// on resorce (pv, configmap, secret), represents which cluster this resource belongs to
+	KosmosResourceOwnersAnnotations = "kosmos-io/cluster-owners"
+	// on node, represents which cluster this node belongs to
 	KosmosNodeOwnedByClusterAnnotations = "kosmos-io/owned-by-cluster"
 
 	KosmosDaemonsetAllowAnnotations = "kosmos-io/daemonset-allow"

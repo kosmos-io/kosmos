@@ -162,7 +162,7 @@ func (c *OnewayPVController) ensureLeafPV(ctx context.Context, leaf *leafUtils.L
 	newPV.Spec.ClaimRef.UID = pvc.UID
 
 	anno := newPV.GetAnnotations()
-	anno = utils.AddResourceOwnersAnnotations(anno, leaf.ClusterName)
+	anno = utils.AddResourceClusters(anno, leaf.ClusterName)
 	anno[utils.KosmosGlobalLabel] = "true"
 	newPV.SetAnnotations(anno)
 

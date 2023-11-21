@@ -59,9 +59,9 @@ func (n *NodeServer) getClient(ctx context.Context, namespace string, podName st
 		return nil, nil, err
 	}
 
-	nodename := rootPod.Spec.NodeName
+	nodeName := rootPod.Spec.NodeName
 
-	lr, err := n.GlobalLeafManager.GetLeafResourceByNodeName(nodename)
+	lr, err := n.GlobalLeafManager.GetLeafResourceByNodeName(nodeName)
 	if err != nil {
 		return nil, nil, err
 	}
