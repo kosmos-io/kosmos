@@ -21,9 +21,6 @@ type LeafModelHandler interface {
 	// GetLeafModelType returns the leafModelType for a Cluster
 	GetLeafModelType() LeafModelType
 
-	// GetGlobalLeafManagerClusterName returns the clusterName for a Cluster's GlobalLeafManager
-	GetGlobalLeafManagerClusterName(cluster *kosmosv1alpha1.Cluster) string
-
 	// GetLeafNodes returns nodes in leaf cluster by the rootNode
 	GetLeafNodes(ctx context.Context, rootNode *corev1.Node) (*corev1.NodeList, error)
 
@@ -138,12 +135,6 @@ func (h AggregationModelHandler) GetLeafNodes(ctx context.Context, _ *corev1.Nod
 	return nodesInLeaf, nil
 }
 
-// GetGlobalLeafManagerClusterName returns the clusterName for a Cluster's GlobalLeafManager
-func (h AggregationModelHandler) GetGlobalLeafManagerClusterName(cluster *kosmosv1alpha1.Cluster) string {
-	clusterName := fmt.Sprintf("%s%s", utils.KosmosNodePrefix, cluster.Name)
-	return clusterName
-}
-
 // GetLeafModelType returns the leafModelType for a Cluster
 func (h AggregationModelHandler) GetLeafModelType() LeafModelType {
 	return AggregationModel
@@ -250,10 +241,6 @@ func (h DispersionModelHandler) GetLeafNodes(ctx context.Context, rootNode *core
 		return nil, err
 	}
 	return nodesInLeaf, nil
-}
-
-func (h DispersionModelHandler) GetGlobalLeafManagerClusterName(cluster *kosmosv1alpha1.Cluster) string {
-	return cluster.Name
 }
 
 func (h DispersionModelHandler) GetLeafModelType() LeafModelType {

@@ -52,7 +52,7 @@ func (r *RootPVController) SetupWithManager(mgr manager.Manager) error {
 				}
 
 				pv := deleteEvent.Object.(*v1.PersistentVolume)
-				clusters := utils.ListResourceOwnersAnnotations(pv.Annotations)
+				clusters := utils.ListResourceClusters(pv.Annotations)
 				if len(clusters) == 0 {
 					klog.Warningf("pv leaf %q doesn't existed", deleteEvent.Object.GetName())
 					return false

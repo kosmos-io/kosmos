@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 
 	corev1 "k8s.io/api/core/v1"
@@ -47,17 +48,22 @@ type LeafResource struct {
 }
 
 type LeafResourceManager interface {
-	AddLeafResource(string, *LeafResource, []kosmosv1alpha1.LeafModel, []*corev1.Node)
-	RemoveLeafResource(string)
+	AddLeafResource(lr *LeafResource, cluster *kosmosv1alpha1.Cluster, node []*corev1.Node)
+	RemoveLeafResource(clusterName string)
 	// get leafresource by cluster name
-	GetLeafResource(string) (*LeafResource, error)
-	// get leafresource by knode name
-	GetLeafResourceByNodeName(string) (*LeafResource, error)
-	// judge if the map has leafresource of nodename
-	Has(string) bool
-	HasNodeName(string) bool
-	ListNodeNames() []string
-	GetClusterNode(string) *ClusterNode
+	GetLeafResource(clusterName string) (*LeafResource, error)
+	// get leafresource by node name
+	GetLeafResourceByNodeName(nodeName string) (*LeafResource, error)
+	// determine if the cluster is present in the map
+	HasCluster(clusterName string) bool
+	// determine if the node is present in the map
+	HasNode(nodeName string) bool
+	// list all all node name
+	ListNodes() []string
+	// list all all cluster name
+	ListClusters() []string
+	// get ClusterNode(struct) by node name
+	GetClusterNode(nodeName string) *ClusterNode
 }
 
 type leafResourceManager struct {
@@ -65,11 +71,8 @@ type leafResourceManager struct {
 	leafResourceManagersLock sync.Mutex
 }
 
-func GetLeafResourceClusterName(cluster *kosmosv1alpha1.Cluster) string {
-	if cluster.Spec.ClusterTreeOptions.LeafModels != nil {
-		return cluster.Name
-	}
-	return fmt.Sprintf("%s%s", utils.KosmosNodePrefix, cluster.Name)
+func trimNamePrefix(name string) string {
+	return strings.TrimPrefix(name, utils.KosmosNodePrefix)
 }
 
 func has(clusternodes []ClusterNode, target string) bool {
@@ -90,9 +93,14 @@ func getClusterNode(clusternodes []ClusterNode, target string) *ClusterNode {
 	return nil
 }
 
-func (l *leafResourceManager) AddLeafResource(clustername string, lptr *LeafResource, leafModels []kosmosv1alpha1.LeafModel, nodes []*corev1.Node) {
+func (l *leafResourceManager) AddLeafResource(lptr *LeafResource, cluster *kosmosv1alpha1.Cluster, nodes []*corev1.Node) {
 	l.leafResourceManagersLock.Lock()
 	defer l.leafResourceManagersLock.Unlock()
+
+	clusterName := cluster.Name
+
+	leafModels := cluster.Spec.ClusterTreeOptions.LeafModels
+
 	clusterNodes := []ClusterNode{}
 	for i, n := range nodes {
 		if leafModels != nil && len(leafModels[i].NodeSelector.NodeName) > 0 {
@@ -101,50 +109,51 @@ func (l *leafResourceManager) AddLeafResource(clustername string, lptr *LeafReso
 				LeafMode: Node,
 			})
 			// } else if leafModels != nil && leafModels[i].NodeSelector.LabelSelector != nil {
-			// 	// TODO:
+			// TODO: support labelselector
 		} else {
 			clusterNodes = append(clusterNodes, ClusterNode{
-				NodeName: n.Name,
+				NodeName: trimNamePrefix(n.Name),
 				LeafMode: ALL,
 			})
 		}
 	}
 	lptr.Nodes = clusterNodes
-	l.resourceMap[clustername] = lptr
+	l.resourceMap[clusterName] = lptr
 }
 
-func (l *leafResourceManager) RemoveLeafResource(clustername string) {
+func (l *leafResourceManager) RemoveLeafResource(clusterName string) {
 	l.leafResourceManagersLock.Lock()
 	defer l.leafResourceManagersLock.Unlock()
-	delete(l.resourceMap, clustername)
+	delete(l.resourceMap, clusterName)
 }
 
-func (l *leafResourceManager) GetLeafResource(clustername string) (*LeafResource, error) {
+func (l *leafResourceManager) GetLeafResource(clusterName string) (*LeafResource, error) {
 	l.leafResourceManagersLock.Lock()
 	defer l.leafResourceManagersLock.Unlock()
-	if m, ok := l.resourceMap[clustername]; ok {
+	if m, ok := l.resourceMap[clusterName]; ok {
 		return m, nil
 	} else {
-		return nil, fmt.Errorf("cannot get leaf resource, clustername: %s", clustername)
+		return nil, fmt.Errorf("cannot get leaf resource, clusterName: %s", clusterName)
 	}
 }
 
-func (l *leafResourceManager) GetLeafResourceByNodeName(nodename string) (*LeafResource, error) {
+func (l *leafResourceManager) GetLeafResourceByNodeName(nodeName string) (*LeafResource, error) {
 	l.leafResourceManagersLock.Lock()
 	defer l.leafResourceManagersLock.Unlock()
-
+	nodeName = trimNamePrefix(nodeName)
 	for k := range l.resourceMap {
-		if has(l.resourceMap[k].Nodes, nodename) {
+		if has(l.resourceMap[k].Nodes, nodeName) {
 			return l.resourceMap[k], nil
 		}
 	}
 
-	return nil, fmt.Errorf("cannot get leaf resource, nodename: %s", nodename)
+	return nil, fmt.Errorf("cannot get leaf resource, nodeName: %s", nodeName)
 }
 
-func (l *leafResourceManager) HasNodeName(nodename string) bool {
+func (l *leafResourceManager) HasNode(nodeName string) bool {
+	nodeName = trimNamePrefix(nodeName)
 	for k := range l.resourceMap {
-		if has(l.resourceMap[k].Nodes, nodename) {
+		if has(l.resourceMap[k].Nodes, nodeName) {
 			return true
 		}
 	}
@@ -152,7 +161,7 @@ func (l *leafResourceManager) HasNodeName(nodename string) bool {
 	return false
 }
 
-func (l *leafResourceManager) Has(clustername string) bool {
+func (l *leafResourceManager) HasCluster(clustername string) bool {
 	for k := range l.resourceMap {
 		if k == clustername {
 			return true
@@ -162,19 +171,34 @@ func (l *leafResourceManager) Has(clustername string) bool {
 	return false
 }
 
-func (l *leafResourceManager) GetClusterNode(nodename string) *ClusterNode {
+func (l *leafResourceManager) GetClusterNode(nodeName string) *ClusterNode {
+	nodeName = trimNamePrefix(nodeName)
 	for k := range l.resourceMap {
-		if clusterNode := getClusterNode(l.resourceMap[k].Nodes, nodename); clusterNode != nil {
+		if clusterNode := getClusterNode(l.resourceMap[k].Nodes, nodeName); clusterNode != nil {
 			return clusterNode
 		}
 	}
 	return nil
 }
 
-func (l *leafResourceManager) ListNodeNames() []string {
+func (l *leafResourceManager) ListClusters() []string {
 	l.leafResourceManagersLock.Lock()
 	defer l.leafResourceManagersLock.Unlock()
-	keys := make([]string, 0, len(l.resourceMap))
+	keys := make([]string, 0)
+	for k := range l.resourceMap {
+		if len(k) == 0 {
+			continue
+		}
+
+		keys = append(keys, k)
+	}
+	return keys
+}
+
+func (l *leafResourceManager) ListNodes() []string {
+	l.leafResourceManagersLock.Lock()
+	defer l.leafResourceManagersLock.Unlock()
+	keys := make([]string, 0)
 	for k := range l.resourceMap {
 		if len(k) == 0 {
 			continue

@@ -96,7 +96,7 @@ func (l *LeafPVCController) Reconcile(ctx context.Context, request reconcile.Req
 	delete(pvcCopy.Annotations, utils.PVCSelectedNodeKey)
 	pvcCopy.ResourceVersion = rootPVC.ResourceVersion
 	pvcCopy.OwnerReferences = rootPVC.OwnerReferences
-	utils.AddResourceOwnersAnnotations(pvcCopy.Annotations, l.ClusterName)
+	utils.AddResourceClusters(pvcCopy.Annotations, l.ClusterName)
 	pvcCopy.Spec = rootPVC.Spec
 	klog.V(4).Infof("rootPVC %+v\n, pvc %+v", rootPVC, pvcCopy)
 

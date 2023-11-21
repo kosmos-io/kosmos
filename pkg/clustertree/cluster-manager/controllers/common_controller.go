@@ -44,7 +44,7 @@ type SyncResourcesReconciler struct {
 }
 
 func (r *SyncResourcesReconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
-	var owners []string
+	var clusters []string
 	rootobj, err := r.DynamicRootClient.Resource(r.GroupVersionResource).Namespace(request.Namespace).Get(ctx, request.Name, metav1.GetOptions{})
 	if err != nil && !errors.IsNotFound(err) {
 		klog.Errorf("get %s error: %v", request.NamespacedName, err)
@@ -53,16 +53,16 @@ func (r *SyncResourcesReconciler) Reconcile(ctx context.Context, request reconci
 
 	if err != nil && errors.IsNotFound(err) {
 		// delete all
-		owners = r.GlobalLeafManager.ListNodeNames()
+		clusters = r.GlobalLeafManager.ListClusters()
 	} else {
-		owners = utils.ListResourceOwnersAnnotations(rootobj.GetAnnotations())
+		clusters = utils.ListResourceClusters(rootobj.GetAnnotations())
 	}
 
-	for _, owner := range owners {
-		if r.GlobalLeafManager.Has(owner) {
-			lr, err := r.GlobalLeafManager.GetLeafResource(owner)
+	for _, cluster := range clusters {
+		if r.GlobalLeafManager.HasCluster(cluster) {
+			lr, err := r.GlobalLeafManager.GetLeafResource(cluster)
 			if err != nil {
-				klog.Errorf("get lr(owner: %s) err: %v", owner, err)
+				klog.Errorf("get lr(cluster: %s) err: %v", cluster, err)
 				return reconcile.Result{RequeueAfter: SyncResourcesRequeueTime}, nil
 			}
 			if err = r.SyncResource(ctx, request, lr); err != nil {
@@ -115,7 +115,7 @@ func (r *SyncResourcesReconciler) SetupWithManager(mgr manager.Manager, gvr sche
 }
 
 func (r *SyncResourcesReconciler) SyncResource(ctx context.Context, request reconcile.Request, lr *leafUtils.LeafResource) error {
-	klog.V(5).Infof("Started sync resource processing, ns: %s, name: %s", request.Namespace, request.Name)
+	klog.V(4).Infof("Started sync resource processing, ns: %s, name: %s", request.Namespace, request.Name)
 
 	deleteSecretInClient := false
 
@@ -146,7 +146,7 @@ func (r *SyncResourcesReconciler) SyncResource(ctx context.Context, request reco
 			}
 			return err
 		}
-		klog.V(5).Infof("%s %q deleted", r.GroupVersionResource.Resource, request.Name)
+		klog.V(4).Infof("%s %q deleted", r.GroupVersionResource.Resource, request.Name)
 		return nil
 	}
 

@@ -57,7 +57,7 @@ func (r *LeafPodReconciler) Reconcile(ctx context.Context, request reconcile.Req
 		podutils.FitObjectMeta(&podCopy.ObjectMeta)
 		podCopy.ResourceVersion = "0"
 		if err := r.RootClient.Status().Update(ctx, podCopy); err != nil && !apierrors.IsNotFound(err) {
-			klog.V(5).Info(errors.Wrap(err, "error while updating pod status in kubernetes"))
+			klog.V(4).Info(errors.Wrap(err, "error while updating pod status in kubernetes"))
 			return reconcile.Result{RequeueAfter: LeafPodRequeueTime}, nil
 		}
 	}
