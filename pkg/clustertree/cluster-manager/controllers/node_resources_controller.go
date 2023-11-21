@@ -144,8 +144,8 @@ func (c *NodeResourcesController) Reconcile(ctx context.Context, request reconci
 			}
 			node := getNode(nodesInLeaf)
 			if node != nil {
-				clone.Labels = mergeMap(clone.GetLabels(), node.GetLabels())
-				clone.Annotations = mergeMap(clone.GetAnnotations(), node.GetAnnotations())
+				clone.Labels = mergeMap(node.GetLabels(), clone.GetLabels())
+				clone.Annotations = mergeMap(node.GetAnnotations(), clone.GetAnnotations())
 				spec := corev1.NodeSpec{
 					Taints: rootNode.Spec.Taints,
 				}
