@@ -7,7 +7,7 @@ set -o pipefail
 CURRENT="$(dirname "${BASH_SOURCE[0]}")"
 ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 DEFAULT_NAMESPACE="kosmos-system"
-KIND_IMAGE="ghcr.io/kosmos-io/kindest/node:v1.25.3_1"
+KIND_IMAGE="ghcr.io/kosmos-io/node:v1.25.3"
 # true: when cluster is exist, reuse exist one!
 REUSE=${REUSE:-false}
 VERSION=${VERSION:-latest}
@@ -175,7 +175,7 @@ function load_cluster_images() {
     kind load docker-image -n "$clustername" ghcr.io/kosmos-io/clusterlink-network-manager:"${VERSION}"
     kind load docker-image -n "$clustername" ghcr.io/kosmos-io/clusterlink-controller-manager:"${VERSION}"
     kind load docker-image -n "$clustername" ghcr.io/kosmos-io/clusterlink-elector:"${VERSION}"
-    kind load docker-image -n "$clustername" ghcr.io/kosmos-io/clusterlink-operator:"${VERSION}"
+    kind load docker-image -n "$clustername" ghcr.io/kosmos-io/kosmos-operator:latest:"${VERSION}"
     kind load docker-image -n "$clustername" ghcr.io/kosmos-io/clusterlink-agent:"${VERSION}"
     kind load docker-image -n "$clustername" ghcr.io/kosmos-io/clusterlink-proxy:"${VERSION}"
     kind load docker-image -n "$clustername" ghcr.io/kosmos-io/clustertree-cluster-manager:"${VERSION}"
