@@ -715,31 +715,11 @@ func (r *RootPodReconciler) CreatePodInLeafCluster(ctx context.Context, lr *leaf
 	klog.V(4).Infof("Creating pod %v/%+v", pod.Namespace, pod.Name)
 
 	// create ns
-	ns := &corev1.Namespace{}
-	nsKey := types.NamespacedName{
-		Name: basicPod.Namespace,
-	}
-	if err := lr.Client.Get(ctx, nsKey, ns); err != nil {
-		if !errors.IsNotFound(err) {
-			// cannot get ns in root cluster, retry
-			return err
-		}
-		klog.V(4).Infof("Namespace %s does not exist for pod %s, creating it", basicPod.Namespace, basicPod.Name)
-		ns := &corev1.Namespace{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: basicPod.Namespace,
-			},
-		}
-
-		if createErr := lr.Client.Create(ctx, ns); createErr != nil {
-			if !errors.IsAlreadyExists(createErr) {
-				klog.V(4).Infof("Namespace %s create failed error: %v", basicPod.Namespace, createErr)
-				return err
-			} else {
-				// namespace already existed, skip create
-				klog.V(4).Info("Namespace %s already existed: %v", basicPod.Namespace, createErr)
-			}
-		}
+	if err := r.createNsInLeafCluster(ctx, lr, basicPod); err != nil {
+		klog.Errorf("Creating NameSpace error %+v", basicPod)
+		return err
+	} else {
+		klog.V(4).Infof("Creating NameSpace successed %+v", basicPod)
 	}
 
 	if err := r.createVolumes(ctx, lr, basicPod, clusterNodeInfo); err != nil {
@@ -830,5 +810,42 @@ func (r *RootPodReconciler) DeletePodInLeafCluster(ctx context.Context, lr *leaf
 		return fmt.Errorf("could not delete pod: %v", err)
 	}
 	klog.V(4).Infof("Delete pod %v/%+v success", leafPod.Namespace, leafPod.Name)
+	return nil
+}
+
+func (r *RootPodReconciler) createNsInLeafCluster(ctx context.Context, lr *leafUtils.LeafResource, basicPod *corev1.Pod) error {
+	ns := &corev1.Namespace{}
+	nsKey := types.NamespacedName{
+		Name: basicPod.Namespace,
+	}
+	if err := lr.Client.Get(ctx, nsKey, ns); err != nil {
+		if !errors.IsNotFound(err) {
+			// cannot get ns in root cluster, retry
+			return err
+		}
+		klog.V(5).Infof("Namespace %s does not exist for pod %s, creating it", basicPod.Namespace, basicPod.Name)
+		//root ns
+		if err = r.Client.Get(ctx, nsKey, ns); err != nil {
+			return fmt.Errorf("could not get resource gvr(%v) %s from root cluster: %v", utils.GVR_NAMESPACE, basicPod.Namespace, err)
+		}
+		annotations := utils.AddResourceClusters(ns.Annotations, lr.ClusterName)
+		ns.Annotations[utils.KosmosGlobalLabel] = "true"
+		ns.SetAnnotations(annotations)
+		// update root ns annotations
+		if err = r.Client.Update(ctx, ns); err != nil {
+			return fmt.Errorf("could not update annotations of resource gvr(%v) %s for root cluster: %v", utils.GVR_NAMESPACE, ns.GetName(), err)
+		}
+		// filter
+		leafNs := utils.FitNs(ns)
+		if createErr := lr.Client.Create(ctx, leafNs); createErr != nil {
+			if !errors.IsAlreadyExists(createErr) {
+				klog.V(5).Infof("Namespace %s create failed error: %v", basicPod.Namespace, createErr)
+				return err
+			} else {
+				// namespace already existed, skip create
+				klog.V(5).Info("Namespace %s already existed: %v", basicPod.Namespace, createErr)
+			}
+		}
+	}
 	return nil
 }

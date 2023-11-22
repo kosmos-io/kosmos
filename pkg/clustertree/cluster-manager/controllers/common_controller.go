@@ -26,11 +26,12 @@ import (
 
 const SyncResourcesRequeueTime = 10 * time.Second
 
-var SYNC_GVRS = []schema.GroupVersionResource{utils.GVR_CONFIGMAP, utils.GVR_SECRET}
-var SYNC_OBJS = []client.Object{&corev1.ConfigMap{}, &corev1.Secret{}}
+var SYNC_GVRS = []schema.GroupVersionResource{utils.GVR_CONFIGMAP, utils.GVR_SECRET, utils.GVR_NAMESPACE}
+var SYNC_OBJS = []client.Object{&corev1.ConfigMap{}, &corev1.Secret{}, &corev1.Namespace{}}
 
 const SYNC_KIND_CONFIGMAP = "ConfigMap"
 const SYNC_KIND_SECRET = "Secret"
+const SYNC_KIND_NAMESPACE = "Namespace"
 
 type SyncResourcesReconciler struct {
 	GroupVersionResource schema.GroupVersionResource
@@ -169,6 +170,8 @@ func (r *SyncResourcesReconciler) SyncResource(ctx context.Context, request reco
 		latest, unstructerr = utils.UpdateUnstructured(old, obj, &corev1.ConfigMap{}, &corev1.ConfigMap{}, utils.UpdateConfigMap)
 	case SYNC_KIND_SECRET:
 		latest, unstructerr = utils.UpdateUnstructured(old, obj, &corev1.Secret{}, &corev1.Secret{}, utils.UpdateSecret)
+	case SYNC_KIND_NAMESPACE:
+		latest, unstructerr = utils.UpdateUnstructured(old, obj, &corev1.Namespace{}, &corev1.Namespace{}, utils.UpdateNamespace)
 	}
 
 	if unstructerr != nil {
