@@ -13,7 +13,7 @@ const (
 func CalculateClusterResources(nodes *corev1.NodeList, pods *corev1.PodList) corev1.ResourceList {
 	base := GetNodesTotalResources(nodes)
 	reqs, _ := GetPodsTotalRequestsAndLimits(pods)
-	podNums := GetUsedPodNums(pods)
+	podNums := GetUsedPodNums(pods, nodes)
 	SubResourceList(base, reqs)
 	SubResourceList(base, podNums)
 	return base
@@ -78,12 +78,20 @@ func GetPodsTotalRequestsAndLimits(podList *corev1.PodList) (reqs corev1.Resourc
 	return
 }
 
-func GetUsedPodNums(podList *corev1.PodList) (res corev1.ResourceList) {
+func GetUsedPodNums(podList *corev1.PodList, nodes *corev1.NodeList) (res corev1.ResourceList) {
 	podQuantity := resource.Quantity{}
 	res = corev1.ResourceList{}
+	nodeMap := map[string]corev1.Node{}
+	for _, item := range nodes.Items {
+		nodeMap[item.Name] = item
+	}
 	for _, p := range podList.Items {
 		pod := p
 		if IsVirtualPod(&pod) {
+			continue
+		}
+		node, exists := nodeMap[pod.Spec.NodeName]
+		if !exists || node.Spec.Unschedulable || !NodeReady(&node) {
 			continue
 		}
 		q := resource.MustParse("1")
