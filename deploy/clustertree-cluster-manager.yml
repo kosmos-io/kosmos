@@ -70,6 +70,8 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
+            - name: PREFERRED-ADDRESS-TYPE
+              value: InternalDNS
           volumeMounts:
             - name: credentials
               mountPath: "/etc/cluster-tree/cert"

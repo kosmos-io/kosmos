@@ -67,7 +67,7 @@ func (h AggregationModelHandler) CreateNodeInRoot(ctx context.Context, cluster *
 			},
 		}
 
-		node.Status.Addresses = GetAddress()
+		// node.Status.Addresses = GetAddress()
 
 		node, err = h.RootClientset.CoreV1().Nodes().Create(ctx, node, metav1.CreateOptions{})
 		if err != nil {
@@ -99,7 +99,24 @@ func (h AggregationModelHandler) UpdateNodeStatus(ctx context.Context, n []*core
 		clone := node.DeepCopy()
 		clone.Status.Conditions = utils.NodeConditions()
 
+		nodeListInLeaf := &corev1.NodeList{}
+		err = h.LeafClient.List(ctx, nodeListInLeaf)
+		if err != nil {
+			return fmt.Errorf("cannot get node in leaf cluster while update node status err: %v", err)
+		}
+
+		if len(nodeListInLeaf.Items) == 0 {
+			return fmt.Errorf("cannot get node in leaf cluster while update node status, leaf node item is 0")
+		}
+
+		clone.Status.Addresses, err = GetAddress(ctx, h.RootClientset, nodeListInLeaf.Items[0].Status.Addresses)
+
+		if err != nil {
+			return err
+		}
+
 		patch, err := utils.CreateMergePatch(node, clone)
+
 		if err != nil {
 			return fmt.Errorf("cannot get node while update node status %s, err: %v", node.Name, err)
 		}
@@ -177,7 +194,7 @@ func (h DispersionModelHandler) CreateNodeInRoot(ctx context.Context, cluster *k
 					},
 				}
 
-				node.Status.Addresses = GetAddress()
+				// node.Status.Addresses = GetAddress()
 
 				node, err = h.RootClientset.CoreV1().Nodes().Create(ctx, node, metav1.CreateOptions{})
 				if err != nil {
@@ -214,7 +231,10 @@ func (h DispersionModelHandler) UpdateNodeStatus(ctx context.Context, n []*corev
 
 			rootCopy := nodeRoot.DeepCopy()
 			nodeRoot.Status = nodeInLeaf.Status
-			nodeRoot.Status.Addresses = GetAddress()
+			nodeRoot.Status.Addresses, err = GetAddress(ctx, h.RootClientset, nodeInLeaf.Status.Addresses)
+			if err != nil {
+				return err
+			}
 			nodeRoot.Status.Allocatable = rootCopy.Status.Allocatable
 			nodeRoot.Status.Capacity = rootCopy.Status.Capacity
 
