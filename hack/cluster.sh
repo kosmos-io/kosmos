@@ -12,6 +12,10 @@ KIND_IMAGE="ghcr.io/kosmos-io/kindest/node:v1.25.3_1"
 REUSE=${REUSE:-false}
 VERSION=${VERSION:-latest}
 
+# default cert and key for node server https
+CERT=$(cat ${ROOT}/pkg/cert/crt.pem | base64 -w 0)
+KEY=$(cat ${ROOT}/pkg/cert/key.pem | base64 -w 0)
+
 CN_ZONE=${CN_ZONE:-false}
 
 if [ $REUSE == true ]; then
@@ -163,7 +167,7 @@ function deploy_cluster() {
 
    echo "cluster $clustername deploy clusterlink success"
 
-   sed -e "s|__VERSION__|$VERSION|g" -e "w ${ROOT}/environments/clustertree-cluster-manager.yml" "$ROOT"/deploy/clustertree-cluster-manager.yml
+   sed -e "s|__VERSION__|$VERSION|g" -e "s|__CERT__|$CERT|g" -e "s|__KEY__|$KEY|g" -e "w ${ROOT}/environments/clustertree-cluster-manager.yml" "$ROOT"/deploy/clustertree-cluster-manager.yml
    kubectl --context="kind-${clustername}" apply -f "${ROOT}/environments/clustertree-cluster-manager.yml"
 
    echo "cluster $clustername deploy clustertree success"

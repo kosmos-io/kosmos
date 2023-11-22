@@ -22,6 +22,7 @@ import (
 	"k8s.io/kubectl/pkg/util/templates"
 
 	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
+	"github.com/kosmos.io/kosmos/pkg/cert"
 	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/join"
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/manifest"
@@ -64,6 +65,9 @@ type CommandInstallOptions struct {
 	KosmosClient        versioned.Interface
 	K8sClient           kubernetes.Interface
 	K8sExtensionsClient extensionsclient.Interface
+
+	CertEncode string
+	KeyEncode  string
 }
 
 // NewCmdInstall Install the Kosmos control plane in a Kubernetes cluster.
@@ -96,6 +100,9 @@ func NewCmdInstall(f ctlutil.Factory) *cobra.Command {
 	flags.StringVar(&o.IpFamily, "ip-family", string(v1alpha1.IPFamilyTypeIPV4), "Specify the IP protocol version used by network devices, common IP families include IPv4 and IPv6.")
 	flags.StringVar(&o.UseProxy, "use-proxy", "false", "Set whether to enable proxy.")
 	flags.IntVarP(&o.WaitTime, "wait-time", "", utils.DefaultWaitTime, "Wait the specified time for the Kosmos install ready.")
+
+	flags.StringVar(&o.CertEncode, "cert-encode", cert.GetCrtEncode(), "cert base64 string for node server.")
+	flags.StringVar(&o.KeyEncode, "key-encode", cert.GetKeyEncode(), "key base64 string for node server.")
 
 	return cmd
 }
@@ -438,6 +445,23 @@ func (o *CommandInstallOptions) runClustertree() error {
 		}
 	}
 	klog.Info("ConfigMap host-kubeconfig has been created.")
+
+	klog.Info("Start creating kosmos-clustertree secret")
+	clustertreeSecret, err := util.GenerateSecret(manifest.ClusterTreeClusterManagerSecret, manifest.SecretReplace{
+		Namespace: o.Namespace,
+		Cert:      o.CertEncode,
+		Key:       o.KeyEncode,
+	})
+	if err != nil {
+		return err
+	}
+	_, err = o.K8sClient.CoreV1().Secrets(o.Namespace).Create(context.Background(), clustertreeSecret, metav1.CreateOptions{})
+	if err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return fmt.Errorf("kosmosctl install clustertree run error, secret options failed: %v", err)
+		}
+	}
+	klog.Info("Secret has been created. ")
 
 	klog.Info("Start creating kosmos-clustertree Deployment...")
 	clustertreeDeploy, err := util.GenerateDeployment(manifest.ClusterTreeClusterManagerDeployment, manifest.DeploymentReplace{

@@ -179,3 +179,20 @@ func GenerateService(template string, obj interface{}) (*corev1.Service, error) 
 	}
 	return o, nil
 }
+
+func GenerateSecret(template string, obj interface{}) (*corev1.Secret, error) {
+	bs, err := parseTemplate(template, obj)
+	if err != nil {
+		return nil, fmt.Errorf("kosmosctl parsing secret template exception, error: %v", err)
+	} else if bs == nil {
+		return nil, fmt.Errorf("kosmosctl get secret template exception, value is empty")
+	}
+
+	o := &corev1.Secret{}
+
+	if err = runtime.DecodeInto(scheme.Codecs.UniversalDecoder(), bs, o); err != nil {
+		return nil, fmt.Errorf("kosmosctl decode secret bytes error: %v", err)
+	}
+
+	return o, nil
+}
