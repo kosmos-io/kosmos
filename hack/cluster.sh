@@ -45,8 +45,6 @@ function create_cluster() {
       sed -e "s|__POD_CIDR__|$podcidr|g" -e "s|__SERVICE_CIDR__|$servicecidr|g" -e "w ${CLUSTER_DIR}/calicoconfig" "${CURRENT}/clustertemplete/calicoconfig"
     fi
 
-
-
     if [[ "$(kind get clusters | grep -c "${clustername}")" -eq 1 && "${REUSE}" = true ]]; then
       echo "cluster ${clustername} exist reuse it"
     else
@@ -175,7 +173,7 @@ function load_cluster_images() {
     kind load docker-image -n "$clustername" ghcr.io/kosmos-io/clusterlink-network-manager:"${VERSION}"
     kind load docker-image -n "$clustername" ghcr.io/kosmos-io/clusterlink-controller-manager:"${VERSION}"
     kind load docker-image -n "$clustername" ghcr.io/kosmos-io/clusterlink-elector:"${VERSION}"
-    kind load docker-image -n "$clustername" ghcr.io/kosmos-io/kosmos-operator:latest:"${VERSION}"
+    kind load docker-image -n "$clustername" ghcr.io/kosmos-io/kosmos-operator:"${VERSION}"
     kind load docker-image -n "$clustername" ghcr.io/kosmos-io/clusterlink-agent:"${VERSION}"
     kind load docker-image -n "$clustername" ghcr.io/kosmos-io/clusterlink-proxy:"${VERSION}"
     kind load docker-image -n "$clustername" ghcr.io/kosmos-io/clustertree-cluster-manager:"${VERSION}"
