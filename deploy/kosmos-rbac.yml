@@ -1,0 +1,29 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kosmos
+rules:
+  - apiGroups: ['*']
+    resources: ['*']
+    verbs: ["*"]
+  - nonResourceURLs: ['*']
+    verbs: ["*"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kosmos
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kosmos
+subjects:
+  - kind: ServiceAccount
+    name: kosmos-control
+    namespace: kosmos-system
+  - kind: ServiceAccount
+    name: clusterlink-controller-manager
+    namespace: kosmos-system
+  - kind: ServiceAccount
+    name: kosmos-operator
+    namespace: kosmos-system
