@@ -52,26 +52,28 @@ func SubResourceList(base, list corev1.ResourceList) {
 // lifted from https://github.com/kubernetes/kubernetes/blob/v1.21.8/staging/src/k8s.io/kubectl/pkg/describe/describe.go#L4051
 func GetPodsTotalRequestsAndLimits(podList *corev1.PodList) (reqs corev1.ResourceList, limits corev1.ResourceList) {
 	reqs, limits = corev1.ResourceList{}, corev1.ResourceList{}
-	for _, p := range podList.Items {
-		pod := p
-		if IsVirtualPod(&pod) {
-			continue
-		}
-		podReqs, podLimits := v1resource.PodRequestsAndLimits(&pod)
-		for podReqName, podReqValue := range podReqs {
-			if value, ok := reqs[podReqName]; !ok {
-				reqs[podReqName] = podReqValue.DeepCopy()
-			} else {
-				value.Add(podReqValue)
-				reqs[podReqName] = value
+	if podList.Items != nil {
+		for _, p := range podList.Items {
+			pod := p
+			if IsVirtualPod(&pod) {
+				continue
 			}
-		}
-		for podLimitName, podLimitValue := range podLimits {
-			if value, ok := limits[podLimitName]; !ok {
-				limits[podLimitName] = podLimitValue.DeepCopy()
-			} else {
-				value.Add(podLimitValue)
-				limits[podLimitName] = value
+			podReqs, podLimits := v1resource.PodRequestsAndLimits(&pod)
+			for podReqName, podReqValue := range podReqs {
+				if value, ok := reqs[podReqName]; !ok {
+					reqs[podReqName] = podReqValue.DeepCopy()
+				} else {
+					value.Add(podReqValue)
+					reqs[podReqName] = value
+				}
+			}
+			for podLimitName, podLimitValue := range podLimits {
+				if value, ok := limits[podLimitName]; !ok {
+					limits[podLimitName] = podLimitValue.DeepCopy()
+				} else {
+					value.Add(podLimitValue)
+					limits[podLimitName] = value
+				}
 			}
 		}
 	}
