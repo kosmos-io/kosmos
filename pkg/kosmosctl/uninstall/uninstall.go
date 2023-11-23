@@ -319,7 +319,7 @@ func (o *CommandUninstallOptions) runClustertree() error {
 		}
 	} else {
 		klog.Info("Deployment " + clustertreeDeploy.Name + " is deleted.")
-		clustertreeSecret, err := util.GenerateService(manifest.ClusterTreeClusterManagerSecret, manifest.SecretReplace{
+		clustertreeSecret, err := util.GenerateSecret(manifest.ClusterTreeClusterManagerSecret, manifest.SecretReplace{
 			Namespace: o.Namespace,
 			Cert:      "",
 			Key:       "",

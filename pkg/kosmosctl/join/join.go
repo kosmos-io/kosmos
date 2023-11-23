@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
+	extensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -60,9 +61,11 @@ type CommandJoinOptions struct {
 	UseProxy       string
 
 	EnableTree bool
+	LeafModel  string
 
-	KosmosClient versioned.Interface
-	K8sClient    kubernetes.Interface
+	KosmosClient        versioned.Interface
+	K8sClient           kubernetes.Interface
+	K8sExtensionsClient extensionsclient.Interface
 }
 
 // NewCmdJoin join resource to Kosmos control plane.
@@ -99,6 +102,7 @@ func NewCmdJoin(f ctlutil.Factory) *cobra.Command {
 	flags.StringVar(&o.IpFamily, "ip-family", utils.DefaultIPv4, "Specify the IP protocol version used by network devices, common IP families include IPv4 and IPv6.")
 	flags.StringVar(&o.UseProxy, "use-proxy", "false", "Set whether to enable proxy.")
 	flags.BoolVar(&o.EnableTree, "enable-tree", false, "Turn on clustertree.")
+	flags.StringVar(&o.LeafModel, "leaf-model", "", "Set leaf cluster model, which supports one-to-one model.")
 	flags.IntVarP(&o.WaitTime, "wait-time", "", utils.DefaultWaitTime, "Wait the specified time for the Kosmos install ready.")
 
 	return cmd
@@ -147,7 +151,12 @@ func (o *CommandJoinOptions) Complete(f ctlutil.Factory) error {
 
 		o.K8sClient, err = kubernetes.NewForConfig(clusterConfig)
 		if err != nil {
-			return fmt.Errorf("kosmosctl join complete error, generate basic client failed: %v", err)
+			return fmt.Errorf("kosmosctl join complete error, generate K8s basic client failed: %v", err)
+		}
+
+		o.K8sExtensionsClient, err = extensionsclient.NewForConfig(clusterConfig)
+		if err != nil {
+			return fmt.Errorf("kosmosctl join complete error, generate K8s extensions client failed: %v", err)
 		}
 	} else {
 		return fmt.Errorf("kosmosctl join complete error, arg ClusterKubeConfig is required")
@@ -246,10 +255,62 @@ func (o *CommandJoinOptions) runCluster() error {
 		cluster.Spec.ClusterLinkOptions.CNI = o.CNI
 	}
 
-	// ToDo ClusterTree currently has no init parameters, can be expanded later.
-	//if o.EnableTree {
-	//
-	//}
+	if o.EnableTree {
+		serviceExport, err := util.GenerateCustomResourceDefinition(manifest.ServiceExport, nil)
+		if err != nil {
+			return err
+		}
+		_, err = o.K8sExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Create(context.Background(), serviceExport, metav1.CreateOptions{})
+		if err != nil {
+			if !apierrors.IsAlreadyExists(err) {
+				return fmt.Errorf("kosmosctl join run error, crd options failed: %v", err)
+			}
+		}
+		klog.Info("Create CRD " + serviceExport.Name + " successful.")
+
+		serviceImport, err := util.GenerateCustomResourceDefinition(manifest.ServiceImport, nil)
+		if err != nil {
+			return err
+		}
+		_, err = o.K8sExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Create(context.Background(), serviceImport, metav1.CreateOptions{})
+		if err != nil {
+			if !apierrors.IsAlreadyExists(err) {
+				return fmt.Errorf("kosmosctl join run error, crd options failed: %v", err)
+			}
+		}
+		klog.Info("Create CRD " + serviceImport.Name + " successful.")
+
+		if len(o.LeafModel) > 0 {
+			switch o.LeafModel {
+			case "one-to-one":
+				// ToDo Perform follow-up query based on the leaf cluster label
+				nodes, err := o.K8sClient.CoreV1().Nodes().List(context.Background(), metav1.ListOptions{
+					LabelSelector: utils.KosmosNodeJoinLabel + "=" + utils.KosmosNodeJoinValue,
+				})
+				if err != nil {
+					return fmt.Errorf("kosmosctl join run error, list cluster node failed: %v", err)
+				}
+				var leafModels []v1alpha1.LeafModel
+				for _, n := range nodes.Items {
+					leafModel := v1alpha1.LeafModel{
+						LeafNodeName: n.Name,
+						Taints: []corev1.Taint{
+							{
+								Effect: utils.KosmosNodeTaintEffect,
+								Key:    utils.KosmosNodeTaintKey,
+								Value:  utils.KosmosNodeValue,
+							},
+						},
+						NodeSelector: v1alpha1.NodeSelector{
+							NodeName: n.Name,
+						},
+					}
+					leafModels = append(leafModels, leafModel)
+				}
+				cluster.Spec.ClusterTreeOptions.LeafModels = leafModels
+			}
+		}
+	}
 
 	if o.RootFlag {
 		cluster.Annotations = map[string]string{

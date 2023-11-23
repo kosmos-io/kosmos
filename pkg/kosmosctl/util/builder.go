@@ -18,7 +18,6 @@ var (
 	ClusterGVR     = schema.GroupVersionResource{Group: "kosmos.io", Version: "v1alpha1", Resource: "clusters"}
 	ClusterNodeGVR = schema.GroupVersionResource{Group: "kosmos.io", Version: "v1alpha1", Resource: "clusternodes"}
 	NodeConfigGVR  = schema.GroupVersionResource{Group: "kosmos.io", Version: "v1alpha1", Resource: "nodeconfigs"}
-	KnodeGVR       = schema.GroupVersionResource{Group: "kosmos.io", Version: "v1alpha1", Resource: "knodes"}
 )
 
 func GenerateDeployment(deployTemplate string, obj interface{}) (*appsv1.Deployment, error) {

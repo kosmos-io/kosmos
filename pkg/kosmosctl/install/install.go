@@ -404,30 +404,6 @@ func (o *CommandInstallOptions) runClustertree() error {
 	}
 	klog.Info("Create CRD " + clustertreeCluster.Name + " successful.")
 
-	serviceExport, err := util.GenerateCustomResourceDefinition(manifest.ServiceExport, nil)
-	if err != nil {
-		return err
-	}
-	_, err = o.K8sExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Create(context.Background(), serviceExport, metav1.CreateOptions{})
-	if err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			return fmt.Errorf("kosmosctl install clustertree run error, crd options failed: %v", err)
-		}
-	}
-	klog.Info("Create CRD " + serviceExport.Name + " successful.")
-
-	serviceImport, err := util.GenerateCustomResourceDefinition(manifest.ServiceImport, nil)
-	if err != nil {
-		return err
-	}
-	_, err = o.K8sExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Create(context.Background(), serviceImport, metav1.CreateOptions{})
-	if err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			return fmt.Errorf("kosmosctl install clustertree run error, crd options failed: %v", err)
-		}
-	}
-	klog.Info("Create CRD " + serviceImport.Name + " successful.")
-
 	klog.Info("Start creating kosmos-clustertree ConfigMap...")
 	clustertreeConfigMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{

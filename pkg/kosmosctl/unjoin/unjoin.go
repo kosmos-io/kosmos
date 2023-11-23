@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	extensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -17,24 +17,29 @@ import (
 	"k8s.io/kubectl/pkg/util/i18n"
 	"k8s.io/kubectl/pkg/util/templates"
 
+	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
+	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/manifest"
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/util"
 	"github.com/kosmos.io/kosmos/pkg/utils"
 )
 
 var unjoinExample = templates.Examples(i18n.T(`
-		# Unjoin cluster from Kosmos control plane, e.g:
-		kosmosctl unjoin cluster --name cluster-name --kubeconfig ~/kubeconfig/cluster-kubeconfig
-`))
+		# Unjoin cluster from Kosmos control plane, e.g: 
+		kosmosctl unjoin cluster --name cluster-name
+		
+		# Unjoin cluster from Kosmos control plane, if you need to specify a special cluster kubeconfig, e.g:
+		kosmosctl unjoin cluster --name cluster-name --kubeconfig ~/kubeconfig/cluster-kubeconfig`))
 
 type CommandUnJoinOptions struct {
+	Name           string
+	Namespace      string
 	KubeConfig     string
 	HostKubeConfig string
 
-	Name string
-
-	Client        kubernetes.Interface
-	DynamicClient *dynamic.DynamicClient
+	KosmosClient        versioned.Interface
+	K8sClient           kubernetes.Interface
+	K8sExtensionsClient extensionsclient.Interface
 }
 
 // NewCmdUnJoin Delete resource in Kosmos control plane.
@@ -43,7 +48,7 @@ func NewCmdUnJoin(f ctlutil.Factory) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:                   "unjoin",
-		Short:                 i18n.T("Unjoin resource in kosmos control plane"),
+		Short:                 i18n.T("Unjoin resource from Kosmos control plane"),
 		Long:                  "",
 		Example:               unjoinExample,
 		SilenceUsage:          true,
@@ -56,14 +61,16 @@ func NewCmdUnJoin(f ctlutil.Factory) *cobra.Command {
 		},
 	}
 
+	cmd.Flags().StringVar(&o.Name, "name", "", "Specify the name of the resource to unjoin.")
+	cmd.Flags().StringVarP(&o.Namespace, "namespace", "n", utils.DefaultNamespace, "Kosmos namespace.")
 	cmd.Flags().StringVar(&o.KubeConfig, "kubeconfig", "", "Absolute path to the cluster kubeconfig file.")
 	cmd.Flags().StringVar(&o.HostKubeConfig, "host-kubeconfig", "", "Absolute path to the special host kubeconfig file.")
-	cmd.Flags().StringVar(&o.Name, "name", "", "Specify the name of the resource to unjoin.")
 
 	return cmd
 }
 func (o *CommandUnJoinOptions) Complete(f ctlutil.Factory) error {
 	var hostConfig *restclient.Config
+	var clusterConfig *restclient.Config
 	var err error
 
 	if o.HostKubeConfig != "" {
@@ -78,19 +85,36 @@ func (o *CommandUnJoinOptions) Complete(f ctlutil.Factory) error {
 		}
 	}
 
-	clusterConfig, err := clientcmd.BuildConfigFromFlags("", o.KubeConfig)
+	o.KosmosClient, err = versioned.NewForConfig(hostConfig)
 	if err != nil {
-		return fmt.Errorf("kosmosctl unjoin complete error, generate clusterConfig failed: %s", err)
+		return fmt.Errorf("kosmosctl install complete error, generate Kosmos client failed: %v", err)
 	}
 
-	o.Client, err = kubernetes.NewForConfig(clusterConfig)
-	if err != nil {
-		return fmt.Errorf("kosmosctl join complete error, generate basic client failed: %v", err)
+	if o.KubeConfig != "" {
+		clusterConfig, err = clientcmd.BuildConfigFromFlags("", o.KubeConfig)
+		if err != nil {
+			return fmt.Errorf("kosmosctl unjoin complete error, generate clusterConfig failed: %s", err)
+		}
+	} else {
+		var cluster *v1alpha1.Cluster
+		cluster, err = o.KosmosClient.KosmosV1alpha1().Clusters().Get(context.TODO(), o.Name, metav1.GetOptions{})
+		if err != nil {
+			return fmt.Errorf("kosmosctl unjoin complete error, get cluster failed: %s", err)
+		}
+		clusterConfig, err = clientcmd.RESTConfigFromKubeConfig(cluster.Spec.Kubeconfig)
+		if err != nil {
+			return fmt.Errorf("kosmosctl unjoin complete error, generate clusterConfig failed: %s", err)
+		}
 	}
 
-	o.DynamicClient, err = dynamic.NewForConfig(hostConfig)
+	o.K8sClient, err = kubernetes.NewForConfig(clusterConfig)
 	if err != nil {
-		return fmt.Errorf("kosmosctl unjoin complete error, generate dynamic client failed: %s", err)
+		return fmt.Errorf("kosmosctl unjoin complete error, generate K8s basic client failed: %v", err)
+	}
+
+	o.K8sExtensionsClient, err = extensionsclient.NewForConfig(clusterConfig)
+	if err != nil {
+		return fmt.Errorf("kosmosctl unjoin complete error, generate K8s extensions client failed: %v", err)
 	}
 
 	return nil
@@ -99,25 +123,6 @@ func (o *CommandUnJoinOptions) Complete(f ctlutil.Factory) error {
 func (o *CommandUnJoinOptions) Validate(args []string) error {
 	if len(o.Name) == 0 {
 		return fmt.Errorf("kosmosctl unjoin validate error, name is not valid")
-	}
-
-	switch args[0] {
-	case "cluster":
-		_, err := o.DynamicClient.Resource(util.ClusterGVR).Get(context.TODO(), o.Name, metav1.GetOptions{})
-		if err != nil {
-			if apierrors.IsNotFound(err) {
-				return fmt.Errorf("kosmosctl unjoin validate warning, clsuter is not found: %s", err)
-			}
-			return fmt.Errorf("kosmosctl unjoin validate error, get cluster failed: %s", err)
-		}
-	case "knode":
-		_, err := o.DynamicClient.Resource(util.KnodeGVR).Get(context.TODO(), o.Name, metav1.GetOptions{})
-		if err != nil {
-			if apierrors.IsNotFound(err) {
-				return fmt.Errorf("kosmosctl unjoin validate warning, knode is not found: %s", err)
-			}
-			return fmt.Errorf("kosmosctl unjoin validate error, get knode failed: %s", err)
-		}
 	}
 
 	return nil
@@ -130,11 +135,6 @@ func (o *CommandUnJoinOptions) Run(args []string) error {
 		if err != nil {
 			return err
 		}
-	case "knode":
-		err := o.runKnode()
-		if err != nil {
-			return err
-		}
 	}
 
 	return nil
@@ -142,9 +142,9 @@ func (o *CommandUnJoinOptions) Run(args []string) error {
 
 func (o *CommandUnJoinOptions) runCluster() error {
 	klog.Info("Start removing cluster from kosmos control plane...")
-	// 1. delete cluster
+	// delete cluster
 	for {
-		err := o.DynamicClient.Resource(util.ClusterGVR).Namespace("").Delete(context.TODO(), o.Name, metav1.DeleteOptions{})
+		err := o.KosmosClient.KosmosV1alpha1().Clusters().Delete(context.TODO(), o.Name, metav1.DeleteOptions{})
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				break
@@ -155,77 +155,102 @@ func (o *CommandUnJoinOptions) runCluster() error {
 	}
 	klog.Info("Cluster: " + o.Name + " has been deleted.")
 
-	// 2. delete operator
-	clusterlinkOperatorDeployment, err := util.GenerateDeployment(manifest.KosmosOperatorDeployment, nil)
+	// delete crd
+	serviceExport, err := util.GenerateCustomResourceDefinition(manifest.ServiceExport, nil)
 	if err != nil {
 		return err
 	}
-	err = o.Client.AppsV1().Deployments(utils.DefaultNamespace).Delete(context.TODO(), clusterlinkOperatorDeployment.Name, metav1.DeleteOptions{})
-	if err != nil && !apierrors.IsNotFound(err) {
-		return fmt.Errorf("kosmosctl unjoin run error, delete deployment failed: %s", err)
+	err = o.K8sExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Delete(context.Background(), serviceExport.Name, metav1.DeleteOptions{})
+	if err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return fmt.Errorf("kosmosctl unjoin run error, crd options failed: %v", err)
+		}
 	}
-	klog.Info("Deployment: " + clusterlinkOperatorDeployment.Name + " has been deleted.")
+	klog.Info("CRD: " + serviceExport.Name + " has been deleted.")
 
-	// 3. delete secret
-	err = o.Client.CoreV1().Secrets(utils.DefaultNamespace).Delete(context.TODO(), utils.ControlPanelSecretName, metav1.DeleteOptions{})
+	serviceImport, err := util.GenerateCustomResourceDefinition(manifest.ServiceImport, nil)
+	if err != nil {
+		return err
+	}
+	err = o.K8sExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Delete(context.Background(), serviceImport.Name, metav1.DeleteOptions{})
+	if err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return fmt.Errorf("kosmosctl unjoin run error, crd options failed: %v", err)
+		}
+	}
+	klog.Info("CRD: " + serviceImport.Name + " has been deleted.")
+
+	// delete rbac
+	err = o.K8sClient.CoreV1().Secrets(o.Namespace).Delete(context.TODO(), utils.ControlPanelSecretName, metav1.DeleteOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		return fmt.Errorf("kosmosctl unjoin run error, delete secret failed: %s", err)
 	}
 	klog.Info("Secret: " + utils.ControlPanelSecretName + " has been deleted.")
 
-	// 4. delete rbac
-	err = o.Client.RbacV1().ClusterRoleBindings().Delete(context.TODO(), utils.ExternalIPPoolNamePrefix, metav1.DeleteOptions{})
+	err = o.K8sClient.RbacV1().ClusterRoleBindings().Delete(context.TODO(), utils.ExternalIPPoolNamePrefix, metav1.DeleteOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		return fmt.Errorf("kosmosctl unjoin run error, delete clusterrolebinding failed: %s", err)
 	}
 	klog.Info("ClusterRoleBinding: " + utils.ExternalIPPoolNamePrefix + " has been deleted.")
 
-	err = o.Client.RbacV1().ClusterRoles().Delete(context.TODO(), utils.ExternalIPPoolNamePrefix, metav1.DeleteOptions{})
+	err = o.K8sClient.RbacV1().ClusterRoles().Delete(context.TODO(), utils.ExternalIPPoolNamePrefix, metav1.DeleteOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		return fmt.Errorf("kosmosctl unjoin run error, delete clusterrole failed: %s", err)
 	}
 	klog.Info("ClusterRole: " + utils.ExternalIPPoolNamePrefix + " has been deleted.")
 
-	clusterlinkOperatorServiceAccount, err := util.GenerateServiceAccount(manifest.KosmosOperatorServiceAccount, nil)
+	kosmosCR, err := util.GenerateClusterRole(manifest.KosmosClusterRole, nil)
+	if err != nil {
+		return fmt.Errorf("kosmosctl unjoin run error, generate clusterrole failed: %s", err)
+	}
+	err = o.K8sClient.RbacV1().ClusterRoles().Delete(context.TODO(), kosmosCR.Name, metav1.DeleteOptions{})
+	if err != nil && !apierrors.IsNotFound(err) {
+		return fmt.Errorf("kosmosctl unjoin run error, delete clusterrole failed: %s", err)
+	}
+	klog.Info("ClusterRole " + kosmosCR.Name + " has been deleted.")
+
+	kosmosCRB, err := util.GenerateClusterRoleBinding(manifest.KosmosClusterRoleBinding, manifest.ClusterRoleBindingReplace{
+		Namespace: o.Namespace,
+	})
+	if err != nil {
+		return fmt.Errorf("kosmosctl join run error, generate clusterrolebinding failed: %s", err)
+	}
+	err = o.K8sClient.RbacV1().ClusterRoleBindings().Delete(context.TODO(), kosmosCRB.Name, metav1.DeleteOptions{})
+	if err != nil && !apierrors.IsNotFound(err) {
+		return fmt.Errorf("kosmosctl unjoin run error, delete clusterrolebinding failed: %s", err)
+	}
+	klog.Info("ClusterRoleBinding " + kosmosCRB.Name + " has been deleted.")
+
+	kosmosOperatorSA, err := util.GenerateServiceAccount(manifest.KosmosOperatorServiceAccount, nil)
 	if err != nil {
 		return err
 	}
-	err = o.Client.CoreV1().ServiceAccounts(utils.DefaultNamespace).Delete(context.TODO(), clusterlinkOperatorServiceAccount.Name, metav1.DeleteOptions{})
+	err = o.K8sClient.CoreV1().ServiceAccounts(o.Namespace).Delete(context.TODO(), kosmosOperatorSA.Name, metav1.DeleteOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		return fmt.Errorf("kosmosctl unjoin run error, delete serviceaccout failed: %s", err)
 	}
-	klog.Info("ServiceAccount: " + clusterlinkOperatorServiceAccount.Name + " has been deleted.")
+	klog.Info("ServiceAccount: " + kosmosOperatorSA.Name + " has been deleted.")
 
-	// 5. If cluster is not the master, delete namespace
-	clusterlinkNetworkManagerDeployment, err := util.GenerateDeployment(manifest.ClusterlinkNetworkManagerDeployment, nil)
+	kosmosControlSA, err := util.GenerateServiceAccount(manifest.KosmosControlServiceAccount, manifest.ServiceAccountReplace{
+		Namespace: o.Namespace,
+	})
 	if err != nil {
-		return err
+		return fmt.Errorf("kosmosctl unjoin run error, generate serviceaccount failed: %s", err)
 	}
-	_, err = o.Client.AppsV1().Deployments(utils.DefaultNamespace).Get(context.TODO(), clusterlinkNetworkManagerDeployment.Name, metav1.GetOptions{})
-	if err != nil && apierrors.IsNotFound(err) {
-		err = o.Client.CoreV1().Namespaces().Delete(context.TODO(), utils.DefaultNamespace, metav1.DeleteOptions{})
+	err = o.K8sClient.CoreV1().ServiceAccounts(kosmosControlSA.Namespace).Delete(context.TODO(), kosmosControlSA.Name, metav1.DeleteOptions{})
+	if err != nil && !apierrors.IsNotFound(err) {
+		return fmt.Errorf("kosmosctl unjoin run error, delete serviceaccount failed: %s", err)
+	}
+	klog.Info("ServiceAccount " + kosmosControlSA.Name + " has been deleted.")
+
+	// if cluster is not the master, delete namespace
+	if o.Name != utils.DefaultClusterName {
+		err = o.K8sClient.CoreV1().Namespaces().Delete(context.TODO(), o.Namespace, metav1.DeleteOptions{})
 		if err != nil && !apierrors.IsNotFound(err) {
 			return fmt.Errorf("kosmosctl unjoin run error, delete namespace failed: %s", err)
 		}
 	}
 
 	klog.Info("Cluster [" + o.Name + "] is removed.")
-	return nil
-}
-
-func (o *CommandUnJoinOptions) runKnode() error {
-	klog.Info("Start removing knode from kosmos control plane...")
-	for {
-		err := o.DynamicClient.Resource(util.KnodeGVR).Namespace("").Delete(context.TODO(), o.Name, metav1.DeleteOptions{})
-		if err != nil {
-			if apierrors.IsNotFound(err) {
-				break
-			}
-			return fmt.Errorf("kosmosctl unjoin run error, delete knode failed: %s", err)
-		}
-		time.Sleep(3 * time.Second)
-	}
-
-	klog.Info("Knode [" + o.Name + "] is removed.")
 	return nil
 }

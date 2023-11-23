@@ -66,6 +66,8 @@ const (
 	KosmosNodePrefix       = "kosmos-"
 	KosmosNodeLabel        = "kosmos.io/node"
 	KosmosNodeValue        = "true"
+	KosmosNodeJoinLabel    = "kosmos.io/join"
+	KosmosNodeJoinValue    = "true"
 	KosmosNodeTaintKey     = "kosmos.io/node"
 	KosmosNodeTaintValue   = "true"
 	KosmosNodeTaintEffect  = "NoSchedule"
