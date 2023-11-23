@@ -4,7 +4,6 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 const (
@@ -125,26 +124,12 @@ const (
 	MasterRooTCAName    = "master-root-ca.crt"
 )
 
-var GVR_CONFIGMAP = schema.GroupVersionResource{
-	Group:    "",
-	Version:  "v1",
-	Resource: "configmaps",
-}
+var (
+	GVR_CONFIGMAP = corev1.SchemeGroupVersion.WithResource("configmaps")
 
-var GVR_PVC = schema.GroupVersionResource{
-	Group:    "",
-	Version:  "v1",
-	Resource: "persistentvolumeclaims",
-}
+	GVR_PVC = corev1.SchemeGroupVersion.WithResource("persistentvolumeclaims")
 
-var GVR_SECRET = schema.GroupVersionResource{
-	Group:    "",
-	Version:  "v1",
-	Resource: "secrets",
-}
+	GVR_SECRET = corev1.SchemeGroupVersion.WithResource("secrets")
 
-var GVR_SERVICE = schema.GroupVersionResource{
-	Group:    "",
-	Version:  "v1",
-	Resource: "services",
-}
+	GVR_SERVICE = corev1.SchemeGroupVersion.WithResource("services")
+)

@@ -293,6 +293,7 @@ func (c *ClusterController) setupControllers(
 	leafPodController := podcontrollers.LeafPodReconciler{
 		RootClient: c.Root,
 		Namespace:  "",
+		Options:    c.Options,
 	}
 
 	if err := leafPodController.SetupWithManager(mgr); err != nil {

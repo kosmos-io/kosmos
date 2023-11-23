@@ -268,6 +268,7 @@ func run(ctx context.Context, opts *options.Options) error {
 			// DynamicLeafClient:    clientDynamic,
 			ControllerName: "async-controller-" + gvr.Resource,
 			// Namespace:            cluster.Spec.Namespace,
+			Options: opts,
 		}
 		if err := commonController.SetupWithManager(mgr, gvr); err != nil {
 			klog.Errorf("Unable to create cluster node controller: %v", err)

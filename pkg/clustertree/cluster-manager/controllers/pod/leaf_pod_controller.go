@@ -18,6 +18,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/kosmos.io/kosmos/cmd/clustertree/cluster-manager/app/options"
 	"github.com/kosmos.io/kosmos/pkg/utils"
 	"github.com/kosmos.io/kosmos/pkg/utils/podutils"
 )
@@ -31,6 +32,7 @@ type LeafPodReconciler struct {
 	client.Client
 	RootClient client.Client
 	Namespace  string
+	Options    *options.Options
 }
 
 func (r *LeafPodReconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
@@ -141,7 +143,9 @@ func (r *LeafPodReconciler) SetupWithManager(mgr manager.Manager) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(LeafPodControllerName).
-		WithOptions(controller.Options{}).
+		WithOptions(controller.Options{
+			MaxConcurrentReconciles: r.Options.MaxConcurrentReconciles,
+		}).
 		For(&corev1.Pod{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(createEvent event.CreateEvent) bool {
 				// ignore create event

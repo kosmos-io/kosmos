@@ -20,6 +20,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/kosmos.io/kosmos/cmd/clustertree/cluster-manager/app/options"
 	leafUtils "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/utils"
 	"github.com/kosmos.io/kosmos/pkg/utils"
 )
@@ -41,6 +42,8 @@ type SyncResourcesReconciler struct {
 	client.Client
 
 	GlobalLeafManager leafUtils.LeafResourceManager
+
+	Options *options.Options
 }
 
 func (r *SyncResourcesReconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
@@ -93,7 +96,9 @@ func (r *SyncResourcesReconciler) SetupWithManager(mgr manager.Manager, gvr sche
 
 	if err := ctrl.NewControllerManagedBy(mgr).
 		Named(r.ControllerName).
-		WithOptions(controller.Options{}).
+		WithOptions(controller.Options{
+			MaxConcurrentReconciles: r.Options.MaxConcurrentReconciles,
+		}).
 		For(r.Object, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(createEvent event.CreateEvent) bool {
 				return false
