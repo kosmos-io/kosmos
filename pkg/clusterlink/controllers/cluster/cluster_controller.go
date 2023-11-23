@@ -39,7 +39,6 @@ import (
 // KubeFlannelNetworkConfig
 const (
 	FlannelCNI             = "flannel"
-	KubeFlannelNamespace   = "kube-flannel"
 	KubeFlannelConfigMap   = "kube-flannel-cfg"
 	KubeFlannelNetworkConf = "net-conf.json"
 	KubeFlannelIPPool      = "Network"
@@ -371,7 +370,7 @@ func (c *Controller) initCalicoWatcherWithEtcdBackend(ctx context.Context, clust
 
 // todo by wuyingjun-lucky
 func (c *Controller) initFlannelInformer(context context.Context, cluster *clusterlinkv1alpha1.Cluster, kubeClient kubernetes.Interface) (SetClusterPodCIDRFun, error) {
-	informerFactory := informers.NewSharedInformerFactoryWithOptions(kubeClient, 0, informers.WithNamespace(KubeFlannelNamespace))
+	informerFactory := informers.NewSharedInformerFactory(kubeClient, 0)
 	lister := informerFactory.Core().V1().ConfigMaps().Lister()
 	_, err := informerFactory.Core().V1().ConfigMaps().Informer().AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
