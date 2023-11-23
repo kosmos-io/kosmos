@@ -4,6 +4,7 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
+HOST_CLUSTER_NAME="cluster-host-local"
 CURRENT="$(dirname "${BASH_SOURCE[0]}")"
 ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 DEFAULT_NAMESPACE="kosmos-system"
@@ -146,8 +147,10 @@ EOF
   kubectl --context="kind-${member_cluster}" -n kosmos-system delete secret controlpanel-config || true
   kubectl --context="kind-${member_cluster}" -n kosmos-system create secret generic controlpanel-config --from-file=kubeconfig="${ROOT}/environments/${host_cluster}/kubeconfig"
   kubectl --context="kind-${member_cluster}" apply -f "$ROOT"/deploy/clusterlink-datapanel-rbac.yml
-  sed -e "s|__VERSION__|$VERSION|g" -e "s|__CLUSTER_NAME__|$member_cluster|g" -e "w ${ROOT}/environments/${member_cluster}/clusterlink-operator.yml" "$ROOT"/deploy/clusterlink-operator.yml
-  kubectl --context="kind-${member_cluster}" apply -f "${ROOT}/environments/${member_cluster}/clusterlink-operator.yml"
+  if "${member_cluster}"=$HOST_CLUSTER_NAME; then
+    sed -e "s|__VERSION__|$VERSION|g" -e "s|__CLUSTER_NAME__|$member_cluster|g" -e "w ${ROOT}/environments/${member_cluster}/clusterlink-operator.yml" "$ROOT"/deploy/clusterlink-operator.yml
+    kubectl --context="kind-${member_cluster}" apply -f "${ROOT}/environments/${member_cluster}/clusterlink-operator.yml"
+  fi
 }
 
 function deploy_cluster() {
