@@ -36,10 +36,10 @@ spec:
               topologyKey: kubernetes.io/hostname
       containers:
       - name: operator
-        image: ghcr.io/kosmos-io/clusterlink-operator:__VERSION__
+        image: ghcr.io/kosmos-io/kosmos-operator:__VERSION__
         imagePullPolicy: IfNotPresent
         command:
-          - clusterlink-operator
+          - kosmos-operator
           - --controlpanelconfig=/etc/clusterlink/kubeconfig
         resources:
           limits:

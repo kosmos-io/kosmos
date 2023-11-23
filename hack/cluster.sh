@@ -117,7 +117,7 @@ function join_cluster() {
   local member_cluster=$2
   local container_ip_port
   local kubeconfig_path="${ROOT}/environments/${member_cluster}/kubeconfig"
-  local base64_kubeconfig=$(base64 < "$kubeconfig_path")
+  local base64_kubeconfig=$(base64 -w 0 < "$kubeconfig_path")
   echo " base64 kubeconfig successfully converted: $base64_kubeconfig "
 
   local common_metadata=""
