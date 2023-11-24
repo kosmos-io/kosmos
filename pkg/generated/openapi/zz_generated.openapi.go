@@ -575,14 +575,12 @@ func schema_pkg_apis_kosmos_v1alpha1_ClusterSpec(ref common.ReferenceCallback) c
 					},
 					"clusterLinkOptions": {
 						SchemaProps: spec.SchemaProps{
-							Default: map[string]interface{}{},
-							Ref:     ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterLinkOptions"),
+							Ref: ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterLinkOptions"),
 						},
 					},
 					"clusterTreeOptions": {
 						SchemaProps: spec.SchemaProps{
-							Default: map[string]interface{}{},
-							Ref:     ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterTreeOptions"),
+							Ref: ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterTreeOptions"),
 						},
 					},
 				},
@@ -602,14 +600,12 @@ func schema_pkg_apis_kosmos_v1alpha1_ClusterStatus(ref common.ReferenceCallback)
 					"clusterLinkStatus": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ClusterLinkStatus contain the cluster network information",
-							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterLinkStatus"),
 						},
 					},
 					"clusterTreeStatus": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ClusterTreeStatus contain the member cluster leafNode end status",
-							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterTreeStatus"),
 						},
 					},
