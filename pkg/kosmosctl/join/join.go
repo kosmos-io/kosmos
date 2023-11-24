@@ -215,7 +215,7 @@ func (o *CommandJoinOptions) runCluster() error {
 			Kubeconfig:      o.KubeConfigStream,
 			Namespace:       o.Namespace,
 			ImageRepository: o.ImageRegistry,
-			ClusterLinkOptions: v1alpha1.ClusterLinkOptions{
+			ClusterLinkOptions: &v1alpha1.ClusterLinkOptions{
 				Enable: o.EnableLink,
 				BridgeCIDRs: v1alpha1.VxlanCIDRs{
 					IP:  "220.0.0.0/8",
@@ -228,7 +228,7 @@ func (o *CommandJoinOptions) runCluster() error {
 				NetworkType: v1alpha1.NetWorkTypeGateWay,
 				IPFamily:    v1alpha1.IPFamilyTypeIPV4,
 			},
-			ClusterTreeOptions: v1alpha1.ClusterTreeOptions{
+			ClusterTreeOptions: &v1alpha1.ClusterTreeOptions{
 				Enable: o.EnableTree,
 			},
 		},
