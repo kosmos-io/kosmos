@@ -3,6 +3,8 @@ package network
 import (
 	"fmt"
 	"net"
+	"os"
+	"strings"
 	"syscall"
 
 	"github.com/pkg/errors"
@@ -323,14 +325,24 @@ func UpdateDefaultIptablesAndKernalConfig(name string, ipFamily int) error {
 			return err
 		}
 
-		// tunl0 device
-		if err := UpdateDefaultIp4tablesBehavior("tunl0"); err != nil {
-			klog.Errorf("Try to add iptables rule for tunl0: %v", err)
+		nicNames := []string{"tunl0", "vxlan.calico"}
+
+		deviceNameStr := os.Getenv("AGENT_RP_FILTER_DEVICES")
+		if len(deviceNameStr) > 0 {
+			nicNames = append(nicNames, strings.Split(deviceNameStr, ",")...)
 		}
 
-		// tunl0 device
-		if err := EnableLooseModeByIFaceNmae("tunl0"); err != nil {
-			klog.Errorf("Try to change kernel parameters(rp_filter) for tunl0: %v", err)
+		for _, nicName := range nicNames {
+			if len(nicName) == 0 {
+				continue
+			}
+			if err := UpdateDefaultIp4tablesBehavior(nicName); err != nil {
+				klog.Errorf("Try to add iptables rule for %s: %v", nicName, err)
+			}
+
+			if err := EnableLooseModeByIFaceNmae(nicName); err != nil {
+				klog.Errorf("Try to change kernel parameters(rp_filter) for %s: %v", nicName, err)
+			}
 		}
 	}
 
