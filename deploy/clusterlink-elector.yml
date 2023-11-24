@@ -21,6 +21,23 @@ spec:
       labels:
         app: elector
     spec:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: kosmos.io/exclude
+                  operator: DoesNotExist
+      podAntiAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                    - elector
+            namespaces:
+              - kosmos-system
+            topologyKey: kubernetes.io/hostname
       containers:
         - command:
             - clusterlink-elector

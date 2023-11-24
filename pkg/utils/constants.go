@@ -76,6 +76,8 @@ const (
 	KosmosSelectorKey      = "kosmos.io/cluster-selector"
 	KosmosTrippedLabels    = "kosmos-io/tripped"
 	KosmosPvcLabelSelector = "kosmos-io/label-selector"
+	KosmosExcludeNodeLabel = "kosmos.io/exclude"
+	KosmosExcludeNodeValue = "true"
 
 	// on resorce (pv, configmap, secret), represents which cluster this resource belongs to
 	KosmosResourceOwnersAnnotations = "kosmos-io/cluster-owners"

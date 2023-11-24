@@ -43,15 +43,15 @@ type Reconciler struct {
 var predicatesFunc = predicate.Funcs{
 	CreateFunc: func(createEvent event.CreateEvent) bool {
 		node := createEvent.Object.(*corev1.Node)
-		return !utils.IsKosmosNode(node)
+		return !utils.IsKosmosNode(node) && !utils.IsExcludeNode(node)
 	},
 	UpdateFunc: func(updateEvent event.UpdateEvent) bool {
 		node := updateEvent.ObjectNew.(*corev1.Node)
-		return !utils.IsKosmosNode(node)
+		return !utils.IsKosmosNode(node) && !utils.IsExcludeNode(node)
 	},
 	DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
 		node := deleteEvent.Object.(*corev1.Node)
-		return !utils.IsKosmosNode(node)
+		return !utils.IsKosmosNode(node) && !utils.IsExcludeNode(node)
 	},
 	GenericFunc: func(genericEvent event.GenericEvent) bool {
 		return false
