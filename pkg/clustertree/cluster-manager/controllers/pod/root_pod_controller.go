@@ -128,7 +128,7 @@ func (r *RootPodReconciler) Reconcile(ctx context.Context, request reconcile.Req
 					// wait for leaf resource init
 					return reconcile.Result{RequeueAfter: RootPodRequeueTime}, nil
 				}
-				if err := r.DeletePodInLeafCluster(ctx, lr, request.NamespacedName); err != nil {
+				if err := r.DeletePodInLeafCluster(ctx, lr, request.NamespacedName, false); err != nil {
 					klog.Errorf("delete pod in leaf error[1]: %v,  %s", err, request.NamespacedName)
 					return reconcile.Result{RequeueAfter: RootPodRequeueTime}, nil
 				}
@@ -185,7 +185,7 @@ func (r *RootPodReconciler) Reconcile(ctx context.Context, request reconcile.Req
 
 	// delete pod in leaf
 	if !rootpod.GetDeletionTimestamp().IsZero() {
-		if err := r.DeletePodInLeafCluster(ctx, lr, request.NamespacedName); err != nil {
+		if err := r.DeletePodInLeafCluster(ctx, lr, request.NamespacedName, true); err != nil {
 			klog.Errorf("delete pod in leaf error[1]: %v,  %s", err, request.NamespacedName)
 			return reconcile.Result{RequeueAfter: RootPodRequeueTime}, nil
 		}
@@ -802,14 +802,21 @@ func (r *RootPodReconciler) UpdatePodInLeafCluster(ctx context.Context, lr *leaf
 	return nil
 }
 
-func (r *RootPodReconciler) DeletePodInLeafCluster(ctx context.Context, lr *leafUtils.LeafResource, rootnamespacedname types.NamespacedName) error {
+func (r *RootPodReconciler) DeletePodInLeafCluster(ctx context.Context, lr *leafUtils.LeafResource, rootnamespacedname types.NamespacedName, cleanflag bool) error {
 	klog.V(4).Infof("Deleting pod %v/%+v", rootnamespacedname.Namespace, rootnamespacedname.Name)
 	leafPod := &corev1.Pod{}
+
+	cleanRootPodFunc := func() error {
+		return DeletePodInRootCluster(ctx, rootnamespacedname, r.Client)
+	}
 
 	err := lr.Client.Get(ctx, rootnamespacedname, leafPod)
 
 	if err != nil {
 		if errors.IsNotFound(err) {
+			if cleanflag {
+				return cleanRootPodFunc()
+			}
 			return nil
 		}
 		return err
@@ -825,6 +832,9 @@ func (r *RootPodReconciler) DeletePodInLeafCluster(ctx context.Context, lr *leaf
 	if err != nil {
 		if errors.IsNotFound(err) {
 			klog.V(4).Infof("Tried to delete pod %s/%s, but it did not exist in the cluster", leafPod.Namespace, leafPod.Name)
+			if cleanflag {
+				return cleanRootPodFunc()
+			}
 			return nil
 		}
 		return fmt.Errorf("could not delete pod: %v", err)
