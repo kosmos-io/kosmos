@@ -45,11 +45,11 @@ type ClusterSpec struct {
 type ClusterStatus struct {
 	// ClusterLinkStatus contain the cluster network information
 	// +optional
-	ClusterLinkStatus *ClusterLinkStatus `json:"clusterLinkStatus,omitempty"`
+	ClusterLinkStatus ClusterLinkStatus `json:"clusterLinkStatus,omitempty"`
 
 	// ClusterTreeStatus contain the member cluster leafNode end status
 	// +optional
-	ClusterTreeStatus *ClusterTreeStatus `json:"clusterTreeStatus,omitempty"`
+	ClusterTreeStatus ClusterTreeStatus `json:"clusterTreeStatus,omitempty"`
 }
 
 type ClusterLinkOptions struct {
