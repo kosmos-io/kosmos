@@ -17,7 +17,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	kosmosv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
-	networkmanager "github.com/kosmos.io/kosmos/pkg/clusterlink/agent/network-manager"
+	networkmanager "github.com/kosmos.io/kosmos/pkg/clusterlink/agent-manager/network-manager"
 	"github.com/kosmos.io/kosmos/pkg/clusterlink/controllers/node"
 	"github.com/kosmos.io/kosmos/pkg/clusterlink/network"
 	kosmosv1alpha1lister "github.com/kosmos.io/kosmos/pkg/generated/listers/kosmos/v1alpha1"
@@ -105,7 +105,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 			r.logResult(nodeConfigSyncStatus)
 			return reconcile.Result{}, nil
 		}
-		klog.Errorf("get clusternode %s error: %v", request.NamespacedName, err)
+		klog.Errorf("get nodeconfig %s error: %v", request.NamespacedName, err)
 		return reconcile.Result{RequeueAfter: RequeueTime}, nil
 	}
 
