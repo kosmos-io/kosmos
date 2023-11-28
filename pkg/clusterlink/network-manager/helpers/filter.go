@@ -13,7 +13,7 @@ type Filter struct {
 	clustersMap  map[string]*v1alpha1.Cluster
 }
 
-func NewFilter(clusterNodes []v1alpha1.ClusterNode, clusters []v1alpha1.Cluster, nodeConfigs []v1alpha1.NodeConfig) *Filter {
+func NewFilter(clusters []v1alpha1.Cluster, clusterNodes []v1alpha1.ClusterNode, nodeConfigs []v1alpha1.NodeConfig) *Filter {
 	cm := buildClustersMap(clusters)
 	cs := convertToPointerSlice(clusters)
 	cns := convertToPointerSlice(clusterNodes)

@@ -123,7 +123,19 @@ func (c *Controller) Reconcile(ctx context.Context, request reconcile.Request) (
 	}
 
 	str := c.NetworkManager.GetConfigsString()
-	klog.V(4).Infof(str)
+	klog.V(6).Infof("the nodeConfigs of this round of calculations: %s", str)
+
+	// clear nodeConfigs
+	for i, nc := range nodeConfigList.Items {
+		if _, ok := nodeConfigs[nc.Name]; !ok {
+			err = c.Delete(ctx, &nodeConfigList.Items[i])
+			if err != nil {
+				klog.Warningf("failed to delete nodeConfig %s, err: %v", nc.Name, err)
+				continue
+			}
+			klog.Infof("nodeConfig %s has been deleted", nc.Name)
+		}
+	}
 
 	for nodeName, config := range nodeConfigs {
 		nc := &clusterlinkv1alpha1.NodeConfig{
