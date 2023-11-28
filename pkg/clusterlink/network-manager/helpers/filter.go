@@ -77,6 +77,10 @@ func (f *Filter) GetGatewayNodeByClusterName(clusterName string) *v1alpha1.Clust
 func (f *Filter) GetInternalNodesByClusterName(clusterName string) []*v1alpha1.ClusterNode {
 	var results []*v1alpha1.ClusterNode
 	for _, node := range f.clusterNodes {
+		cluster := f.GetClusterByName(node.Spec.ClusterName)
+		if cluster.IsP2P() {
+			continue
+		}
 		if node.Spec.ClusterName == clusterName && !node.IsGateway() {
 			results = append(results, node)
 		}
