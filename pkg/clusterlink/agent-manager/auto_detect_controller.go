@@ -18,6 +18,7 @@ import (
 
 	kosmosv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/clusterlink/agent-manager/autodetection"
+	"github.com/kosmos.io/kosmos/pkg/clusterlink/controllers/node"
 	"github.com/kosmos.io/kosmos/pkg/clusterlink/network"
 )
 
@@ -29,6 +30,7 @@ const (
 type AutoDetectReconciler struct {
 	client.Client
 	ClusterName string
+	NodeName    string
 }
 
 func (r *AutoDetectReconciler) SetupWithManager(mgr manager.Manager) error {
@@ -42,7 +44,8 @@ func (r *AutoDetectReconciler) SetupWithManager(mgr manager.Manager) error {
 			return false
 		}
 
-		if eventObj.Spec.ClusterName != r.ClusterName {
+		if eventObj.Name != node.ClusterNodeName(r.ClusterName, r.NodeName) {
+			klog.V(4).Infof("skip event, reconcile node name: %s, current node name: %s-%s", eventObj.Name, r.ClusterName, r.NodeName)
 			return false
 		}
 

@@ -159,10 +159,24 @@ func loadDevices() ([]clusterlinkv1alpha1.Device, error) {
 			}
 		}
 
+		createNoneDevice := func() clusterlinkv1alpha1.Device {
+			// while recreate this deivce
+			return clusterlinkv1alpha1.Device{
+				Type:    clusterlinkv1alpha1.DeviceType(vxlanIface.Type()),
+				Name:    vxlan.LinkAttrs.Name,
+				Addr:    vxlanNet.String(),
+				Mac:     vxlan.LinkAttrs.HardwareAddr.String(),
+				BindDev: "",
+				ID:      int32(vxlan.VxlanId),
+				Port:    int32(vxlan.Port),
+			}
+		}
+
 		if vxlanNet == nil {
 			msg := fmt.Sprintf("Cannot get ip of device: %s", d.name)
 			klog.Error(msg)
-			return nil, fmt.Errorf(msg)
+			ret = append(ret, createNoneDevice())
+			continue
 		}
 
 		addrListAll, err := netlink.AddrList(nil, d.family)
@@ -193,7 +207,8 @@ func loadDevices() ([]clusterlinkv1alpha1.Device, error) {
 			defaultIface, err := netlink.LinkByIndex(interfaceIndex)
 			if err != nil {
 				klog.Errorf("When we get device by linkinx, get error : %v", err)
-				return nil, err
+				ret = append(ret, createNoneDevice())
+				continue
 			} else {
 				bindDev = defaultIface.Attrs().Name
 			}
