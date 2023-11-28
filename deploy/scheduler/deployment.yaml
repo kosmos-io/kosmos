@@ -23,7 +23,8 @@ spec:
             defaultMode: 420
       containers:
         - name: kosmos-scheduler
-          image: ghcr.io/kosmos-io/scheduler:0.0.2
+          image: ghcr.io/kosmos-io/scheduler:__VERSION__
+          imagePullPolicy: IfNotPresent
           command:
             - scheduler
             - --config=/etc/kubernetes/kube-scheduler/scheduler-config.yaml
@@ -67,7 +68,7 @@ data:
       resourceName: kosmos-scheduler
       resourceNamespace: kosmos-system    
     profiles:
-      - schedulerName: kosmos-scheduler
+      - schedulerName: default-scheduler
         plugins:
           preFilter:
             disabled:
@@ -77,9 +78,9 @@ data:
           filter:
             disabled:
               - name: "VolumeBinding"
-              - name: "TaintToleration"
+            #  - name: "TaintToleration"
             enabled:
-              - name: "KNodeTaintToleration"
+            #  - name: "KNodeTaintToleration"
               - name: "KnodeVolumeBinding"
           score:
             disabled:
