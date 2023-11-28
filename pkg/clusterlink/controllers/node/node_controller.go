@@ -22,6 +22,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	clusterlinkv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
+	"github.com/kosmos.io/kosmos/pkg/clusterlink/network"
 	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/utils"
 	interfacepolicy "github.com/kosmos.io/kosmos/pkg/utils/interface-policy"
@@ -117,9 +118,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 	err = CreateOrUpdateClusterNode(r.ClusterLinkClient, clusterNode, func(n *clusterlinkv1alpha1.ClusterNode) error {
 		n.Spec.NodeName = node.Name
 		n.Spec.ClusterName = r.ClusterName
-		n.Spec.IP = internalIP
-		n.Spec.IP6 = internalIP6
 		n.Spec.InterfaceName = interfacepolicy.GetInterfaceName(cluster.Spec.ClusterLinkOptions.NICNodeNames, node.Name, cluster.Spec.ClusterLinkOptions.DefaultNICName)
+		if n.Spec.InterfaceName == network.AutoSelectInterfaceFlag {
+			n.Spec.IP = internalIP
+			n.Spec.IP6 = internalIP6
+		}
 		return nil
 	})
 	if err != nil {
