@@ -7,6 +7,7 @@ REGISTRY?="ghcr.io/kosmos-io"
 REGISTRY_USER_NAME?=""
 REGISTRY_PASSWORD?=""
 REGISTRY_SERVER_ADDRESS?=""
+KIND_IMAGE_TAG?="v1.25.3"
 
 TARGETS :=  clusterlink-controller-manager  \
 			kosmos-operator \
@@ -134,3 +135,10 @@ GOLANGLINT_BIN=$(shell go env GOPATH)/bin/golangci-lint
 else
 GOLANGLINT_BIN=$(shell which golangci-lint)
 endif
+
+image-base-kind-builder:
+	docker buildx build \
+	    -t $(REGISTRY)/node:$(KIND_IMAGE_TAG) \
+        --platform=linux/amd64,linux/arm64 \
+        --push \
+        -f cluster/images/buildx.kind.Dockerfile .
