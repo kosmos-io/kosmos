@@ -74,17 +74,16 @@ func (r *AutoDetectReconciler) SetupWithManager(mgr manager.Manager) error {
 }
 
 func detectIP(interfaceName string) (string, string) {
-	// TODO: only use ipv4, to support ipv6
 	detectFunc := func(version int) (string, error) {
-		i, _, err := autodetection.FilteredEnumeration([]string{interfaceName}, nil, nil, version)
+		_, n, err := autodetection.FilteredEnumeration([]string{interfaceName}, nil, nil, version)
 		if err != nil {
 			return "", fmt.Errorf("auto detect interface error: %v, version: %d", err, version)
 		}
 
-		if len(i.Name) == 0 {
-			return "", fmt.Errorf("auto detect interface error: interface name is '', version: %d", version)
+		if len(n.IP) == 0 {
+			return "", fmt.Errorf("auto detect interface error: ip is nil, version: %d", version)
 		}
-		return i.Name, nil
+		return n.IP.String(), nil
 	}
 
 	ipv4, err := detectFunc(4)
