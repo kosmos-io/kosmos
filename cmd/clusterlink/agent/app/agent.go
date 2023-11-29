@@ -118,6 +118,7 @@ func run(ctx context.Context, opts *options.Options) error {
 
 	autoDetectController := linkagent.AutoDetectReconciler{
 		Client:      mgr.GetClient(),
+		NodeName:    os.Getenv(utils.EnvNodeName),
 		ClusterName: os.Getenv(utils.EnvClusterName),
 	}
 
