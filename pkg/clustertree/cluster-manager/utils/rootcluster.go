@@ -29,14 +29,20 @@ func IsRootCluster(cluster *kosmosv1alpha1.Cluster) bool {
 }
 
 func GetAddress(ctx context.Context, rootClient kubernetes.Interface, originAddress []corev1.NodeAddress) ([]corev1.NodeAddress, error) {
+	prefixAddress := []corev1.NodeAddress{}
+
 	preferredAddressType := corev1.NodeAddressType(os.Getenv("PREFERRED-ADDRESS-TYPE"))
 
-	if len(preferredAddressType) == 0 {
-		preferredAddressType = corev1.NodeInternalDNS
-	}
+	if preferredAddressType == "-" {
+		// do not set pod ip for node
+	} else {
+		if len(preferredAddressType) == 0 {
+			preferredAddressType = corev1.NodeInternalDNS
+		}
 
-	prefixAddress := []corev1.NodeAddress{
-		{Type: preferredAddressType, Address: os.Getenv("KNODE_POD_IP")},
+		prefixAddress = []corev1.NodeAddress{
+			{Type: preferredAddressType, Address: os.Getenv("KNODE_POD_IP")},
+		}
 	}
 
 	address, err := SortAddress(ctx, rootClient, originAddress)

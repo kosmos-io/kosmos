@@ -37,6 +37,8 @@ type Options struct {
 
 	// AutoCreateMCSPrefix is the prefix of the namespace for service to auto create in leaf cluster
 	AutoCreateMCSPrefix []string
+
+	MaxConcurrentReconciles int
 }
 
 type KubernetesOptions struct {
@@ -78,5 +80,6 @@ func (o *Options) AddFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&o.RootCoreDNSServiceName, "root-coredns-service-name", CoreDNSServiceName, "The name of the CoreDNS service in the root cluster, used to locate the CoreDNS service when MultiClusterService is disabled.")
 	flags.BoolVar(&o.OnewayStorageControllers, "oneway-storage-controllers", false, "Turn on or off oneway storage controllers.")
 	flags.StringSliceVar(&o.AutoCreateMCSPrefix, "auto-mcs-prefix", []string{}, "The prefix of namespace for service to auto create mcs resources")
+	flags.IntVar(&o.MaxConcurrentReconciles, "max-concurrent-reconciles", 1, "MaxConcurrentReconciles is the maximum number of concurrent Reconciles which can be run. Defaults to 1.")
 	options.BindLeaderElectionFlags(&o.LeaderElection, flags)
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"sync"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -259,7 +260,9 @@ func (r *RootPodReconciler) SetupWithManager(mgr manager.Manager) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(RootPodControllerName).
-		WithOptions(controller.Options{}).
+		WithOptions(controller.Options{
+			MaxConcurrentReconciles: r.Options.MaxConcurrentReconciles,
+		}).
 		For(&corev1.Pod{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(createEvent event.CreateEvent) bool {
 				return skipFunc(createEvent.Object)
@@ -625,78 +628,53 @@ func (r *RootPodReconciler) createVolumes(ctx context.Context, lr *leafUtils.Lea
 	configMaps := podutils.GetConfigmaps(basicPod)
 	pvcs := podutils.GetPVCs(basicPod)
 
-	ch := make(chan string, 3)
+	var wg sync.WaitGroup
+	var errMutex sync.Mutex
+	var overallErr []string
 
-	// configmap
-	go func() {
+	createResource := func(resourceType schema.GroupVersionResource, resources []string) {
+		defer wg.Done()
 		if err := wait.PollImmediate(500*time.Millisecond, 30*time.Second, func() (bool, error) {
-			klog.V(4).Info("Trying to creating dependent configmaps")
-			if err := r.createStorageInLeafCluster(ctx, lr, utils.GVR_CONFIGMAP, configMaps, basicPod, clusterNodeInfo); err != nil {
+			klog.V(4).Infof("Trying to create dependent %s", resourceType)
+			if err := r.createStorageInLeafCluster(ctx, lr, resourceType, resources, basicPod, clusterNodeInfo); err != nil {
 				klog.Error(err)
+				errMutex.Lock()
+				overallErr = append(overallErr, fmt.Sprintf("create %s failed, err %v", resourceType.Resource, err))
+				errMutex.Unlock()
 				return false, nil
 			}
-			klog.V(4).Infof("Create configmaps %v of %v/%v success", configMaps, basicPod.Namespace, basicPod.Name)
+			klog.V(4).Infof("Create %s %v of %v/%v success", resourceType, resources, basicPod.Namespace, basicPod.Name)
 			return true, nil
 		}); err != nil {
-			ch <- fmt.Sprintf("create configmap failed: %v", err)
-		}
-		ch <- ""
-	}()
-
-	// pvc
-	go func() {
-		if err := wait.PollImmediate(500*time.Millisecond, 30*time.Second, func() (bool, error) {
-			if !r.Options.OnewayStorageControllers {
-				klog.V(4).Info("Trying to creating dependent pvc")
-				if err := r.createStorageInLeafCluster(ctx, lr, utils.GVR_PVC, pvcs, basicPod, clusterNodeInfo); err != nil {
-					klog.Error(err)
-					return false, nil
-				}
-				klog.V(4).Infof("Create pvc %v of %v/%v success", pvcs, basicPod.Namespace, basicPod.Name)
-			}
-			return true, nil
-		}); err != nil {
-			ch <- fmt.Sprintf("create pvc failed: %v", err)
-		}
-		ch <- ""
-	}()
-
-	// secret
-	go func() {
-		if err := wait.PollImmediate(500*time.Millisecond, 10*time.Second, func() (bool, error) {
-			klog.V(4).Info("Trying to creating secret")
-			if err := r.createStorageInLeafCluster(ctx, lr, utils.GVR_SECRET, secretNames, basicPod, clusterNodeInfo); err != nil {
-				klog.Error(err)
-				return false, nil
-			}
-
-			// try to create image pull secrets, ignore err
-			if errignore := r.createStorageInLeafCluster(ctx, lr, utils.GVR_SECRET, imagePullSecrets, basicPod, clusterNodeInfo); errignore != nil {
-				klog.Warning(errignore)
-			}
-			return true, nil
-		}); err != nil {
-			ch <- fmt.Sprintf("create secrets failed: %v", err)
-		}
-		ch <- ""
-	}()
-
-	t1 := <-ch
-	t2 := <-ch
-	t3 := <-ch
-
-	errString := ""
-	errs := []string{t1, t2, t3}
-	for i := range errs {
-		if len(errs[i]) > 0 {
-			errString = errString + errs[i]
+			klog.Error(err)
+			errMutex.Lock()
+			overallErr = append(overallErr, fmt.Sprintf("create %s failed, err %v", resourceType.Resource, err))
+			errMutex.Unlock()
 		}
 	}
 
-	if len(errString) > 0 {
-		return fmt.Errorf("%s", errString)
-	}
+	// 3 is ok， image pull secrets is not care
+	wg.Add(4)
+	go createResource(utils.GVR_CONFIGMAP, configMaps)
+	go createResource(utils.GVR_PVC, pvcs)
+	go createResource(utils.GVR_SECRET, secretNames)
 
+	go func() {
+		defer wg.Done()
+		if !r.Options.OnewayStorageControllers {
+			klog.V(4).Info("Trying to create dependent image pull secrets")
+			if err := r.createStorageInLeafCluster(ctx, lr, utils.GVR_SECRET, imagePullSecrets, basicPod, clusterNodeInfo); err != nil {
+				// ignore this error
+				klog.Warning(err)
+			}
+		}
+	}()
+
+	wg.Wait()
+
+	if len(overallErr) > 0 {
+		return fmt.Errorf(strings.Join(overallErr, ";"))
+	}
 	return nil
 }
 
