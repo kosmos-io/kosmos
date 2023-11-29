@@ -218,7 +218,7 @@ func (f *Floater) applyDaemonSet() error {
 
 	floaterLabel := map[string]string{"app": f.Name}
 	if err = util.WaitPodReady(f.Client, f.Namespace, util.MapToString(floaterLabel), f.PodWaitTime); err != nil {
-		return err
+		klog.Warningf("exist cluster node startup floater timeout, error: %v", err)
 	}
 
 	return nil
