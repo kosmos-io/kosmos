@@ -17,6 +17,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/strings/slices"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	mcsv1alpha1 "sigs.k8s.io/mcs-api/pkg/apis/v1alpha1"
@@ -42,6 +43,8 @@ type ServiceImportController struct {
 	processor           utils.AsyncWorker
 	RootResourceManager *utils.ResourceManager
 	ctx                 context.Context
+	// ReservedNamespaces are the protected namespaces to prevent Kosmos for deleting system resources
+	ReservedNamespaces []string
 }
 
 func (c *ServiceImportController) AddController(mgr manager.Manager) error {
@@ -402,6 +405,10 @@ func (c *ServiceImportController) OnDelete(obj interface{}) {
 
 func (c *ServiceImportController) OnEpsAdd(obj interface{}) {
 	eps := obj.(*discoveryv1.EndpointSlice)
+	if !c.shouldEnqueue(eps) {
+		return
+	}
+
 	if helper.HasAnnotation(eps.ObjectMeta, utils.ServiceExportLabelKey) {
 		serviceExportName := helper.GetLabelOrAnnotationValue(eps.GetLabels(), utils.ServiceKey)
 		key := keys.ClusterWideKey{}
@@ -414,6 +421,10 @@ func (c *ServiceImportController) OnEpsAdd(obj interface{}) {
 func (c *ServiceImportController) OnEpsUpdate(old interface{}, new interface{}) {
 	newSlice := new.(*discoveryv1.EndpointSlice)
 	oldSlice := old.(*discoveryv1.EndpointSlice)
+	if !c.shouldEnqueue(newSlice) {
+		return
+	}
+
 	isRemoveAnnotationEvent := helper.HasAnnotation(oldSlice.ObjectMeta, utils.ServiceExportLabelKey) && !helper.HasAnnotation(newSlice.ObjectMeta, utils.ServiceExportLabelKey)
 	if helper.HasAnnotation(newSlice.ObjectMeta, utils.ServiceExportLabelKey) || isRemoveAnnotationEvent {
 		serviceExportName := helper.GetLabelOrAnnotationValue(newSlice.GetLabels(), utils.ServiceKey)
@@ -426,6 +437,10 @@ func (c *ServiceImportController) OnEpsUpdate(old interface{}, new interface{}) 
 
 func (c *ServiceImportController) OnEpsDelete(obj interface{}) {
 	eps := obj.(*discoveryv1.EndpointSlice)
+	if !c.shouldEnqueue(eps) {
+		return
+	}
+
 	if helper.HasAnnotation(eps.ObjectMeta, utils.ServiceExportLabelKey) {
 		serviceExportName := helper.GetLabelOrAnnotationValue(eps.GetLabels(), utils.ServiceKey)
 		key := keys.ClusterWideKey{}
@@ -433,6 +448,10 @@ func (c *ServiceImportController) OnEpsDelete(obj interface{}) {
 		key.Name = serviceExportName
 		c.processor.Add(key)
 	}
+}
+
+func (c *ServiceImportController) shouldEnqueue(endpointSlice *discoveryv1.EndpointSlice) bool {
+	return !slices.Contains(c.ReservedNamespaces, endpointSlice.Namespace)
 }
 
 func retainServiceFields(oldSvc, newSvc *corev1.Service) {

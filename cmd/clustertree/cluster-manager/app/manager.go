@@ -178,9 +178,10 @@ func run(ctx context.Context, opts *options.Options) error {
 	if opts.MultiClusterService {
 		// add serviceExport controller
 		ServiceExportController := mcs.ServiceExportController{
-			RootClient:    mgr.GetClient(),
-			EventRecorder: mgr.GetEventRecorderFor(mcs.ServiceExportControllerName),
-			Logger:        mgr.GetLogger(),
+			RootClient:         mgr.GetClient(),
+			EventRecorder:      mgr.GetEventRecorderFor(mcs.ServiceExportControllerName),
+			Logger:             mgr.GetLogger(),
+			ReservedNamespaces: opts.ReservedNamespaces,
 		}
 		if err = ServiceExportController.SetupWithManager(mgr); err != nil {
 			return fmt.Errorf("error starting %s: %v", mcs.ServiceExportControllerName, err)
@@ -194,6 +195,7 @@ func run(ctx context.Context, opts *options.Options) error {
 			AutoCreateMCSPrefix: opts.AutoCreateMCSPrefix,
 			RootKosmosClient:    rootKosmosClient,
 			GlobalLeafManager:   globalleafManager,
+			ReservedNamespaces:  opts.ReservedNamespaces,
 		}
 		if err = autoCreateMCSController.SetupWithManager(mgr); err != nil {
 			return fmt.Errorf("error starting %s: %v", mcs.AutoCreateMCSControllerName, err)

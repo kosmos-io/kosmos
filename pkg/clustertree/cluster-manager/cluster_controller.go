@@ -284,6 +284,7 @@ func (c *ClusterController) setupControllers(
 			// todo @wyz
 			IPFamilyType:        cluster.Spec.ClusterLinkOptions.IPFamily,
 			RootResourceManager: c.RootResourceManager,
+			ReservedNamespaces:  c.Options.ReservedNamespaces,
 		}
 		if err := serviceImportController.AddController(mgr); err != nil {
 			return fmt.Errorf("error starting %s: %v", mcs.LeafServiceImportControllerName, err)

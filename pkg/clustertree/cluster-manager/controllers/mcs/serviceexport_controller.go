@@ -12,6 +12,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/strings/slices"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -34,6 +35,8 @@ type ServiceExportController struct {
 	RootClient    client.Client
 	EventRecorder record.EventRecorder
 	Logger        logr.Logger
+	// ReservedNamespaces are the protected namespaces to prevent Kosmos for deleting system resources
+	ReservedNamespaces []string
 }
 
 func (c *ServiceExportController) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
@@ -83,13 +86,13 @@ func (c *ServiceExportController) SetupWithManager(mgr manager.Manager) error {
 
 	endpointSlicePredicate := builder.WithPredicates(predicate.Funcs{
 		CreateFunc: func(event event.CreateEvent) bool {
-			return true
+			return c.shouldEnqueue(event.Object)
 		},
 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
-			return true
+			return c.shouldEnqueue(deleteEvent.Object)
 		},
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
-			return true
+			return c.shouldEnqueue(updateEvent.ObjectNew)
 		},
 		GenericFunc: func(genericEvent event.GenericEvent) bool {
 			return false
@@ -104,6 +107,19 @@ func (c *ServiceExportController) SetupWithManager(mgr manager.Manager) error {
 			endpointSlicePredicate,
 		).
 		Complete(c)
+}
+
+func (c *ServiceExportController) shouldEnqueue(object client.Object) bool {
+	eps, ok := object.(*discoveryv1.EndpointSlice)
+	if !ok {
+		return false
+	}
+
+	if slices.Contains(c.ReservedNamespaces, eps.Namespace) {
+		return false
+	}
+
+	return true
 }
 
 func (c *ServiceExportController) removeAnnotation(ctx context.Context, namespace, name string) error {
