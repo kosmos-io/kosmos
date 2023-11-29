@@ -107,11 +107,13 @@ func (o *CommandCheckOptions) Complete() error {
 	}
 	o.SrcFloater = srcFloater
 
-	dstFloater := NewCheckFloater(o, true)
-	if err := dstFloater.completeFromKubeConfigPath(o.DstKubeConfig); err != nil {
-		return err
+	if o.DstKubeConfig != "" {
+		dstFloater := NewCheckFloater(o, true)
+		if err := dstFloater.completeFromKubeConfigPath(o.DstKubeConfig); err != nil {
+			return err
+		}
+		o.DstFloater = dstFloater
 	}
-	o.DstFloater = dstFloater
 
 	return nil
 }
