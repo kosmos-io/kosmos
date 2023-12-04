@@ -4,13 +4,37 @@ metadata:
   name:  clusterlink-elector
   namespace: kosmos-system
 ---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: clusterlink
+rules:
+  - apiGroups: ['*']
+    resources: ['*']
+    verbs: ["*"]
+  - nonResourceURLs: ['*']
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: clusterlink
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: clusterlink
+subjects:
+  - kind: ServiceAccount
+    name: clusterlink-elector
+    namespace: kosmos-system
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  labels:
-    app: elector
   name: clusterlink-elector
   namespace: kosmos-system
+  labels:
+    app: elector
 spec:
   replicas: 2
   selector:
@@ -21,25 +45,11 @@ spec:
       labels:
         app: elector
     spec:
-      nodeAffinity:
-        requiredDuringSchedulingIgnoredDuringExecution:
-          nodeSelectorTerms:
-            - matchExpressions:
-                - key: kosmos.io/exclude
-                  operator: DoesNotExist
-      podAntiAffinity:
-        requiredDuringSchedulingIgnoredDuringExecution:
-          - labelSelector:
-              matchExpressions:
-                - key: app
-                  operator: In
-                  values:
-                    - elector
-            namespaces:
-              - kosmos-system
-            topologyKey: kubernetes.io/hostname
       containers:
-        - command:
+        - name: elector
+          image: ghcr.io/kosmos-io/clusterlink-elector:__VERSION__
+          imagePullPolicy: IfNotPresent
+          command:
             - clusterlink-elector
             - --controlpanelconfig=/etc/clusterlink/kubeconfig
             - --v=3
@@ -51,29 +61,63 @@ spec:
                 fieldRef:
                   apiVersion: v1
                   fieldPath: spec.nodeName
-          image: ghcr.io/kosmos-io/clusterlink-elector:__VERSION__
-          imagePullPolicy: IfNotPresent
-          name: elector
           resources:
             limits:
-              memory: 200Mi
               cpu: 250m
+              memory: 200Mi
             requests:
               cpu: 250m
               memory: 250Mi
+          readinessProbe:
+            exec:
+              command:
+                - cat
+                - /proc/1/cmdline
+            failureThreshold: 30
+            initialDelaySeconds: 3
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            failureThreshold: 30
+            exec:
+              command:
+                - cat
+                - /proc/1/cmdline
+            initialDelaySeconds: 3
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 3
           volumeMounts:
             - mountPath: /etc/clusterlink
               name: proxy-config
               readOnly: true
-      serviceAccount: clusterlink-elector
       serviceAccountName: clusterlink-elector
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kosmos.io/exclude
+                    operator: DoesNotExist
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - elector
+              namespaces:
+                - {{ .Namespace }}
+              topologyKey: kubernetes.io/hostname
       tolerations:
         - effect: NoSchedule
           key: key
           operator: Equal
           value: value
       volumes:
-        - configMap:
+        - name: proxy-config
+          secret:
             defaultMode: 420
-            name: clusterlink-agent-proxy
-          name: proxy-config
+            secretName: clusterlink-agent-proxy
+            

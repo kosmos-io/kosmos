@@ -19,7 +19,6 @@ spec:
       labels:
         app: clusterlink-network-manager
     spec:
-      serviceAccountName: clusterlink-network-manager
       containers:
         - name: manager
           image: {{ .ImageRepository }}/clusterlink-network-manager:v{{ .Version }}
@@ -29,32 +28,34 @@ spec:
             - --v=4
           resources:
             limits:
-              memory: 500Mi
               cpu: 500m
+              memory: 500Mi
             requests:
               cpu: 500m
               memory: 500Mi
-`
-
-	KosmosOperatorDeployment = `
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: kosmos-operator
-  namespace: {{ .Namespace }}
-  labels:
-    app: operator
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: operator
-  template:
-    metadata:
-      labels:
-        app: operator
-    spec:
-      serviceAccountName: kosmos-operator
+          readinessProbe:
+            exec:
+              command:
+                - cat
+                - /proc/1/cmdline
+            failureThreshold: 30
+            initialDelaySeconds: 3
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+          livenessProbe:
+            exec:
+              command:
+                - cat
+                - /proc/1/cmdline
+            failureThreshold: 30
+            initialDelaySeconds: 3
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 3
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+      serviceAccountName: clusterlink-network-manager
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -63,38 +64,10 @@ spec:
                   - key: app
                     operator: In
                     values:
-                      - operator
+                      - clusterlink-network-manager
               namespaces:
-                - {{ .Namespace }}
+                - kosmos-system
               topologyKey: kubernetes.io/hostname
-      containers:
-      - name: operator
-        image: {{ .ImageRepository }}/kosmos-operator:v{{ .Version }}
-        imagePullPolicy: IfNotPresent
-        command:
-          - kosmos-operator
-          - --controlpanelconfig=/etc/kosmos-operator/kubeconfig
-        resources:
-          limits:
-            memory: 200Mi
-            cpu: 250m
-          requests:
-            cpu: 100m
-            memory: 200Mi
-        env:
-        - name: VERSION
-          value: v{{ .Version }}
-        - name: USE_PROXY
-          value: "{{ .UseProxy }}"
-        volumeMounts:
-          - mountPath: /etc/kosmos-operator
-            name: proxy-config
-            readOnly: true
-      volumes:
-        - name: proxy-config
-          secret:
-            secretName: controlpanel-config
-
 `
 
 	ClusterTreeClusterManagerDeployment = `---
@@ -115,11 +88,14 @@ spec:
       labels:
         app: clustertree-cluster-manager
     spec:
-      serviceAccountName: clustertree
       containers:
-        - name: manager
+        - name: clustertree-cluster-manager
           image: {{ .ImageRepository }}/clustertree-cluster-manager:v{{ .Version }}
           imagePullPolicy: IfNotPresent
+          command:
+            - clustertree-cluster-manager
+            - --multi-cluster-service=true
+            - --v=4
           env:
             - name: APISERVER_CERT_LOCATION
               value: /etc/cluster-tree/cert/cert.pem
@@ -129,18 +105,113 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
+            - name: PREFERRED-ADDRESS-TYPE
+              value: InternalDNS
+          readinessProbe:
+            exec:
+              command:
+                - cat
+                - /proc/1/cmdline
+            failureThreshold: 30
+            initialDelaySeconds: 3
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+          livenessProbe:
+            exec:
+              command:
+                - cat
+                - /proc/1/cmdline
+            failureThreshold: 30
+            initialDelaySeconds: 3
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 3
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
           volumeMounts:
             - name: credentials
               mountPath: "/etc/cluster-tree/cert"
               readOnly: true
-          command:
-            - clustertree-cluster-manager
-            - --multi-cluster-service=true
-            - --v=4
+      serviceAccountName: clustertree
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                    - clustertree-cluster-manager
+              namespaces:
+                - kosmos-system
+              topologyKey: kubernetes.io/hostname
       volumes:
         - name: credentials
           secret:
+            defaultMode: 420
             secretName: clustertree-cluster-manager
+`
+
+	KosmosOperatorDeployment = `
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kosmos-operator
+  namespace: {{ .Namespace }}
+  labels:
+    app: operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: operator
+  template:
+    metadata:
+      labels:
+        app: operator
+    spec:
+      containers:
+        - name: operator
+          image: {{ .ImageRepository }}/kosmos-operator:v{{ .Version }}
+          imagePullPolicy: IfNotPresent
+          command:
+            - kosmos-operator
+            - --controlpanelconfig=/etc/kosmos-operator/kubeconfig
+          env:
+            - name: VERSION
+              value: v{{ .Version }}
+            - name: USE_PROXY
+              value: "{{ .UseProxy }}"
+          resources:
+            limits:
+              cpu: 250m
+              memory: 200Mi
+            requests:
+              cpu: 100m
+              memory: 200Mi
+          volumeMounts:
+            - mountPath: /etc/kosmos-operator
+              name: proxy-config
+              readOnly: true
+      serviceAccountName: kosmos-operator
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - operator
+              namespaces:
+                - {{ .Namespace }}
+              topologyKey: kubernetes.io/hostname
+      volumes:
+        - name: proxy-config
+          secret:
+            defaultMode: 420
+            secretName: controlpanel-config
 `
 
 	CorednsDeployment = `

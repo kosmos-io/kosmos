@@ -30,13 +30,8 @@ spec:
       labels:
         app: clusterlink-proxy
     spec:
-      volumes:
-        - name: proxy-config
-          configMap:
-            defaultMode: 420
-            name: clusterlink-agent-proxy
       containers:
-        - name: manager
+        - name: clusterlink-proxy
           image: ghcr.io/kosmos-io/clusterlink-proxy:__VERSION__
           imagePullPolicy: IfNotPresent
           command:
@@ -46,12 +41,48 @@ spec:
             - --authorization-kubeconfig=/etc/clusterlink/kubeconfig
           resources:
             limits:
-              memory: 500Mi
               cpu: 500m
+              memory: 500Mi
             requests:
               cpu: 500m
               memory: 500Mi
+          readinessProbe:
+            exec:
+              command:
+                - cat
+                - /proc/1/cmdline
+            failureThreshold: 30
+            initialDelaySeconds: 3
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            failureThreshold: 30
+            exec:
+              command:
+                - cat
+                - /proc/1/cmdline
+            initialDelaySeconds: 3
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 3
           volumeMounts:
             - mountPath: /etc/clusterlink
               name: proxy-config
               readOnly: true
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - clusterlink-proxy
+            namespaces:
+              - {{ .Namespace }}
+            topologyKey: kubernetes.io/hostname
+      volumes:
+        - name: proxy-config
+          configMap:
+            defaultMode: 420
+            name: clusterlink-agent-proxy

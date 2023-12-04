@@ -55,12 +55,12 @@ func applyServiceAccount(opt *option.AddonOption) error {
 
 func applyDeployment(opt *option.AddonOption) error {
 	clCtrManagerDeploymentBytes, err := utils.ParseTemplate(clusterlinkManagerDeployment, DeploymentReplace{
-		Namespace:          opt.GetSpecNamespace(),
-		Name:               ResourceName,
-		ProxyConfigMapName: utils2.ProxySecretName,
-		ClusterName:        opt.GetName(),
-		ImageRepository:    opt.GetImageRepository(),
-		Version:            opt.Version,
+		Namespace:       opt.GetSpecNamespace(),
+		Name:            ResourceName,
+		ProxySecretName: utils2.ProxySecretName,
+		ClusterName:     opt.GetName(),
+		ImageRepository: opt.GetImageRepository(),
+		Version:         opt.Version,
 	})
 
 	if err != nil {

@@ -12,17 +12,10 @@ spec:
       labels:
         app: clusterlink-agent
     spec:
-      tolerations:
-        # these tolerations are to have the daemonset runnable on control plane nodes
-        # remove them if your control plane nodes should not run pods
-        - key: node-role.kubernetes.io/control-plane
-          operator: Exists
-          effect: NoSchedule
-        - key: node-role.kubernetes.io/master
-          operator: Exists
-          effect: NoSchedule
       containers:
         - name: clusterlink-agent
+          securityContext:
+            privileged: true
           image: ghcr.io/kosmos-io/clusterlink-agent:__VERSION__
           imagePullPolicy: IfNotPresent
           command:
@@ -37,36 +30,49 @@ spec:
                   fieldPath: spec.nodeName
           resources:
             limits:
-              memory: 200Mi
-              cpu: 250m
+              memory: 1Gi
             requests:
               cpu: 250m
               memory: 200Mi
           volumeMounts:
-          - mountPath: /etc/clusterlink/kubeconfig
-            name: proxy-config
-            readOnly: true
-          - mountPath: /run/xtables.lock
-            name: iptableslock
-            readOnly: false
-          - mountPath: /lib/modules
-            name: lib-modules
-            readOnly: true
-      terminationGracePeriodSeconds: 30
-      securityContext:
-        privileged: true
+            - mountPath: /etc/clusterlink/kubeconfig
+              name: proxy-config
+              readOnly: true
+            - mountPath: /run/xtables.lock
+              name: iptableslock
+              readOnly: false
+            - mountPath: /lib/modules
+              name: lib-modules
+              readOnly: true
+      dnsPolicy: ClusterFirstWithHostNet
       hostNetwork: true
+      terminationGracePeriodSeconds: 30
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kosmos.io/exclude
+                    operator: DoesNotExist
+      tolerations:
+        # these tolerations are to have the daemonset runnable on control plane nodes
+        # remove them if your control plane nodes should not run pods
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+        - key: node-role.kubernetes.io/master
+          operator: Exists
+          effect: NoSchedule
       volumes:
-      - name: proxy-config
-        configMap:
-          defaultMode: 420
-          name: proxy-config
-      - hostPath:
-          path: /run/xtables.lock
-          type: FileOrCreate
-        name: iptableslock
-      - name: lib-modules
-        hostPath:
-          path: /lib/modules
-
-      
+        - name: proxy-config
+          secret:
+            defaultMode: 420
+            secretName: clusterlink-agent-proxy
+        - hostPath:
+            path: /run/xtables.lock
+            type: FileOrCreate
+          name: iptableslock
+        - name: lib-modules
+          hostPath:
+            path: /lib/modules
+            

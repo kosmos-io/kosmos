@@ -31,72 +31,78 @@ spec:
       labels:
         app: clusterlink-controller-manager
     spec:
-      serviceAccountName: {{ .Name }}
-      affinity:
-        podAntiAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-          - labelSelector:
-              matchExpressions:
-              - key: app
-                operator: In
-                values:
-                - clusterlink-controller-manager
-            namespaces:
-            - {{ .Namespace }}
-            topologyKey: kubernetes.io/hostname
       containers:
         - name: manager
-          readinessProbe:
-            exec:
-              command:
-              - cat
-              - /proc/1/cmdline
-            failureThreshold: 30
-            initialDelaySeconds: 3
-            periodSeconds: 10
-            timeoutSeconds: 5
-          livenessProbe:
-            failureThreshold: 30
-            exec:
-              command:
-              - cat
-              - /proc/1/cmdline
-            initialDelaySeconds: 3
-            periodSeconds: 10
-            successThreshold: 1
-            timeoutSeconds: 3
           image: {{ .ImageRepository }}/clusterlink-controller-manager:{{ .Version }}
           imagePullPolicy: IfNotPresent
           command:
             - clusterlink-controller-manager
             - --controlpanelconfig=/etc/clusterlink/kubeconfig
           env:
-          - name: CLUSTER_NAME
-            value: "{{ .ClusterName }}"  
+            - name: CLUSTER_NAME
+              value: "{{ .ClusterName }}"  
           resources:
             limits:
-              memory: 500Mi
               cpu: 500m
+              memory: 500Mi
             requests:
               cpu: 500m
               memory: 500Mi
+          readinessProbe:
+            exec:
+              command:
+                - cat
+                - /proc/1/cmdline
+            failureThreshold: 30
+            initialDelaySeconds: 3
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            exec:
+              command:
+                - cat
+                - /proc/1/cmdline
+            failureThreshold: 30
+            initialDelaySeconds: 3
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 3
           volumeMounts:
             - mountPath: /etc/clusterlink
               name: proxy-config
               readOnly: true
+      serviceAccountName: {{ .Name }}
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - clusterlink-controller-manager
+            namespaces:
+              - {{ .Namespace }}
+            topologyKey: kubernetes.io/hostname
+      tolerations:
+        - effect: NoSchedule
+          key: kosmos.io/join
+          operator: Equal
+          value: "true"
       volumes:
-      - name: proxy-config
-        secret:
-          secretName: {{ .ProxyConfigMapName }}
+        - name: proxy-config
+          secret:
+            defaultMode: 420
+            secretName: {{ .ProxySecretName }}
 `
 
 type DeploymentReplace struct {
-	Namespace          string
-	Name               string
-	ProxyConfigMapName string
-	ClusterName        string
-	ImageRepository    string
-	Version            string
+	Namespace       string
+	Name            string
+	ProxySecretName string
+	ClusterName     string
+	ImageRepository string
+	Version         string
 }
 
 const clusterlinkManagerClusterRole = `

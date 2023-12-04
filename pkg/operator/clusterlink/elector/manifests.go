@@ -31,81 +31,89 @@ spec:
       labels:
         app: elector
     spec:
+      containers:
+        - name: elector
+          image: {{ .ImageRepository }}/clusterlink-elector:{{ .Version }}
+          imagePullPolicy: IfNotPresent
+          command:
+            - clusterlink-elector
+            - --controlpanelconfig=/etc/clusterlink/kubeconfig
+            - --v=3
+          env:
+            - name: CLUSTER_NAME
+              value: "{{ .ClusterName }}"  
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          resources:
+            limits:
+              cpu: 500m
+              memory: 500Mi
+            requests:
+              cpu: 500m
+              memory: 500Mi
+          readinessProbe:
+            exec:
+              command:
+                - cat
+                - /proc/1/cmdline
+            failureThreshold: 30
+            initialDelaySeconds: 3
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            failureThreshold: 30
+            exec:
+              command:
+                - cat
+                - /proc/1/cmdline
+            initialDelaySeconds: 3
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 3
+          volumeMounts:
+            - mountPath: /etc/clusterlink
+              name: proxy-config
+              readOnly: true
       serviceAccountName: {{ .Name }}
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
-            - matchExpressions:
-              - key: kosmos.io/exclude
-                operator: DoesNotExist
+              - matchExpressions:
+                - key: kosmos.io/exclude
+                  operator: DoesNotExist
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
-          - labelSelector:
-              matchExpressions:
-              - key: app
-                operator: In
-                values:
-                - elector
-            namespaces:
-            - {{ .Namespace }}
-            topologyKey: kubernetes.io/hostname
-      containers:
-      - name: elector
-        readinessProbe:
-          exec:
-            command:
-            - cat
-            - /proc/1/cmdline
-          failureThreshold: 30
-          initialDelaySeconds: 3
-          periodSeconds: 10
-          timeoutSeconds: 5
-        livenessProbe:
-          failureThreshold: 30
-          exec:
-            command:
-            - cat
-            - /proc/1/cmdline
-          initialDelaySeconds: 3
-          periodSeconds: 10
-          successThreshold: 1
-          timeoutSeconds: 3
-        image: {{ .ImageRepository }}/clusterlink-elector:{{ .Version }}
-        imagePullPolicy: IfNotPresent
-        command:
-          - clusterlink-elector
-          - --controlpanelconfig=/etc/clusterlink/kubeconfig
-          - --v=3 
-        env:
-        - name: CLUSTER_NAME
-          value: "{{ .ClusterName }}"  
-        - name: NODE_NAME
-          valueFrom:
-            fieldRef:
-              fieldPath: spec.nodeName
-        volumeMounts:
-        - mountPath: /etc/clusterlink
-          name: proxy-config
-          readOnly: true
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - elector
+              namespaces:
+                - {{ .Namespace }}
+              topologyKey: kubernetes.io/hostname
       tolerations:
-      - key: "key"
-        operator: "Equal"
-        value: "value"
-        effect: "NoSchedule"
+        - key: "key"
+          operator: "Equal"
+          value: "value"
+          effect: "NoSchedule"
       volumes:
-      - name: proxy-config
-        secret:
-          secretName: {{ .ProxyConfigMapName }}
+        - name: proxy-config
+          secret:
+            defaultMode: 420
+            secretName: {{ .ProxySecretName }}
 `
 
 type DeploymentReplace struct {
-	Namespace          string
-	Name               string
-	ClusterName        string
-	ImageRepository    string
-	ProxyConfigMapName string
-	Version            string
+	Namespace       string
+	Name            string
+	ClusterName     string
+	ImageRepository string
+	ProxySecretName string
+	Version         string
 }
 
 const clusterlinkElectorClusterRole = `

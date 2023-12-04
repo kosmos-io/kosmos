@@ -16,6 +16,22 @@ subjects:
     namespace: {{ .Namespace }}
 `
 
+	ClusterTreeClusterRoleBinding = `
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: clustertree
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: clustertree
+subjects:
+  - kind: ServiceAccount
+    name: clustertree
+    namespace: {{ .Namespace }}
+`
+
 	ClusterlinkFloaterClusterRoleBinding = `
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -49,22 +65,6 @@ subjects:
     namespace: {{ .Namespace }}
   - kind: ServiceAccount
     name: kosmos-operator
-    namespace: {{ .Namespace }}
-`
-
-	ClusterTreeClusterRoleBinding = `
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: clustertree
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: clustertree
-subjects:
-  - kind: ServiceAccount
-    name: clustertree
     namespace: {{ .Namespace }}
 `
 

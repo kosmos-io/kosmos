@@ -21,6 +21,3 @@ subjects:
   - kind: ServiceAccount
     name: clusterlink-controller-manager
     namespace: kosmos-system
-  - kind: ServiceAccount
-    name: clusterlink-operator
-    namespace: kosmos-system

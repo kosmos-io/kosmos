@@ -39,20 +39,22 @@ spec:
       labels:
         app: clusterlink-proxy
     spec:
-      affinity:
-        podAntiAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-          - labelSelector:
-              matchExpressions:
-              - key: app
-                operator: In
-                values:
-                - clusterlink-proxy
-            namespaces:
-            - {{ .Namespace }}
-            topologyKey: kubernetes.io/hostname
       containers:
-        - name: manager
+        - name: clusterlink-proxy
+          image: {{ .ImageRepository }}/clusterlink-proxy:{{ .Version }}
+          imagePullPolicy: IfNotPresent
+          command:
+            - clusterlink-proxy
+            - --kubeconfig=/etc/clusterlink/kubeconfig
+            - --authentication-kubeconfig=/etc/clusterlink/kubeconfig
+            - --authorization-kubeconfig=/etc/clusterlink/kubeconfig
+          resources:
+            limits:
+              cpu: 500m
+              memory: 500Mi
+            requests:
+              cpu: 500m
+              memory: 500Mi
           readinessProbe:
             exec:
               command:
@@ -66,35 +68,33 @@ spec:
             failureThreshold: 30
             exec:
               command:
-              - cat
-              - /proc/1/cmdline
+                - cat
+                - /proc/1/cmdline
             initialDelaySeconds: 3
             periodSeconds: 10
             successThreshold: 1
             timeoutSeconds: 3
-          image: {{ .ImageRepository }}/clusterlink-proxy:{{ .Version }}
-          imagePullPolicy: IfNotPresent
-          command:
-            - clusterlink-proxy
-            - --kubeconfig=/etc/clusterlink/kubeconfig
-            - --authentication-kubeconfig=/etc/clusterlink/kubeconfig
-            - --authorization-kubeconfig=/etc/clusterlink/kubeconfig
-          resources:
-            limits:
-              memory: 500Mi
-              cpu: 500m
-            requests:
-              cpu: 500m
-              memory: 500Mi
           volumeMounts:
             - mountPath: /etc/clusterlink
               name: proxy-config
               readOnly: true
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - clusterlink-proxy
+            namespaces:
+              - {{ .Namespace }}
+            topologyKey: kubernetes.io/hostname
       volumes:
-      - name: proxy-config
-        secret:
-          secretName: {{ .ControlPanelSecretName }}
-
+        - name: proxy-config
+          secret:
+            defaultMode: 420
+            secretName: {{ .ControlPanelSecretName }}
 `
 
 type DeploymentReplace struct {

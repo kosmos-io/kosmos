@@ -21,6 +21,29 @@ spec:
       labels:
         app: operator
     spec:
+      containers:
+      - name: operator
+        image: ghcr.io/kosmos-io/kosmos-operator:__VERSION__
+        imagePullPolicy: IfNotPresent
+        command:
+          - kosmos-operator
+          - --controlpanelconfig=/etc/kosmos-operator/kubeconfig
+        env:
+          - name: VERSION
+            value: __VERSION__
+          - name: USE_PROXY
+            value: "false"
+        resources:
+          limits:
+            cpu: 250m
+            memory: 200Mi
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        volumeMounts:
+          - mountPath: /etc/kosmos-operator
+            name: proxy-config
+            readOnly: true
       serviceAccountName: kosmos-operator
       affinity:
         podAntiAffinity:
@@ -34,30 +57,8 @@ spec:
               namespaces:
                 - kosmos-system
               topologyKey: kubernetes.io/hostname
-      containers:
-      - name: operator
-        image: ghcr.io/kosmos-io/kosmos-operator:__VERSION__
-        imagePullPolicy: IfNotPresent
-        command:
-          - kosmos-operator
-          - --controlpanelconfig=/etc/kosmos-operator/kubeconfig
-        resources:
-          limits:
-            memory: 200Mi
-            cpu: 250m
-          requests:
-            cpu: 100m
-            memory: 200Mi
-        env:
-        - name: VERSION
-          value: __VERSION__
-        - name: USE_PROXY
-          value: "false"
-        volumeMounts:
-          - mountPath: /etc/kosmos-operator
-            name: proxy-config
-            readOnly: true
       volumes:
         - name: proxy-config
           secret:
+            defaultMode: 420
             secretName: controlpanel-config

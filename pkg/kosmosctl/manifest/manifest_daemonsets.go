@@ -19,35 +19,33 @@ spec:
       labels:
         app: clusterlink-floater
     spec:
+      containers:
+        - name: floater
+          image: {{ .ImageRepository }}/clusterlink-floater:v{{ .Version }}
+          imagePullPolicy: IfNotPresent
+          command:
+            - clusterlink-floater
+          env: 
+            - name: "PORT"
+              value: "{{ .Port }}"
+            - name: "ENABLE_ANALYSIS"
+              value: "{{ .EnableAnalysis }}"
       hostNetwork: {{ .EnableHostNetwork }}
       serviceAccountName: clusterlink-floater
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
-            - matchExpressions:
-              - key: kosmos.io/exclude
-                operator: DoesNotExist
-      containers:
-      - name: floater
-        image: {{ .ImageRepository }}/clusterlink-floater:v{{ .Version }}
-        imagePullPolicy: IfNotPresent
-        command:
-          - clusterlink-floater
-        securityContext:
-          privileged: true
-        env: 
-          - name: "PORT"
-            value: "{{ .Port }}"
-          - name: "ENABLE_ANALYSIS"
-            value: "{{ .EnableAnalysis }}"
+              - matchExpressions:
+                - key: kosmos.io/exclude
+                  operator: DoesNotExist
       tolerations:
-      - effect: NoSchedule
-        operator: Exists
-      - key: CriticalAddonsOnly
-        operator: Exists
-      - effect: NoExecute
-        operator: Exists
+        - effect: NoSchedule
+          operator: Exists
+        - key: CriticalAddonsOnly
+          operator: Exists
+        - effect: NoExecute
+          operator: Exists
 `
 )
 

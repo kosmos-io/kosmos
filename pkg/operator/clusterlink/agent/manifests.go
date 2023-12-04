@@ -39,6 +39,7 @@ spec:
         command:
         - clusterlink-agent
         - --kubeconfig=/etc/clusterlink/kubeconfig
+        - --v=4
         env:
         - name: CLUSTER_NAME
           value: "{{ .ClusterName }}"  
@@ -80,10 +81,10 @@ spec:
 // DaemonSetReplace is a struct to help to concrete
 // the clusterlink-agent daemonset bytes with the daemonset template
 type DaemonSetReplace struct {
-	Namespace          string
-	Name               string
-	ProxyConfigMapName string
-	ImageRepository    string
-	Version            string
-	ClusterName        string
+	Namespace       string
+	Name            string
+	ProxySecretName string
+	ImageRepository string
+	Version         string
+	ClusterName     string
 }

@@ -34,12 +34,12 @@ func New() *AgentInstaller {
 // create daemonset
 func applyDaemonSet(opt *option.AddonOption) error {
 	clusterlinkAgentDaemonSetBytes, err := utils.ParseTemplate(clusterlinkAgentDaemonSet, DaemonSetReplace{
-		Namespace:          opt.GetSpecNamespace(),
-		Name:               ResourceName,
-		ImageRepository:    opt.GetImageRepository(),
-		ProxyConfigMapName: utils2.ProxySecretName,
-		Version:            opt.Version,
-		ClusterName:        opt.GetName(),
+		Namespace:       opt.GetSpecNamespace(),
+		Name:            ResourceName,
+		ImageRepository: opt.GetImageRepository(),
+		ProxySecretName: utils2.ProxySecretName,
+		Version:         opt.Version,
+		ClusterName:     opt.GetName(),
 	})
 
 	if err != nil {

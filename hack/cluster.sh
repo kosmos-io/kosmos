@@ -140,8 +140,6 @@ spec:
     enable: true
 EOF
   kubectl --context="kind-${member_cluster}" apply -f "$ROOT"/deploy/clusterlink-namespace.yml
-  kubectl --context="kind-${member_cluster}" -n kosmos-system delete secret controlpanel-config || true
-  kubectl --context="kind-${member_cluster}" -n kosmos-system create secret generic controlpanel-config --from-file=kubeconfig="${ROOT}/environments/${host_cluster}/kubeconfig"
   kubectl --context="kind-${member_cluster}" apply -f "$ROOT"/deploy/clusterlink-datapanel-rbac.yml
 }
 

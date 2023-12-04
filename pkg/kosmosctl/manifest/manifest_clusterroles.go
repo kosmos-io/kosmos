@@ -14,6 +14,19 @@ rules:
     verbs: ["get"]
 `
 
+	ClusterTreeClusterRole = `
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: clustertree
+rules:
+  - apiGroups: ['*']
+    resources: ['*']
+    verbs: ["*"]
+  - nonResourceURLs: ['*']
+    verbs: ["get"]
+`
+
 	ClusterlinkFloaterClusterRole = `
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -38,19 +51,6 @@ rules:
     verbs: ["*"]
   - nonResourceURLs: ['*']
     verbs: ["*"]
-`
-
-	ClusterTreeClusterRole = `
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: clustertree
-rules:
-  - apiGroups: ['*']
-    resources: ['*']
-    verbs: ["*"]
-  - nonResourceURLs: ['*']
-    verbs: ["get"]
 `
 
 	CorednsClusterRole = `

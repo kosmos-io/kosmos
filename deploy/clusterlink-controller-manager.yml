@@ -4,6 +4,30 @@ metadata:
   name:  clusterlink-controller-manager
   namespace: kosmos-system
 ---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: clusterlink
+rules:
+  - apiGroups: ['*']
+    resources: ['*']
+    verbs: ["*"]
+  - nonResourceURLs: ['*']
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: clusterlink
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: clusterlink
+subjects:
+  - kind: ServiceAccount
+    name: clusterlink-controller-manager
+    namespace: kosmos-system
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -21,7 +45,6 @@ spec:
       labels:
         app: clusterlink-controller-manager
     spec:
-      serviceAccountName: clusterlink-controller-manager
       containers:
         - name: manager
           image: ghcr.io/kosmos-io/clusterlink-controller-manager:__VERSION__
@@ -29,14 +52,59 @@ spec:
           command:
             - clusterlink-controller-manager
             - --controlpanelconfig=/etc/clusterlink/kubeconfig
+          env:
+            - name: CLUSTER_NAME
+              value: "{{ .ClusterName }}"
           resources:
             limits:
-              memory: 500Mi
               cpu: 500m
+              memory: 500Mi
             requests:
               cpu: 500m
               memory: 500Mi
+          readinessProbe:
+            exec:
+              command:
+                - cat
+                - /proc/1/cmdline
+            failureThreshold: 30
+            initialDelaySeconds: 3
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            exec:
+              command:
+                - cat
+                - /proc/1/cmdline
+            failureThreshold: 30
+            initialDelaySeconds: 3
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 3
           volumeMounts:
             - mountPath: /etc/clusterlink
               name: proxy-config
               readOnly: true
+      serviceAccountName: clusterlink-controller-manager
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - clusterlink-controller-manager
+            namespaces:
+              - kosmos-system
+            topologyKey: kubernetes.io/hostname
+      tolerations:
+        - effect: NoSchedule
+          key: kosmos.io/join
+          operator: Equal
+          value: "true"
+      volumes:
+        - name: proxy-config
+          secret:
+            defaultMode: 420
+            secretName: clusterlink-agent-proxy
