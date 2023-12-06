@@ -104,6 +104,17 @@ type ClusterTreeOptions struct {
 	// LeafModels provide an api to arrange the member cluster with some rules to pretend one or more leaf node
 	// +optional
 	LeafModels []LeafModel `json:"leafModels,omitempty"`
+
+	// +kubebuilder:default="k8s"
+	// +optional
+	LeafType string `json:"leafType,omitempty"`
+
+	// secret?
+	// +optional
+	AccessKey string `json:"accessKey,omitempty"`
+
+	// +optional
+	SecretKey string `json:"secretKey,omitempty"`
 }
 
 type LeafModel struct {

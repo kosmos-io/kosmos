@@ -32,6 +32,7 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/mcs"
 	podcontrollers "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/pod"
+	leafpodsyncers "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/pod/leaf-pod"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/pv"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/pvc"
 	leafUtils "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/utils"
@@ -123,6 +124,19 @@ func (c *ClusterController) Reconcile(ctx context.Context, request reconcile.Req
 		return controllerruntime.Result{RequeueAfter: RequeueTime}, err
 	}
 
+	if cluster.Spec.ClusterTreeOptions.LeafType == string(leafUtils.LeafTypeServerless) {
+		if !cluster.DeletionTimestamp.IsZero() {
+			// TODO:
+			return reconcile.Result{}, nil
+		}
+		// TODO: ....
+		if err := CreateOpenApiNode(ctx, cluster, c.RootClientset, c.Options); err != nil {
+			return controllerruntime.Result{RequeueAfter: RequeueTime}, err
+		}
+		// TODO: clean
+		return reconcile.Result{}, nil
+	}
+
 	config, err := utils.NewConfigFromBytes(cluster.Spec.Kubeconfig, func(config *rest.Config) {
 		config.QPS = utils.DefaultLeafKubeQPS
 		config.Burst = utils.DefaultLeafKubeBurst
@@ -206,7 +220,7 @@ func (c *ClusterController) Reconcile(ctx context.Context, request reconcile.Req
 	c.ManagerCancelFuncs[cluster.Name] = &cancel
 	c.ControllerManagersLock.Unlock()
 
-	if err = c.setupControllers(mgr, cluster, nodes, leafDynamic, leafNodeSelectors, leafClient, leafKosmosClient, config); err != nil {
+	if err = c.setupControllers(mgr, cluster, nodes, leafDynamic, leafNodeSelectors, leafClient, leafKosmosClient, config, subContext); err != nil {
 		return reconcile.Result{}, fmt.Errorf("failed to setup cluster %s controllers: %v", cluster.Name, err)
 	}
 
@@ -243,7 +257,8 @@ func (c *ClusterController) setupControllers(
 	leafNodeSelector map[string]kosmosv1alpha1.NodeSelector,
 	leafClientset kubernetes.Interface,
 	leafKosmosClient kosmosversioned.Interface,
-	leafRestConfig *rest.Config) error {
+	leafRestConfig *rest.Config,
+	subContext context.Context) error {
 	c.GlobalLeafManager.AddLeafResource(&leafUtils.LeafResource{
 		Client:        mgr.GetClient(),
 		DynamicClient: clientDynamic,
@@ -255,6 +270,8 @@ func (c *ClusterController) setupControllers(
 		IgnoreLabels:         strings.Split("", ","),
 		EnableServiceAccount: true,
 		RestConfig:           leafRestConfig,
+		// LeafType:             leafUtils.LeafTypeK8s,
+		LeafType: leafUtils.LeafTypeK8s,
 	}, cluster, nodes)
 
 	nodeResourcesController := controllers.NodeResourcesController{
@@ -294,14 +311,12 @@ func (c *ClusterController) setupControllers(
 		}
 	}
 
-	leafPodController := podcontrollers.LeafPodReconciler{
-		RootClient: c.Root,
-		Namespace:  "",
-	}
+	leafPodWorkerQueue := podcontrollers.NewLeafPodWorkerQueue(&leafpodsyncers.LeafPodWorkerQueueOption{
+		Config:     leafRestConfig,
+		RootClient: c.RootClientset,
+	}, leafUtils.LeafTypeK8s) // TODO:
 
-	if err := leafPodController.SetupWithManager(mgr); err != nil {
-		return fmt.Errorf("error starting podUpstreamReconciler %s: %v", podcontrollers.LeafPodControllerName, err)
-	}
+	go leafPodWorkerQueue.Run(subContext)
 
 	if !c.Options.OnewayStorageControllers {
 		err := c.setupStorageControllers(mgr, utils.IsOne2OneMode(cluster), cluster.Name)

@@ -215,16 +215,15 @@ func run(ctx context.Context, opts *options.Options) error {
 		}
 	}
 
-	// init rootPodController
-	rootPodReconciler := podcontrollers.RootPodReconciler{
-		GlobalLeafManager: globalleafManager,
-		RootClient:        mgr.GetClient(),
+	rootPodWorkerQueue := podcontrollers.NewRootPodWorkerQueue(&podcontrollers.RootPodWorkerQueueOption{
+		Config:            config,
+		RootClient:        rootClient,
 		DynamicRootClient: dynamicClient,
+		GlobalLeafManager: globalleafManager,
 		Options:           opts,
-	}
-	if err := rootPodReconciler.SetupWithManager(mgr); err != nil {
-		return fmt.Errorf("error starting rootPodReconciler %s: %v", podcontrollers.RootPodControllerName, err)
-	}
+	})
+
+	go rootPodWorkerQueue.Run(ctx)
 
 	if !opts.OnewayStorageControllers {
 		rootPVCController := pvc.RootPVCController{

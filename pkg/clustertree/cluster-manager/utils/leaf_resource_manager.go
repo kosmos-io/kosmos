@@ -29,6 +29,13 @@ const (
 	Party
 )
 
+type LeafType string
+
+const (
+	LeafTypeK8s        LeafType = "k8s"
+	LeafTypeServerless LeafType = "serverless"
+)
+
 type ClusterNode struct {
 	NodeName         string
 	LeafMode         LeafMode
@@ -46,6 +53,13 @@ type LeafResource struct {
 	EnableServiceAccount bool
 	Nodes                []ClusterNode
 	RestConfig           *rest.Config
+	LeafType             LeafType
+
+	ServerlessClient *ServerlessClient
+}
+
+func (lr *LeafResource) GetLeafType() LeafType {
+	return lr.LeafType
 }
 
 type LeafResourceManager interface {

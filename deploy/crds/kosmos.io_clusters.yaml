@@ -113,6 +113,9 @@ spec:
                 type: object
               clusterTreeOptions:
                 properties:
+                  accessKey:
+                    description: secret?
+                    type: string
                   enable:
                     default: true
                     type: boolean
@@ -225,6 +228,11 @@ spec:
                           type: array
                       type: object
                     type: array
+                  leafType:
+                    default: k8s
+                    type: string
+                  secretKey:
+                    type: string
                 type: object
               imageRepository:
                 type: string

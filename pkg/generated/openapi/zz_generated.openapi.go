@@ -690,6 +690,25 @@ func schema_pkg_apis_kosmos_v1alpha1_ClusterTreeOptions(ref common.ReferenceCall
 							},
 						},
 					},
+					"leafType": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"accressKey": {
+						SchemaProps: spec.SchemaProps{
+							Description: "secret?",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"secretKey": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
 				},
 			},
 		},

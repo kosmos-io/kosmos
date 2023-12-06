@@ -149,6 +149,8 @@ const (
 
 	// LabelNodeRoleNode specifies that a node hosts node components
 	LabelNodeRoleNode = "node-role.kubernetes.io/node"
+
+	LabelServerlessOrderIds = "kosmos.io/serverless-order-ids"
 )
 
 const (
