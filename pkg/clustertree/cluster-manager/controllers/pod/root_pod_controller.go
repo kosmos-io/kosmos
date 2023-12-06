@@ -248,6 +248,9 @@ func (r *RootPodReconciler) SetupWithManager(mgr manager.Manager) error {
 							return true
 						}
 					}
+					if !p.DeletionTimestamp.IsZero() {
+						return true
+					}
 					return false
 				}
 			}
