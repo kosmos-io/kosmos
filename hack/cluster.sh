@@ -4,6 +4,7 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
+HOST_CLUSTER_NAME="cluster-host"
 CURRENT="$(dirname "${BASH_SOURCE[0]}")"
 ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 KIND_IMAGE="ghcr.io/kosmos-io/node:v1.25.3"
@@ -70,6 +71,9 @@ function create_cluster() {
         docker pull docker.io/calico/kube-controllers:v3.25.0
         docker pull docker.io/calico/node:v3.25.0
         docker pull docker.io/calico/csi:v3.25.0
+        docker pull docker.io/percona:5.7
+        docker pull docker.io/library/nginx:latest
+        docker pull docker.io/library/busybox:latest
     else
         docker pull quay.m.daocloud.io/tigera/operator:v1.29.0
         docker pull docker.m.daocloud.io/calico/cni:v3.25.0
@@ -78,6 +82,9 @@ function create_cluster() {
         docker pull docker.m.daocloud.io/calico/kube-controllers:v3.25.0
         docker pull docker.m.daocloud.io/calico/node:v3.25.0
         docker pull docker.m.daocloud.io/calico/csi:v3.25.0
+        docker pull docker.m.daocloud.io/percona:5.7
+        docker pull docker.m.daocloud.io/library/nginx:latest
+        docker pull docker.m.daocloud.io/library/busybox:latest
 
         docker tag quay.m.daocloud.io/tigera/operator:v1.29.0 quay.io/tigera/operator:v1.29.0
         docker tag docker.m.daocloud.io/calico/cni:v3.25.0 docker.io/calico/cni:v3.25.0
@@ -86,6 +93,9 @@ function create_cluster() {
         docker tag docker.m.daocloud.io/calico/kube-controllers:v3.25.0 docker.io/calico/kube-controllers:v3.25.0
         docker tag docker.m.daocloud.io/calico/node:v3.25.0 docker.io/calico/node:v3.25.0
         docker tag docker.m.daocloud.io/calico/csi:v3.25.0 docker.io/calico/csi:v3.25.0
+        docker tag docker.m.daocloud.io/percona:5.7 docker.io/percona:5.7
+        docker tag docker.m.daocloud.io/library/nginx:latest docker.io/library/nginx:latest
+        docker tag docker.m.daocloud.io/library/busybox:latest docker.io/library/busybox:latest
     fi
 
     kind load docker-image -n "$clustername" quay.io/tigera/operator:v1.29.0
@@ -95,7 +105,36 @@ function create_cluster() {
     kind load docker-image -n "$clustername" docker.io/calico/kube-controllers:v3.25.0
     kind load docker-image -n "$clustername" docker.io/calico/node:v3.25.0
     kind load docker-image -n "$clustername" docker.io/calico/csi:v3.25.0
+    kind load docker-image -n "$clustername" docker.io/percona:5.7
+    kind load docker-image -n "$clustername" docker.io/library/nginx:latest
+    kind load docker-image -n "$clustername" docker.io/library/busybox:latest
 
+    if "${clustername}" == $HOST_CLUSTER_NAME ; then
+        if [ "${CN_ZONE}" == false ]; then
+            docker pull docker.io/bitpoke/mysql-operator-orchestrator:v0.6.3
+            docker pull docker.io/prom/mysqld-exporter:v0.13.0
+            docker pull docker.io/bitpoke/mysql-operator-sidecar-8.0:v0.6.3
+            docker pull docker.io/bitpoke/mysql-operator-sidecar-5.7:v0.6.3
+            docker pull docker.io/bitpoke/mysql-operator:v0.6.3
+        else
+            docker pull docker.m.daocloud.io/bitpoke/mysql-operator-orchestrator:v0.6.3
+            docker pull docker.m.daocloud.io/prom/mysqld-exporter:v0.13.0
+            docker pull docker.m.daocloud.io/bitpoke/mysql-operator-sidecar-8.0:v0.6.3
+            docker pull docker.m.daocloud.io/bitpoke/mysql-operator-sidecar-5.7:v0.6.3
+            docker pull docker.m.daocloud.io/bitpoke/mysql-operator:v0.6.3
+
+            docker tag docker.m.daocloud.io/bitpoke/mysql-operator-orchestrator:v0.6.3 docker.io/bitpoke/mysql-operator-orchestrator:v0.6.3
+            docker tag docker.m.daocloud.io/prom/mysqld-exporter:v0.13.0 docker.io/prom/mysqld-exporter:v0.13.0
+            docker tag docker.m.daocloud.io/bitpoke/mysql-operator-sidecar-8.0:v0.6.3 docker.io/bitpoke/mysql-operator-sidecar-8.0:v0.6.3
+            docker tag docker.m.daocloud.io/bitpoke/mysql-operator-sidecar-5.7:v0.6.3 docker.io/bitpoke/mysql-operator-sidecar-5.7:v0.6.3
+            docker tag docker.m.daocloud.io/bitpoke/mysql-operator:v0.6.3 docker.io/bitpoke/mysql-operator:v0.6.3
+        fi
+            kind load docker-image -n "$clustername" docker.io/bitpoke/mysql-operator-orchestrator:v0.6.3
+            kind load docker-image -n "$clustername" docker.io/prom/mysqld-exporter:v0.13.0
+            kind load docker-image -n "$clustername" docker.io/bitpoke/mysql-operator-sidecar-8.0:v0.6.3
+            kind load docker-image -n "$clustername" docker.io/bitpoke/mysql-operator-sidecar-5.7:v0.6.3
+            kind load docker-image -n "$clustername" docker.io/bitpoke/mysql-operator:v0.6.3
+    fi
     kubectl --context="kind-${clustername}" create -f "$CURRENT/calicooperator/tigera-operator.yaml" || $("${REUSE}" -eq "true")
     kind export kubeconfig --name "$clustername"
     util::wait_for_crd installations.operator.tigera.io
@@ -108,6 +147,8 @@ function create_cluster() {
       "kubectl get nodes | awk 'NR>1 {if (\$2 != \"Ready\") exit 1; }' && [ \$(kubectl get nodes --no-headers | wc -l) -eq ${N} ]" \
       300
     echo "all node ready"
+
+    kubectl --context="kind-${clustername}" apply -f "$ROOT"/deploy/crds/mcs
 }
 
 function join_cluster() {
@@ -134,14 +175,13 @@ spec:
   kubeconfig: "$base64_kubeconfig"
   clusterLinkOptions:
     cni: "calico"
+    ipFamily: ipv4
     defaultNICName: eth0
     networkType: "gateway"
   clusterTreeOptions:
     enable: true
 EOF
   kubectl --context="kind-${member_cluster}" apply -f "$ROOT"/deploy/clusterlink-namespace.yml
-  kubectl --context="kind-${member_cluster}" -n kosmos-system delete secret controlpanel-config || true
-  kubectl --context="kind-${member_cluster}" -n kosmos-system create secret generic controlpanel-config --from-file=kubeconfig="${ROOT}/environments/${host_cluster}/kubeconfig"
   kubectl --context="kind-${member_cluster}" apply -f "$ROOT"/deploy/clusterlink-datapanel-rbac.yml
 }
 
@@ -153,7 +193,6 @@ function deploy_cluster() {
    kubectl --context="kind-${clustername}" apply -f "$ROOT"/deploy/clusterlink-namespace.yml
    kubectl --context="kind-${clustername}" apply -f "$ROOT"/deploy/kosmos-rbac.yml
    kubectl --context="kind-${clustername}" apply -f "$ROOT"/deploy/crds
-   kubectl --context="kind-${clustername}" apply -f "$ROOT"/deploy/crds/mcs
    util::wait_for_crd clusternodes.kosmos.io clusters.kosmos.io
 
    sed -e "s|__VERSION__|$VERSION|g" -e "w ${ROOT}/environments/clusterlink-network-manager.yml" "$ROOT"/deploy/clusterlink-network-manager.yml
@@ -166,10 +205,23 @@ function deploy_cluster() {
 
    echo "cluster $clustername deploy clustertree success"
 
+   kubectl --context="kind-${clustername}" -n kosmos-system delete secret controlpanel-config || true
+   kubectl --context="kind-${clustername}" -n kosmos-system create secret generic controlpanel-config --from-file=kubeconfig="${ROOT}/environments/cluster-host/kubeconfig"
    sed -e "s|__VERSION__|$VERSION|g" -e "w ${ROOT}/environments/kosmos-operator.yml" "$ROOT"/deploy/kosmos-operator.yml
    kubectl --context="kind-${clustername}" apply -f "${ROOT}/environments/kosmos-operator.yml"
 
    echo "cluster $clustername deploy kosmos-operator success"
+
+   sed -e "s|__VERSION__|$VERSION|g" -e "w ${ROOT}/environments/kosmos-scheduler.yml" "$ROOT"/deploy/scheduler/deployment.yaml
+   kubectl --context="kind-${clustername}" apply -f "${ROOT}/environments/kosmos-scheduler.yml"
+   kubectl --context="kind-${clustername}" apply -f "$ROOT"/deploy/scheduler/rbac.yaml
+
+   util::wait_for_condition "kosmos scheduler are ready" \
+     "kubectl -n kosmos-system get deploy kosmos-scheduler -o jsonpath='{.status.replicas}{\" \"}{.status.readyReplicas}{\"\n\"}' | awk '{if (\$1 == \$2 && \$1 > 0) exit 0; else exit 1}'" \
+     300
+   echo "cluster $clustername deploy kosmos-scheduler success"
+
+   docker exec ${clustername}-control-plane /bin/sh -c "mv /etc/kubernetes/manifests/kube-scheduler.yaml /etc/kubernetes"
 }
 
 function load_cluster_images() {
@@ -182,6 +234,7 @@ function load_cluster_images() {
     kind load docker-image -n "$clustername" ghcr.io/kosmos-io/clusterlink-agent:"${VERSION}"
     kind load docker-image -n "$clustername" ghcr.io/kosmos-io/clusterlink-proxy:"${VERSION}"
     kind load docker-image -n "$clustername" ghcr.io/kosmos-io/clustertree-cluster-manager:"${VERSION}"
+    kind load docker-image -n "$clustername" ghcr.io/kosmos-io/scheduler:"${VERSION}"
 }
 
 function delete_cluster() {
