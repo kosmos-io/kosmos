@@ -561,6 +561,9 @@ github.com/russross/blackfriday/v2
 # github.com/sirupsen/logrus v1.9.0
 ## explicit; go 1.13
 github.com/sirupsen/logrus
+# github.com/spf13/cast v1.6.0
+## explicit; go 1.19
+github.com/spf13/cast
 # github.com/spf13/cobra v1.6.0
 ## explicit; go 1.15
 github.com/spf13/cobra
