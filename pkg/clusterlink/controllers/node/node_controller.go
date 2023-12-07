@@ -22,10 +22,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	clusterlinkv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
-	"github.com/kosmos.io/kosmos/pkg/clusterlink/network"
 	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/utils"
-	interfacepolicy "github.com/kosmos.io/kosmos/pkg/utils/interface-policy"
 )
 
 const (
@@ -109,20 +107,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 			},
 		},
 	}
-	cluster, err := r.ClusterLinkClient.KosmosV1alpha1().Clusters().Get(ctx, r.ClusterName, metav1.GetOptions{})
-	if err != nil {
-		klog.Errorf("get cluster %s err: %v", r.ClusterName, err)
-		return reconcile.Result{Requeue: true}, nil
-	}
 
-	err = CreateOrUpdateClusterNode(r.ClusterLinkClient, clusterNode, func(n *clusterlinkv1alpha1.ClusterNode) error {
+	err := CreateOrUpdateClusterNode(r.ClusterLinkClient, clusterNode, func(n *clusterlinkv1alpha1.ClusterNode) error {
 		n.Spec.NodeName = node.Name
 		n.Spec.ClusterName = r.ClusterName
-		n.Spec.InterfaceName = interfacepolicy.GetInterfaceName(cluster.Spec.ClusterLinkOptions.NICNodeNames, node.Name, cluster.Spec.ClusterLinkOptions.DefaultNICName)
-		if n.Spec.InterfaceName == network.AutoSelectInterfaceFlag {
-			n.Spec.IP = internalIP
-			n.Spec.IP6 = internalIP6
-		}
+		// n.Spec.InterfaceName while set by clusterlink-agent
 		return nil
 	})
 	if err != nil {
