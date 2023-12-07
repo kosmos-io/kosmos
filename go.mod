@@ -6,7 +6,7 @@ require (
 	github.com/bep/debounce v1.2.1
 	github.com/containerd/console v1.0.3
 	github.com/containerd/containerd v1.6.14
-	github.com/coreos/go-iptables v0.6.0
+	github.com/coreos/go-iptables v0.7.1-0.20231102141700-50d824baaa46
 	github.com/docker/docker v24.0.6+incompatible
 	github.com/evanphx/json-patch v4.12.0+incompatible
 	github.com/go-logr/logr v1.2.3
