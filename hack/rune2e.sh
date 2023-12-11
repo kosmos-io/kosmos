@@ -33,7 +33,7 @@ util::wait_for_condition "mcs of member2 are ready" \
 nginx_service_ip=$(kubectl -n kosmos-e2e get svc nginx-service -o=jsonpath='{.spec.clusterIP}')
 
 # e2e test for access nginx service
-#docker exec -it ${HOST_CLUSTER_NAME}-control-plane sh -c "curl -sSf -m 5 ${nginx_service_ip}:80" && echo "success" || { echo "fail"; exit 1; }
+sleep 100 && docker exec -i ${HOST_CLUSTER_NAME}-control-plane sh -c "curl -sSf -m 5 ${nginx_service_ip}:80" && echo "success" || { echo "fail"; exit 1; }
 
 # e2e for mysql-operator
 kubectl --context="kind-cluster-host" apply -f "${ROOT}"/../test/e2e/deploy/mysql-operator
@@ -44,9 +44,9 @@ util::wait_for_condition "mysql operator are ready" \
 #kubectl --context="kind-cluster-host" exec -it /bin/sh -c
 kubectl --context="kind-${HOST_CLUSTER_NAME}" apply -f "${ROOT}"/../test/e2e/deploy/cr
 
-#util::wait_for_condition "mysql cr are ready" \
-#  "[ \$(kubectl get pods -n kosmos-e2e --field-selector=status.phase=Running --no-headers | wc -l) -eq 2 ]" \
-#  1200
+util::wait_for_condition "mysql cr are ready" \
+  "[ \$(kubectl get pods -n kosmos-e2e --field-selector=status.phase=Running --no-headers | wc -l) -eq 2 ]" \
+  1200
 
 echo "E2e test of mysql-operator success"
 
