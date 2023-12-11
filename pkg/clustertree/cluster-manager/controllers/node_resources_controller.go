@@ -39,10 +39,11 @@ type NodeResourcesController struct {
 	GlobalLeafManager leafUtils.LeafResourceManager
 	RootClientset     kubernetes.Interface
 
-	Nodes            []*corev1.Node
-	LeafModelHandler leafUtils.LeafModelHandler
-	Cluster          *kosmosv1alpha1.Cluster
-	EventRecorder    record.EventRecorder
+	Nodes             []*corev1.Node
+	LeafNodeSelectors map[string]kosmosv1alpha1.NodeSelector
+	LeafModelHandler  leafUtils.LeafModelHandler
+	Cluster           *kosmosv1alpha1.Cluster
+	EventRecorder     record.EventRecorder
 }
 
 var predicatesFunc = predicate.Funcs{
@@ -110,7 +111,7 @@ func (c *NodeResourcesController) Reconcile(ctx context.Context, request reconci
 			}, fmt.Errorf("cannot get node while update nodeInRoot resources %s, err: %v", rootNode.Name, err)
 		}
 
-		nodesInLeaf, err := c.LeafModelHandler.GetLeafNodes(ctx, rootNode)
+		nodesInLeaf, err := c.LeafModelHandler.GetLeafNodes(ctx, rootNode, c.LeafNodeSelectors[rootNode.Name])
 		if err != nil {
 			klog.Errorf("Could not get node in leaf cluster %s,Error: %v", c.Cluster.Name, err)
 			return controllerruntime.Result{
@@ -118,7 +119,7 @@ func (c *NodeResourcesController) Reconcile(ctx context.Context, request reconci
 			}, err
 		}
 
-		pods, err := c.LeafModelHandler.GetLeafPods(ctx, rootNode)
+		pods, err := c.LeafModelHandler.GetLeafPods(ctx, rootNode, c.LeafNodeSelectors[rootNode.Name])
 		if err != nil {
 			klog.Errorf("Could not list pod in leaf cluster %s,Error: %v", c.Cluster.Name, err)
 			return controllerruntime.Result{
@@ -130,7 +131,7 @@ func (c *NodeResourcesController) Reconcile(ctx context.Context, request reconci
 		clone.Status.Conditions = utils.NodeConditions()
 
 		// Node2Node mode should sync leaf node's labels and annotations to root nodeInRoot
-		if c.LeafModelHandler.GetLeafModelType() == leafUtils.DispersionModel {
+		if c.LeafModelHandler.GetLeafMode() == leafUtils.Node {
 			getNode := func(nodes *corev1.NodeList) *corev1.Node {
 				for _, nodeInLeaf := range nodes.Items {
 					if nodeInLeaf.Name == rootNode.Name {
@@ -156,7 +157,7 @@ func (c *NodeResourcesController) Reconcile(ctx context.Context, request reconci
 				}
 			}
 		}
-
+		// TODO ggregation Labels and  Annotations for classificationModel
 		clusterResources := utils.CalculateClusterResources(nodesInLeaf, pods)
 		clone.Status.Allocatable = clusterResources
 		clone.Status.Capacity = clusterResources
