@@ -8,6 +8,8 @@ type ClusterNodeExpansion interface{}
 
 type DaemonSetExpansion interface{}
 
+type DistributionPolicyExpansion interface{}
+
 type KnodeExpansion interface{}
 
 type NodeConfigExpansion interface{}

@@ -14,6 +14,8 @@ type Interface interface {
 	ClusterNodes() ClusterNodeInformer
 	// DaemonSets returns a DaemonSetInformer.
 	DaemonSets() DaemonSetInformer
+	// DistributionPolicies returns a DistributionPolicyInformer.
+	DistributionPolicies() DistributionPolicyInformer
 	// Knodes returns a KnodeInformer.
 	Knodes() KnodeInformer
 	// NodeConfigs returns a NodeConfigInformer.
@@ -48,6 +50,11 @@ func (v *version) ClusterNodes() ClusterNodeInformer {
 // DaemonSets returns a DaemonSetInformer.
 func (v *version) DaemonSets() DaemonSetInformer {
 	return &daemonSetInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// DistributionPolicies returns a DistributionPolicyInformer.
+func (v *version) DistributionPolicies() DistributionPolicyInformer {
+	return &distributionPolicyInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
 }
 
 // Knodes returns a KnodeInformer.
