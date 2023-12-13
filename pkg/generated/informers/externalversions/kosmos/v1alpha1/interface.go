@@ -10,10 +10,14 @@ import (
 type Interface interface {
 	// Clusters returns a ClusterInformer.
 	Clusters() ClusterInformer
+	// ClusterDistributionPolicies returns a ClusterDistributionPolicyInformer.
+	ClusterDistributionPolicies() ClusterDistributionPolicyInformer
 	// ClusterNodes returns a ClusterNodeInformer.
 	ClusterNodes() ClusterNodeInformer
 	// DaemonSets returns a DaemonSetInformer.
 	DaemonSets() DaemonSetInformer
+	// DistributionPolicies returns a DistributionPolicyInformer.
+	DistributionPolicies() DistributionPolicyInformer
 	// Knodes returns a KnodeInformer.
 	Knodes() KnodeInformer
 	// NodeConfigs returns a NodeConfigInformer.
@@ -40,6 +44,11 @@ func (v *version) Clusters() ClusterInformer {
 	return &clusterInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
 }
 
+// ClusterDistributionPolicies returns a ClusterDistributionPolicyInformer.
+func (v *version) ClusterDistributionPolicies() ClusterDistributionPolicyInformer {
+	return &clusterDistributionPolicyInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
+}
+
 // ClusterNodes returns a ClusterNodeInformer.
 func (v *version) ClusterNodes() ClusterNodeInformer {
 	return &clusterNodeInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
@@ -48,6 +57,11 @@ func (v *version) ClusterNodes() ClusterNodeInformer {
 // DaemonSets returns a DaemonSetInformer.
 func (v *version) DaemonSets() DaemonSetInformer {
 	return &daemonSetInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// DistributionPolicies returns a DistributionPolicyInformer.
+func (v *version) DistributionPolicies() DistributionPolicyInformer {
+	return &distributionPolicyInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // Knodes returns a KnodeInformer.
