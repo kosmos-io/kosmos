@@ -12,7 +12,6 @@ import (
 	extensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -23,6 +22,7 @@ import (
 	"k8s.io/kubectl/pkg/util/templates"
 
 	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
+	"github.com/kosmos.io/kosmos/pkg/cert"
 	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/join"
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/manifest"
@@ -32,21 +32,20 @@ import (
 )
 
 var installExample = templates.Examples(i18n.T(`
-        # Install all module to Kosmos control plane, e.g: 
-        kosmosctl install --cni cni-name --default-nic nic-name
-
+		# Install all module to Kosmos control plane, e.g: 
+		kosmosctl install --cni cni-name --default-nic nic-name
+		
 		# Install Kosmos control plane, if you need to specify a special control plane cluster kubeconfig, e.g: 
-        kosmosctl install --kubeconfig ~/kubeconfig/cluster-kubeconfig
-
-		# Install clusterlink module to Kosmos control plane, e.g: 
-        kosmosctl install -m clusterlink --cni cni-name --default-nic nic-name
-
+		kosmosctl install --kubeconfig ~/kubeconfig/cluster-kubeconfig
+		
 		# Install clustertree module to Kosmos control plane, e.g: 
-        kosmosctl install -m clustertree
-
+		kosmosctl install -m clustertree
+		
+		# Install clusterlink module to Kosmos control plane and set the necessary parameters, e.g: 
+		kosmosctl install -m clusterlink --cni cni-name --default-nic nic-name
+		
 		# Install coredns module to Kosmos control plane, e.g: 
-        kosmosctl install -m coredns
-`))
+		kosmosctl install -m coredns`))
 
 type CommandInstallOptions struct {
 	Namespace            string
@@ -65,8 +64,10 @@ type CommandInstallOptions struct {
 
 	KosmosClient        versioned.Interface
 	K8sClient           kubernetes.Interface
-	K8sDynamicClient    *dynamic.DynamicClient
 	K8sExtensionsClient extensionsclient.Interface
+
+	CertEncode string
+	KeyEncode  string
 }
 
 // NewCmdInstall Install the Kosmos control plane in a Kubernetes cluster.
@@ -99,6 +100,9 @@ func NewCmdInstall(f ctlutil.Factory) *cobra.Command {
 	flags.StringVar(&o.IpFamily, "ip-family", string(v1alpha1.IPFamilyTypeIPV4), "Specify the IP protocol version used by network devices, common IP families include IPv4 and IPv6.")
 	flags.StringVar(&o.UseProxy, "use-proxy", "false", "Set whether to enable proxy.")
 	flags.IntVarP(&o.WaitTime, "wait-time", "", utils.DefaultWaitTime, "Wait the specified time for the Kosmos install ready.")
+
+	flags.StringVar(&o.CertEncode, "cert-encode", cert.GetCrtEncode(), "cert base64 string for node server.")
+	flags.StringVar(&o.KeyEncode, "key-encode", cert.GetKeyEncode(), "key base64 string for node server.")
 
 	return cmd
 }
@@ -135,11 +139,6 @@ func (o *CommandInstallOptions) Complete(f ctlutil.Factory) error {
 	o.K8sClient, err = kubernetes.NewForConfig(config)
 	if err != nil {
 		return fmt.Errorf("kosmosctl install complete error, generate K8s basic client failed: %v", err)
-	}
-
-	o.K8sDynamicClient, err = dynamic.NewForConfig(config)
-	if err != nil {
-		return fmt.Errorf("kosmosctl install complete error, generate K8s dynamic client failed: %s", err)
 	}
 
 	o.K8sExtensionsClient, err = extensionsclient.NewForConfig(config)
@@ -312,7 +311,7 @@ func (o *CommandInstallOptions) runClusterlink() error {
 	}
 
 	operatorDeploy, err := util.GenerateDeployment(manifest.KosmosOperatorDeployment, manifest.DeploymentReplace{
-		Namespace:       utils.DefaultNamespace,
+		Namespace:       o.Namespace,
 		Version:         version.GetReleaseVersion().PatchRelease(),
 		UseProxy:        o.UseProxy,
 		ImageRepository: o.ImageRegistry,
@@ -405,30 +404,6 @@ func (o *CommandInstallOptions) runClustertree() error {
 	}
 	klog.Info("Create CRD " + clustertreeCluster.Name + " successful.")
 
-	serviceExport, err := util.GenerateCustomResourceDefinition(manifest.ServiceExport, nil)
-	if err != nil {
-		return err
-	}
-	_, err = o.K8sExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Create(context.Background(), serviceExport, metav1.CreateOptions{})
-	if err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			return fmt.Errorf("kosmosctl install clustertree run error, crd options failed: %v", err)
-		}
-	}
-	klog.Info("Create CRD " + serviceExport.Name + " successful.")
-
-	serviceImport, err := util.GenerateCustomResourceDefinition(manifest.ServiceImport, nil)
-	if err != nil {
-		return err
-	}
-	_, err = o.K8sExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Create(context.Background(), serviceImport, metav1.CreateOptions{})
-	if err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			return fmt.Errorf("kosmosctl install clustertree run error, crd options failed: %v", err)
-		}
-	}
-	klog.Info("Create CRD " + serviceImport.Name + " successful.")
-
 	klog.Info("Start creating kosmos-clustertree ConfigMap...")
 	clustertreeConfigMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -446,6 +421,23 @@ func (o *CommandInstallOptions) runClustertree() error {
 		}
 	}
 	klog.Info("ConfigMap host-kubeconfig has been created.")
+
+	klog.Info("Start creating kosmos-clustertree secret")
+	clustertreeSecret, err := util.GenerateSecret(manifest.ClusterTreeClusterManagerSecret, manifest.SecretReplace{
+		Namespace: o.Namespace,
+		Cert:      o.CertEncode,
+		Key:       o.KeyEncode,
+	})
+	if err != nil {
+		return err
+	}
+	_, err = o.K8sClient.CoreV1().Secrets(o.Namespace).Create(context.Background(), clustertreeSecret, metav1.CreateOptions{})
+	if err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return fmt.Errorf("kosmosctl install clustertree run error, secret options failed: %v", err)
+		}
+	}
+	klog.Info("Secret has been created. ")
 
 	klog.Info("Start creating kosmos-clustertree Deployment...")
 	clustertreeDeploy, err := util.GenerateDeployment(manifest.ClusterTreeClusterManagerDeployment, manifest.DeploymentReplace{
@@ -470,7 +462,7 @@ func (o *CommandInstallOptions) runClustertree() error {
 	}
 
 	operatorDeploy, err := util.GenerateDeployment(manifest.KosmosOperatorDeployment, manifest.DeploymentReplace{
-		Namespace:       utils.DefaultNamespace,
+		Namespace:       o.Namespace,
 		Version:         version.GetReleaseVersion().PatchRelease(),
 		UseProxy:        o.UseProxy,
 		ImageRepository: o.ImageRegistry,
@@ -573,21 +565,21 @@ func (o *CommandInstallOptions) createControlCluster() error {
 			if apierrors.IsNotFound(err) {
 				clusterArgs := []string{"cluster"}
 				joinOptions := join.CommandJoinOptions{
-					Name:             utils.DefaultClusterName,
-					Namespace:        o.Namespace,
-					ImageRegistry:    o.ImageRegistry,
-					KubeConfigStream: o.HostKubeConfigStream,
-					WaitTime:         o.WaitTime,
-					KosmosClient:     o.KosmosClient,
-					K8sClient:        o.K8sClient,
-					K8sDynamicClient: o.K8sDynamicClient,
-					RootFlag:         true,
-					EnableLink:       true,
-					CNI:              o.CNI,
-					DefaultNICName:   o.DefaultNICName,
-					NetworkType:      o.NetworkType,
-					IpFamily:         o.IpFamily,
-					UseProxy:         o.UseProxy,
+					Name:                utils.DefaultClusterName,
+					Namespace:           o.Namespace,
+					ImageRegistry:       o.ImageRegistry,
+					KubeConfigStream:    o.HostKubeConfigStream,
+					WaitTime:            o.WaitTime,
+					KosmosClient:        o.KosmosClient,
+					K8sClient:           o.K8sClient,
+					K8sExtensionsClient: o.K8sExtensionsClient,
+					RootFlag:            true,
+					EnableLink:          true,
+					CNI:                 o.CNI,
+					DefaultNICName:      o.DefaultNICName,
+					NetworkType:         o.NetworkType,
+					IpFamily:            o.IpFamily,
+					UseProxy:            o.UseProxy,
 				}
 
 				err = joinOptions.Run(clusterArgs)
@@ -630,16 +622,16 @@ func (o *CommandInstallOptions) createControlCluster() error {
 			if apierrors.IsNotFound(err) {
 				clusterArgs := []string{"cluster"}
 				joinOptions := join.CommandJoinOptions{
-					Name:             utils.DefaultClusterName,
-					Namespace:        o.Namespace,
-					ImageRegistry:    o.ImageRegistry,
-					KubeConfigStream: o.HostKubeConfigStream,
-					WaitTime:         o.WaitTime,
-					KosmosClient:     o.KosmosClient,
-					K8sClient:        o.K8sClient,
-					K8sDynamicClient: o.K8sDynamicClient,
-					RootFlag:         true,
-					EnableTree:       true,
+					Name:                utils.DefaultClusterName,
+					Namespace:           o.Namespace,
+					ImageRegistry:       o.ImageRegistry,
+					KubeConfigStream:    o.HostKubeConfigStream,
+					K8sExtensionsClient: o.K8sExtensionsClient,
+					WaitTime:            o.WaitTime,
+					KosmosClient:        o.KosmosClient,
+					K8sClient:           o.K8sClient,
+					RootFlag:            true,
+					EnableTree:          true,
 				}
 
 				err = joinOptions.Run(clusterArgs)
@@ -667,22 +659,22 @@ func (o *CommandInstallOptions) createControlCluster() error {
 			if apierrors.IsNotFound(err) {
 				clusterArgs := []string{"cluster"}
 				joinOptions := join.CommandJoinOptions{
-					Name:             utils.DefaultClusterName,
-					Namespace:        o.Namespace,
-					ImageRegistry:    o.ImageRegistry,
-					KubeConfigStream: o.HostKubeConfigStream,
-					WaitTime:         o.WaitTime,
-					KosmosClient:     o.KosmosClient,
-					K8sClient:        o.K8sClient,
-					K8sDynamicClient: o.K8sDynamicClient,
-					RootFlag:         true,
-					EnableLink:       true,
-					CNI:              o.CNI,
-					DefaultNICName:   o.DefaultNICName,
-					NetworkType:      o.NetworkType,
-					IpFamily:         o.IpFamily,
-					UseProxy:         o.UseProxy,
-					EnableTree:       true,
+					Name:                utils.DefaultClusterName,
+					Namespace:           o.Namespace,
+					ImageRegistry:       o.ImageRegistry,
+					KubeConfigStream:    o.HostKubeConfigStream,
+					K8sExtensionsClient: o.K8sExtensionsClient,
+					WaitTime:            o.WaitTime,
+					KosmosClient:        o.KosmosClient,
+					K8sClient:           o.K8sClient,
+					RootFlag:            true,
+					EnableLink:          true,
+					CNI:                 o.CNI,
+					DefaultNICName:      o.DefaultNICName,
+					NetworkType:         o.NetworkType,
+					IpFamily:            o.IpFamily,
+					UseProxy:            o.UseProxy,
+					EnableTree:          true,
 				}
 
 				err = joinOptions.Run(clusterArgs)

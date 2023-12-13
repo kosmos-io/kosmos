@@ -39,6 +39,7 @@ spec:
         command:
         - clusterlink-agent
         - --kubeconfig=/etc/clusterlink/kubeconfig
+        - --v=4
         env:
         - name: CLUSTER_NAME
           value: "{{ .ClusterName }}"  
@@ -56,13 +57,25 @@ spec:
         - mountPath: /etc/clusterlink
           name: proxy-config
           readOnly: true
+        - mountPath: /run/xtables.lock
+          name: iptableslock
+          readOnly: false
+        - mountPath: /lib/modules
+          name: lib-modules
+          readOnly: true
       terminationGracePeriodSeconds: 30
       hostNetwork: true
       volumes:
       - name: proxy-config
         secret:
           secretName: {{ .ProxyConfigMapName }}
-
+      - hostPath:
+          path: /run/xtables.lock
+          type: FileOrCreate
+        name: iptableslock
+      - name: lib-modules
+        hostPath:
+          path: /lib/modules
 `
 
 // DaemonSetReplace is a struct to help to concrete

@@ -319,6 +319,22 @@ func (o *CommandUninstallOptions) runClustertree() error {
 		}
 	} else {
 		klog.Info("Deployment " + clustertreeDeploy.Name + " is deleted.")
+		clustertreeSecret, err := util.GenerateSecret(manifest.ClusterTreeClusterManagerSecret, manifest.SecretReplace{
+			Namespace: o.Namespace,
+			Cert:      "",
+			Key:       "",
+		})
+		if err != nil {
+			return err
+		}
+		err = o.K8sClient.CoreV1().Secrets(o.Namespace).Delete(context.Background(), clustertreeSecret.Name, metav1.DeleteOptions{})
+		if err != nil {
+			if !apierrors.IsNotFound(err) {
+				return fmt.Errorf("kosmosctl uninstall clustertree secret run error, secret options failed: %v", err)
+			}
+		} else {
+			klog.Info("Secret " + clustertreeSecret.Name + " is deleted.")
+		}
 	}
 
 	clusters, err := o.KosmosClient.KosmosV1alpha1().Clusters().List(context.TODO(), metav1.ListOptions{})
@@ -340,7 +356,7 @@ func (o *CommandUninstallOptions) runClustertree() error {
 		klog.Info("CRD " + clusterCRD.Name + " is deleted.")
 	}
 
-	err = o.K8sClient.CoreV1().ConfigMaps(utils.DefaultNamespace).Delete(context.TODO(), utils.HostKubeConfigName, metav1.DeleteOptions{})
+	err = o.K8sClient.CoreV1().ConfigMaps(o.Namespace).Delete(context.TODO(), utils.HostKubeConfigName, metav1.DeleteOptions{})
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return fmt.Errorf("kosmosctl uninstall clustertree run error, configmap options failed: %v", err)

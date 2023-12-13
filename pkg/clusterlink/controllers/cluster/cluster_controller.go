@@ -11,6 +11,7 @@ import (
 	calicoclient "github.com/projectcalico/calico/libcalico-go/lib/clientv3"
 	"github.com/projectcalico/calico/libcalico-go/lib/options"
 	cwatch "github.com/projectcalico/calico/libcalico-go/lib/watch"
+	"github.com/spf13/cast"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -39,8 +40,9 @@ import (
 // KubeFlannelNetworkConfig
 const (
 	FlannelCNI             = "flannel"
-	KubeFlannelNamespace   = "kube-flannel"
+	CiliumCNI              = "cilium"
 	KubeFlannelConfigMap   = "kube-flannel-cfg"
+	KubeCiliumConfigMap    = "cilium-config"
 	KubeFlannelNetworkConf = "net-conf.json"
 	KubeFlannelIPPool      = "Network"
 )
@@ -96,7 +98,6 @@ func (c *Controller) Start(ctx context.Context) error {
 	informer := factory.Core().V1().Pods().Informer()
 	c.podLister = factory.Core().V1().Pods().Lister()
 	podFilterFunc := func(pod *corev1.Pod) bool {
-		//TODO 确认这个写法是否正确
 		return pod.Labels["component"] == "kube-apiserver"
 	}
 
@@ -124,7 +125,13 @@ func (c *Controller) Start(ctx context.Context) error {
 		return err
 	}
 
-	if cluster.Spec.ClusterLinkOptions.CNI == FlannelCNI {
+	if cluster.Spec.ClusterLinkOptions.CNI == CiliumCNI {
+		c.setClusterPodCIDRFun, err = c.initCiliumInformer(ctx, cluster, c.kubeClient)
+		if err != nil {
+			klog.Errorf("cluster %s initCiliumInformer err: %v", err)
+			return err
+		}
+	} else if cluster.Spec.ClusterLinkOptions.CNI == FlannelCNI {
 		c.setClusterPodCIDRFun, err = c.initFlannelInformer(ctx, cluster, c.kubeClient)
 		if err != nil {
 			klog.Errorf("cluster %s initCalicoInformer err: %v", err)
@@ -213,7 +220,6 @@ func (c *Controller) Reconcile(key utils.QueueKey) error {
 }
 
 func (c *Controller) initCalicoInformer(context context.Context, cluster *clusterlinkv1alpha1.Cluster, dynamicClient dynamic.Interface) (SetClusterPodCIDRFun, error) {
-	//TODO 这里应该判断cluster的cni插件类型，如果是calico才去观测ippool事件，否则可能都没有ippool这个资源对象，watch一个不存在的资源对象可能会导致这里报错
 	dynamicInformerFactory := dynamicinformer.NewDynamicSharedInformerFactory(dynamicClient, 0)
 	gvr := schema.GroupVersionResource{
 		Group:    "crd.projectcalico.org",
@@ -371,7 +377,7 @@ func (c *Controller) initCalicoWatcherWithEtcdBackend(ctx context.Context, clust
 
 // todo by wuyingjun-lucky
 func (c *Controller) initFlannelInformer(context context.Context, cluster *clusterlinkv1alpha1.Cluster, kubeClient kubernetes.Interface) (SetClusterPodCIDRFun, error) {
-	informerFactory := informers.NewSharedInformerFactoryWithOptions(kubeClient, 0, informers.WithNamespace(KubeFlannelNamespace))
+	informerFactory := informers.NewSharedInformerFactory(kubeClient, 0)
 	lister := informerFactory.Core().V1().ConfigMaps().Lister()
 	_, err := informerFactory.Core().V1().ConfigMaps().Informer().AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
@@ -434,6 +440,59 @@ func (c *Controller) initFlannelInformer(context context.Context, cluster *clust
 				break
 			}
 		}
+		cluster.Status.ClusterLinkStatus.PodCIDRs = podCIDRS
+		return nil
+	}, nil
+}
+
+func (c *Controller) initCiliumInformer(ctx context.Context, cluster *clusterlinkv1alpha1.Cluster, kubeClient *kubernetes.Clientset) (SetClusterPodCIDRFun, error) {
+	informerFactory := informers.NewSharedInformerFactory(kubeClient, 0)
+	lister := informerFactory.Core().V1().ConfigMaps().Lister()
+	_, err := informerFactory.Core().V1().ConfigMaps().Informer().AddEventHandler(
+		cache.FilteringResourceEventHandler{
+			FilterFunc: func(obj interface{}) bool {
+				cm, ok := obj.(*corev1.ConfigMap)
+				if !ok {
+					return false
+				}
+				return cm.Name == KubeCiliumConfigMap && cm.Namespace == "kube-system"
+			},
+			Handler: cache.ResourceEventHandlerFuncs{
+				AddFunc: func(obj interface{}) {
+					c.onChange(cluster)
+				},
+				UpdateFunc: func(oldObj, newObj interface{}) {
+					c.onChange(cluster)
+				},
+				DeleteFunc: func(obj interface{}) {
+					c.onChange(cluster)
+				},
+			},
+		})
+
+	if err != nil {
+		return nil, err
+	}
+	informerFactory.Start(ctx.Done())
+	informerFactory.WaitForCacheSync(ctx.Done())
+	return func(cluster *clusterlinkv1alpha1.Cluster) error {
+		cm, err := lister.ConfigMaps("kube-system").Get(KubeCiliumConfigMap)
+		if err != nil {
+			return err
+		}
+		var podCIDRS []string
+		ipv4CIDR, ok := cm.Data["cluster-pool-ipv4-cidr"]
+		if !ok {
+			klog.Warningf("cluster-pool-ipv4-cidr not found in cilium-config ConfigMap")
+		}
+		podCIDRS = append(podCIDRS, cast.ToStringSlice(ipv4CIDR)...)
+
+		ipv6CIDR, ok := cm.Data["cluster-pool-ipv6-cidr"]
+		if !ok {
+			klog.Warningf("cluster-pool-ipv6-cidr not found in cilium-config ConfigMap")
+		}
+		podCIDRS = append(podCIDRS, cast.ToStringSlice(ipv6CIDR)...)
+
 		cluster.Status.ClusterLinkStatus.PodCIDRs = podCIDRS
 		return nil
 	}, nil

@@ -20,6 +20,10 @@ func (h *VxLocalMacCache) Do(c *Context) (err error) {
 	for _, node := range nodes {
 		ipTypes := h.getSupportIPTypes(node, c)
 		gw := c.Filter.GetGatewayNodeByClusterName(node.Spec.ClusterName)
+		if gw == nil {
+			klog.Warning("cannot find gateway node, cluster name: %s", node.Spec.ClusterName)
+			continue
+		}
 
 		for _, ipType := range ipTypes {
 			fdb, arp, err := h.buildVxLocalCachesByNode(c, ipType, gw)

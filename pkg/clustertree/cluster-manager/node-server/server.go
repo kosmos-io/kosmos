@@ -19,6 +19,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/kosmos.io/kosmos/cmd/clustertree/cluster-manager/app/options"
+	"github.com/kosmos.io/kosmos/pkg/cert"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/node-server/api"
 	leafUtils "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/utils"
 )
@@ -125,11 +126,17 @@ func (s *NodeServer) AttachRoutes(m *http.ServeMux) {
 	m.Handle("/", r)
 }
 
-func (s *NodeServer) initTLSConfig() (*tls.Config, error) {
+func loadKeyPair() (tls.Certificate, error) {
 	CertPath := os.Getenv("APISERVER_CERT_LOCATION")
 	KeyPath := os.Getenv("APISERVER_KEY_LOCATION")
-	CACertPath := os.Getenv("APISERVER_CA_CERT_LOCATION")
 
+	if CertPath == "" || KeyPath == "" {
+		return tls.X509KeyPair(cert.GetCrt(), cert.GetKey())
+	}
+	return tls.LoadX509KeyPair(CertPath, KeyPath)
+}
+
+func (s *NodeServer) initTLSConfig() (*tls.Config, error) {
 	tlsCfg := &tls.Config{
 		MinVersion:               tls.VersionTLS12,
 		PreferServerCipherSuites: true,
@@ -137,12 +144,13 @@ func (s *NodeServer) initTLSConfig() (*tls.Config, error) {
 		ClientAuth:               tls.RequestClientCert,
 	}
 
-	cert, err := tls.LoadX509KeyPair(CertPath, KeyPath)
+	cert, err := loadKeyPair()
 	if err != nil {
 		return nil, err
 	}
 	tlsCfg.Certificates = append(tlsCfg.Certificates, cert)
 
+	CACertPath := os.Getenv("APISERVER_CA_CERT_LOCATION")
 	if CACertPath != "" {
 		pem, err := os.ReadFile(CACertPath)
 		if err != nil {

@@ -61,7 +61,7 @@ And then we can Use the Kosmos clusters like single cluster.
 ## Contact
 If you have questions, feel free to reach out to us in the following ways:
 - [Email](mailto:wuyingjun@cmss.chinamobile.com)
-- [WeChat](./docs/images/kosmos-WechatIMG.jpg)
+- [WeChat](./docs/images/kosmos-WeChatIMG.png)
 
 ## Contributors
 

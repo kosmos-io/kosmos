@@ -1,0 +1,198 @@
+apiVersion: mysql.presslabs.org/v1alpha1
+kind: MysqlCluster
+metadata:
+  name: mysql-cluster-e2e
+  namespace: kosmos-e2e
+spec:
+  replicas: 2
+  secretName: my-secret
+
+  ## For setting custom docker image or specifying mysql version
+  ## the image field has priority over mysqlVersion.
+  image: docker.io/percona:5.7
+  mysqlVersion: "5.7"
+
+    # initBucketURL: gs://bucket_name/backup.xtrabackup.gz
+    # initBucketSecretName:
+
+    ## PodDisruptionBudget
+    # minAvailable: 1
+
+    ## For recurrent backups set backupSchedule with a cronjob expression with seconds
+    # backupSchedule:
+    # backupURL: s3://bucket_name/
+    # backupSecretName:
+    # backupScheduleJobsHistoryLimit:
+    # backupRemoteDeletePolicy:
+    # backupCredentials:
+    # use s3 https://rclone.org/s3/
+    # S3_PROVIDER: ?             # like: AWS, Minio, Ceph, and so on
+    # S3_ENDPOINT: ?
+    # AWS_ACCESS_KEY_ID: ?
+    # AWS_SECRET_ACCESS_KEY: ?
+    # AWS_REGION: ?
+    # AWS_ACL: ?
+    # AWS_STORAGE_CLASS: ?
+    # AWS_SESSION_TOKEN: ?
+
+    # use google cloud storage https://rclone.org/googlecloudstorage/
+    # GCS_SERVICE_ACCOUNT_JSON_KEY: ?
+    # GCS_PROJECT_ID: ?
+    # GCS_OBJECT_ACL: ?
+    # GCS_BUCKET_ACL: ?
+    # GCS_LOCATION: ?
+    # GCS_STORAGE_CLASS: MULTI_REGIONAL
+
+    # use http https://rclone.org/http/
+    # HTTP_URL: ?
+
+    # use google drive https://rclone.org/drive/
+    # GDRIVE_CLIENT_ID: ?
+    # GDRIVE_ROOT_FOLDER_ID: ?
+    # GDRIVE_IMPERSONATOR: ?
+
+    # use azure https://rclone.org/azureblob/
+  # AZUREBLOB_ACCOUNT: ?
+  # AZUREBLOB_KEY: ?
+
+  ## Custom Server ID Offset for replication
+  # serverIDOffset: 100
+
+  ## Configs that will be added to my.cnf for cluster
+  mysqlConf:
+  #   innodb-buffer-size: 128M
+
+
+  ## Specify additional pod specification
+  podSpec:
+    tolerations:
+      - key: "kosmos.io/node"
+        operator: "Equal"
+        value: "true"
+        effect: "NoSchedule"
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: kubernetes.io/hostname
+                  operator: NotIn
+                  values:
+                    - cluster-host-control-plane
+                    - cluster-host-worker
+      podAntiAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                mysql.presslabs.org/cluster: mysql-cluster-e2e
+            topologyKey: kubernetes.io/hostname
+
+    #   imagePullSecrets: []
+    #   labels: {}
+    #   annotations: {}
+    #   affinity:
+    #     podAntiAffinity:
+    #       preferredDuringSchedulingIgnoredDuringExecution:
+    #         weight: 100
+    #         podAffinityTerm:
+    #           topologyKey: "kubernetes.io/hostname"
+    #           labelSelector:
+    #             matchlabels: <cluster-labels>
+    #   backupAffinity: {}
+    #   backupNodeSelector: {}
+    #   backupPriorityClassName:
+    #   backupTolerations: []
+    #   # Override the default preStop hook with a custom command/script
+    #   mysqlLifecycle:
+    #     preStop:
+    #       exec:
+    #         command:
+    #           - /scripts/demote-if-master
+    # nodeSelector:
+    #   nexus: "true"
+  #   resources:
+  #     requests:
+  #       memory: 1G
+  #       cpu:    200m
+  #   tolerations: []
+  #   priorityClassName:
+  #   serviceAccountName: default
+  #   # Use a initContainer to fix the permissons of a hostPath volume.
+  #   initContainers:
+  #     - name: volume-permissions
+  #       image: busybox
+  #       securityContext:
+  #         runAsUser: 0
+  #       command:
+  #         - sh
+  #         - -c
+  #         - chmod 750 /data/mysql; chown 999:999 /data/mysql
+  #       volumeMounts:
+  #         - name: data
+  #           mountPath: /data/mysql
+
+  ## Specify additional volume specification
+  volumeSpec:
+    persistentVolumeClaim:
+      storageClassName: standard
+      accessModes:
+        - ReadWriteOnce
+      resources:
+        requests:
+          storage: 0.5Gi
+
+  ## Specify service objectives
+  ## If thoses SLO are not fulfilled by cluster node then that node is
+  ## removed from scheme
+  # targetSLO:
+  #   maxSlaveLatency: 10s
+
+  ## You can use custom volume for /tmp partition if needed.
+  ## Is disabled by default
+  # tmpfsSize: 1Gi
+
+  ## Set cluster in read only
+  # readOnly: false
+
+  ## Use `pigz` for parallel compression/decompression of backups
+  ## Or specify any arbitrary compress/decompress commands with args
+  # backupCompressCommand:
+  #   - pigz
+  #   - --stdout
+  #
+  # backupDecompressCommand:
+  #   - pigz
+  #   - --decompress
+
+  ## Add metrics exporter extra arguments
+  # metricsExporterExtraArgs:
+  #   - --collect.info_schema.userstats
+  #   - --collect.perf_schema.file_events
+
+  ## Add extra arguments to rclone
+  # rcloneExtraArgs:
+  #   - --buffer-size=1G
+  #   - --multi-thread-streams=8
+  #   - --retries-sleep=10s
+  #   - --retries=10
+  #   - --transfers=8
+  #   - --s3-force-path-style=false # when use Alibaba OSS
+
+  ## Add extra arguments to xbstream
+  # xbstreamExtraArgs:
+  #   - --parallel=8
+
+  ## Add extra arguments to xtrabackup
+  # xtrabackupExtraArgs:
+  #   - --parallel=8
+
+  ## Add extra arguments to xtrabackup during --prepare
+  # xtrabackupPrepareExtraArgs:
+  #   - --use-memory=5G
+
+  ## Set xtrabackup target directory (the directory needs to exist)
+  # xtrabackupTargetDir: /var/lib/mysql/.tmp/xtrabackup/
+
+  # Add additional SQL commands to run during init of mysql
+  # initFileExtraSQL:
+  #   - "CREATE USER test@localhost"

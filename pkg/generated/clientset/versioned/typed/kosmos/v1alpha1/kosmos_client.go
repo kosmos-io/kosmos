@@ -17,6 +17,7 @@ type KosmosV1alpha1Interface interface {
 	DaemonSetsGetter
 	KnodesGetter
 	NodeConfigsGetter
+	PodConvertPoliciesGetter
 	ShadowDaemonSetsGetter
 }
 
@@ -43,6 +44,10 @@ func (c *KosmosV1alpha1Client) Knodes() KnodeInterface {
 
 func (c *KosmosV1alpha1Client) NodeConfigs() NodeConfigInterface {
 	return newNodeConfigs(c)
+}
+
+func (c *KosmosV1alpha1Client) PodConvertPolicies(namespace string) PodConvertPolicyInterface {
+	return newPodConvertPolicies(c, namespace)
 }
 
 func (c *KosmosV1alpha1Client) ShadowDaemonSets(namespace string) ShadowDaemonSetInterface {

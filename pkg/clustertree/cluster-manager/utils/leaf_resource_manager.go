@@ -24,14 +24,15 @@ var (
 type LeafMode int
 
 const (
-	ALL  LeafMode = 0
-	Node LeafMode = 1
-	// Party LeafMode = 2
+	ALL LeafMode = iota
+	Node
+	Party
 )
 
 type ClusterNode struct {
-	NodeName string
-	LeafMode LeafMode
+	NodeName         string
+	LeafMode         LeafMode
+	LeafNodeSelector kosmosv1alpha1.NodeSelector
 }
 
 type LeafResource struct {
@@ -103,13 +104,18 @@ func (l *leafResourceManager) AddLeafResource(lptr *LeafResource, cluster *kosmo
 
 	clusterNodes := []ClusterNode{}
 	for i, n := range nodes {
-		if leafModels != nil && len(leafModels[i].NodeSelector.NodeName) > 0 {
+		if leafModels != nil && leafModels[i].NodeSelector.LabelSelector != nil {
+			// TODO: support labelselector
+			clusterNodes = append(clusterNodes, ClusterNode{
+				NodeName:         trimNamePrefix(n.Name),
+				LeafMode:         Party,
+				LeafNodeSelector: leafModels[i].NodeSelector,
+			})
+		} else if leafModels != nil && len(leafModels[i].NodeSelector.NodeName) > 0 {
 			clusterNodes = append(clusterNodes, ClusterNode{
 				NodeName: n.Name,
 				LeafMode: Node,
 			})
-			// } else if leafModels != nil && leafModels[i].NodeSelector.LabelSelector != nil {
-			// TODO: support labelselector
 		} else {
 			clusterNodes = append(clusterNodes, ClusterNode{
 				NodeName: trimNamePrefix(n.Name),

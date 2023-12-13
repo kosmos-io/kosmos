@@ -120,10 +120,27 @@ spec:
         - name: manager
           image: {{ .ImageRepository }}/clustertree-cluster-manager:v{{ .Version }}
           imagePullPolicy: IfNotPresent
+          env:
+            - name: APISERVER_CERT_LOCATION
+              value: /etc/cluster-tree/cert/cert.pem
+            - name: APISERVER_KEY_LOCATION
+              value: /etc/cluster-tree/cert/key.pem
+            - name: LEAF_NODE_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          volumeMounts:
+            - name: credentials
+              mountPath: "/etc/cluster-tree/cert"
+              readOnly: true
           command:
             - clustertree-cluster-manager
             - --multi-cluster-service=true
             - --v=4
+      volumes:
+        - name: credentials
+          secret:
+            secretName: clustertree-cluster-manager
 `
 
 	CorednsDeployment = `

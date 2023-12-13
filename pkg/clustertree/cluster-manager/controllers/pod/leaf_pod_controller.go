@@ -8,6 +8,7 @@ import (
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -38,7 +39,7 @@ func (r *LeafPodReconciler) Reconcile(ctx context.Context, request reconcile.Req
 	if err := r.Get(ctx, request.NamespacedName, &pod); err != nil {
 		if apierrors.IsNotFound(err) {
 			// delete pod in root
-			if err := r.safeDeletePodInRootCluster(ctx, request); err != nil {
+			if err := DeletePodInRootCluster(ctx, request.NamespacedName, r.RootClient); err != nil {
 				return reconcile.Result{RequeueAfter: LeafPodRequeueTime}, nil
 			}
 			return reconcile.Result{}, nil
@@ -96,9 +97,9 @@ func NewLeafDeleteOption(pod *corev1.Pod) client.DeleteOption {
 	}
 }
 
-func (r *LeafPodReconciler) safeDeletePodInRootCluster(ctx context.Context, request reconcile.Request) error {
+func DeletePodInRootCluster(ctx context.Context, rootnamespacedname types.NamespacedName, rootClient client.Client) error {
 	rPod := corev1.Pod{}
-	err := r.RootClient.Get(ctx, request.NamespacedName, &rPod)
+	err := rootClient.Get(ctx, rootnamespacedname, &rPod)
 
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -111,7 +112,7 @@ func (r *LeafPodReconciler) safeDeletePodInRootCluster(ctx context.Context, requ
 	rPodCopy := rPod.DeepCopy()
 	deleteOption := NewRootDeleteOption(rPodCopy)
 
-	if err := r.RootClient.Delete(ctx, rPodCopy, deleteOption); err != nil {
+	if err := rootClient.Delete(ctx, rPodCopy, deleteOption); err != nil {
 		if !apierrors.IsNotFound(err) {
 			return err
 		}

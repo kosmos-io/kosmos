@@ -15,95 +15,133 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
-		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Arp":                 schema_pkg_apis_kosmos_v1alpha1_Arp(ref),
-		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Cluster":             schema_pkg_apis_kosmos_v1alpha1_Cluster(ref),
-		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterLinkOptions":  schema_pkg_apis_kosmos_v1alpha1_ClusterLinkOptions(ref),
-		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterLinkStatus":   schema_pkg_apis_kosmos_v1alpha1_ClusterLinkStatus(ref),
-		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterList":         schema_pkg_apis_kosmos_v1alpha1_ClusterList(ref),
-		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterNode":         schema_pkg_apis_kosmos_v1alpha1_ClusterNode(ref),
-		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterNodeList":     schema_pkg_apis_kosmos_v1alpha1_ClusterNodeList(ref),
-		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterNodeSpec":     schema_pkg_apis_kosmos_v1alpha1_ClusterNodeSpec(ref),
-		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterNodeStatus":   schema_pkg_apis_kosmos_v1alpha1_ClusterNodeStatus(ref),
-		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterSpec":         schema_pkg_apis_kosmos_v1alpha1_ClusterSpec(ref),
-		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterStatus":       schema_pkg_apis_kosmos_v1alpha1_ClusterStatus(ref),
-		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterTreeOptions":  schema_pkg_apis_kosmos_v1alpha1_ClusterTreeOptions(ref),
-		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterTreeStatus":   schema_pkg_apis_kosmos_v1alpha1_ClusterTreeStatus(ref),
-		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.DaemonSet":           schema_pkg_apis_kosmos_v1alpha1_DaemonSet(ref),
-		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.DaemonSetList":       schema_pkg_apis_kosmos_v1alpha1_DaemonSetList(ref),
-		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.DaemonSetSpec":       schema_pkg_apis_kosmos_v1alpha1_DaemonSetSpec(ref),
-		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.DaemonSetStatus":     schema_pkg_apis_kosmos_v1alpha1_DaemonSetStatus(ref),
-		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Device":              schema_pkg_apis_kosmos_v1alpha1_Device(ref),
-		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Fdb":                 schema_pkg_apis_kosmos_v1alpha1_Fdb(ref),
-		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Iptables":            schema_pkg_apis_kosmos_v1alpha1_Iptables(ref),
-		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Knode":               schema_pkg_apis_kosmos_v1alpha1_Knode(ref),
-		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.KnodeList":           schema_pkg_apis_kosmos_v1alpha1_KnodeList(ref),
-		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.KnodeSpec":           schema_pkg_apis_kosmos_v1alpha1_KnodeSpec(ref),
-		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.KnodeStatus":         schema_pkg_apis_kosmos_v1alpha1_KnodeStatus(ref),
-		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.LeafModel":           schema_pkg_apis_kosmos_v1alpha1_LeafModel(ref),
-		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.LeafNodeItem":        schema_pkg_apis_kosmos_v1alpha1_LeafNodeItem(ref),
-		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NICNodeNames":        schema_pkg_apis_kosmos_v1alpha1_NICNodeNames(ref),
-		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeConfig":          schema_pkg_apis_kosmos_v1alpha1_NodeConfig(ref),
-		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeConfigList":      schema_pkg_apis_kosmos_v1alpha1_NodeConfigList(ref),
-		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeConfigSpec":      schema_pkg_apis_kosmos_v1alpha1_NodeConfigSpec(ref),
-		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeConfigStatus":    schema_pkg_apis_kosmos_v1alpha1_NodeConfigStatus(ref),
-		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeSelector":        schema_pkg_apis_kosmos_v1alpha1_NodeSelector(ref),
-		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Proxy":               schema_pkg_apis_kosmos_v1alpha1_Proxy(ref),
-		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Route":               schema_pkg_apis_kosmos_v1alpha1_Route(ref),
-		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ShadowDaemonSet":     schema_pkg_apis_kosmos_v1alpha1_ShadowDaemonSet(ref),
-		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ShadowDaemonSetList": schema_pkg_apis_kosmos_v1alpha1_ShadowDaemonSetList(ref),
-		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.VxlanCIDRs":          schema_pkg_apis_kosmos_v1alpha1_VxlanCIDRs(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.APIGroup":                            schema_pkg_apis_meta_v1_APIGroup(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.APIGroupList":                        schema_pkg_apis_meta_v1_APIGroupList(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.APIResource":                         schema_pkg_apis_meta_v1_APIResource(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.APIResourceList":                     schema_pkg_apis_meta_v1_APIResourceList(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.APIVersions":                         schema_pkg_apis_meta_v1_APIVersions(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.ApplyOptions":                        schema_pkg_apis_meta_v1_ApplyOptions(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.Condition":                           schema_pkg_apis_meta_v1_Condition(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.CreateOptions":                       schema_pkg_apis_meta_v1_CreateOptions(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.DeleteOptions":                       schema_pkg_apis_meta_v1_DeleteOptions(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.Duration":                            schema_pkg_apis_meta_v1_Duration(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.FieldsV1":                            schema_pkg_apis_meta_v1_FieldsV1(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.GetOptions":                          schema_pkg_apis_meta_v1_GetOptions(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.GroupKind":                           schema_pkg_apis_meta_v1_GroupKind(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.GroupResource":                       schema_pkg_apis_meta_v1_GroupResource(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.GroupVersion":                        schema_pkg_apis_meta_v1_GroupVersion(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.GroupVersionForDiscovery":            schema_pkg_apis_meta_v1_GroupVersionForDiscovery(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.GroupVersionKind":                    schema_pkg_apis_meta_v1_GroupVersionKind(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.GroupVersionResource":                schema_pkg_apis_meta_v1_GroupVersionResource(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.InternalEvent":                       schema_pkg_apis_meta_v1_InternalEvent(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector":                       schema_pkg_apis_meta_v1_LabelSelector(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelectorRequirement":            schema_pkg_apis_meta_v1_LabelSelectorRequirement(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.List":                                schema_pkg_apis_meta_v1_List(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta":                            schema_pkg_apis_meta_v1_ListMeta(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.ListOptions":                         schema_pkg_apis_meta_v1_ListOptions(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.ManagedFieldsEntry":                  schema_pkg_apis_meta_v1_ManagedFieldsEntry(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.MicroTime":                           schema_pkg_apis_meta_v1_MicroTime(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta":                          schema_pkg_apis_meta_v1_ObjectMeta(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.OwnerReference":                      schema_pkg_apis_meta_v1_OwnerReference(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.PartialObjectMetadata":               schema_pkg_apis_meta_v1_PartialObjectMetadata(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.PartialObjectMetadataList":           schema_pkg_apis_meta_v1_PartialObjectMetadataList(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.Patch":                               schema_pkg_apis_meta_v1_Patch(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.PatchOptions":                        schema_pkg_apis_meta_v1_PatchOptions(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.Preconditions":                       schema_pkg_apis_meta_v1_Preconditions(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.RootPaths":                           schema_pkg_apis_meta_v1_RootPaths(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.ServerAddressByClientCIDR":           schema_pkg_apis_meta_v1_ServerAddressByClientCIDR(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.Status":                              schema_pkg_apis_meta_v1_Status(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.StatusCause":                         schema_pkg_apis_meta_v1_StatusCause(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.StatusDetails":                       schema_pkg_apis_meta_v1_StatusDetails(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.Table":                               schema_pkg_apis_meta_v1_Table(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.TableColumnDefinition":               schema_pkg_apis_meta_v1_TableColumnDefinition(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.TableOptions":                        schema_pkg_apis_meta_v1_TableOptions(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.TableRow":                            schema_pkg_apis_meta_v1_TableRow(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.TableRowCondition":                   schema_pkg_apis_meta_v1_TableRowCondition(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.Time":                                schema_pkg_apis_meta_v1_Time(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.Timestamp":                           schema_pkg_apis_meta_v1_Timestamp(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.TypeMeta":                            schema_pkg_apis_meta_v1_TypeMeta(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.UpdateOptions":                       schema_pkg_apis_meta_v1_UpdateOptions(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.WatchEvent":                          schema_pkg_apis_meta_v1_WatchEvent(ref),
-		"k8s.io/apimachinery/pkg/runtime.RawExtension":                             schema_k8sio_apimachinery_pkg_runtime_RawExtension(ref),
-		"k8s.io/apimachinery/pkg/runtime.TypeMeta":                                 schema_k8sio_apimachinery_pkg_runtime_TypeMeta(ref),
-		"k8s.io/apimachinery/pkg/runtime.Unknown":                                  schema_k8sio_apimachinery_pkg_runtime_Unknown(ref),
-		"k8s.io/apimachinery/pkg/version.Info":                                     schema_k8sio_apimachinery_pkg_version_Info(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.AffinityConverter":                  schema_pkg_apis_kosmos_v1alpha1_AffinityConverter(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Arp":                                schema_pkg_apis_kosmos_v1alpha1_Arp(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Cluster":                            schema_pkg_apis_kosmos_v1alpha1_Cluster(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterLinkOptions":                 schema_pkg_apis_kosmos_v1alpha1_ClusterLinkOptions(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterLinkStatus":                  schema_pkg_apis_kosmos_v1alpha1_ClusterLinkStatus(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterList":                        schema_pkg_apis_kosmos_v1alpha1_ClusterList(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterNode":                        schema_pkg_apis_kosmos_v1alpha1_ClusterNode(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterNodeList":                    schema_pkg_apis_kosmos_v1alpha1_ClusterNodeList(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterNodeSpec":                    schema_pkg_apis_kosmos_v1alpha1_ClusterNodeSpec(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterNodeStatus":                  schema_pkg_apis_kosmos_v1alpha1_ClusterNodeStatus(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterSpec":                        schema_pkg_apis_kosmos_v1alpha1_ClusterSpec(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterStatus":                      schema_pkg_apis_kosmos_v1alpha1_ClusterStatus(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterTreeOptions":                 schema_pkg_apis_kosmos_v1alpha1_ClusterTreeOptions(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterTreeStatus":                  schema_pkg_apis_kosmos_v1alpha1_ClusterTreeStatus(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Converters":                         schema_pkg_apis_kosmos_v1alpha1_Converters(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.DaemonSet":                          schema_pkg_apis_kosmos_v1alpha1_DaemonSet(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.DaemonSetList":                      schema_pkg_apis_kosmos_v1alpha1_DaemonSetList(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.DaemonSetSpec":                      schema_pkg_apis_kosmos_v1alpha1_DaemonSetSpec(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.DaemonSetStatus":                    schema_pkg_apis_kosmos_v1alpha1_DaemonSetStatus(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Device":                             schema_pkg_apis_kosmos_v1alpha1_Device(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Fdb":                                schema_pkg_apis_kosmos_v1alpha1_Fdb(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Iptables":                           schema_pkg_apis_kosmos_v1alpha1_Iptables(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Knode":                              schema_pkg_apis_kosmos_v1alpha1_Knode(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.KnodeList":                          schema_pkg_apis_kosmos_v1alpha1_KnodeList(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.KnodeSpec":                          schema_pkg_apis_kosmos_v1alpha1_KnodeSpec(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.KnodeStatus":                        schema_pkg_apis_kosmos_v1alpha1_KnodeStatus(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.LeafModel":                          schema_pkg_apis_kosmos_v1alpha1_LeafModel(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.LeafNodeItem":                       schema_pkg_apis_kosmos_v1alpha1_LeafNodeItem(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NICNodeNames":                       schema_pkg_apis_kosmos_v1alpha1_NICNodeNames(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeConfig":                         schema_pkg_apis_kosmos_v1alpha1_NodeConfig(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeConfigList":                     schema_pkg_apis_kosmos_v1alpha1_NodeConfigList(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeConfigSpec":                     schema_pkg_apis_kosmos_v1alpha1_NodeConfigSpec(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeConfigStatus":                   schema_pkg_apis_kosmos_v1alpha1_NodeConfigStatus(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeNameConverter":                  schema_pkg_apis_kosmos_v1alpha1_NodeNameConverter(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeSelector":                       schema_pkg_apis_kosmos_v1alpha1_NodeSelector(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeSelectorConverter":              schema_pkg_apis_kosmos_v1alpha1_NodeSelectorConverter(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PodConvertPolicy":                   schema_pkg_apis_kosmos_v1alpha1_PodConvertPolicy(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PodConvertPolicyList":               schema_pkg_apis_kosmos_v1alpha1_PodConvertPolicyList(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PodConvertPolicySpec":               schema_pkg_apis_kosmos_v1alpha1_PodConvertPolicySpec(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Proxy":                              schema_pkg_apis_kosmos_v1alpha1_Proxy(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Route":                              schema_pkg_apis_kosmos_v1alpha1_Route(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.SchedulerNameConverter":             schema_pkg_apis_kosmos_v1alpha1_SchedulerNameConverter(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ShadowDaemonSet":                    schema_pkg_apis_kosmos_v1alpha1_ShadowDaemonSet(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ShadowDaemonSetList":                schema_pkg_apis_kosmos_v1alpha1_ShadowDaemonSetList(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.TolerationConverter":                schema_pkg_apis_kosmos_v1alpha1_TolerationConverter(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.TopologySpreadConstraintsConverter": schema_pkg_apis_kosmos_v1alpha1_TopologySpreadConstraintsConverter(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.VxlanCIDRs":                         schema_pkg_apis_kosmos_v1alpha1_VxlanCIDRs(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.APIGroup":                                           schema_pkg_apis_meta_v1_APIGroup(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.APIGroupList":                                       schema_pkg_apis_meta_v1_APIGroupList(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.APIResource":                                        schema_pkg_apis_meta_v1_APIResource(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.APIResourceList":                                    schema_pkg_apis_meta_v1_APIResourceList(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.APIVersions":                                        schema_pkg_apis_meta_v1_APIVersions(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.ApplyOptions":                                       schema_pkg_apis_meta_v1_ApplyOptions(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.Condition":                                          schema_pkg_apis_meta_v1_Condition(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.CreateOptions":                                      schema_pkg_apis_meta_v1_CreateOptions(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.DeleteOptions":                                      schema_pkg_apis_meta_v1_DeleteOptions(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.Duration":                                           schema_pkg_apis_meta_v1_Duration(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.FieldsV1":                                           schema_pkg_apis_meta_v1_FieldsV1(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.GetOptions":                                         schema_pkg_apis_meta_v1_GetOptions(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.GroupKind":                                          schema_pkg_apis_meta_v1_GroupKind(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.GroupResource":                                      schema_pkg_apis_meta_v1_GroupResource(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.GroupVersion":                                       schema_pkg_apis_meta_v1_GroupVersion(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.GroupVersionForDiscovery":                           schema_pkg_apis_meta_v1_GroupVersionForDiscovery(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.GroupVersionKind":                                   schema_pkg_apis_meta_v1_GroupVersionKind(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.GroupVersionResource":                               schema_pkg_apis_meta_v1_GroupVersionResource(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.InternalEvent":                                      schema_pkg_apis_meta_v1_InternalEvent(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector":                                      schema_pkg_apis_meta_v1_LabelSelector(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelectorRequirement":                           schema_pkg_apis_meta_v1_LabelSelectorRequirement(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.List":                                               schema_pkg_apis_meta_v1_List(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta":                                           schema_pkg_apis_meta_v1_ListMeta(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.ListOptions":                                        schema_pkg_apis_meta_v1_ListOptions(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.ManagedFieldsEntry":                                 schema_pkg_apis_meta_v1_ManagedFieldsEntry(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.MicroTime":                                          schema_pkg_apis_meta_v1_MicroTime(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta":                                         schema_pkg_apis_meta_v1_ObjectMeta(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.OwnerReference":                                     schema_pkg_apis_meta_v1_OwnerReference(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.PartialObjectMetadata":                              schema_pkg_apis_meta_v1_PartialObjectMetadata(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.PartialObjectMetadataList":                          schema_pkg_apis_meta_v1_PartialObjectMetadataList(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.Patch":                                              schema_pkg_apis_meta_v1_Patch(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.PatchOptions":                                       schema_pkg_apis_meta_v1_PatchOptions(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.Preconditions":                                      schema_pkg_apis_meta_v1_Preconditions(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.RootPaths":                                          schema_pkg_apis_meta_v1_RootPaths(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.ServerAddressByClientCIDR":                          schema_pkg_apis_meta_v1_ServerAddressByClientCIDR(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.Status":                                             schema_pkg_apis_meta_v1_Status(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.StatusCause":                                        schema_pkg_apis_meta_v1_StatusCause(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.StatusDetails":                                      schema_pkg_apis_meta_v1_StatusDetails(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.Table":                                              schema_pkg_apis_meta_v1_Table(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.TableColumnDefinition":                              schema_pkg_apis_meta_v1_TableColumnDefinition(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.TableOptions":                                       schema_pkg_apis_meta_v1_TableOptions(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.TableRow":                                           schema_pkg_apis_meta_v1_TableRow(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.TableRowCondition":                                  schema_pkg_apis_meta_v1_TableRowCondition(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.Time":                                               schema_pkg_apis_meta_v1_Time(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.Timestamp":                                          schema_pkg_apis_meta_v1_Timestamp(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.TypeMeta":                                           schema_pkg_apis_meta_v1_TypeMeta(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.UpdateOptions":                                      schema_pkg_apis_meta_v1_UpdateOptions(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.WatchEvent":                                         schema_pkg_apis_meta_v1_WatchEvent(ref),
+		"k8s.io/apimachinery/pkg/runtime.RawExtension":                                            schema_k8sio_apimachinery_pkg_runtime_RawExtension(ref),
+		"k8s.io/apimachinery/pkg/runtime.TypeMeta":                                                schema_k8sio_apimachinery_pkg_runtime_TypeMeta(ref),
+		"k8s.io/apimachinery/pkg/runtime.Unknown":                                                 schema_k8sio_apimachinery_pkg_runtime_Unknown(ref),
+		"k8s.io/apimachinery/pkg/version.Info":                                                    schema_k8sio_apimachinery_pkg_version_Info(ref),
+	}
+}
+
+func schema_pkg_apis_kosmos_v1alpha1_AffinityConverter(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "AffinityConverter used to modify the pod's Affinity when pod synced to leaf cluster",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"convertType": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"affinity": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("k8s.io/api/core/v1.Affinity"),
+						},
+					},
+				},
+				Required: []string{"convertType"},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/api/core/v1.Affinity"},
 	}
 }
 
@@ -575,14 +613,12 @@ func schema_pkg_apis_kosmos_v1alpha1_ClusterSpec(ref common.ReferenceCallback) c
 					},
 					"clusterLinkOptions": {
 						SchemaProps: spec.SchemaProps{
-							Default: map[string]interface{}{},
-							Ref:     ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterLinkOptions"),
+							Ref: ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterLinkOptions"),
 						},
 					},
 					"clusterTreeOptions": {
 						SchemaProps: spec.SchemaProps{
-							Default: map[string]interface{}{},
-							Ref:     ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterTreeOptions"),
+							Ref: ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterTreeOptions"),
 						},
 					},
 				},
@@ -681,6 +717,46 @@ func schema_pkg_apis_kosmos_v1alpha1_ClusterTreeStatus(ref common.ReferenceCallb
 		},
 		Dependencies: []string{
 			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.LeafNodeItem"},
+	}
+}
+
+func schema_pkg_apis_kosmos_v1alpha1_Converters(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "Converters are some converter for pod to scheduled in leaf cluster",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"schedulerNameConverter": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.SchedulerNameConverter"),
+						},
+					},
+					"nodeNameConverter": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeNameConverter"),
+						},
+					},
+					"nodeSelectorConverter": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeSelectorConverter"),
+						},
+					},
+					"affinityConverter": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.AffinityConverter"),
+						},
+					},
+					"topologySpreadConstraintsConverter": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.TopologySpreadConstraintsConverter"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.AffinityConverter", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeNameConverter", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeSelectorConverter", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.SchedulerNameConverter", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.TopologySpreadConstraintsConverter"},
 	}
 }
 
@@ -1556,6 +1632,33 @@ func schema_pkg_apis_kosmos_v1alpha1_NodeConfigStatus(ref common.ReferenceCallba
 	}
 }
 
+func schema_pkg_apis_kosmos_v1alpha1_NodeNameConverter(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "NodeNameConverter used to modify the pod's nodeName when pod synced to leaf cluster",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"convertType": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"nodeName": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+				},
+				Required: []string{"convertType"},
+			},
+		},
+	}
+}
+
 func schema_pkg_apis_kosmos_v1alpha1_NodeSelector(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -1580,6 +1683,166 @@ func schema_pkg_apis_kosmos_v1alpha1_NodeSelector(ref common.ReferenceCallback) 
 		},
 		Dependencies: []string{
 			"k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
+	}
+}
+
+func schema_pkg_apis_kosmos_v1alpha1_NodeSelectorConverter(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "NodeSelectorConverter used to modify the pod's NodeSelector when pod synced to leaf cluster",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"convertType": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"nodeSelector": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"convertType"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_kosmos_v1alpha1_PodConvertPolicy(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Spec is the specification for the behaviour of the podConversion.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PodConvertPolicySpec"),
+						},
+					},
+				},
+				Required: []string{"spec"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PodConvertPolicySpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_pkg_apis_kosmos_v1alpha1_PodConvertPolicyList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PodConvertPolicy"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"metadata", "items"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PodConvertPolicy", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+	}
+}
+
+func schema_pkg_apis_kosmos_v1alpha1_PodConvertPolicySpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"labelSelector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "A label query over a set of resources. If name is not empty, labelSelector will be ignored.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"),
+						},
+					},
+					"leafNodeSelector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "A label query over a set of resources. If name is not empty, LeafNodeSelector will be ignored.",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"),
+						},
+					},
+					"converters": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Converters are some converter for convert pod when pod synced from root cluster to leaf cluster pod will use these converters to scheduled in leaf cluster",
+							Ref:         ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Converters"),
+						},
+					},
+				},
+				Required: []string{"labelSelector"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Converters", "k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
 	}
 }
 
@@ -1633,6 +1896,33 @@ func schema_pkg_apis_kosmos_v1alpha1_Route(ref common.ReferenceCallback) common.
 					},
 				},
 				Required: []string{"cidr", "gw", "dev"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_kosmos_v1alpha1_SchedulerNameConverter(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SchedulerNameConverter used to modify the pod's nodeName when pod synced to leaf cluster",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"convertType": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"schedulerName": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+				},
+				Required: []string{"convertType"},
 			},
 		},
 	}
@@ -1739,6 +2029,79 @@ func schema_pkg_apis_kosmos_v1alpha1_ShadowDaemonSetList(ref common.ReferenceCal
 		},
 		Dependencies: []string{
 			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ShadowDaemonSet", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta", "k8s.io/apimachinery/pkg/apis/meta/v1.TypeMeta"},
+	}
+}
+
+func schema_pkg_apis_kosmos_v1alpha1_TolerationConverter(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "TolerationConverter used to modify the pod's Tolerations when pod synced to leaf cluster",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"convertType": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"tolerations": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/api/core/v1.Toleration"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"convertType"},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/api/core/v1.Toleration"},
+	}
+}
+
+func schema_pkg_apis_kosmos_v1alpha1_TopologySpreadConstraintsConverter(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "TopologySpreadConstraintsConverter used to modify the pod's TopologySpreadConstraints when pod synced to leaf cluster",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"convertType": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"topologySpreadConstraints": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TopologySpreadConstraints describes how a group of pods ought to spread across topology domains. Scheduler will schedule pods in a way which abides by the constraints. All topologySpreadConstraints are ANDed.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/api/core/v1.TopologySpreadConstraint"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"convertType"},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/api/core/v1.TopologySpreadConstraint"},
 	}
 }
 

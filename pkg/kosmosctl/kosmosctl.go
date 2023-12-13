@@ -15,8 +15,10 @@ import (
 
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/floater"
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/get"
+	"github.com/kosmos.io/kosmos/pkg/kosmosctl/image"
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/install"
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/join"
+	"github.com/kosmos.io/kosmos/pkg/kosmosctl/logs"
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/rsmigrate"
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/uninstall"
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/unjoin"
@@ -69,8 +71,9 @@ func NewKosmosCtlCommand() *cobra.Command {
 			},
 		},
 		{
-			Message: "Cluster Check/Analysis Commands:",
+			Message: "Troubleshooting and Debugging Commands:",
 			Commands: []*cobra.Command{
+				logs.NewCmdLogs(f, ioStreams),
 				floater.NewCmdCheck(),
 				floater.NewCmdAnalysis(f),
 			},
@@ -79,6 +82,12 @@ func NewKosmosCtlCommand() *cobra.Command {
 			Commands: []*cobra.Command{
 				rsmigrate.NewCmdImport(f),
 				rsmigrate.NewCmdExport(f),
+			},
+		},
+		{
+			Message: "Image Pull/Push commands",
+			Commands: []*cobra.Command{
+				image.NewCmdImage(),
 			},
 		},
 	}

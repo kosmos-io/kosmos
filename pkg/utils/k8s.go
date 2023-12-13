@@ -218,6 +218,17 @@ func IsKosmosNode(node *corev1.Node) bool {
 	return labelVal == KosmosNodeValue
 }
 
+func IsExcludeNode(node *corev1.Node) bool {
+	if node == nil {
+		return false
+	}
+	labelVal, exist := node.ObjectMeta.Labels[KosmosExcludeNodeLabel]
+	if !exist {
+		return false
+	}
+	return labelVal == KosmosExcludeNodeValue
+}
+
 func IsVirtualPod(pod *corev1.Pod) bool {
 	if pod.Labels != nil && pod.Labels[KosmosPodLabel] == "true" {
 		return true

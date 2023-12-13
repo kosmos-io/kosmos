@@ -16,7 +16,7 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/kosmos.io/kosmos/cmd/clusterlink/floater/app/options"
-	networkmanager "github.com/kosmos.io/kosmos/pkg/clusterlink/agent/network-manager"
+	networkmanager "github.com/kosmos.io/kosmos/pkg/clusterlink/agent-manager/network-manager"
 	"github.com/kosmos.io/kosmos/pkg/clusterlink/network"
 	"github.com/kosmos.io/kosmos/pkg/sharedcli"
 	"github.com/kosmos.io/kosmos/pkg/sharedcli/klogflag"

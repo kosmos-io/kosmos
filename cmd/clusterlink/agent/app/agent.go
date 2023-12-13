@@ -15,7 +15,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/kosmos.io/kosmos/cmd/clusterlink/agent/app/options"
-	linkagent "github.com/kosmos.io/kosmos/pkg/clusterlink/agent"
+	linkagent "github.com/kosmos.io/kosmos/pkg/clusterlink/agent-manager"
 	"github.com/kosmos.io/kosmos/pkg/clusterlink/network"
 	kosmosclientset "github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	kosmosinformer "github.com/kosmos.io/kosmos/pkg/generated/informers/externalversions"
@@ -113,6 +113,17 @@ func run(ctx context.Context, opts *options.Options) error {
 	}
 	if err = clusterNodeController.SetupWithManager(mgr); err != nil {
 		klog.Fatalf("Unable to create cluster node controller: %v", err)
+		return err
+	}
+
+	autoDetectController := linkagent.AutoDetectReconciler{
+		Client:      mgr.GetClient(),
+		NodeName:    os.Getenv(utils.EnvNodeName),
+		ClusterName: os.Getenv(utils.EnvClusterName),
+	}
+
+	if err = autoDetectController.SetupWithManager(mgr); err != nil {
+		klog.Fatalf("Unable to create auto detect controller: %v", err)
 		return err
 	}
 

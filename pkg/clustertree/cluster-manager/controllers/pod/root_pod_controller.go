@@ -27,6 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/kosmos.io/kosmos/cmd/clustertree/cluster-manager/app/options"
+	kosmosv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/extensions/daemonset"
 	leafUtils "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/utils"
 	"github.com/kosmos.io/kosmos/pkg/utils"
@@ -128,7 +129,7 @@ func (r *RootPodReconciler) Reconcile(ctx context.Context, request reconcile.Req
 					// wait for leaf resource init
 					return reconcile.Result{RequeueAfter: RootPodRequeueTime}, nil
 				}
-				if err := r.DeletePodInLeafCluster(ctx, lr, request.NamespacedName); err != nil {
+				if err := r.DeletePodInLeafCluster(ctx, lr, request.NamespacedName, false); err != nil {
 					klog.Errorf("delete pod in leaf error[1]: %v,  %s", err, request.NamespacedName)
 					return reconcile.Result{RequeueAfter: RootPodRequeueTime}, nil
 				}
@@ -185,7 +186,7 @@ func (r *RootPodReconciler) Reconcile(ctx context.Context, request reconcile.Req
 
 	// delete pod in leaf
 	if !rootpod.GetDeletionTimestamp().IsZero() {
-		if err := r.DeletePodInLeafCluster(ctx, lr, request.NamespacedName); err != nil {
+		if err := r.DeletePodInLeafCluster(ctx, lr, request.NamespacedName, true); err != nil {
 			klog.Errorf("delete pod in leaf error[1]: %v,  %s", err, request.NamespacedName)
 			return reconcile.Result{RequeueAfter: RootPodRequeueTime}, nil
 		}
@@ -198,7 +199,7 @@ func (r *RootPodReconciler) Reconcile(ctx context.Context, request reconcile.Req
 	// create pod in leaf
 	if err != nil {
 		if errors.IsNotFound(err) {
-			if err := r.CreatePodInLeafCluster(ctx, lr, &rootpod); err != nil {
+			if err := r.CreatePodInLeafCluster(ctx, lr, &rootpod, r.GlobalLeafManager.GetClusterNode(rootpod.Spec.NodeName).LeafNodeSelector); err != nil {
 				klog.Errorf("create pod inleaf error, err: %s", err)
 				return reconcile.Result{RequeueAfter: RootPodRequeueTime}, nil
 			} else {
@@ -212,7 +213,7 @@ func (r *RootPodReconciler) Reconcile(ctx context.Context, request reconcile.Req
 
 	// update pod in leaf
 	if podutils.ShouldEnqueue(leafPod, &rootpod) {
-		if err := r.UpdatePodInLeafCluster(ctx, lr, &rootpod, leafPod); err != nil {
+		if err := r.UpdatePodInLeafCluster(ctx, lr, &rootpod, leafPod, r.GlobalLeafManager.GetClusterNode(rootpod.Spec.NodeName).LeafNodeSelector); err != nil {
 			return reconcile.Result{RequeueAfter: RootPodRequeueTime}, nil
 		}
 	}
@@ -237,7 +238,6 @@ func (r *RootPodReconciler) SetupWithManager(mgr manager.Manager) error {
 			return false
 		}
 
-		/**
 		p := obj.(*corev1.Pod)
 
 		// skip daemonset
@@ -249,11 +249,13 @@ func (r *RootPodReconciler) SetupWithManager(mgr manager.Manager) error {
 							return true
 						}
 					}
+					if !p.DeletionTimestamp.IsZero() {
+						return true
+					}
 					return false
 				}
 			}
 		}
-		*/
 		return true
 	}
 
@@ -700,7 +702,7 @@ func (r *RootPodReconciler) createVolumes(ctx context.Context, lr *leafUtils.Lea
 	return nil
 }
 
-func (r *RootPodReconciler) CreatePodInLeafCluster(ctx context.Context, lr *leafUtils.LeafResource, pod *corev1.Pod) error {
+func (r *RootPodReconciler) CreatePodInLeafCluster(ctx context.Context, lr *leafUtils.LeafResource, pod *corev1.Pod, nodeSelector kosmosv1alpha1.NodeSelector) error {
 	if err := podutils.PopulateEnvironmentVariables(ctx, pod, r.envResourceManager); err != nil {
 		// span.SetStatus(err)
 		return err
@@ -711,7 +713,7 @@ func (r *RootPodReconciler) CreatePodInLeafCluster(ctx context.Context, lr *leaf
 		return fmt.Errorf("clusternode info is nil , name: %s", pod.Spec.NodeName)
 	}
 
-	basicPod := podutils.FitPod(pod, lr.IgnoreLabels, clusterNodeInfo.LeafMode == leafUtils.ALL)
+	basicPod := podutils.FitPod(pod, lr.IgnoreLabels, clusterNodeInfo.LeafMode, nodeSelector)
 	klog.V(4).Infof("Creating pod %v/%+v", pod.Namespace, pod.Name)
 
 	// create ns
@@ -745,24 +747,28 @@ func (r *RootPodReconciler) CreatePodInLeafCluster(ctx context.Context, lr *leaf
 	return nil
 }
 
-func (r *RootPodReconciler) UpdatePodInLeafCluster(ctx context.Context, lr *leafUtils.LeafResource, rootpod *corev1.Pod, leafpod *corev1.Pod) error {
+func (r *RootPodReconciler) UpdatePodInLeafCluster(ctx context.Context, lr *leafUtils.LeafResource, rootPod *corev1.Pod, leafPod *corev1.Pod, nodeSelector kosmosv1alpha1.NodeSelector) error {
 	// TODO: update env
 	// TODO： update config secret pv pvc ...
-	klog.V(4).Infof("Updating pod %v/%+v", rootpod.Namespace, rootpod.Name)
+	klog.V(4).Infof("Updating pod %v/%+v", rootPod.Namespace, rootPod.Name)
 
-	if !podutils.IsKosmosPod(leafpod) {
+	if !podutils.IsKosmosPod(leafPod) {
 		klog.V(4).Info("Pod is not created by kosmos tree, ignore")
 		return nil
 	}
 	// not used
-	podutils.FitLabels(leafpod.ObjectMeta.Labels, lr.IgnoreLabels)
-	podCopy := leafpod.DeepCopy()
+	podutils.FitLabels(leafPod.ObjectMeta.Labels, lr.IgnoreLabels)
+	podCopy := leafPod.DeepCopy()
 	// util.GetUpdatedPod update PodCopy container image, annotations, labels.
 	// recover toleration, affinity, tripped ignore labels.
-	podutils.GetUpdatedPod(podCopy, rootpod, lr.IgnoreLabels)
-	if reflect.DeepEqual(leafpod.Spec, podCopy.Spec) &&
-		reflect.DeepEqual(leafpod.Annotations, podCopy.Annotations) &&
-		reflect.DeepEqual(leafpod.Labels, podCopy.Labels) {
+	clusterNodeInfo := r.GlobalLeafManager.GetClusterNode(rootPod.Spec.NodeName)
+	if clusterNodeInfo == nil {
+		return fmt.Errorf("clusternode info is nil , name: %s", rootPod.Spec.NodeName)
+	}
+	podutils.GetUpdatedPod(podCopy, rootPod, lr.IgnoreLabels, clusterNodeInfo.LeafMode, nodeSelector)
+	if reflect.DeepEqual(leafPod.Spec, podCopy.Spec) &&
+		reflect.DeepEqual(leafPod.Annotations, podCopy.Annotations) &&
+		reflect.DeepEqual(leafPod.Labels, podCopy.Labels) {
 		return nil
 	}
 
@@ -778,18 +784,25 @@ func (r *RootPodReconciler) UpdatePodInLeafCluster(ctx context.Context, lr *leaf
 	if err != nil {
 		return fmt.Errorf("could not update pod: %v", err)
 	}
-	klog.V(4).Infof("Update pod %v/%+v success ", rootpod.Namespace, rootpod.Name)
+	klog.V(4).Infof("Update pod %v/%+v success ", rootPod.Namespace, rootPod.Name)
 	return nil
 }
 
-func (r *RootPodReconciler) DeletePodInLeafCluster(ctx context.Context, lr *leafUtils.LeafResource, rootnamespacedname types.NamespacedName) error {
+func (r *RootPodReconciler) DeletePodInLeafCluster(ctx context.Context, lr *leafUtils.LeafResource, rootnamespacedname types.NamespacedName, cleanflag bool) error {
 	klog.V(4).Infof("Deleting pod %v/%+v", rootnamespacedname.Namespace, rootnamespacedname.Name)
 	leafPod := &corev1.Pod{}
+
+	cleanRootPodFunc := func() error {
+		return DeletePodInRootCluster(ctx, rootnamespacedname, r.Client)
+	}
 
 	err := lr.Client.Get(ctx, rootnamespacedname, leafPod)
 
 	if err != nil {
 		if errors.IsNotFound(err) {
+			if cleanflag {
+				return cleanRootPodFunc()
+			}
 			return nil
 		}
 		return err
@@ -805,6 +818,9 @@ func (r *RootPodReconciler) DeletePodInLeafCluster(ctx context.Context, lr *leaf
 	if err != nil {
 		if errors.IsNotFound(err) {
 			klog.V(4).Infof("Tried to delete pod %s/%s, but it did not exist in the cluster", leafPod.Namespace, leafPod.Name)
+			if cleanflag {
+				return cleanRootPodFunc()
+			}
 			return nil
 		}
 		return fmt.Errorf("could not delete pod: %v", err)

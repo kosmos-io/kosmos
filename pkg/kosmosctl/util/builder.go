@@ -18,7 +18,6 @@ var (
 	ClusterGVR     = schema.GroupVersionResource{Group: "kosmos.io", Version: "v1alpha1", Resource: "clusters"}
 	ClusterNodeGVR = schema.GroupVersionResource{Group: "kosmos.io", Version: "v1alpha1", Resource: "clusternodes"}
 	NodeConfigGVR  = schema.GroupVersionResource{Group: "kosmos.io", Version: "v1alpha1", Resource: "nodeconfigs"}
-	KnodeGVR       = schema.GroupVersionResource{Group: "kosmos.io", Version: "v1alpha1", Resource: "knodes"}
 )
 
 func GenerateDeployment(deployTemplate string, obj interface{}) (*appsv1.Deployment, error) {
@@ -177,5 +176,22 @@ func GenerateService(template string, obj interface{}) (*corev1.Service, error) 
 	if err = runtime.DecodeInto(scheme.Codecs.UniversalDecoder(), bs, o); err != nil {
 		return nil, fmt.Errorf("kosmosctl decode service bytes error: %v", err)
 	}
+	return o, nil
+}
+
+func GenerateSecret(template string, obj interface{}) (*corev1.Secret, error) {
+	bs, err := parseTemplate(template, obj)
+	if err != nil {
+		return nil, fmt.Errorf("kosmosctl parsing secret template exception, error: %v", err)
+	} else if bs == nil {
+		return nil, fmt.Errorf("kosmosctl get secret template exception, value is empty")
+	}
+
+	o := &corev1.Secret{}
+
+	if err = runtime.DecodeInto(scheme.Codecs.UniversalDecoder(), bs, o); err != nil {
+		return nil, fmt.Errorf("kosmosctl decode secret bytes error: %v", err)
+	}
+
 	return o, nil
 }

@@ -24,7 +24,6 @@ import (
 	clusterlinkv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/utils"
-	interfacepolicy "github.com/kosmos.io/kosmos/pkg/utils/interface-policy"
 )
 
 const (
@@ -43,15 +42,15 @@ type Reconciler struct {
 var predicatesFunc = predicate.Funcs{
 	CreateFunc: func(createEvent event.CreateEvent) bool {
 		node := createEvent.Object.(*corev1.Node)
-		return !utils.IsKosmosNode(node)
+		return !utils.IsKosmosNode(node) && !utils.IsExcludeNode(node)
 	},
 	UpdateFunc: func(updateEvent event.UpdateEvent) bool {
 		node := updateEvent.ObjectNew.(*corev1.Node)
-		return !utils.IsKosmosNode(node)
+		return !utils.IsKosmosNode(node) && !utils.IsExcludeNode(node)
 	},
 	DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
 		node := deleteEvent.Object.(*corev1.Node)
-		return !utils.IsKosmosNode(node)
+		return !utils.IsKosmosNode(node) && !utils.IsExcludeNode(node)
 	},
 	GenericFunc: func(genericEvent event.GenericEvent) bool {
 		return false
@@ -108,18 +107,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 			},
 		},
 	}
-	cluster, err := r.ClusterLinkClient.KosmosV1alpha1().Clusters().Get(ctx, r.ClusterName, metav1.GetOptions{})
-	if err != nil {
-		klog.Errorf("get cluster %s err: %v", r.ClusterName, err)
-		return reconcile.Result{Requeue: true}, nil
-	}
 
-	err = CreateOrUpdateClusterNode(r.ClusterLinkClient, clusterNode, func(n *clusterlinkv1alpha1.ClusterNode) error {
+	err := CreateOrUpdateClusterNode(r.ClusterLinkClient, clusterNode, func(n *clusterlinkv1alpha1.ClusterNode) error {
 		n.Spec.NodeName = node.Name
 		n.Spec.ClusterName = r.ClusterName
-		n.Spec.IP = internalIP
-		n.Spec.IP6 = internalIP6
-		n.Spec.InterfaceName = interfacepolicy.GetInterfaceName(cluster.Spec.ClusterLinkOptions.NICNodeNames, node.Name, cluster.Spec.ClusterLinkOptions.DefaultNICName)
+		// n.Spec.InterfaceName while set by clusterlink-agent
 		return nil
 	})
 	if err != nil {

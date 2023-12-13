@@ -36,10 +36,10 @@ type ClusterSpec struct {
 	ImageRepository string `json:"imageRepository,omitempty"`
 
 	// +optional
-	ClusterLinkOptions ClusterLinkOptions `json:"clusterLinkOptions,omitempty"`
+	ClusterLinkOptions *ClusterLinkOptions `json:"clusterLinkOptions,omitempty"`
 
 	// +optional
-	ClusterTreeOptions ClusterTreeOptions `json:"clusterTreeOptions,omitempty"`
+	ClusterTreeOptions *ClusterTreeOptions `json:"clusterTreeOptions,omitempty"`
 }
 
 type ClusterStatus struct {
@@ -91,6 +91,9 @@ type ClusterLinkOptions struct {
 
 	// +optional
 	GlobalCIDRsMap map[string]string `json:"globalCIDRsMap,omitempty"`
+
+	// +optional
+	AutodetectionMethod string `json:"autodetectionMethod,omitempty"`
 }
 
 type ClusterTreeOptions struct {
@@ -173,9 +176,15 @@ type ClusterList struct {
 }
 
 func (c *Cluster) IsP2P() bool {
+	if c.Spec.ClusterLinkOptions == nil {
+		return false
+	}
 	return c.Spec.ClusterLinkOptions.NetworkType == NetworkTypeP2P
 }
 
 func (c *Cluster) IsGateway() bool {
+	if c.Spec.ClusterLinkOptions == nil {
+		return false
+	}
 	return c.Spec.ClusterLinkOptions.NetworkType == NetWorkTypeGateWay
 }

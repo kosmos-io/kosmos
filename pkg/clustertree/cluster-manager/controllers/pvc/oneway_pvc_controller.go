@@ -96,8 +96,8 @@ func (c *OnewayPVCController) Reconcile(ctx context.Context, request reconcile.R
 	vp, err := c.RootDynamic.Resource(VolumePathGVR).Get(ctx, request.Name, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
-			klog.Warningf("vp %s not found", request.Name)
-			return reconcile.Result{}, nil
+			klog.V(4).Infof("vp %s not found", request.Name)
+			return reconcile.Result{RequeueAfter: requeueTime}, nil
 		}
 		klog.Errorf("get volumePath %s error: %v", request.Name, err)
 		return reconcile.Result{RequeueAfter: requeueTime}, nil
