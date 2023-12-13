@@ -1,3 +1,5 @@
+// This code is directly lifted from the calico
+
 // For reference:
 // https://github.com/projectcalico/calico/blob/master/node/pkg/lifecycle/startup/autodetection/filtered.go
 

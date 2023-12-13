@@ -39,6 +39,7 @@ spec:
         command:
         - clusterlink-agent
         - --kubeconfig=/etc/clusterlink/kubeconfig
+        - --v=4
         env:
         - name: CLUSTER_NAME
           value: "{{ .ClusterName }}"  

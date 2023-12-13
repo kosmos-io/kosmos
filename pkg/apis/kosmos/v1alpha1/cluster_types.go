@@ -91,6 +91,9 @@ type ClusterLinkOptions struct {
 
 	// +optional
 	GlobalCIDRsMap map[string]string `json:"globalCIDRsMap,omitempty"`
+
+	// +optional
+	AutodetectionMethod string `json:"autodetectionMethod,omitempty"`
 }
 
 type ClusterTreeOptions struct {
