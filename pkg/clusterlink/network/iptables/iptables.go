@@ -22,6 +22,8 @@ limitations under the License.
 package iptables
 
 import (
+	"os"
+
 	"github.com/coreos/go-iptables/iptables"
 	"github.com/pkg/errors"
 )
@@ -60,7 +62,8 @@ func New(proto iptables.Protocol) (Interface, error) {
 		return NewFunc()
 	}
 
-	ipt, err := iptables.New(iptables.IPFamily(proto), iptables.Timeout(5))
+	// IPTABLES_PATH: the path decision the model of iptable, /sbin/xtables-nft-multi => nf_tables
+	ipt, err := iptables.New(iptables.IPFamily(proto), iptables.Timeout(5), iptables.Path(os.Getenv("IPTABLES_PATH")))
 	if err != nil {
 		return nil, errors.Wrap(err, "error creating IP tables")
 	}

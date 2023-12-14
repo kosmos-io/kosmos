@@ -6,7 +6,7 @@ require (
 	github.com/bep/debounce v1.2.1
 	github.com/containerd/console v1.0.3
 	github.com/containerd/containerd v1.6.14
-	github.com/coreos/go-iptables v0.6.0
+	github.com/coreos/go-iptables v0.7.1-0.20231102141700-50d824baaa46
 	github.com/docker/docker v24.0.6+incompatible
 	github.com/evanphx/json-patch v4.12.0+incompatible
 	github.com/go-logr/logr v1.2.3
@@ -19,6 +19,8 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/projectcalico/api v0.0.0-20230602153125-fb7148692637
 	github.com/projectcalico/calico v1.11.0-cni-plugin.0.20220623222645-a52cb86dbaad
+	github.com/sirupsen/logrus v1.9.0
+	github.com/spf13/cast v1.6.0
 	github.com/spf13/cobra v1.6.0
 	github.com/spf13/pflag v1.0.5
 	github.com/vishvananda/netlink v1.2.1-beta.2.0.20220630165224-c591ada0fb2b
@@ -135,7 +137,6 @@ require (
 	github.com/prometheus/common v0.37.0 // indirect
 	github.com/prometheus/procfs v0.8.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
-	github.com/sirupsen/logrus v1.9.0 // indirect
 	github.com/stoewer/go-strcase v1.2.0 // indirect
 	github.com/vishvananda/netns v0.0.0-20210104183010-2eb08e3e575f // indirect
 	github.com/xlab/treeprint v1.1.0 // indirect
