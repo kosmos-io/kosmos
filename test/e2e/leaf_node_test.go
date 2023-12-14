@@ -62,8 +62,9 @@ var _ = ginkgo.Describe("Test leaf node mode -- one2cluster, one2node, one2party
 					if i < 2 {
 						nodeLabels := node.Labels
 						if nodeLabels == nil {
-							nodeLabels = make(map[string]string, 0)
+							nodeLabels = make(map[string]string)
 						}
+
 						nodeLabels["test-leaf-party-mode"] = "yes"
 						node.SetLabels(nodeLabels)
 						node.ResourceVersion = ""
@@ -175,6 +176,7 @@ var _ = ginkgo.Describe("Test leaf node mode -- one2cluster, one2node, one2party
 			err = framework.CreateClusters(hostClusterLinkClient, one2Node)
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			if len(memberNodeNames) > 0 {
+				// #nosec G602
 				framework.WaitNodePresentOnCluster(hostKubeClient, memberNodeNames[0])
 			}
 		})
@@ -227,6 +229,7 @@ var _ = ginkgo.Describe("Test leaf node mode -- one2cluster, one2node, one2party
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 			if len(partyNodeNames) > 0 {
+				// #nosec G602
 				framework.WaitNodePresentOnCluster(hostKubeClient, partyNodeNames[0])
 			}
 		})

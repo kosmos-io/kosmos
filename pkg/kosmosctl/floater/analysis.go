@@ -35,6 +35,7 @@ type CommandAnalysisOptions struct {
 	ImageRepository string
 	Version         string
 	KubeConfig      string
+	Context         string
 
 	Port        string
 	PodWaitTime int
@@ -78,6 +79,7 @@ func NewCmdAnalysis(f ctlutil.Factory) *cobra.Command {
 	flags.StringVarP(&o.ImageRepository, "image-repository", "r", utils.DefaultImageRepository, "Image repository.")
 	flags.StringVar(&o.Name, "name", "", "Specify the name of the resource to analysis.")
 	flags.StringVar(&o.KubeConfig, "kubeconfig", "", "Absolute path to the cluster kubeconfig file.")
+	flags.StringVar(&o.Context, "context", "", "The name of the kubeconfig context.")
 	flags.StringVar(&o.Port, "port", utils.DefaultPort, "Port used by floater.")
 	flags.IntVarP(&o.PodWaitTime, "pod-wait-time", "w", utils.DefaultWaitTime, "Time for wait pod(floater) launch.")
 	flags.BoolVar(&o.GenGraph, "gen-graph", false, "Configure generate network analysis graph.")
@@ -97,7 +99,7 @@ func (o *CommandAnalysisOptions) Complete(f ctlutil.Factory) error {
 	}
 
 	af := NewAnalysisFloater(o)
-	if err = af.completeFromKubeConfigPath(o.KubeConfig); err != nil {
+	if err = af.completeFromKubeConfigPath(o.KubeConfig, o.Context); err != nil {
 		return err
 	}
 	o.Floater = af

@@ -35,7 +35,9 @@ type CommandUnJoinOptions struct {
 	Name           string
 	Namespace      string
 	KubeConfig     string
+	Context        string
 	HostKubeConfig string
+	HostContext    string
 
 	KosmosClient        versioned.Interface
 	K8sClient           kubernetes.Interface
@@ -64,36 +66,29 @@ func NewCmdUnJoin(f ctlutil.Factory) *cobra.Command {
 	cmd.Flags().StringVar(&o.Name, "name", "", "Specify the name of the resource to unjoin.")
 	cmd.Flags().StringVarP(&o.Namespace, "namespace", "n", utils.DefaultNamespace, "Kosmos namespace.")
 	cmd.Flags().StringVar(&o.KubeConfig, "kubeconfig", "", "Absolute path to the cluster kubeconfig file.")
+	cmd.Flags().StringVar(&o.Context, "context", "", "The name of the kubeconfig context.")
 	cmd.Flags().StringVar(&o.HostKubeConfig, "host-kubeconfig", "", "Absolute path to the special host kubeconfig file.")
+	cmd.Flags().StringVar(&o.HostContext, "host-context", "", "The name of the host-kubeconfig context.")
 
 	return cmd
 }
 func (o *CommandUnJoinOptions) Complete(f ctlutil.Factory) error {
-	var hostConfig *restclient.Config
-	var clusterConfig *restclient.Config
-	var err error
-
-	if o.HostKubeConfig != "" {
-		hostConfig, err = clientcmd.BuildConfigFromFlags("", o.HostKubeConfig)
-		if err != nil {
-			return fmt.Errorf("kosmosctl unjoin complete error, generate masterConfig failed: %s", err)
-		}
-	} else {
-		hostConfig, err = f.ToRESTConfig()
-		if err != nil {
-			return fmt.Errorf("kosmosctl unjoin complete error, get current masterConfig failed: %s", err)
-		}
+	hostConfig, err := utils.RestConfig(o.HostKubeConfig, o.HostContext)
+	if err != nil {
+		return fmt.Errorf("kosmosctl unjoin complete error, generate host config failed: %s", err)
 	}
+
+	var clusterConfig *restclient.Config
 
 	o.KosmosClient, err = versioned.NewForConfig(hostConfig)
 	if err != nil {
-		return fmt.Errorf("kosmosctl install complete error, generate Kosmos client failed: %v", err)
+		return fmt.Errorf("kosmosctl unjoin complete error, generate Kosmos client failed: %v", err)
 	}
 
 	if o.KubeConfig != "" {
-		clusterConfig, err = clientcmd.BuildConfigFromFlags("", o.KubeConfig)
+		clusterConfig, err = utils.RestConfig(o.KubeConfig, o.Context)
 		if err != nil {
-			return fmt.Errorf("kosmosctl unjoin complete error, generate clusterConfig failed: %s", err)
+			return fmt.Errorf("kosmosctl unjoin complete error, generate config failed: %s", err)
 		}
 	} else {
 		var cluster *v1alpha1.Cluster

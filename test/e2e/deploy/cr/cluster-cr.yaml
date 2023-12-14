@@ -79,7 +79,6 @@ spec:
                   operator: NotIn
                   values:
                     - cluster-host-control-plane
-                    - cluster-host-worker
       podAntiAffinity:
         requiredDuringSchedulingIgnoredDuringExecution:
           - labelSelector:
