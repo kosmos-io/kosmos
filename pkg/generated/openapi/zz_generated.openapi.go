@@ -742,6 +742,11 @@ func schema_pkg_apis_kosmos_v1alpha1_Converters(ref common.ReferenceCallback) co
 							Ref: ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeSelectorConverter"),
 						},
 					},
+					"tolerationConverter": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.TolerationConverter"),
+						},
+					},
 					"affinityConverter": {
 						SchemaProps: spec.SchemaProps{
 							Ref: ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.AffinityConverter"),
@@ -756,7 +761,7 @@ func schema_pkg_apis_kosmos_v1alpha1_Converters(ref common.ReferenceCallback) co
 			},
 		},
 		Dependencies: []string{
-			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.AffinityConverter", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeNameConverter", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeSelectorConverter", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.SchedulerNameConverter", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.TopologySpreadConstraintsConverter"},
+			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.AffinityConverter", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeNameConverter", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeSelectorConverter", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.SchedulerNameConverter", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.TolerationConverter", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.TopologySpreadConstraintsConverter"},
 	}
 }
 

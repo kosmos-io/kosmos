@@ -31,6 +31,7 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/extensions/daemonset"
 	leafUtils "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/utils"
 	"github.com/kosmos.io/kosmos/pkg/utils"
+	"github.com/kosmos.io/kosmos/pkg/utils/convertpolicy"
 	"github.com/kosmos.io/kosmos/pkg/utils/podutils"
 )
 
@@ -702,6 +703,37 @@ func (r *RootPodReconciler) createVolumes(ctx context.Context, lr *leafUtils.Lea
 	return nil
 }
 
+// mutatePod modify pod by matching policy
+func (r *RootPodReconciler) mutatePod(ctx context.Context, pod *corev1.Pod, nodeName string) error {
+	klog.V(4).Infof("Converting pod %v/%+v", pod.Namespace, pod.Name)
+
+	podConvertPolicyList := &kosmosv1alpha1.PodConvertPolicyList{}
+	err := r.Client.List(ctx, podConvertPolicyList, &client.ListOptions{
+		Namespace: pod.Namespace,
+	})
+	if err != nil {
+		return fmt.Errorf("list convert policy error: %v", err)
+	}
+	if len(podConvertPolicyList.Items) <= 0 {
+		// no matched policy, skip
+		return nil
+	}
+
+	rootNode := &corev1.Node{}
+	err = r.Client.Get(ctx, types.NamespacedName{Name: nodeName}, rootNode)
+	if err != nil {
+		return fmt.Errorf("get node error: %v, nodeName: %s", err, pod.Spec.NodeName)
+	}
+
+	matchedPolicy, err := convertpolicy.GetMatchPodConvertPolicy(*podConvertPolicyList, pod.Labels, rootNode.Labels)
+	if err != nil {
+		return fmt.Errorf("get convert policy error: %v", err)
+	}
+	podutils.ConvertPod(pod, matchedPolicy)
+	klog.V(4).Infof("Convert pod %v/%+v success", pod.Namespace, pod.Name)
+	return nil
+}
+
 func (r *RootPodReconciler) CreatePodInLeafCluster(ctx context.Context, lr *leafUtils.LeafResource, pod *corev1.Pod, nodeSelector kosmosv1alpha1.NodeSelector) error {
 	if err := podutils.PopulateEnvironmentVariables(ctx, pod, r.envResourceManager); err != nil {
 		// span.SetStatus(err)
@@ -715,6 +747,11 @@ func (r *RootPodReconciler) CreatePodInLeafCluster(ctx context.Context, lr *leaf
 
 	basicPod := podutils.FitPod(pod, lr.IgnoreLabels, clusterNodeInfo.LeafMode, nodeSelector)
 	klog.V(4).Infof("Creating pod %v/%+v", pod.Namespace, pod.Name)
+
+	err := r.mutatePod(ctx, basicPod, pod.Spec.NodeName)
+	if err != nil {
+		klog.Errorf("Converting pod error: %v", err)
+	}
 
 	// create ns
 	ns := &corev1.Namespace{}
@@ -759,7 +796,7 @@ func (r *RootPodReconciler) CreatePodInLeafCluster(ctx context.Context, lr *leaf
 
 	klog.V(4).Infof("Creating pod %+v", basicPod)
 
-	err := lr.Client.Create(ctx, basicPod)
+	err = lr.Client.Create(ctx, basicPod)
 	if err != nil {
 		return fmt.Errorf("could not create pod: %v", err)
 	}

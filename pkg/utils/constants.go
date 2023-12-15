@@ -110,6 +110,7 @@ const (
 	KosmosGlobalLabel      = "kosmos.io/global"
 	KosmosSelectorKey      = "kosmos.io/cluster-selector"
 	KosmosTrippedLabels    = "kosmos-io/tripped"
+	KosmosConvertLabels    = "kosmos-io/convert-policy"
 	KosmosPvcLabelSelector = "kosmos-io/label-selector"
 	KosmosExcludeNodeLabel = "kosmos.io/exclude"
 	KosmosExcludeNodeValue = "true"
