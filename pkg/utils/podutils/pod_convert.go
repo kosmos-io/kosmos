@@ -16,9 +16,9 @@ func ConvertPod(pod *corev1.Pod, policies []kosmosv1alpha1.PodConvertPolicy) {
 
 	var choose *kosmosv1alpha1.PodConvertPolicy
 	// current, use the first non-empty matching policy
-	for _, p := range policies {
-		if p.Spec.Converters != nil {
-			choose = &p
+	for idx, po := range policies {
+		if po.Spec.Converters != nil {
+			choose = &policies[idx]
 			break
 		}
 	}
@@ -74,7 +74,6 @@ func convertNodeName(pod *corev1.Pod, converter *kosmosv1alpha1.NodeNameConverte
 	default:
 		klog.Warningf("Skip other convert type, NodeName: %s", converter.ConvertType)
 	}
-
 }
 
 func converToleration(pod *corev1.Pod, conveter *kosmosv1alpha1.TolerationConverter) {

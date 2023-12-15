@@ -1,9 +1,10 @@
 package convertpolicy
 
 import (
-	kosmosv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+
+	kosmosv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 )
 
 // GetMatchPodConvertPolicy returns the PodConvertPolicies matching label selector
@@ -12,8 +13,9 @@ func GetMatchPodConvertPolicy(policies kosmosv1alpha1.PodConvertPolicyList, podL
 
 	var podSelector, nodeSelector labels.Selector
 	var err error
-	for _, policy := range policies.Items {
-		podSelector, err = metav1.LabelSelectorAsSelector(&policy.Spec.LabelSelector)
+	for _, po := range policies.Items {
+		spec := po.Spec
+		podSelector, err = metav1.LabelSelectorAsSelector(&spec.LabelSelector)
 		if err != nil {
 			return nil, err
 		}
@@ -21,11 +23,11 @@ func GetMatchPodConvertPolicy(policies kosmosv1alpha1.PodConvertPolicyList, podL
 			continue
 		}
 
-		if policy.Spec.LeafNodeSelector == nil {
+		if spec.LeafNodeSelector == nil {
 			// matches all leafNode.
 			nodeSelector = labels.Everything()
 		} else {
-			if nodeSelector, err = metav1.LabelSelectorAsSelector(policy.Spec.LeafNodeSelector); err != nil {
+			if nodeSelector, err = metav1.LabelSelectorAsSelector(spec.LeafNodeSelector); err != nil {
 				return nil, err
 			}
 		}
@@ -33,7 +35,7 @@ func GetMatchPodConvertPolicy(policies kosmosv1alpha1.PodConvertPolicyList, podL
 			continue
 		}
 
-		matched = append(matched, policy)
+		matched = append(matched, po)
 	}
 	return matched, nil
 }
