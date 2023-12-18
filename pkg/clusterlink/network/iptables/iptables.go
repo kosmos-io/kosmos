@@ -26,6 +26,8 @@ import (
 
 	"github.com/coreos/go-iptables/iptables"
 	"github.com/pkg/errors"
+	"k8s.io/klog"
+	"k8s.io/utils/exec"
 )
 
 type Basic interface {
@@ -56,6 +58,35 @@ type iptablesWrapper struct {
 }
 
 var NewFunc func() (Interface, error)
+
+// useful for tencent TKE
+func init() {
+	errInfo := "select iptables-nft or iptables-legacy error"
+	execInterface := exec.New()
+	ret_nft, err := execInterface.Command("iptables-nft-save").CombinedOutput()
+	if err != nil {
+		klog.Errorf("%s: %v", errInfo, err)
+		return
+	}
+	ret_legacy, err := execInterface.Command("iptables-legacy-save").CombinedOutput()
+	if err != nil {
+		klog.Errorf("%s: %v", errInfo, err)
+		return
+	}
+	if len(ret_nft) > len(ret_legacy) {
+		klog.Info("use iptables-nft as default iptables")
+		_, err := execInterface.Command("ln", []string{"-sf", "/sbin/xtables-nft-multi", "/sbin/iptables"}...).CombinedOutput()
+		if err != nil {
+			klog.Errorf("%s: %v", errInfo, err)
+			return
+		}
+		_, err = execInterface.Command("ln", []string{"-sf", "/sbin/xtables-nft-multi", "/sbin/ip6tables"}...).CombinedOutput()
+		if err != nil {
+			klog.Errorf("%s: %v", errInfo, err)
+			return
+		}
+	}
+}
 
 func New(proto iptables.Protocol) (Interface, error) {
 	if NewFunc != nil {

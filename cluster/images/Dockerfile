@@ -4,6 +4,6 @@ ARG BINARY
 
 RUN apk add --no-cache ca-certificates
 RUN apk update && apk upgrade
-RUN apk add ip6tables iptables curl tcpdump busybox-extras
+RUN apk add ip6tables iptables ipset curl tcpdump busybox-extras
 
 COPY ${BINARY} /bin/${BINARY}

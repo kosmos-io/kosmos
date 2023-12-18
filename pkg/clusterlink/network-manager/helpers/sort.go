@@ -90,3 +90,54 @@ func (s FdbSorter) Less(i, j int) bool {
 	}
 	return string(strI) > string(strJ)
 }
+
+// XfrmPolicySorter sorts xfrm policy.
+type XfrmPolicySorter []v1alpha1.XfrmPolicy
+
+func (s XfrmPolicySorter) Len() int      { return len(s) }
+func (s XfrmPolicySorter) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+func (s XfrmPolicySorter) Less(i, j int) bool {
+	strI, err := json.Marshal(s[i])
+	if err != nil {
+		return i < j
+	}
+	strJ, err := json.Marshal(s[j])
+	if err != nil {
+		return i < j
+	}
+	return string(strI) > string(strJ)
+}
+
+// XfrmStateorter sorts xfrm policy.
+type XfrmStateSorter []v1alpha1.XfrmState
+
+func (s XfrmStateSorter) Len() int      { return len(s) }
+func (s XfrmStateSorter) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+func (s XfrmStateSorter) Less(i, j int) bool {
+	strI, err := json.Marshal(s[i])
+	if err != nil {
+		return i < j
+	}
+	strJ, err := json.Marshal(s[j])
+	if err != nil {
+		return i < j
+	}
+	return string(strI) > string(strJ)
+}
+
+// IPsetsorter sorts xfrm policy.
+type IPSetSorter []v1alpha1.IPset
+
+func (s IPSetSorter) Len() int      { return len(s) }
+func (s IPSetSorter) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+func (s IPSetSorter) Less(i, j int) bool {
+	strI, err := json.Marshal(s[i])
+	if err != nil {
+		return i < j
+	}
+	strJ, err := json.Marshal(s[j])
+	if err != nil {
+		return i < j
+	}
+	return string(strI) > string(strJ)
+}

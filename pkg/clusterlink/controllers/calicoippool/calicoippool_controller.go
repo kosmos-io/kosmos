@@ -339,7 +339,7 @@ func (c *Controller) Reconcile(key utils.QueueKey) error {
 	}
 
 	klog.Infof("start reconcile cluster %s", cluster.Name)
-	if cluster.Spec.ClusterLinkOptions.CNI != utils.CNITypeCalico {
+	if cluster.Name == c.clusterName && cluster.Spec.ClusterLinkOptions.CNI != utils.CNITypeCalico {
 		klog.Infof("cluster %s cni type is %s skip reconcile", cluster.Name, cluster.Spec.ClusterLinkOptions.CNI)
 		return nil
 	}

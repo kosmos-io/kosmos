@@ -1,7 +1,13 @@
 package handlers
 
 import (
+	"bytes"
+	"crypto/md5" //nolint:gosec
+	"encoding/hex"
+	"fmt"
+	"hash/crc32"
 	"net"
+	"os"
 
 	"k8s.io/klog/v2"
 
@@ -94,6 +100,78 @@ func SupportIPType(cluster *v1alpha1.Cluster, ipType helpers.IPType) bool {
 	return specifiedIPType == ipType
 }
 
+func addIpsecRules(ctx *Context, target *v1alpha1.ClusterNode, n *v1alpha1.ClusterNode, cidr string) {
+	nCluster := ctx.Filter.GetClusterByName(n.Spec.ClusterName)
+	var nPodCIDRs []string
+	if nCluster.IsP2P() {
+		nPodCIDRs = n.Spec.PodCIDRs
+	} else {
+		nPodCIDRs = nCluster.Status.ClusterLinkStatus.PodCIDRs
+	}
+	nPodCIDRs = FilterByIPFamily(nPodCIDRs, nCluster.Spec.ClusterLinkOptions.IPFamily)
+	nPodCIDRs = ConvertToGlobalCIDRs(nPodCIDRs, nCluster.Spec.ClusterLinkOptions.GlobalCIDRsMap)
+	var bt bytes.Buffer
+	if n.Name > target.Name {
+		bt.WriteString(n.Name)
+		bt.WriteString(target.Name)
+	} else {
+		bt.WriteString(target.Name)
+		bt.WriteString(n.Name)
+	}
+	spi := crc32.ChecksumIEEE(bt.Bytes())
+
+	psk_pre := md5.Sum([]byte(os.Getenv("PSK_PRE_STR"))) //nolint:gosec
+	psk_suffix := fmt.Sprintf("%08x", spi)
+	psk_suffix_byte, _ := hex.DecodeString(psk_suffix)
+	psk_byte := append(psk_pre[:], psk_suffix_byte...)
+	psk := hex.EncodeToString(psk_byte)
+	klog.Infof("psk_suffix: %s,psk: %s", psk_suffix, psk)
+
+	ctx.Results[n.Name].XfrmStates = append(ctx.Results[n.Name].XfrmStates, v1alpha1.XfrmState{
+		LeftIP:  n.Spec.IP,
+		RightIP: target.Spec.ElasticIP,
+		ReqID:   v1alpha1.DefaultReqID,
+		PSK:     psk,
+		SPI:     spi,
+	})
+	ctx.Results[n.Name].XfrmStates = append(ctx.Results[n.Name].XfrmStates, v1alpha1.XfrmState{
+		RightIP: n.Spec.IP,
+		LeftIP:  target.Spec.ElasticIP,
+		ReqID:   v1alpha1.DefaultReqID,
+		PSK:     psk,
+		SPI:     spi,
+	})
+	for _, ncidr := range nPodCIDRs {
+		// dir : out
+		ctx.Results[n.Name].XfrmPolicies = append(ctx.Results[n.Name].XfrmPolicies, v1alpha1.XfrmPolicy{
+			LeftIP:   n.Spec.IP,
+			LeftNet:  ncidr,
+			RightIP:  target.Spec.ElasticIP,
+			RightNet: cidr,
+			ReqID:    v1alpha1.DefaultReqID,
+			Dir:      int(v1alpha1.IPSECOut),
+		})
+		// dir : in
+		ctx.Results[n.Name].XfrmPolicies = append(ctx.Results[n.Name].XfrmPolicies, v1alpha1.XfrmPolicy{
+			LeftIP:   target.Spec.ElasticIP,
+			LeftNet:  cidr,
+			RightIP:  n.Spec.IP,
+			RightNet: ncidr,
+			ReqID:    v1alpha1.DefaultReqID,
+			Dir:      int(v1alpha1.IPSECIn),
+		})
+		// dir : fwd
+		ctx.Results[n.Name].XfrmPolicies = append(ctx.Results[n.Name].XfrmPolicies, v1alpha1.XfrmPolicy{
+			LeftIP:   target.Spec.ElasticIP,
+			LeftNet:  cidr,
+			RightIP:  n.Spec.IP,
+			RightNet: ncidr,
+			ReqID:    v1alpha1.DefaultReqID,
+			Dir:      int(v1alpha1.IPSECFwd),
+		})
+	}
+}
+
 func BuildRoutes(ctx *Context, target *v1alpha1.ClusterNode, cidrs []string) {
 	otherClusterNodes := ctx.Filter.GetAllNodesExceptCluster(target.Spec.ClusterName)
 
@@ -134,11 +212,16 @@ func BuildRoutes(ctx *Context, target *v1alpha1.ClusterNode, cidrs []string) {
 			}
 
 			if n.IsGateway() || srcCluster.IsP2P() {
-				ctx.Results[n.Name].Routes = append(ctx.Results[n.Name].Routes, v1alpha1.Route{
-					CIDR: cidr,
-					Gw:   targetIP.String(),
-					Dev:  vxBridge,
-				})
+				klog.Infof("Chekc node %s is gateway,t ElasticIP:%s,n ElasticIP: %s", n.Spec.NodeName, target.Spec.ElasticIP, n.Spec.ElasticIP)
+				if len(target.Spec.ElasticIP) > 0 && len(n.Spec.ElasticIP) > 0 {
+					addIpsecRules(ctx, target, n, cidr)
+				} else {
+					ctx.Results[n.Name].Routes = append(ctx.Results[n.Name].Routes, v1alpha1.Route{
+						CIDR: cidr,
+						Gw:   targetIP.String(),
+						Dev:  vxBridge,
+					})
+				}
 				continue
 			}
 

@@ -92,6 +92,18 @@ spec:
                   - mac
                   type: object
                 type: array
+              ipsetsavoidmasq:
+                items:
+                  properties:
+                    cidr:
+                      type: string
+                    name:
+                      type: string
+                  required:
+                  - cidr
+                  - name
+                  type: object
+                type: array
               iptables:
                 items:
                   properties:
@@ -120,6 +132,52 @@ spec:
                   - cidr
                   - dev
                   - gw
+                  type: object
+                type: array
+              xfrmpolicies:
+                items:
+                  properties:
+                    dir:
+                      type: integer
+                    leftip:
+                      type: string
+                    leftnet:
+                      type: string
+                    reqid:
+                      type: integer
+                    rightip:
+                      type: string
+                    rightnet:
+                      type: string
+                  required:
+                  - dir
+                  - leftip
+                  - leftnet
+                  - reqid
+                  - rightip
+                  - rightnet
+                  type: object
+                type: array
+              xfrmstates:
+                items:
+                  properties:
+                    PSK:
+                      type: string
+                    leftip:
+                      type: string
+                    reqid:
+                      type: integer
+                    rightip:
+                      type: string
+                    spi:
+                      format: int32
+                      type: integer
+                  required:
+                  - PSK
+                  - leftip
+                  - reqid
+                  - rightip
+                  - spi
                   type: object
                 type: array
             type: object
