@@ -8,7 +8,6 @@ import (
 
 // +genclient
 // +genclient:nonNamespaced
-// +kubebuilder:subresource:status
 // +kubebuilder:resource:scope="Cluster"
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:printcolumn:name="ROLES",type=string,JSONPath=`.spec.roles`
@@ -33,6 +32,8 @@ type ClusterNodeSpec struct {
 	// +optional
 	IP string `json:"ip,omitempty"`
 	// +optional
+	ElasticIP string `json:"elasticip,omitempty"`
+	// +optional
 	IP6 string `json:"ip6,omitempty"`
 	// +optional
 	Roles []Role `json:"roles,omitempty"`
@@ -41,6 +42,8 @@ type ClusterNodeSpec struct {
 }
 
 type ClusterNodeStatus struct {
+	// +optional
+	NodeStatus string `json:"nodeStatus,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

@@ -94,6 +94,14 @@ type ClusterLinkOptions struct {
 
 	// +optional
 	AutodetectionMethod string `json:"autodetectionMethod,omitempty"`
+
+	// NodeElasticIPMap presents mapping between nodename in kubernetes and elasticIP
+	// +optional
+	NodeElasticIPMap map[string]string `json:"nodeElasticIPMap,omitempty"`
+	// +optional
+	ClusterPodCIDRs []string `json:"clusterpodCIDRs,omitempty"`
+	// +optional
+	UseExternalApiserver bool `json:"useexternalapiserver,omitempty"`
 }
 
 type ClusterTreeOptions struct {

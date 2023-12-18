@@ -3,6 +3,7 @@ package cluster
 import (
 	"context"
 	"fmt"
+	"net"
 	"reflect"
 	"strings"
 	"time"
@@ -32,6 +33,8 @@ import (
 
 	clusterlinkv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
+	"github.com/kosmos.io/kosmos/pkg/kosmosctl/manifest"
+	"github.com/kosmos.io/kosmos/pkg/kosmosctl/util"
 	"github.com/kosmos.io/kosmos/pkg/utils"
 	"github.com/kosmos.io/kosmos/pkg/utils/flags"
 	"github.com/kosmos.io/kosmos/pkg/utils/keys"
@@ -41,10 +44,12 @@ import (
 const (
 	FlannelCNI             = "flannel"
 	CiliumCNI              = "cilium"
+	GlobalRouterCNI        = "globalrouter"
 	KubeFlannelConfigMap   = "kube-flannel-cfg"
 	KubeCiliumConfigMap    = "cilium-config"
 	KubeFlannelNetworkConf = "net-conf.json"
 	KubeFlannelIPPool      = "Network"
+	KubeSystemNamespace    = "kube-system"
 )
 
 type SetClusterPodCIDRFun func(cluster *clusterlinkv1alpha1.Cluster) error
@@ -97,14 +102,24 @@ func (c *Controller) Start(ctx context.Context) error {
 	factory := informers.NewSharedInformerFactory(c.kubeClient, 0)
 	informer := factory.Core().V1().Pods().Informer()
 	c.podLister = factory.Core().V1().Pods().Lister()
-	podFilterFunc := func(pod *corev1.Pod) bool {
-		return pod.Labels["component"] == "kube-apiserver"
-	}
 
 	cluster, err := c.clusterLinkClient.KosmosV1alpha1().Clusters().Get(ctx, c.clusterName, metav1.GetOptions{})
 	if err != nil {
 		klog.Errorf("can not find local cluster %s, err: %v", c.clusterName, err)
 		return err
+	}
+	var podFilterFunc func(pod *corev1.Pod) bool
+	if cluster.Spec.ClusterLinkOptions.UseExternalApiserver {
+		podFilterFunc = func(pod *corev1.Pod) bool {
+			// TODO: find a better way
+			// some k8s, apiserver not a pod in cluster, maybe not a good way
+			// so we choose some kube-system pod and clusterlink-controller-manager itself as filter
+			return pod.Labels["k8s-app"] == "kube-proxy" || pod.Labels["app"] == "clusterlink-controller-manager"
+		}
+	} else {
+		podFilterFunc = func(pod *corev1.Pod) bool {
+			return pod.Labels["component"] == "kube-apiserver"
+		}
 	}
 	_, err = informer.AddEventHandler(cache.FilteringResourceEventHandler{
 		FilterFunc: func(obj interface{}) bool {
@@ -137,6 +152,15 @@ func (c *Controller) Start(ctx context.Context) error {
 			klog.Errorf("cluster %s initCalicoInformer err: %v", err)
 			return err
 		}
+	} else if cluster.Spec.ClusterLinkOptions.CNI == GlobalRouterCNI {
+		c.setClusterPodCIDRFun = func(cluster *clusterlinkv1alpha1.Cluster) error {
+			if len(cluster.Spec.ClusterLinkOptions.ClusterPodCIDRs) == 0 {
+				klog.Errorf("Please define ClusterPodCIDRs for cni %s", GlobalRouterCNI)
+				return fmt.Errorf("clusterpodcidrs is not defined for cni %s", GlobalRouterCNI)
+			}
+			cluster.Status.ClusterLinkStatus.PodCIDRs = cluster.Spec.ClusterLinkOptions.ClusterPodCIDRs
+			return nil
+		}
 	} else {
 		isEtcd := CheckIsEtcd(cluster)
 		if !isEtcd {
@@ -162,12 +186,45 @@ func (c *Controller) Start(ctx context.Context) error {
 	return nil
 }
 
+func (c *Controller) GetSvcByCreateInvalidSvc() (*net.IPNet, error) {
+	// Aliyun ACK don't put apiserver as a pod in cluster, try to resolve svccidr from error message
+	// For reference: https://stackoverflow.com/questions/44190607/how-do-you-find-the-cluster-service-cidr-of-a-kubernetes-cluster
+	svc, err := util.GenerateService(InvalidService, manifest.ServiceReplace{
+		Namespace: KubeSystemNamespace,
+	})
+	if err != nil {
+		return nil, err
+	}
+	_, err = c.kubeClient.CoreV1().Services(KubeSystemNamespace).Create(context.Background(), svc, metav1.CreateOptions{})
+	klog.Infof("Try creating invalid svc to get svccidr info ")
+	if err == nil {
+		err = c.kubeClient.CoreV1().Services(KubeSystemNamespace).Delete(context.Background(), svc.Name, metav1.DeleteOptions{})
+		if err != nil {
+			return nil, fmt.Errorf("Strange create invalid svc succcessfully,but delete failed,error : %v", err)
+		}
+		return nil, fmt.Errorf("Strange create invalid svc succcessfully.")
+	}
+
+	klog.Infof("Created invalid svc, the error is : %v ", err)
+	i := strings.Index(err.Error(), "The range of valid IPs is")
+	if i == -1 {
+		return nil, fmt.Errorf("can't find valid service cidr in error message")
+	}
+	s := strings.TrimSpace(err.Error()[i+len("The range of valid IPs is"):])
+	_, svccidr, err := net.ParseCIDR(s)
+	if err != nil {
+		return nil, fmt.Errorf("can't find valid service cidr in error message, cidr str is %s", s)
+	}
+	return svccidr, nil
+}
+
 func (c *Controller) Reconcile(key utils.QueueKey) error {
 	clusterWideKey, ok := key.(keys.ClusterWideKey)
 	if !ok {
 		klog.Error("invalid key")
 		return fmt.Errorf("invalid key")
 	}
+	klog.Info("cluster controller start reconcile")
 	namespacedName := types.NamespacedName{
 		Name:      clusterWideKey.Name,
 		Namespace: clusterWideKey.Namespace,
@@ -200,7 +257,12 @@ func (c *Controller) Reconcile(key utils.QueueKey) error {
 	}
 	if len(serviceCIDRS) == 0 {
 		klog.Errorf("resolve serviceCIDRS for cluster %s failure", c.clusterName)
-		return err
+		svccidr, err := c.GetSvcByCreateInvalidSvc()
+		if err != nil {
+			klog.Errorf("get svc by creating invalid svc error: %v", err)
+			return err
+		}
+		serviceCIDRS = append(serviceCIDRS, svccidr.String())
 	}
 	// sync pod cidr
 	err = c.setClusterPodCIDRFun(reconcileCluster)

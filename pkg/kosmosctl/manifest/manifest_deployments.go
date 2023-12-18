@@ -34,6 +34,9 @@ spec:
             requests:
               cpu: 500m
               memory: 500Mi
+          env:
+          - name: PSK_PRE_STR
+            value: "{{ .PSKPreStr }}"
 `
 
 	KosmosOperatorDeployment = `
@@ -268,5 +271,6 @@ type DeploymentReplace struct {
 	ImageRepository string
 	Version         string
 
-	UseProxy string
+	UseProxy  string
+	PSKPreStr string
 }

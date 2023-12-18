@@ -3,6 +3,7 @@ package install
 import (
 	"context"
 	"fmt"
+	"net"
 
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
@@ -19,6 +20,7 @@ import (
 
 	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/cert"
+	clustercontrollers "github.com/kosmos.io/kosmos/pkg/clusterlink/controllers/cluster"
 	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/join"
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/manifest"
@@ -53,11 +55,14 @@ type CommandInstallOptions struct {
 	HostKubeConfigStream []byte
 	WaitTime             int
 
-	CNI            string
-	DefaultNICName string
-	NetworkType    string
-	IpFamily       string
-	UseProxy       string
+	CNI                  string
+	DefaultNICName       string
+	NetworkType          string
+	IpFamily             string
+	UseProxy             string
+	NodeElasticIP        map[string]string
+	ClusterPodCIDRs      []string
+	UseExternalApiserver bool
 
 	KosmosClient        versioned.Interface
 	K8sClient           kubernetes.Interface
@@ -99,6 +104,9 @@ func NewCmdInstall() *cobra.Command {
 	flags.StringVar(&o.IpFamily, "ip-family", string(v1alpha1.IPFamilyTypeIPV4), "Specify the IP protocol version used by network devices, common IP families include IPv4 and IPv6.")
 	flags.StringVar(&o.UseProxy, "use-proxy", "false", "Set whether to enable proxy.")
 	flags.IntVarP(&o.WaitTime, "wait-time", "", utils.DefaultWaitTime, "Wait the specified time for the Kosmos install ready.")
+	flags.StringToStringVar(&o.NodeElasticIP, "node-elasticip", nil, "Set cluster node with elastic ip.")
+	flags.StringSliceVar(&o.ClusterPodCIDRs, "cluster-pod-cidrs", nil, "Set cluster pods cidrs.")
+	flags.BoolVar(&o.UseExternalApiserver, "use-extelnal-apiserver", true, "Apiserver is a pod in cluster or not.")
 
 	flags.StringVar(&o.CertEncode, "cert-encode", cert.GetCrtEncode(), "cert base64 string for node server.")
 	flags.StringVar(&o.KeyEncode, "key-encode", cert.GetKeyEncode(), "key base64 string for node server.")
@@ -148,6 +156,29 @@ func (o *CommandInstallOptions) Complete() error {
 func (o *CommandInstallOptions) Validate() error {
 	if len(o.Namespace) == 0 {
 		return fmt.Errorf("kosmosctl install validate error, namespace is not valid")
+	}
+
+	validationErr := "kosmosctl install validate error"
+	for nodeName, elasticIP := range o.NodeElasticIP {
+		_, err := o.K8sClient.CoreV1().Nodes().Get(context.TODO(), nodeName, metav1.GetOptions{})
+		if err != nil {
+			return fmt.Errorf("%s, node %s is invalid: %v", validationErr, nodeName, err)
+		}
+		if net.ParseIP(elasticIP) == nil {
+			return fmt.Errorf("%s, ElasticIP %s is invalid", validationErr, elasticIP)
+		}
+	}
+
+	if o.CNI == clustercontrollers.GlobalRouterCNI {
+		if o.ClusterPodCIDRs == nil {
+			return fmt.Errorf("%s, should specify ClusterPodCIDRs when using cni globalrouter", validationErr)
+		}
+		for _, podsCidr := range o.ClusterPodCIDRs {
+			if _, _, err := net.ParseCIDR(podsCidr); err != nil {
+				return fmt.Errorf("%s,  pod cidr is invalid", validationErr)
+			}
+		}
+		o.UseExternalApiserver = true
 	}
 
 	return nil
@@ -289,6 +320,7 @@ func (o *CommandInstallOptions) runClusterlink() error {
 		Namespace:       o.Namespace,
 		ImageRepository: o.ImageRegistry,
 		Version:         o.Version,
+		PSKPreStr:       v1alpha1.DefaultPSKPreStr,
 	})
 	if err != nil {
 		return err
@@ -561,21 +593,24 @@ func (o *CommandInstallOptions) createControlCluster() error {
 			if apierrors.IsNotFound(err) {
 				clusterArgs := []string{"cluster"}
 				joinOptions := join.CommandJoinOptions{
-					Name:                utils.DefaultClusterName,
-					Namespace:           o.Namespace,
-					ImageRegistry:       o.ImageRegistry,
-					KubeConfigStream:    o.HostKubeConfigStream,
-					WaitTime:            o.WaitTime,
-					KosmosClient:        o.KosmosClient,
-					K8sClient:           o.K8sClient,
-					K8sExtensionsClient: o.K8sExtensionsClient,
-					RootFlag:            true,
-					EnableLink:          true,
-					CNI:                 o.CNI,
-					DefaultNICName:      o.DefaultNICName,
-					NetworkType:         o.NetworkType,
-					IpFamily:            o.IpFamily,
-					UseProxy:            o.UseProxy,
+					Name:                 utils.DefaultClusterName,
+					Namespace:            o.Namespace,
+					ImageRegistry:        o.ImageRegistry,
+					KubeConfigStream:     o.HostKubeConfigStream,
+					WaitTime:             o.WaitTime,
+					KosmosClient:         o.KosmosClient,
+					K8sClient:            o.K8sClient,
+					K8sExtensionsClient:  o.K8sExtensionsClient,
+					RootFlag:             true,
+					EnableLink:           true,
+					CNI:                  o.CNI,
+					DefaultNICName:       o.DefaultNICName,
+					NetworkType:          o.NetworkType,
+					IpFamily:             o.IpFamily,
+					UseProxy:             o.UseProxy,
+					NodeElasticIP:        o.NodeElasticIP,
+					ClusterPodCIDRs:      o.ClusterPodCIDRs,
+					UseExternalApiserver: o.UseExternalApiserver,
 				}
 
 				err = joinOptions.Run(clusterArgs)
@@ -605,6 +640,9 @@ func (o *CommandInstallOptions) createControlCluster() error {
 				case utils.DefaultIPv6:
 					controlCluster.Spec.ClusterLinkOptions.IPFamily = v1alpha1.IPFamilyTypeIPV6
 				}
+				controlCluster.Spec.ClusterLinkOptions.NodeElasticIPMap = o.NodeElasticIP
+				controlCluster.Spec.ClusterLinkOptions.ClusterPodCIDRs = o.ClusterPodCIDRs
+				controlCluster.Spec.ClusterLinkOptions.UseExternalApiserver = o.UseExternalApiserver
 				_, err = o.KosmosClient.KosmosV1alpha1().Clusters().Update(context.TODO(), controlCluster, metav1.UpdateOptions{})
 				if err != nil {
 					klog.Infof("ControlCluster-Link: ", controlCluster)
@@ -655,22 +693,25 @@ func (o *CommandInstallOptions) createControlCluster() error {
 			if apierrors.IsNotFound(err) {
 				clusterArgs := []string{"cluster"}
 				joinOptions := join.CommandJoinOptions{
-					Name:                utils.DefaultClusterName,
-					Namespace:           o.Namespace,
-					ImageRegistry:       o.ImageRegistry,
-					KubeConfigStream:    o.HostKubeConfigStream,
-					K8sExtensionsClient: o.K8sExtensionsClient,
-					WaitTime:            o.WaitTime,
-					KosmosClient:        o.KosmosClient,
-					K8sClient:           o.K8sClient,
-					RootFlag:            true,
-					EnableLink:          true,
-					CNI:                 o.CNI,
-					DefaultNICName:      o.DefaultNICName,
-					NetworkType:         o.NetworkType,
-					IpFamily:            o.IpFamily,
-					UseProxy:            o.UseProxy,
-					EnableTree:          true,
+					Name:                 utils.DefaultClusterName,
+					Namespace:            o.Namespace,
+					ImageRegistry:        o.ImageRegistry,
+					KubeConfigStream:     o.HostKubeConfigStream,
+					K8sExtensionsClient:  o.K8sExtensionsClient,
+					WaitTime:             o.WaitTime,
+					KosmosClient:         o.KosmosClient,
+					K8sClient:            o.K8sClient,
+					RootFlag:             true,
+					EnableLink:           true,
+					CNI:                  o.CNI,
+					DefaultNICName:       o.DefaultNICName,
+					NetworkType:          o.NetworkType,
+					IpFamily:             o.IpFamily,
+					UseProxy:             o.UseProxy,
+					EnableTree:           true,
+					NodeElasticIP:        o.NodeElasticIP,
+					ClusterPodCIDRs:      o.ClusterPodCIDRs,
+					UseExternalApiserver: o.UseExternalApiserver,
 				}
 
 				err = joinOptions.Run(clusterArgs)
@@ -701,6 +742,9 @@ func (o *CommandInstallOptions) createControlCluster() error {
 				case utils.DefaultIPv6:
 					controlCluster.Spec.ClusterLinkOptions.IPFamily = v1alpha1.IPFamilyTypeIPV6
 				}
+				controlCluster.Spec.ClusterLinkOptions.NodeElasticIPMap = o.NodeElasticIP
+				controlCluster.Spec.ClusterLinkOptions.ClusterPodCIDRs = o.ClusterPodCIDRs
+				controlCluster.Spec.ClusterLinkOptions.UseExternalApiserver = o.UseExternalApiserver
 				_, err = o.KosmosClient.KosmosV1alpha1().Clusters().Update(context.TODO(), controlCluster, metav1.UpdateOptions{})
 				if err != nil {
 					klog.Infof("ControlCluster-All: ", controlCluster)
