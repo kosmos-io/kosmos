@@ -22,12 +22,22 @@ import (
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// KnodeVolumeBindingArgs holds arguments used to configure the KnodeVolumeBinding plugin
-type KnodeVolumeBindingArgs struct {
+// KNodeVolumeBindingArgs holds arguments used to configure the KNodeVolumeBinding plugin
+type KNodeVolumeBindingArgs struct {
 	metav1.TypeMeta `json:",inline"`
 
 	// BindTimeoutSeconds is the timeout in seconds in volume binding operation.
 	// Value must be non-negative integer. The value zero indicates no waiting.
 	// If this value is nil, the default value (600) will be used.
 	BindTimeoutSeconds int64 `json:"bindTimeoutSeconds,omitempty"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// KNodeDistributionArgs holds arguments used to configure the KNodeDistributionPolicy plugin
+type KNodeDistributionArgs struct {
+	metav1.TypeMeta `json:",inline"`
+
+	// KubeConfigPath is the path of kubeconfig.
+	KubeConfigPath string `json:"kubeConfigPath,omitempty"`
 }
