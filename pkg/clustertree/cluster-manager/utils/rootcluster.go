@@ -36,7 +36,7 @@ func GetAddress(ctx context.Context, rootClient kubernetes.Interface, originAddr
 	}
 
 	prefixAddress := []corev1.NodeAddress{
-		{Type: preferredAddressType, Address: os.Getenv("KNODE_POD_IP")},
+		{Type: preferredAddressType, Address: os.Getenv("LEAF_NODE_IP")},
 	}
 
 	address, err := SortAddress(ctx, rootClient, originAddress)

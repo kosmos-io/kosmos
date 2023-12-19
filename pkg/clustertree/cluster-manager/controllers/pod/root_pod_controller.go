@@ -237,7 +237,6 @@ func (r *RootPodReconciler) SetupWithManager(mgr manager.Manager) error {
 			return false
 		}
 
-		/**
 		p := obj.(*corev1.Pod)
 
 		// skip daemonset
@@ -249,11 +248,13 @@ func (r *RootPodReconciler) SetupWithManager(mgr manager.Manager) error {
 							return true
 						}
 					}
+					if !p.DeletionTimestamp.IsZero() {
+						return true
+					}
 					return false
 				}
 			}
 		}
-		*/
 		return true
 	}
 
