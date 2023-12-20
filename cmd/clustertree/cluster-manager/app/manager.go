@@ -182,6 +182,8 @@ func run(ctx context.Context, opts *options.Options) error {
 			EventRecorder:      mgr.GetEventRecorderFor(mcs.ServiceExportControllerName),
 			Logger:             mgr.GetLogger(),
 			ReservedNamespaces: opts.ReservedNamespaces,
+			RateLimiterOptions: opts.RateLimiterOpts,
+			BackoffOptions:     opts.BackoffOpts,
 		}
 		if err = ServiceExportController.SetupWithManager(mgr); err != nil {
 			return fmt.Errorf("error starting %s: %v", mcs.ServiceExportControllerName, err)

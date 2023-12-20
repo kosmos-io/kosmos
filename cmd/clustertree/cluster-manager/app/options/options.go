@@ -1,11 +1,15 @@
 package options
 
 import (
+	"time"
+
 	"github.com/spf13/pflag"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	componentbaseconfig "k8s.io/component-base/config"
 	"k8s.io/component-base/config/options"
 	componentbaseconfigv1alpha1 "k8s.io/component-base/config/v1alpha1"
+
+	"github.com/kosmos.io/kosmos/pkg/utils/flags"
 )
 
 const (
@@ -40,6 +44,12 @@ type Options struct {
 
 	// ReservedNamespaces are the protected namespaces to prevent Kosmos for deleting system resources
 	ReservedNamespaces []string
+
+	RateLimiterOpts flags.Options
+
+	BackoffOpts flags.BackoffOptions
+
+	SyncPeriod time.Duration
 }
 
 type KubernetesOptions struct {
@@ -82,5 +92,8 @@ func (o *Options) AddFlags(flags *pflag.FlagSet) {
 	flags.BoolVar(&o.OnewayStorageControllers, "oneway-storage-controllers", false, "Turn on or off oneway storage controllers.")
 	flags.StringSliceVar(&o.AutoCreateMCSPrefix, "auto-mcs-prefix", []string{}, "The prefix of namespace for service to auto create mcs resources")
 	flags.StringSliceVar(&o.ReservedNamespaces, "reserved-namespaces", []string{"kube-system"}, "The namespaces protected by Kosmos that the controller-manager will skip.")
+	flags.DurationVar(&o.SyncPeriod, "sync-period", 0, "the sync period for informer to resync.")
+	o.RateLimiterOpts.AddFlags(flags)
+	o.BackoffOpts.AddFlags(flags)
 	options.BindLeaderElectionFlags(&o.LeaderElection, flags)
 }
