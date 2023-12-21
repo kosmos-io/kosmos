@@ -14,8 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// +k8s:deepcopy-gen=package
+// Package v1alpha1 is the v1alpha1 version of the API.
+// +k8s:deepcopy-gen=package,register
 // +k8s:defaulter-gen=TypeMeta
-// +groupName=kubescheduler.config.k8s.io
-
-package config // import "github.com/kosmos.io/kosmos/pkg/apis"
+// +k8s:openapi-gen=true
+// +groupName=kosmos.io
+package v1alpha1 // import "github.com/kosmos.io/kosmos/pkg/apis/v1alpha1"

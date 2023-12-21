@@ -223,7 +223,7 @@ var _ framework.ReservePlugin = &VolumeBinding{}
 var _ framework.PreBindPlugin = &VolumeBinding{}
 
 // Name is the name of the plugin used in Registry and configurations.
-const Name = "KnodeVolumeBinding"
+const Name = "KNodeVolumeBinding"
 
 // Name returns name of the plugin. It is used in logs, etc.
 func (pl *VolumeBinding) Name() string {
@@ -232,7 +232,7 @@ func (pl *VolumeBinding) Name() string {
 
 // New initializes a new plugin and returns it.
 func New(plArgs runtime.Object, fh framework.Handle) (framework.Plugin, error) {
-	args, ok := plArgs.(*config.KnodeVolumeBindingArgs)
+	args, ok := plArgs.(*config.KNodeVolumeBindingArgs)
 	if !ok {
 		return nil, fmt.Errorf("want args to be of type VolumeBindingArgs, got %T", plArgs)
 	}

@@ -23,8 +23,8 @@ import (
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +k8s:defaulter-gen=true
 
-// KnodeVolumeBindingArgs holds arguments used to configure the KnodeVolumeBinding plugin
-type KnodeVolumeBindingArgs struct {
+// KNodeVolumeBindingArgs holds arguments used to configure the KNodeVolumeBinding plugin
+type KNodeVolumeBindingArgs struct {
 	metav1.TypeMeta `json:",inline"`
 
 	// BindTimeoutSeconds is the timeout in seconds in volume binding operation.
