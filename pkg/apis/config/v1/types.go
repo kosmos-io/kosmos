@@ -34,8 +34,8 @@ type UtilizationShapePoint struct {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +k8s:defaulter-gen=true
 
-// KnodeVolumeBindingArgs holds arguments used to configure the KnodeVolumeBinding plugin
-type KnodeVolumeBindingArgs struct {
+// LeafNodeVolumeBindingArgs holds arguments used to configure the LeafNodeVolumeBinding plugin
+type LeafNodeVolumeBindingArgs struct {
 	metav1.TypeMeta `json:",inline"`
 
 	// BindTimeoutSeconds is the timeout in seconds in volume binding operation.

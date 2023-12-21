@@ -18,7 +18,7 @@ limitations under the License.
 // For reference:
 // https://github.com/kubernetes/kubernetes/blob/release-1.26/pkg/scheduler/framework/plugins/tainttoleration/taint_toleration.go
 
-package knodetainttoleration
+package leafnodetainttoleration
 
 import (
 	"context"
@@ -31,7 +31,7 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/scheduler/lifted/helpers"
 )
 
-const Name = "KNodeTaintToleration"
+const Name = "LeafNodeTaintToleration"
 
 type TaintToleration struct {
 	frameworkHandler framework.Handle
