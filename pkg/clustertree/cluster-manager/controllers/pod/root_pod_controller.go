@@ -303,21 +303,23 @@ func (r *RootPodReconciler) createStorageInLeafCluster(ctx context.Context, lr *
 		}
 
 		// create resource in leaf cluster
-		_, err = lr.DynamicClient.Resource(gvr).Namespace(ns).Get(ctx, rname, metav1.GetOptions{})
+		unstructuredObj := rootobj
+
+		podutils.FitUnstructuredObjMeta(unstructuredObj)
+		if err := storageHandler.BeforeGetInLeaf(ctx, r, lr, unstructuredObj, rootpod, cn); err != nil {
+			return err
+		}
+
+		_, err = lr.DynamicClient.Resource(gvr).Namespace(ns).Get(ctx, unstructuredObj.GetName(), metav1.GetOptions{})
 		if err == nil {
 			// already existed, so skip
 			continue
 		}
 		if errors.IsNotFound(err) {
-			unstructuredObj := rootobj
-
-			podutils.FitUnstructuredObjMeta(unstructuredObj)
-
+			podutils.SetUnstructuredObjGlobal(unstructuredObj)
 			if err := storageHandler.BeforeCreateInLeaf(ctx, r, lr, unstructuredObj, rootpod, cn); err != nil {
 				return err
 			}
-
-			podutils.SetUnstructuredObjGlobal(unstructuredObj)
 
 			_, err = lr.DynamicClient.Resource(gvr).Namespace(ns).Create(ctx, unstructuredObj, metav1.CreateOptions{})
 			if err != nil {
@@ -335,37 +337,9 @@ func (r *RootPodReconciler) createStorageInLeafCluster(ctx context.Context, lr *
 	return nil
 }
 
-func (r *RootPodReconciler) createSAInLeafCluster(ctx context.Context, lr *leafUtils.LeafResource, sa string, ns string) (*corev1.ServiceAccount, error) {
-	saKey := types.NamespacedName{
-		Namespace: ns,
-		Name:      sa,
-	}
-
-	clientSA := &corev1.ServiceAccount{}
-	err := lr.Client.Get(ctx, saKey, clientSA)
-	if err != nil && !errors.IsNotFound(err) {
-		return nil, fmt.Errorf("could not check sa %s in member cluster: %v", sa, err)
-	}
-
-	if err == nil {
-		return clientSA, nil
-	}
-
-	newSA := &corev1.ServiceAccount{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      sa,
-			Namespace: ns,
-		},
-	}
-	err = lr.Client.Create(ctx, newSA)
-	if err != nil && !errors.IsAlreadyExists(err) {
-		return nil, fmt.Errorf("could not create sa %s in member cluster: %v", sa, err)
-	}
-
-	return newSA, nil
-}
-
-func (r *RootPodReconciler) createSATokenInLeafCluster(ctx context.Context, lr *leafUtils.LeafResource, saName string, ns string) (*corev1.Secret, error) {
+func (r *RootPodReconciler) createSATokenInLeafCluster(ctx context.Context, lr *leafUtils.LeafResource, saName string, pod *corev1.Pod) (string, error) {
+	// get the token-secret of sa
+	ns := pod.Namespace
 	satokenKey := types.NamespacedName{
 		Namespace: ns,
 		Name:      saName,
@@ -373,95 +347,185 @@ func (r *RootPodReconciler) createSATokenInLeafCluster(ctx context.Context, lr *
 	sa := &corev1.ServiceAccount{}
 	err := r.RootClient.Get(ctx, satokenKey, sa)
 	if err != nil {
-		return nil, fmt.Errorf("could not find sa %s in master cluster: %v", saName, err)
+		return "", fmt.Errorf("could not find sa %s in master cluster: %v", saName, err)
 	}
 
-	var secretName string
+	var rootSecretName string
 	if len(sa.Secrets) > 0 {
-		secretName = sa.Secrets[0].Name
+		rootSecretName = sa.Secrets[0].Name
 	}
 
-	csName := fmt.Sprintf("master-%s-token", sa.Name)
+	if rootSecretName == "" {
+		// k8s version >=1.24, sa does not create token-secret by default,
+		// so we will create and mount it to the subset group
+		tokenSecret, err := r.createTokenSecretInRootCluster(ctx, sa)
+		if err != nil {
+			return "", err
+		}
+
+		rootSecretName = tokenSecret.Name
+	}
+
 	csKey := types.NamespacedName{
 		Namespace: ns,
-		Name:      csName,
+		Name:      rootSecretName,
 	}
 	clientSecret := &corev1.Secret{}
 	err = lr.Client.Get(ctx, csKey, clientSecret)
 	if err != nil && !errors.IsNotFound(err) {
-		return nil, fmt.Errorf("could not check secret %s in member cluster: %v", secretName, err)
+		return "", fmt.Errorf("could not check secret %s in member cluster: %v", csKey.Name, err)
 	}
 	if err == nil {
-		return clientSecret, nil
+		return clientSecret.Name, nil
 	}
 
+	// this secret needs to be created in member cluster
+	ch := make(chan string, 1)
+	clusterNodeInfo := r.GlobalLeafManager.GetClusterNode(pod.Spec.NodeName)
+	go func() {
+		if err = wait.PollImmediate(500*time.Millisecond, 30*time.Second, func() (bool, error) {
+			if err := r.createStorageInLeafCluster(ctx, lr, utils.GVR_SECRET, []string{rootSecretName}, pod, clusterNodeInfo); err == nil {
+				return true, nil
+			} else {
+				return false, err
+			}
+		}); err != nil {
+			ch <- fmt.Sprintf("could not create secret token %s in leaf cluster: %v", rootSecretName, err)
+		}
+		ch <- ""
+	}()
+
+	t := <-ch
+	errString := "" + t
+	if len(errString) > 0 {
+		return "", fmt.Errorf("%s", errString)
+	}
+
+	return rootSecretName, nil
+}
+
+func (r *RootPodReconciler) createTokenSecretInRootCluster(ctx context.Context, sa *corev1.ServiceAccount) (*corev1.Secret, error) {
+	tokenSecretName := fmt.Sprintf("kosmos-%s-token", sa.Name)
+	tokenSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      tokenSecretName,
+			Namespace: sa.Namespace,
+			Annotations: map[string]string{
+				corev1.ServiceAccountNameKey: sa.Name,
+				corev1.ServiceAccountUIDKey:  string(sa.UID),
+			},
+		},
+		Type: corev1.SecretTypeServiceAccountToken,
+	}
+	err := r.RootClient.Create(ctx, tokenSecret)
+
+	if err != nil {
+		return nil, fmt.Errorf("could not create token-secret %s in host cluster: %v", tokenSecretName, err)
+	}
+
+	// Attach token-secret to sa
+	patchSa := sa.DeepCopy()
+	patchSa.Secrets = []corev1.ObjectReference{
+		{
+			Name: tokenSecretName,
+		},
+	}
+	err = r.RootClient.Update(ctx, patchSa)
+	if err != nil {
+		return nil, fmt.Errorf("could not update sa %s in host cluster: %v", patchSa.Name, err)
+	}
+
+	return tokenSecret, nil
+}
+
+// createConfigMapInLeafCluster create cm in leaf cluster
+func (r *RootPodReconciler) createConfigMapInLeafCluster(ctx context.Context, lr *leafUtils.LeafResource, configMapName string, pod *corev1.Pod) (string, error) {
+	ns := pod.Namespace
+	memberConfigmapKeyName := configMapName
+
+	// The name of the host cluster kube-root-ca.crt in the leaf group is master-root-ca.crt
+	if strings.HasPrefix(configMapName, utils.RooTCAConfigMapName) {
+		memberConfigmapKeyName = utils.MasterRooTCAName
+	}
+
+	configmapKey := types.NamespacedName{
+		Namespace: ns,
+		Name:      memberConfigmapKeyName,
+	}
+
+	memberConfigMap := &corev1.ConfigMap{}
+
+	err := lr.Client.Get(ctx, configmapKey, memberConfigMap)
+	if err != nil && !errors.IsNotFound(err) {
+		return "", fmt.Errorf("could not check configmap %s in member cluster: %v", configmapKey.Name, err)
+	}
+	if err == nil {
+		return memberConfigMap.Name, nil
+	}
+
+	ch := make(chan string, 1)
+	clusterNodeInfo := r.GlobalLeafManager.GetClusterNode(pod.Spec.NodeName)
+	go func() {
+		if err = wait.PollImmediate(500*time.Millisecond, 30*time.Second, func() (bool, error) {
+			if err = r.createStorageInLeafCluster(ctx, lr, utils.GVR_CONFIGMAP, []string{configMapName}, pod, clusterNodeInfo); err == nil {
+				return true, nil
+			} else {
+				return false, err
+			}
+		}); err != nil {
+			ch <- fmt.Sprintf("could not create configmap %s in member cluster: %v", configMapName, err)
+		}
+		ch <- ""
+	}()
+
+	t := <-ch
+	errString := "" + t
+	if len(errString) > 0 {
+		return "", fmt.Errorf("%s", errString)
+	}
+
+	return memberConfigmapKeyName, nil
+}
+
+func (r *RootPodReconciler) createSecretInLeafCluster(ctx context.Context, lr *leafUtils.LeafResource, secretName string, pod *corev1.Pod) (string, error) {
+	ns := pod.Namespace
 	secretKey := types.NamespacedName{
 		Namespace: ns,
 		Name:      secretName,
 	}
 
-	masterSecret := &corev1.Secret{}
-	err = r.RootClient.Get(ctx, secretKey, masterSecret)
-	if err != nil {
-		return nil, fmt.Errorf("could not find secret %s in master cluster: %v", secretName, err)
-	}
+	memberSecret := &corev1.Secret{}
 
-	nData := map[string][]byte{}
-	nData["token"] = masterSecret.Data["token"]
-
-	newSE := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      csName,
-			Namespace: ns,
-		},
-		Data: nData,
-	}
-	err = lr.Client.Create(ctx, newSE)
-
-	if err != nil && !errors.IsAlreadyExists(err) {
-		return nil, fmt.Errorf("could not create sa %s in member cluster: %v", sa, err)
-	}
-	return newSE, nil
-}
-
-func (r *RootPodReconciler) createCAInLeafCluster(ctx context.Context, lr *leafUtils.LeafResource, ns string) (*corev1.ConfigMap, error) {
-	masterCAConfigmapKey := types.NamespacedName{
-		Namespace: ns,
-		Name:      utils.MasterRooTCAName,
-	}
-
-	masterCA := &corev1.ConfigMap{}
-
-	err := lr.Client.Get(ctx, masterCAConfigmapKey, masterCA)
+	err := lr.Client.Get(ctx, secretKey, memberSecret)
 	if err != nil && !errors.IsNotFound(err) {
-		return nil, fmt.Errorf("could not check configmap %s in member cluster: %v", utils.MasterRooTCAName, err)
+		return "", fmt.Errorf("could not check secret %s in member cluster: %v", secretKey.Name, err)
 	}
 	if err == nil {
-		return masterCA, nil
+		return memberSecret.Name, nil
 	}
 
-	ca := &corev1.ConfigMap{}
+	ch := make(chan string, 1)
+	clusterNodeInfo := r.GlobalLeafManager.GetClusterNode(pod.Spec.NodeName)
+	go func() {
+		if err = wait.PollImmediate(500*time.Millisecond, 30*time.Second, func() (bool, error) {
+			if err = r.createStorageInLeafCluster(ctx, lr, utils.GVR_SECRET, []string{secretName}, pod, clusterNodeInfo); err == nil {
+				return true, nil
+			} else {
+				return false, err
+			}
+		}); err != nil {
+			ch <- fmt.Sprintf("could not create secret %s in member cluster: %v", secretName, err)
+		}
+		ch <- ""
+	}()
 
-	rootCAConfigmapKey := types.NamespacedName{
-		Namespace: ns,
-		Name:      utils.RooTCAConfigMapName,
+	t := <-ch
+	errString := "" + t
+	if len(errString) > 0 {
+		return "", fmt.Errorf("%s", errString)
 	}
 
-	err = r.Client.Get(ctx, rootCAConfigmapKey, ca)
-	if err != nil {
-		return nil, fmt.Errorf("could not find configmap %s in master cluster: %v", ca, err)
-	}
-
-	newCA := ca.DeepCopy()
-	newCA.Name = utils.MasterRooTCAName
-	podutils.FitObjectMeta(&newCA.ObjectMeta)
-
-	err = lr.Client.Create(ctx, newCA)
-	if err != nil && !errors.IsAlreadyExists(err) {
-		return nil, fmt.Errorf("could not create configmap %s in member cluster: %v", newCA.Name, err)
-	}
-
-	return newCA, nil
+	return secretName, nil
 }
 
 // changeToMasterCoreDNS point the dns of the pod to the master cluster, so that the pod can access any service.
@@ -495,62 +559,76 @@ func (r *RootPodReconciler) changeToMasterCoreDNS(ctx context.Context, pod *core
 	}
 }
 
-func (r *RootPodReconciler) convertAuth(ctx context.Context, lr *leafUtils.LeafResource, pod *corev1.Pod) {
-	if pod.Spec.AutomountServiceAccountToken == nil || *pod.Spec.AutomountServiceAccountToken {
-		falseValue := false
-		pod.Spec.AutomountServiceAccountToken = &falseValue
+// projectedHandler Process the project volume, creating and mounting secret, configmap, DownwardAPI,
+// and ServiceAccountToken from the project volume in the member cluster to the pod of the host cluster
+func (r *RootPodReconciler) projectedHandler(ctx context.Context, lr *leafUtils.LeafResource, pod *corev1.Pod) {
+	if pod.Spec.Volumes == nil {
+		return
+	}
 
-		sa := pod.Spec.ServiceAccountName
-		_, err := r.createSAInLeafCluster(ctx, lr, sa, pod.Namespace)
-		if err != nil {
-			klog.Errorf("[convertAuth] create sa failed, ns: %s, pod: %s", pod.Namespace, pod.Name)
-			return
-		}
+	for _, volume := range pod.Spec.Volumes {
+		if volume.Projected != nil {
+			falseValue := false
+			pod.Spec.AutomountServiceAccountToken = &falseValue
 
-		se, err := r.createSATokenInLeafCluster(ctx, lr, sa, pod.Namespace)
-		if err != nil {
-			klog.Errorf("[convertAuth] create sa secret failed, ns: %s, pod: %s", pod.Namespace, pod.Name)
-			return
-		}
+			saName := pod.Spec.ServiceAccountName
+			var sources []corev1.VolumeProjection
 
-		rootCA, err := r.createCAInLeafCluster(ctx, lr, pod.Namespace)
-		if err != nil {
-			klog.Errorf("[convertAuth] create sa secret failed, ns: %s, pod: %s", pod.Namespace, pod.Name)
-			return
-		}
-
-		volumes := pod.Spec.Volumes
-		for _, v := range volumes {
-			if strings.HasPrefix(v.Name, utils.SATokenPrefix) {
-				sources := []corev1.VolumeProjection{}
-				for _, src := range v.Projected.Sources {
-					if src.ServiceAccountToken != nil {
-						continue
+			for _, projectedVolumeSource := range volume.Projected.Sources {
+				// Process all resources for the rootpod
+				if projectedVolumeSource.ServiceAccountToken != nil {
+					tokenSecretName, err := r.createSATokenInLeafCluster(ctx, lr, saName, pod)
+					if err != nil {
+						klog.Errorf("[convertAuth] create sa secret failed, ns: %s, pod: %s, err: %s", pod.Namespace, pod.Name, err)
+						return
 					}
-					if src.ConfigMap != nil && src.ConfigMap.Name == utils.RooTCAConfigMapName {
-						src.ConfigMap.Name = rootCA.Name
-					}
-					sources = append(sources, src)
-				}
-
-				secretProjection := corev1.VolumeProjection{
-					Secret: &corev1.SecretProjection{
-						Items: []corev1.KeyToPath{
-							{
-								Key:  "token",
-								Path: "token",
+					secretProjection := corev1.VolumeProjection{
+						Secret: &corev1.SecretProjection{
+							Items: []corev1.KeyToPath{
+								{
+									Key:  "token",
+									Path: projectedVolumeSource.ServiceAccountToken.Path,
+								},
 							},
 						},
-					},
+					}
+					secretProjection.Secret.Name = tokenSecretName
+					sources = append(sources, secretProjection)
 				}
-				secretProjection.Secret.Name = se.Name
-				sources = append(sources, secretProjection)
-				v.Projected.Sources = sources
+				if projectedVolumeSource.ConfigMap != nil {
+					cmName, err := r.createConfigMapInLeafCluster(ctx, lr, projectedVolumeSource.ConfigMap.Name, pod)
+					if err != nil {
+						klog.Errorf("[convertAuth] create configmap failed, ns: %s, cm: %s, err: %s", pod.Namespace, cmName, err)
+						return
+					}
+					cmDeepCopy := projectedVolumeSource.DeepCopy()
+					cmDeepCopy.ConfigMap.Name = cmName
+					sources = append(sources, *cmDeepCopy)
+				}
+				if projectedVolumeSource.Secret != nil {
+					Secret := projectedVolumeSource.Secret
+					seName, err := r.createSecretInLeafCluster(ctx, lr, Secret.Name, pod)
+					if err != nil {
+						klog.Errorf("[convertAuth] create secret failed, ns: %s, cm: %s, err: %s", pod.Namespace, seName, err)
+						return
+					}
+					secretDeepCopy := projectedVolumeSource.DeepCopy()
+					secretDeepCopy.Secret.Name = seName
+					sources = append(sources, *secretDeepCopy)
+				}
+				if projectedVolumeSource.DownwardAPI != nil {
+					DownwardAPIProjection := corev1.VolumeProjection{
+						DownwardAPI: projectedVolumeSource.DownwardAPI,
+					}
+					sources = append(sources, DownwardAPIProjection)
+				}
 			}
+			volume.Projected.Sources = sources
 		}
 	}
 }
 
+// createServiceAccountInLeafCluster Create an sa corresponding to token-secret in member cluster
 func (r *RootPodReconciler) createServiceAccountInLeafCluster(ctx context.Context, lr *leafUtils.LeafResource, secret *corev1.Secret) error {
 	if !lr.EnableServiceAccount {
 		return nil
@@ -561,46 +639,54 @@ func (r *RootPodReconciler) createServiceAccountInLeafCluster(ctx context.Contex
 	klog.V(4).Infof("secret service-account info: [%v]", secret.Annotations)
 	accountName := secret.Annotations[corev1.ServiceAccountNameKey]
 	if accountName == "" {
-		err := fmt.Errorf("get secret of serviceAccount not exits: [%s] [%v]",
+		err := fmt.Errorf("get serviceAccount of secret not exits: [%s] [%v]",
 			secret.Name, secret.Annotations)
 		return err
 	}
 
-	ns := secret.Namespace
 	sa := &corev1.ServiceAccount{}
-	saKey := types.NamespacedName{
-		Namespace: ns,
-		Name:      accountName,
-	}
-
-	err := lr.Client.Get(ctx, saKey, sa)
-	if err != nil || sa == nil {
-		klog.V(4).Infof("get serviceAccount [%v] err: [%v]]", sa, err)
-		sa = &corev1.ServiceAccount{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      accountName,
-				Namespace: ns,
-			},
+	if accountName != utils.DefaultServiceAccountName {
+		ns := secret.Namespace
+		saKey := types.NamespacedName{
+			Namespace: ns,
+			Name:      accountName,
 		}
-		err := lr.Client.Create(ctx, sa)
-		klog.Errorf("create serviceAccount [%v] err: [%v]", sa, err)
-		if err != nil {
-			if errors.IsAlreadyExists(err) {
-				return nil
+
+		err := lr.Client.Get(ctx, saKey, sa)
+		if err != nil || sa == nil {
+			klog.V(4).Infof("get serviceAccount [%v] err: [%v]]", sa, err)
+			sa = &corev1.ServiceAccount{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      accountName,
+					Namespace: ns,
+				},
 			}
-			return err
+			err := lr.Client.Create(ctx, sa)
+			klog.Errorf("create serviceAccount [%v] err: [%v]", sa, err)
+			if err != nil {
+				if errors.IsAlreadyExists(err) {
+					return nil
+				}
+				return err
+			}
+		} else {
+			klog.V(4).Infof("get secret serviceAccount info: [%s] [%v] [%v] [%v]",
+				sa.Name, sa.CreationTimestamp, sa.Annotations, sa.UID)
 		}
+
+		secret.UID = sa.UID
+		secret.Annotations[corev1.ServiceAccountNameKey] = accountName
+		secret.Annotations[corev1.ServiceAccountUIDKey] = string(sa.UID)
+
+		secret.ObjectMeta.Namespace = ns
 	} else {
-		klog.V(4).Infof("get secret serviceAccount info: [%s] [%v] [%v] [%v]",
-			sa.Name, sa.CreationTimestamp, sa.Annotations, sa.UID)
+		// accountName == default
+		// Type set Opaque and add annotation of kosmos.io/service-account.name
+		secret.Annotations[utils.DefaultServiceAccountToken] = utils.DefaultServiceAccountName
+		secret.Type = corev1.SecretTypeOpaque
 	}
-	secret.UID = sa.UID
-	secret.Annotations[corev1.ServiceAccountNameKey] = accountName
-	secret.Annotations[corev1.ServiceAccountUIDKey] = string(sa.UID)
 
-	secret.ObjectMeta.Namespace = ns
-
-	err = lr.Client.Create(ctx, secret)
+	err := lr.Client.Create(ctx, secret)
 
 	if err != nil {
 		if errors.IsAlreadyExists(err) {
@@ -609,15 +695,19 @@ func (r *RootPodReconciler) createServiceAccountInLeafCluster(ctx context.Contex
 		klog.Errorf("Failed to create secret %v err: %v", secret.Name, err)
 	}
 
-	sa.Secrets = []corev1.ObjectReference{{Name: secret.Name}}
+	// the secret-token cannot be mounted to the default-sa of the leaf cluster
+	if accountName != utils.DefaultServiceAccountName {
+		sa.Secrets = []corev1.ObjectReference{{Name: secret.Name}}
 
-	err = lr.Client.Update(ctx, sa)
-	if err != nil {
-		klog.V(4).Infof(
-			"update serviceAccount [%v] err: [%v]]",
-			sa, err)
-		return err
+		err = lr.Client.Update(ctx, sa)
+		if err != nil {
+			klog.V(4).Infof(
+				"update serviceAccount [%v] err: [%v]]",
+				sa, err)
+			return err
+		}
 	}
+
 	return nil
 }
 
@@ -751,7 +841,7 @@ func (r *RootPodReconciler) CreatePodInLeafCluster(ctx context.Context, lr *leaf
 		klog.V(4).Infof("Creating Volumes successed %+v", basicPod)
 	}
 
-	r.convertAuth(ctx, lr, basicPod)
+	r.projectedHandler(ctx, lr, basicPod)
 
 	if !r.Options.MultiClusterService {
 		r.changeToMasterCoreDNS(ctx, basicPod, r.Options)
@@ -792,7 +882,7 @@ func (r *RootPodReconciler) UpdatePodInLeafCluster(ctx context.Context, lr *leaf
 		return nil
 	}
 
-	r.convertAuth(ctx, lr, podCopy)
+	r.projectedHandler(ctx, lr, podCopy)
 
 	if !r.Options.MultiClusterService {
 		r.changeToMasterCoreDNS(ctx, podCopy, r.Options)
