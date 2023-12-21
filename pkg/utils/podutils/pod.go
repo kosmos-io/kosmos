@@ -21,12 +21,8 @@ func GetSecrets(pod *corev1.Pod) ([]string, []string) {
 	for _, v := range pod.Spec.Volumes {
 		switch {
 		case v.Secret != nil:
-			if strings.HasPrefix(v.Name, "default-token") {
-				continue
-			}
 			klog.Infof("pod %s depends on secret %s", pod.Name, v.Secret.SecretName)
 			secretNames = append(secretNames, v.Secret.SecretName)
-
 		case v.CephFS != nil:
 			klog.Infof("pod %s depends on secret %s", pod.Name, v.CephFS.SecretRef.Name)
 			secretNames = append(secretNames, v.CephFS.SecretRef.Name)
@@ -51,11 +47,16 @@ func GetSecrets(pod *corev1.Pod) ([]string, []string) {
 
 func GetConfigmaps(pod *corev1.Pod) []string {
 	cmNames := []string{}
-	for _, v := range pod.Spec.Volumes {
+	for i, v := range pod.Spec.Volumes {
 		if v.ConfigMap == nil {
 			continue
 		}
 		cmNames = append(cmNames, v.ConfigMap.Name)
+		// change the ca.crt mount name of the leaf cluster
+		// to the ca.crt file of the host cluster that we created
+		if v.ConfigMap.Name == utils.RooTCAConfigMapName {
+			pod.Spec.Volumes[i].ConfigMap.Name = utils.MasterRooTCAName
+		}
 	}
 	klog.Infof("pod %s depends on configMap %s", pod.Name, cmNames)
 	return cmNames
@@ -129,6 +130,8 @@ func FitObjectMeta(meta *metav1.ObjectMeta) {
 	meta.OwnerReferences = nil
 }
 
+// FitUnstructuredObjMeta Leave the version number and OwnerReferences blank
+// because kosmos are delivered as Pods (not deploy, etc.)
 func FitUnstructuredObjMeta(unstructuredObj *unstructured.Unstructured) {
 	unstructuredObj.SetUID("")
 	unstructuredObj.SetResourceVersion("")

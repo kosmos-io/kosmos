@@ -6,6 +6,8 @@ type ClusterExpansion interface{}
 
 type ClusterNodeExpansion interface{}
 
+type ClusterPodConvertPolicyExpansion interface{}
+
 type DaemonSetExpansion interface{}
 
 type KnodeExpansion interface{}

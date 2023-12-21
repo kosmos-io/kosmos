@@ -118,14 +118,21 @@ func (r *SyncResourcesReconciler) SyncResource(ctx context.Context, request reco
 	klog.V(4).Infof("Started sync resource processing, ns: %s, name: %s", request.Namespace, request.Name)
 
 	deleteSecretInClient := false
+	resourceNamespace := request.Namespace
+	masterResourceName := request.Name
+	memberResourceName := masterResourceName
+	// The name of the host cluster kube-root-ca.crt in the leaf group is master-root-ca.crt
+	if r.GroupVersionResource == utils.GVR_CONFIGMAP && masterResourceName == utils.RooTCAConfigMapName {
+		memberResourceName = utils.MasterRooTCAName
+	}
 
-	obj, err := r.DynamicRootClient.Resource(r.GroupVersionResource).Namespace(request.Namespace).Get(ctx, request.Name, metav1.GetOptions{})
+	obj, err := r.DynamicRootClient.Resource(r.GroupVersionResource).Namespace(resourceNamespace).Get(ctx, masterResourceName, metav1.GetOptions{})
 	if err != nil {
 		if !errors.IsNotFound(err) {
 			return err
 		}
 		// get obj in leaf cluster
-		_, err := lr.DynamicClient.Resource(r.GroupVersionResource).Namespace(request.Namespace).Get(ctx, request.Name, metav1.GetOptions{})
+		_, err := lr.DynamicClient.Resource(r.GroupVersionResource).Namespace(resourceNamespace).Get(ctx, memberResourceName, metav1.GetOptions{})
 		if err != nil {
 			if !errors.IsNotFound(err) {
 				klog.Errorf("Get %s from leaef cluster failed, error: %v", obj.GetKind(), err)
@@ -140,17 +147,17 @@ func (r *SyncResourcesReconciler) SyncResource(ctx context.Context, request reco
 
 	if deleteSecretInClient || obj.GetDeletionTimestamp() != nil {
 		// delete OBJ in leaf cluster
-		if err = lr.DynamicClient.Resource(r.GroupVersionResource).Namespace(request.Namespace).Delete(ctx, request.Name, metav1.DeleteOptions{}); err != nil {
+		if err = lr.DynamicClient.Resource(r.GroupVersionResource).Namespace(resourceNamespace).Delete(ctx, memberResourceName, metav1.DeleteOptions{}); err != nil {
 			if errors.IsNotFound(err) {
 				return nil
 			}
 			return err
 		}
-		klog.V(4).Infof("%s %q deleted", r.GroupVersionResource.Resource, request.Name)
+		klog.V(4).Infof("%s %q deleted in member cluster", r.GroupVersionResource.Resource, memberResourceName)
 		return nil
 	}
 
-	old, err := lr.DynamicClient.Resource(r.GroupVersionResource).Namespace(request.Namespace).Get(ctx, request.Name, metav1.GetOptions{})
+	old, err := lr.DynamicClient.Resource(r.GroupVersionResource).Namespace(resourceNamespace).Get(ctx, memberResourceName, metav1.GetOptions{})
 
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -177,7 +184,7 @@ func (r *SyncResourcesReconciler) SyncResource(ctx context.Context, request reco
 	if !utils.IsObjectUnstructuredGlobal(old.GetAnnotations()) {
 		return nil
 	}
-	_, err = lr.DynamicClient.Resource(r.GroupVersionResource).Namespace(request.Namespace).Update(ctx, latest, metav1.UpdateOptions{})
+	_, err = lr.DynamicClient.Resource(r.GroupVersionResource).Namespace(resourceNamespace).Update(ctx, latest, metav1.UpdateOptions{})
 	if err != nil {
 		klog.Errorf("update %s from client cluster failed, error: %v", latest.GetKind(), err)
 		return err

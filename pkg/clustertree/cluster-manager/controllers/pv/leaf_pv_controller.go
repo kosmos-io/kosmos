@@ -2,7 +2,6 @@ package pv
 
 import (
 	"context"
-	"time"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -21,11 +20,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/kosmos.io/kosmos/pkg/utils"
+	"github.com/kosmos.io/kosmos/pkg/utils/podutils"
 )
 
 const (
 	LeafPVControllerName = "leaf-pv-controller"
-	LeafPVRequeueTime    = 10 * time.Second
 )
 
 type LeafPVController struct {
@@ -43,7 +42,7 @@ func (l *LeafPVController) Reconcile(ctx context.Context, request reconcile.Requ
 	if err != nil {
 		if !errors.IsNotFound(err) {
 			klog.Errorf("get pv from leaf cluster failed, error: %v", err)
-			return reconcile.Result{RequeueAfter: LeafPVRequeueTime}, nil
+			return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
 		}
 		pvNeedDelete = true
 	}
@@ -54,7 +53,7 @@ func (l *LeafPVController) Reconcile(ctx context.Context, request reconcile.Requ
 	if err != nil {
 		if !errors.IsNotFound(err) {
 			klog.Errorf("get root pv failed, error: %v", err)
-			return reconcile.Result{RequeueAfter: LeafPVRequeueTime}, nil
+			return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
 		}
 
 		if pvNeedDelete || pv.DeletionTimestamp != nil {
@@ -71,7 +70,7 @@ func (l *LeafPVController) Reconcile(ctx context.Context, request reconcile.Requ
 			if err != nil {
 				if !errors.IsNotFound(err) {
 					klog.Errorf("get tmp pvc failed, error: %v", err)
-					return reconcile.Result{RequeueAfter: LeafPVRequeueTime}, nil
+					return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
 				}
 				klog.Warningf("tmp pvc not exist, error: %v", err)
 				return reconcile.Result{}, nil
@@ -107,7 +106,7 @@ func (l *LeafPVController) Reconcile(ctx context.Context, request reconcile.Requ
 		rootPV, err = l.RootClientSet.CoreV1().PersistentVolumes().Create(ctx, rootPV, metav1.CreateOptions{})
 		if err != nil || rootPV == nil {
 			klog.Errorf("create pv in root cluster failed, error: %v", err)
-			return reconcile.Result{RequeueAfter: LeafPVRequeueTime}, nil
+			return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
 		}
 
 		return reconcile.Result{}, nil
@@ -122,7 +121,7 @@ func (l *LeafPVController) Reconcile(ctx context.Context, request reconcile.Requ
 		if err = l.RootClientSet.CoreV1().PersistentVolumes().Delete(ctx, request.NamespacedName.Name, metav1.DeleteOptions{}); err != nil {
 			if !errors.IsNotFound(err) {
 				klog.Errorf("delete root pv failed, error: %v", err)
-				return reconcile.Result{RequeueAfter: LeafPVRequeueTime}, nil
+				return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
 			}
 		}
 		klog.V(4).Infof("root pv name: %q deleted", request.NamespacedName.Name)
@@ -166,7 +165,7 @@ func (l *LeafPVController) Reconcile(ctx context.Context, request reconcile.Requ
 	if err != nil {
 		klog.Errorf("patch pv namespace: %q, name: %q to root cluster failed, error: %v",
 			request.NamespacedName.Namespace, request.NamespacedName.Name, err)
-		return reconcile.Result{RequeueAfter: LeafPVRequeueTime}, nil
+		return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
 	}
 	return reconcile.Result{}, nil
 }
@@ -177,13 +176,16 @@ func (l *LeafPVController) SetupWithManager(mgr manager.Manager) error {
 		WithOptions(controller.Options{}).
 		For(&v1.PersistentVolume{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(createEvent event.CreateEvent) bool {
-				return true
+				curr := createEvent.Object.(*v1.PersistentVolume)
+				return !podutils.IsOneWayPV(curr)
 			},
 			UpdateFunc: func(updateEvent event.UpdateEvent) bool {
-				return true
+				curr := updateEvent.ObjectNew.(*v1.PersistentVolume)
+				return !podutils.IsOneWayPV(curr)
 			},
 			DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
-				return true
+				curr := deleteEvent.Object.(*v1.PersistentVolume)
+				return !podutils.IsOneWayPV(curr)
 			},
 			GenericFunc: func(genericEvent event.GenericEvent) bool {
 				return false

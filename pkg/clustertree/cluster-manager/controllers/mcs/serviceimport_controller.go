@@ -124,22 +124,23 @@ func (c *ServiceImportController) Reconcile(key utils.QueueKey) error {
 		}
 		return nil
 	}
+	deepCopyImport := serviceImport.DeepCopy()
 
 	// The serviceImport is being deleted, in which case we should clear endpointSlice.
-	if !serviceImport.DeletionTimestamp.IsZero() {
+	if !deepCopyImport.DeletionTimestamp.IsZero() {
 		if err := c.cleanupServiceAndEndpointSlice(clusterWideKey.Namespace, clusterWideKey.Name); err != nil {
-			klog.Errorf("Cleanup serviceImport %s/%s's related resources in cluster %s failed, Error: %v", serviceImport.Namespace, serviceImport.Name, c.LeafNodeName, err)
+			klog.Errorf("Cleanup serviceImport %s/%s's mcs resources in cluster %s failed, Error: %v", deepCopyImport.Namespace, deepCopyImport.Name, c.LeafNodeName, err)
 			return err
 		}
-		return c.removeFinalizer(serviceImport)
+		return c.removeFinalizer(deepCopyImport)
 	}
 
-	err = c.syncServiceImport(serviceImport)
+	err = c.syncServiceImport(deepCopyImport)
 	if err != nil {
-		klog.Errorf("Sync serviceImport %s/%s's finalizer in cluster %s failed, Error: %v", serviceImport.Namespace, serviceImport.Name, c.LeafNodeName, err)
+		klog.Errorf("Sync serviceImport %s/%s's finalizer in cluster %s failed, Error: %v", deepCopyImport.Namespace, deepCopyImport.Name, c.LeafNodeName, err)
 		return err
 	}
-	return c.ensureFinalizer(serviceImport)
+	return c.ensureFinalizer(deepCopyImport)
 }
 
 func (c *ServiceImportController) cleanupServiceAndEndpointSlice(namespace, name string) error {
@@ -189,6 +190,7 @@ func (c *ServiceImportController) cleanupServiceAndEndpointSlice(namespace, name
 
 func (c *ServiceImportController) syncServiceImport(serviceImport *mcsv1alpha1.ServiceImport) error {
 	rootService, err := c.RootResourceManager.ServiceLister.Services(serviceImport.Namespace).Get(serviceImport.Name)
+	deepCopyService := rootService.DeepCopy()
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.V(4).Infof("Service %s/%s is not found in root cluster, ignore it", serviceImport.Namespace, serviceImport.Name)
@@ -198,7 +200,7 @@ func (c *ServiceImportController) syncServiceImport(serviceImport *mcsv1alpha1.S
 		return err
 	}
 
-	if err := c.importServiceHandler(rootService, serviceImport); err != nil {
+	if err := c.importServiceHandler(deepCopyService, serviceImport); err != nil {
 		klog.Errorf("Create or update service %s/%s in client cluster %s failed, error: %v", serviceImport.Namespace, serviceImport.Name, c.LeafNodeName, err)
 		return err
 	}

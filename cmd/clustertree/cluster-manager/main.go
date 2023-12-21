@@ -12,7 +12,7 @@ import (
 
 func main() {
 	ctx := apiserver.SetupSignalContext()
-	cmd, err := app.NewAgentCommand(ctx)
+	cmd, err := app.NewClusterManagerCommand(ctx)
 	if err != nil {
 		klog.Errorf("error happened when new agent command, err: %v", err)
 	}

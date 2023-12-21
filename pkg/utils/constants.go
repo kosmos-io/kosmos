@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"time"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
@@ -36,6 +38,10 @@ const (
 	DefaultContainerdSockAddress = "/run/containerd/containerd.sock"
 	DefaultVersion               = "latest"
 	DefaultTarName               = "kosmos-io.tar.gz"
+	// nolint
+	DefaultServiceAccountName = "default"
+	// nolint
+	DefaultServiceAccountToken = "kosmos.io/service-account.name"
 )
 
 const (
@@ -129,13 +135,6 @@ const (
 	DefaultK8sArch = "amd64"
 
 	DefaultInformerResyncPeriod = 0
-	DefaultListenPort           = 10250
-	DefaultPodSyncWorkers       = 10
-	DefaultWorkers              = 5
-	DefaultKubeNamespace        = corev1.NamespaceAll
-
-	DefaultTaintEffect = string(corev1.TaintEffectNoSchedule)
-	DefaultTaintKey    = "kosmos-node.io/plugin"
 
 	DefaultLeafKubeQPS   = 40.0
 	DefaultLeafKubeBurst = 60
@@ -148,6 +147,8 @@ const (
 
 	// LabelNodeRoleNode specifies that a node hosts node components
 	LabelNodeRoleNode = "node-role.kubernetes.io/node"
+
+	DefaultRequeueTime = 10 * time.Second
 )
 
 const (

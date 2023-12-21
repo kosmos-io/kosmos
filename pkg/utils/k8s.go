@@ -81,7 +81,12 @@ func UpdateSecret(old, new *corev1.Secret) {
 	old.Labels = new.Labels
 	old.Data = new.Data
 	old.StringData = new.StringData
-	old.Type = new.Type
+	// The satoken type of default in a subset group is Opaque
+	if old.Annotations[corev1.ServiceAccountNameKey] == DefaultServiceAccountName {
+		old.Type = corev1.SecretTypeOpaque
+	} else {
+		old.Type = new.Type
+	}
 }
 
 func UpdateUnstructured[T *corev1.ConfigMap | *corev1.Secret](old, new *unstructured.Unstructured, oldObj T, newObj T, update func(old, new T)) (*unstructured.Unstructured, error) {

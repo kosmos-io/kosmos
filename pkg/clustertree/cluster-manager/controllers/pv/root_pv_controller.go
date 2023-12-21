@@ -18,6 +18,7 @@ import (
 
 	leafUtils "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/utils"
 	"github.com/kosmos.io/kosmos/pkg/utils"
+	"github.com/kosmos.io/kosmos/pkg/utils/podutils"
 )
 
 const (
@@ -30,6 +31,22 @@ type RootPVController struct {
 }
 
 func (r *RootPVController) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
+	pv := &v1.PersistentVolume{}
+	shouldDelete := false
+	err := r.RootClient.Get(ctx, request.NamespacedName, pv)
+	if err != nil {
+		if !errors.IsNotFound(err) {
+			klog.Warningf("get pv from root cluster failed, error: %v", err)
+			return reconcile.Result{RequeueAfter: requeueTime}, nil
+		}
+		shouldDelete = true
+		pv.Namespace = request.Namespace
+		pv.Name = request.Name
+	}
+
+	if !pv.DeletionTimestamp.IsZero() || shouldDelete {
+		return r.cleanupPv(pv)
+	}
 	return reconcile.Result{}, nil
 }
 
@@ -52,6 +69,11 @@ func (r *RootPVController) SetupWithManager(mgr manager.Manager) error {
 				}
 
 				pv := deleteEvent.Object.(*v1.PersistentVolume)
+				// skip  one way pv, oneway_pv_controller will handle this PV
+				if podutils.IsOneWayPV(pv) {
+					return false
+				}
+
 				clusters := utils.ListResourceClusters(pv.Annotations)
 				if len(clusters) == 0 {
 					klog.Warningf("pv leaf %q doesn't existed", deleteEvent.Object.GetName())
@@ -78,4 +100,27 @@ func (r *RootPVController) SetupWithManager(mgr manager.Manager) error {
 			},
 		})).
 		Complete(r)
+}
+
+func (r *RootPVController) cleanupPv(pv *v1.PersistentVolume) (reconcile.Result, error) {
+	clusters := utils.ListResourceClusters(pv.Annotations)
+	if len(clusters) == 0 {
+		klog.Warningf("pv leaf %q doesn't existed", pv.GetName())
+		return reconcile.Result{}, nil
+	}
+
+	lr, err := r.GlobalLeafManager.GetLeafResource(clusters[0])
+	if err != nil {
+		klog.Warningf("pv leaf %q doesn't existed in LeafResources", pv.GetName())
+		return reconcile.Result{}, nil
+	}
+
+	if err = lr.Clientset.CoreV1().PersistentVolumes().Delete(context.TODO(), pv.GetName(),
+		metav1.DeleteOptions{}); err != nil {
+		if !errors.IsNotFound(err) {
+			klog.Errorf("delete pv from leaf cluster failed, %q, error: %v", pv.GetName(), err)
+			return reconcile.Result{RequeueAfter: requeueTime}, nil
+		}
+	}
+	return reconcile.Result{}, nil
 }
