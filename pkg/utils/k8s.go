@@ -342,3 +342,12 @@ func ListResourceClusters(anno map[string]string) []string {
 	owners := strings.Split(anno[KosmosResourceOwnersAnnotations], ",")
 	return owners
 }
+
+func IsNotReady(node *corev1.Node) bool {
+	for _, condition := range node.Status.Conditions {
+		if condition.Type == corev1.NodeReady && condition.Status == corev1.ConditionTrue {
+			return false
+		}
+	}
+	return true
+}
