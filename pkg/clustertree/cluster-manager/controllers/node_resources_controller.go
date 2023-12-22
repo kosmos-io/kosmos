@@ -150,11 +150,6 @@ func (c *NodeResourcesController) Reconcile(ctx context.Context, request reconci
 				// }
 				clone.Spec.Taints = rootNode.Spec.Taints
 				clone.Status = node.Status
-				clone.Status.Addresses, err = leafUtils.GetAddress(ctx, c.RootClientset, node.Status.Addresses)
-				if err != nil {
-					klog.Errorf("GetAddress node %s, err: %v, ", rootNode.Name, err)
-					return reconcile.Result{}, err
-				}
 			}
 		}
 		// TODO ggregation Labels and  Annotations for classificationModel
