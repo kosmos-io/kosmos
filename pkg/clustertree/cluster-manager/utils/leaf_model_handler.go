@@ -109,7 +109,7 @@ func (h AggregationModelHandler) UpdateNodeStatus(ctx context.Context, n []*core
 			return fmt.Errorf("cannot get node in leaf cluster while update node status, leaf node item is 0")
 		}
 
-		clone.Status.Addresses, err = GetAddress(ctx, h.RootClientset, nodeListInLeaf.Items[0].Status.Addresses)
+		updateAddress, err := GetAddress(ctx, h.RootClientset, nodeListInLeaf.Items[0].Status.Addresses)
 
 		if err != nil {
 			return err
@@ -121,8 +121,14 @@ func (h AggregationModelHandler) UpdateNodeStatus(ctx context.Context, n []*core
 			return fmt.Errorf("cannot get node while update node status %s, err: %v", node.Name, err)
 		}
 
-		if node, err = h.RootClientset.CoreV1().Nodes().PatchStatus(ctx, node.Name, patch); err != nil {
+		if latestNode, err := h.RootClientset.CoreV1().Nodes().PatchStatus(ctx, node.Name, patch); err != nil {
 			return err
+		} else {
+			latestNode.ResourceVersion = ""
+			latestNode.Status.Addresses = updateAddress
+			if _, err = h.RootClientset.CoreV1().Nodes().UpdateStatus(ctx, latestNode, metav1.UpdateOptions{}); err != nil {
+				return err
+			}
 		}
 		return nil
 	})
