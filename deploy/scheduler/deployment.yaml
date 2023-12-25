@@ -73,15 +73,15 @@ data:
             disabled:
               - name: "VolumeBinding"
             enabled:
-              - name: "KNodeVolumeBinding"
+              - name: "LeafNodeVolumeBinding"
           filter:
             disabled:
               - name: "VolumeBinding"
               - name: "TaintToleration"
             enabled:
-              - name: "KNodeTaintToleration"
-              - name: "KNodeVolumeBinding"
-            #  - name: "KNodeDistribution"
+              - name: "LeafNodeTaintToleration"
+              - name: "LeafNodeVolumeBinding"
+            #  - name: "LeafNodeDistribution"
           score:
             disabled:
               - name: "VolumeBinding"
@@ -89,17 +89,17 @@ data:
             disabled:
               - name: "VolumeBinding"
             enabled:
-              - name: "KNodeVolumeBinding"
+              - name: "LeafNodeVolumeBinding"
           preBind:
             disabled:
               - name: "VolumeBinding"
             enabled:
-              - name: "KNodeVolumeBinding"
+              - name: "LeafNodeVolumeBinding"
         pluginConfig:
-          - name: KNodeVolumeBinding
+          - name: LeafNodeVolumeBinding
             args:
               bindTimeoutSeconds: 5
-#          - name: KNodeDistribution
+#          - name: LeafNodeDistribution
 #            args:
 #            # kubeConfigPath: "REPLACE_ME_WITH_KUBE_CONFIG_PATH"
 #              kubeConfigPath: "/etc/kubernetes/scheduler.conf"

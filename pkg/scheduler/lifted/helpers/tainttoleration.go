@@ -22,15 +22,15 @@ package helpers
 
 import v1 "k8s.io/api/core/v1"
 
-var KnodeTaint = &v1.Taint{
+var LeafNodeTaint = &v1.Taint{
 	Key:    "kosmos.io/node",
 	Value:  "true",
 	Effect: v1.TaintEffectNoSchedule,
 }
 
-func HasKnodeTaint(node *v1.Node) bool {
+func HasLeafNodeTaint(node *v1.Node) bool {
 	for _, taint := range node.Spec.Taints {
-		if taint.Key == KnodeTaint.Key && taint.Value == KnodeTaint.Value && taint.Effect == KnodeTaint.Effect {
+		if taint.Key == LeafNodeTaint.Key && taint.Value == LeafNodeTaint.Value && taint.Effect == LeafNodeTaint.Effect {
 			return true
 		}
 	}
@@ -39,7 +39,7 @@ func HasKnodeTaint(node *v1.Node) bool {
 
 // TolerationsTolerateTaint checks if taint is tolerated by any of the tolerations.
 func TolerationsTolerateTaint(tolerations []v1.Toleration, taint *v1.Taint) bool {
-	if taint.MatchTaint(KnodeTaint) {
+	if taint.MatchTaint(LeafNodeTaint) {
 		return true
 	}
 	for i := range tolerations {

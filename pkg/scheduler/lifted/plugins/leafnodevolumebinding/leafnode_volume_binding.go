@@ -18,7 +18,7 @@ limitations under the License.
 // For reference:
 // https://github.com/kubernetes/kubernetes/blob/release-1.21/pkg/scheduler/framework/plugins/volumebinding/volume_binding.go
 
-package knodevolumebinding
+package leafnodevolumebinding
 
 import (
 	"context"
@@ -96,7 +96,7 @@ func (pl *VolumeBinding) PreBind(ctx context.Context, cs *framework.CycleState, 
 		return framework.NewStatus(framework.Error, "node not found")
 	}
 
-	if helpers.HasKnodeTaint(node) {
+	if helpers.HasLeafNodeTaint(node) {
 		return nil
 	}
 
@@ -130,7 +130,7 @@ func (pl *VolumeBinding) Reserve(_ context.Context, cs *framework.CycleState, p 
 		return framework.NewStatus(framework.Error, "node not found")
 	}
 
-	if helpers.HasKnodeTaint(node) {
+	if helpers.HasLeafNodeTaint(node) {
 		return nil
 	}
 
@@ -161,7 +161,7 @@ func (pl *VolumeBinding) Unreserve(_ context.Context, cs *framework.CycleState, 
 		return
 	}
 
-	if helpers.HasKnodeTaint(node) {
+	if helpers.HasLeafNodeTaint(node) {
 		return
 	}
 
@@ -183,7 +183,7 @@ func (pl *VolumeBinding) Filter(_ context.Context, cs *framework.CycleState, pod
 		return framework.NewStatus(framework.Error, "node not found")
 	}
 
-	if helpers.HasKnodeTaint(node) {
+	if helpers.HasLeafNodeTaint(node) {
 		return nil
 	}
 
@@ -223,7 +223,7 @@ var _ framework.ReservePlugin = &VolumeBinding{}
 var _ framework.PreBindPlugin = &VolumeBinding{}
 
 // Name is the name of the plugin used in Registry and configurations.
-const Name = "KNodeVolumeBinding"
+const Name = "LeafNodeVolumeBinding"
 
 // Name returns name of the plugin. It is used in logs, etc.
 func (pl *VolumeBinding) Name() string {
@@ -232,7 +232,7 @@ func (pl *VolumeBinding) Name() string {
 
 // New initializes a new plugin and returns it.
 func New(plArgs runtime.Object, fh framework.Handle) (framework.Plugin, error) {
-	args, ok := plArgs.(*config.KNodeVolumeBindingArgs)
+	args, ok := plArgs.(*config.LeafNodeVolumeBindingArgs)
 	if !ok {
 		return nil, fmt.Errorf("want args to be of type VolumeBindingArgs, got %T", plArgs)
 	}

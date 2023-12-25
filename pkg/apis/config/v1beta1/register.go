@@ -37,8 +37,8 @@ var (
 // addKnownTypes registers known types to the given scheme
 func addKnownTypes(scheme *runtime.Scheme) error {
 	scheme.AddKnownTypes(SchemeGroupVersion,
-		&KNodeVolumeBindingArgs{},
-		&KNodeDistributionArgs{},
+		&LeafNodeVolumeBindingArgs{},
+		&LeafNodeDistributionArgs{},
 	)
 	return nil
 }

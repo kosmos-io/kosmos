@@ -22,8 +22,8 @@ import (
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// KNodeVolumeBindingArgs holds arguments used to configure the KNodeVolumeBinding plugin
-type KNodeVolumeBindingArgs struct {
+// LeafNodeVolumeBindingArgs holds arguments used to configure the LeafNodeVolumeBinding plugin
+type LeafNodeVolumeBindingArgs struct {
 	metav1.TypeMeta `json:",inline"`
 
 	// BindTimeoutSeconds is the timeout in seconds in volume binding operation.
@@ -34,8 +34,8 @@ type KNodeVolumeBindingArgs struct {
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// KNodeDistributionArgs holds arguments used to configure the KNodeDistributionPolicy plugin
-type KNodeDistributionArgs struct {
+// LeafNodeDistributionArgs holds arguments used to configure the LeafNodeDistribution plugin
+type LeafNodeDistributionArgs struct {
 	metav1.TypeMeta `json:",inline"`
 
 	// KubeConfigPath is the path of kubeconfig.
