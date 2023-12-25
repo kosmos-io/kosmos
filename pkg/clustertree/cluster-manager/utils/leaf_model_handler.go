@@ -150,7 +150,7 @@ func (h ClassificationHandler) UpdateRootNodeStatus(ctx context.Context, nodesIn
 				rootCopy.Status.Capacity = clusterResources
 			}
 
-			rootCopy.Status.Addresses, err = GetAddress(ctx, h.RootClientset, nodesInLeaf.Items[0].Status.Addresses)
+			updateAddress, err := GetAddress(ctx, h.RootClientset, nodesInLeaf.Items[0].Status.Addresses)
 			if err != nil {
 				return err
 			}
@@ -160,8 +160,14 @@ func (h ClassificationHandler) UpdateRootNodeStatus(ctx context.Context, nodesIn
 				return fmt.Errorf("failed to CreateMergePatch while update join node %s status, err: %v", nodeNameInRoot, err)
 			}
 
-			if _, err = h.RootClientset.CoreV1().Nodes().PatchStatus(ctx, node.Name, patch); err != nil {
+			if latestNode, err := h.RootClientset.CoreV1().Nodes().PatchStatus(ctx, node.Name, patch); err != nil {
 				return err
+			} else {
+				latestNode.ResourceVersion = ""
+				latestNode.Status.Addresses = updateAddress
+				if _, err = h.RootClientset.CoreV1().Nodes().UpdateStatus(ctx, latestNode, metav1.UpdateOptions{}); err != nil {
+					return err
+				}
 			}
 			return nil
 		})
