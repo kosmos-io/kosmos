@@ -24,7 +24,7 @@ type CommandExportOptions struct {
 }
 
 // NewCmdExport export resource to control plane
-func NewCmdExport(f ctlutil.Factory) *cobra.Command {
+func NewCmdExport() *cobra.Command {
 	o := &CommandExportOptions{CommandOptions: &CommandOptions{SrcLeafClusterOptions: &LeafClusterOptions{}}}
 
 	cmd := &cobra.Command{
@@ -35,33 +35,24 @@ func NewCmdExport(f ctlutil.Factory) *cobra.Command {
 		SilenceUsage:          true,
 		DisableFlagsInUseLine: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctlutil.CheckErr(o.Complete(f, cmd))
-			ctlutil.CheckErr(o.Validate(cmd))
+			ctlutil.CheckErr(o.Complete(cmd))
 			ctlutil.CheckErr(o.Run(cmd, args))
 			return nil
 		},
 	}
 
 	cmd.Flags().StringVarP(&o.MasterKubeConfig, "kubeconfig", "", "", "Absolute path to the master kubeconfig file.")
+	cmd.Flags().StringVar(&o.MasterContext, "context", "", "The name of the kubeconfig context.")
 	cmd.Flags().StringVarP(&o.Namespace, "namespace", "n", "default", "The namespace scope for this CLI request")
 
 	return cmd
 }
 
-func (o *CommandExportOptions) Complete(f ctlutil.Factory, cmd *cobra.Command) error {
-	err := o.CommandOptions.Complete(f, cmd)
+func (o *CommandExportOptions) Complete(cmd *cobra.Command) error {
+	err := o.CommandOptions.Complete(cmd)
 	if err != nil {
 		return err
 	}
-	return nil
-}
-
-func (o *CommandExportOptions) Validate(cmd *cobra.Command) error {
-	err := o.CommandOptions.Validate(cmd)
-	if err != nil {
-		return fmt.Errorf("%s, valid args error: %s", exportErr, err)
-	}
-
 	return nil
 }
 

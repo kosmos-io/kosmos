@@ -2,7 +2,6 @@ package utils
 
 import (
 	"encoding/json"
-	"fmt"
 	"strings"
 
 	jsonpatch "github.com/evanphx/json-patch"
@@ -10,13 +9,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/metrics/pkg/client/clientset/versioned"
-
-	kosmosversioned "github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 )
+
+// Todo rename the filename
 
 type ClustersNodeSelection struct {
 	NodeSelector              map[string]string                 `json:"nodeSelector,omitempty"`
@@ -45,166 +40,6 @@ func CreateMergePatch(original, new interface{}) ([]byte, error) {
 		return nil, err
 	}
 	return patch, nil
-}
-
-type Opts func(*rest.Config)
-
-func NewConfigFromBytes(kubeConfig []byte, opts ...Opts) (*rest.Config, error) {
-	var (
-		config *rest.Config
-		err    error
-	)
-
-	c, err := clientcmd.NewClientConfigFromBytes(kubeConfig)
-	if err != nil {
-		return nil, err
-	}
-	config, err = c.ClientConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	for _, h := range opts {
-		if h == nil {
-			continue
-		}
-		h(config)
-	}
-
-	return config, nil
-}
-
-func NewClientFromConfigPath(configPath string, opts ...Opts) (kubernetes.Interface, error) {
-	var (
-		config *rest.Config
-		err    error
-	)
-	config, err = clientcmd.BuildConfigFromFlags("", configPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to build config from configpath: %v", err)
-	}
-
-	for _, opt := range opts {
-		if opt == nil {
-			continue
-		}
-		opt(config)
-	}
-
-	client, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return nil, fmt.Errorf("could not create clientset: %v", err)
-	}
-	return client, nil
-}
-
-func NewKosmosClientFromConfigPath(configPath string, opts ...Opts) (kosmosversioned.Interface, error) {
-	var (
-		config *rest.Config
-		err    error
-	)
-	config, err = clientcmd.BuildConfigFromFlags("", configPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to build config from configpath: %v", err)
-	}
-
-	for _, opt := range opts {
-		if opt == nil {
-			continue
-		}
-		opt(config)
-	}
-
-	client, err := kosmosversioned.NewForConfig(config)
-	if err != nil {
-		return nil, fmt.Errorf("could not create clientset: %v", err)
-	}
-	return client, nil
-}
-
-func NewClientFromBytes(kubeConfig []byte, opts ...Opts) (kubernetes.Interface, error) {
-	var (
-		config *rest.Config
-		err    error
-	)
-
-	clientConfig, err := clientcmd.NewClientConfigFromBytes(kubeConfig)
-	if err != nil {
-		return nil, err
-	}
-	config, err = clientConfig.ClientConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	for _, opt := range opts {
-		if opt == nil {
-			continue
-		}
-		opt(config)
-	}
-
-	client, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return nil, fmt.Errorf("create client failed: %v", err)
-	}
-	return client, nil
-}
-
-func NewKosmosClientFromBytes(kubeConfig []byte, opts ...Opts) (kosmosversioned.Interface, error) {
-	var (
-		config *rest.Config
-		err    error
-	)
-
-	clientConfig, err := clientcmd.NewClientConfigFromBytes(kubeConfig)
-	if err != nil {
-		return nil, err
-	}
-	config, err = clientConfig.ClientConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	for _, opt := range opts {
-		if opt == nil {
-			continue
-		}
-		opt(config)
-	}
-
-	client, err := kosmosversioned.NewForConfig(config)
-	if err != nil {
-		return nil, fmt.Errorf("create client failed: %v", err)
-	}
-	return client, nil
-}
-
-func NewMetricClient(configPath string, opts ...Opts) (versioned.Interface, error) {
-	var (
-		config *rest.Config
-		err    error
-	)
-	config, err = clientcmd.BuildConfigFromFlags("", configPath)
-	if err != nil {
-		config, err = rest.InClusterConfig()
-		if err != nil {
-			return nil, fmt.Errorf("could not read config file for cluster: %v", err)
-		}
-	}
-
-	for _, opt := range opts {
-		if opt == nil {
-			continue
-		}
-		opt(config)
-	}
-
-	metricClient, err := versioned.NewForConfig(config)
-	if err != nil {
-		return nil, fmt.Errorf("could not create client for root cluster: %v", err)
-	}
-	return metricClient, nil
 }
 
 func IsKosmosNode(node *corev1.Node) bool {

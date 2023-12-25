@@ -3,8 +3,6 @@ package join
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
@@ -12,9 +10,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/client-go/util/homedir"
 	"k8s.io/klog/v2"
 	ctlutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/i18n"
@@ -25,6 +21,7 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/manifest"
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/util"
 	"github.com/kosmos.io/kosmos/pkg/utils"
+	"github.com/kosmos.io/kosmos/pkg/version"
 )
 
 var joinExample = templates.Examples(i18n.T(`
@@ -45,9 +42,12 @@ type CommandJoinOptions struct {
 	Name                 string
 	Namespace            string
 	ImageRegistry        string
+	Version              string
 	KubeConfig           string
+	Context              string
 	KubeConfigStream     []byte
 	HostKubeConfig       string
+	HostContext          string
 	HostKubeConfigStream []byte
 	WaitTime             int
 	RootFlag             bool
@@ -91,8 +91,11 @@ func NewCmdJoin(f ctlutil.Factory) *cobra.Command {
 	flags.StringVar(&o.Name, "name", "", "Specify the name of the resource to join.")
 	flags.StringVarP(&o.Namespace, "namespace", "n", utils.DefaultNamespace, "Kosmos namespace.")
 	flags.StringVar(&o.KubeConfig, "kubeconfig", "", "Absolute path to the cluster kubeconfig file.")
+	flags.StringVar(&o.Context, "context", "", "The name of the kubeconfig context.")
 	flags.StringVar(&o.HostKubeConfig, "host-kubeconfig", "", "Absolute path to the special host kubeconfig file.")
+	flags.StringVar(&o.HostContext, "host-context", "", "The name of the host-kubeconfig context.")
 	flags.StringVar(&o.ImageRegistry, "private-image-registry", utils.DefaultImageRepository, "Private image registry where pull images from. If set, all required images will be downloaded from it, it would be useful in offline installation scenarios.")
+	flags.StringVar(&o.Version, "version", "", "image version for pull images")
 	flags.BoolVar(&o.RootFlag, "root-flag", false, "Tag control cluster.")
 	flags.BoolVar(&o.EnableAll, "enable-all", false, "Turn on all module.")
 	flags.BoolVar(&o.EnableLink, "enable-link", false, "Turn on clusterlink.")
@@ -109,46 +112,37 @@ func NewCmdJoin(f ctlutil.Factory) *cobra.Command {
 }
 
 func (o *CommandJoinOptions) Complete(f ctlutil.Factory) error {
-	var hostConfig *rest.Config
-	var clusterConfig *rest.Config
-	var err error
+	hostConfig, err := utils.RestConfig(o.HostKubeConfig, o.HostContext)
+	if err != nil {
+		return fmt.Errorf("kosmosctl join complete error, generate host rest config failed: %s", err)
+	}
 
-	if len(o.HostKubeConfig) > 0 {
-		hostConfig, err = clientcmd.BuildConfigFromFlags("", o.HostKubeConfig)
-		if err != nil {
-			return fmt.Errorf("kosmosctl join complete error, generate hostConfig failed: %s", err)
-		}
-		o.HostKubeConfigStream, err = os.ReadFile(o.HostKubeConfig)
-		if err != nil {
-			return fmt.Errorf("kosmosctl join complete error, read hostConfig failed: %s", err)
-		}
-	} else {
-		hostConfig, err = f.ToRESTConfig()
-		if err != nil {
-			return fmt.Errorf("kosmosctl join complete error, generate hostConfig failed: %s", err)
-		}
-		o.HostKubeConfigStream, err = os.ReadFile(filepath.Join(homedir.HomeDir(), ".kube", "config"))
-		if err != nil {
-			return fmt.Errorf("kosmosctl join complete error, read hostConfig failed: %s", err)
-		}
+	if o.Version == "" {
+		o.Version = fmt.Sprintf("v%s", version.GetReleaseVersion().PatchRelease())
 	}
 
 	o.KosmosClient, err = versioned.NewForConfig(hostConfig)
 	if err != nil {
-		return fmt.Errorf("kosmosctl install complete error, generate Kosmos client failed: %v", err)
+		return fmt.Errorf("kosmosctl join complete error, generate Kosmos client failed: %v", err)
 	}
 
 	if len(o.KubeConfig) > 0 {
-		o.KubeConfigStream, err = os.ReadFile(o.KubeConfig)
+		clusterConfig, err := utils.RestConfig(o.KubeConfig, o.Context)
 		if err != nil {
-			return fmt.Errorf("kosmosctl join run error, read KubeConfigStream failed: %s", err)
+			return fmt.Errorf("kosmosctl join complete error, generate rest config failed: %s", err)
 		}
 
-		clusterConfig, err = clientcmd.BuildConfigFromFlags("", o.KubeConfig)
+		rawConfig, err := utils.RawConfig(o.KubeConfig, o.Context)
 		if err != nil {
-			return fmt.Errorf("kosmosctl join complete error, generate clusterConfig failed: %s", err)
+			return fmt.Errorf("kosmosctl join complete error, generate raw config failed: %s", err)
 		}
 
+		streams, err := clientcmd.Write(rawConfig)
+		if err != nil {
+			return fmt.Errorf("kosmosctl join complete error, wite restconfig to streams failed: %s", err)
+		}
+
+		o.KubeConfigStream = streams
 		o.K8sClient, err = kubernetes.NewForConfig(clusterConfig)
 		if err != nil {
 			return fmt.Errorf("kosmosctl join complete error, generate K8s basic client failed: %v", err)

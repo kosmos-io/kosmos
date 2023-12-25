@@ -10,8 +10,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 	ctlutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/i18n"
@@ -21,6 +19,7 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/manifest"
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/util"
 	"github.com/kosmos.io/kosmos/pkg/utils"
+	"github.com/kosmos.io/kosmos/pkg/version"
 )
 
 var uninstallExample = templates.Examples(i18n.T(`
@@ -44,15 +43,18 @@ type CommandUninstallOptions struct {
 	Namespace  string
 	Module     string
 	KubeConfig string
+	Context    string
 
 	KosmosClient        versioned.Interface
 	K8sClient           kubernetes.Interface
 	K8sDynamicClient    *dynamic.DynamicClient
 	K8sExtensionsClient extensionsclient.Interface
+
+	Version string
 }
 
 // NewCmdUninstall Uninstall the Kosmos control plane in a Kubernetes cluster.
-func NewCmdUninstall(f ctlutil.Factory) *cobra.Command {
+func NewCmdUninstall() *cobra.Command {
 	o := &CommandUninstallOptions{}
 
 	cmd := &cobra.Command{
@@ -63,7 +65,7 @@ func NewCmdUninstall(f ctlutil.Factory) *cobra.Command {
 		SilenceUsage:          true,
 		DisableFlagsInUseLine: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctlutil.CheckErr(o.Complete(f))
+			ctlutil.CheckErr(o.Complete())
 			ctlutil.CheckErr(o.Validate())
 			ctlutil.CheckErr(o.Run())
 			return nil
@@ -74,29 +76,24 @@ func NewCmdUninstall(f ctlutil.Factory) *cobra.Command {
 	flags.StringVarP(&o.Namespace, "namespace", "n", utils.DefaultNamespace, "Kosmos namespace.")
 	flags.StringVarP(&o.Module, "module", "m", utils.All, "Kosmos specify the module to uninstall.")
 	flags.StringVar(&o.KubeConfig, "kubeconfig", "", "Absolute path to the special kubeconfig file.")
-
+	flags.StringVar(&o.Context, "context", "", "The name of the kubeconfig context.")
+	flags.StringVar(&o.Version, "version", "", "image version for uninstall images")
 	return cmd
 }
 
-func (o *CommandUninstallOptions) Complete(f ctlutil.Factory) error {
-	var config *rest.Config
-	var err error
+func (o *CommandUninstallOptions) Complete() error {
+	config, err := utils.RestConfig(o.KubeConfig, o.Context)
+	if err != nil {
+		return fmt.Errorf("kosmosctl uninstall complete error, generate config failed: %s", err)
+	}
 
-	if len(o.KubeConfig) > 0 {
-		config, err = clientcmd.BuildConfigFromFlags("", o.KubeConfig)
-		if err != nil {
-			return fmt.Errorf("kosmosctl uninstall complete error, generate config failed: %s", err)
-		}
-	} else {
-		config, err = f.ToRESTConfig()
-		if err != nil {
-			return fmt.Errorf("kosmosctl uninstall complete error, generate rest config failed: %v", err)
-		}
+	if o.Version == "" {
+		o.Version = fmt.Sprintf("v%s", version.GetReleaseVersion().PatchRelease())
 	}
 
 	o.KosmosClient, err = versioned.NewForConfig(config)
 	if err != nil {
-		return fmt.Errorf("kosmosctl install complete error, generate Kosmos client failed: %v", err)
+		return fmt.Errorf("kosmosctl uninstall complete error, generate Kosmos client failed: %v", err)
 	}
 
 	o.K8sClient, err = kubernetes.NewForConfig(config)
@@ -165,6 +162,7 @@ func (o *CommandUninstallOptions) runClusterlink() error {
 	klog.Info("Start uninstalling clusterlink from kosmos control plane...")
 	clusterlinkDeploy, err := util.GenerateDeployment(manifest.ClusterlinkNetworkManagerDeployment, manifest.DeploymentReplace{
 		Namespace: o.Namespace,
+		Version:   o.Version,
 	})
 	if err != nil {
 		return err
@@ -283,6 +281,7 @@ func (o *CommandUninstallOptions) runClusterlink() error {
 		if apierrors.IsNotFound(err) {
 			operatorDeploy, err := util.GenerateDeployment(manifest.KosmosOperatorDeployment, manifest.DeploymentReplace{
 				Namespace: o.Namespace,
+				Version:   o.Version,
 			})
 			if err != nil {
 				return fmt.Errorf("kosmosctl uninstall clusterlink run error, generate operator deployment failed: %s", err)
@@ -308,6 +307,7 @@ func (o *CommandUninstallOptions) runClustertree() error {
 	klog.Info("Start uninstalling clustertree from kosmos control plane...")
 	clustertreeDeploy, err := util.GenerateDeployment(manifest.ClusterTreeClusterManagerDeployment, manifest.DeploymentReplace{
 		Namespace: o.Namespace,
+		Version:   o.Version,
 	})
 	if err != nil {
 		return err
@@ -413,6 +413,7 @@ func (o *CommandUninstallOptions) runClustertree() error {
 		if apierrors.IsNotFound(err) {
 			operatorDeploy, err := util.GenerateDeployment(manifest.KosmosOperatorDeployment, manifest.DeploymentReplace{
 				Namespace: o.Namespace,
+				Version:   o.Version,
 			})
 			if err != nil {
 				return fmt.Errorf("kosmosctl uninstall clustertree run error, generate operator deployment failed: %s", err)
@@ -509,7 +510,7 @@ func (o *CommandUninstallOptions) runCoredns() error {
 	}
 	err = o.K8sClient.RbacV1().ClusterRoles().Delete(context.TODO(), cRole.Name, metav1.DeleteOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
-		return fmt.Errorf("kosmosctl install coredns run error, clusterrole options failed: %v", err)
+		return fmt.Errorf("kosmosctl uninstall coredns run error, clusterrole options failed: %v", err)
 	}
 	klog.Info("ClusterRole " + cRole.Name + " is deleted.")
 

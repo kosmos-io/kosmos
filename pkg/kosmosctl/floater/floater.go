@@ -14,7 +14,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/remotecommand"
 	"k8s.io/klog/v2"
 
@@ -102,13 +101,13 @@ func NewAnalysisFloater(o *CommandAnalysisOptions) *Floater {
 	return floater
 }
 
-func (f *Floater) completeFromKubeConfigPath(kubeConfigPath string) error {
-	config, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
+func (f *Floater) completeFromKubeConfigPath(kubeConfigPath, context string) error {
+	config, err := utils.RestConfig(kubeConfigPath, context)
 	if err != nil {
 		return fmt.Errorf("kosmosctl docter complete error, generate floater config failed: %v", err)
 	}
-	f.Config = config
 
+	f.Config = config
 	f.Client, err = kubernetes.NewForConfig(f.Config)
 	if err != nil {
 		return fmt.Errorf("kosmosctl docter complete error, generate floater client failed: %v", err)

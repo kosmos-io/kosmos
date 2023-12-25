@@ -17,6 +17,7 @@ CERT=$(cat ${ROOT}/pkg/cert/crt.pem | base64 -w 0)
 KEY=$(cat ${ROOT}/pkg/cert/key.pem | base64 -w 0)
 
 CN_ZONE=${CN_ZONE:-false}
+source "$(dirname "${BASH_SOURCE[0]}")/util.sh"
 
 if [ $REUSE == true ]; then
     echo "!!!!!!!!!!!Warning: Setting REUSE to true will not delete existing clusters.!!!!!!!!!!!"
@@ -147,8 +148,6 @@ function create_cluster() {
       "kubectl get nodes | awk 'NR>1 {if (\$2 != \"Ready\") exit 1; }' && [ \$(kubectl get nodes --no-headers | wc -l) -eq ${N} ]" \
       300
     echo "all node ready"
-
-    kubectl --context="kind-${clustername}" apply -f "$ROOT"/deploy/crds/mcs
 }
 
 function join_cluster() {
@@ -185,11 +184,46 @@ EOF
   kubectl --context="kind-${member_cluster}" apply -f "$ROOT"/deploy/clusterlink-datapanel-rbac.yml
 }
 
+function join_cluster_by_ctl(){
+  local host_cluster=$1
+  local member_cluster=$2
+  HOST_CLUSTER_DIR="${ROOT}/environments/${host_cluster}"
+  MEMBER_CLUSTER_DIR="${ROOT}/environments/${member_cluster}"
+  kosmosctl join cluster --name $member_cluster --host-kubeconfig $HOST_CLUSTER_DIR/kubeconfig --kubeconfig $MEMBER_CLUSTER_DIR/kubeconfig --enable-all --version latest
+}
+
+
+function deploy_cluster_by_ctl(){
+   local -r clustername=$1
+   CLUSTER_DIR="${ROOT}/environments/${clustername}"
+   load_cluster_images "$clustername"
+   kosmosctl install --version latest --kubeconfig $CLUSTER_DIR/kubeconfig
+
+   # deploy kosmos-scheduler for e2e test case of mysql-operator
+   sed -e "s|__VERSION__|$VERSION|g" -e "w ${ROOT}/environments/kosmos-scheduler.yml" "$ROOT"/deploy/scheduler/deployment.yaml
+   kubectl --context="kind-${clustername}" apply -f "${ROOT}/environments/kosmos-scheduler.yml"
+   kubectl --context="kind-${clustername}" apply -f "$ROOT"/deploy/scheduler/rbac.yaml
+
+   util::wait_for_condition "kosmos scheduler are ready" \
+     "kubectl --context="kind-${clustername}" -n kosmos-system get deploy kosmos-scheduler -o jsonpath='{.status.replicas}{\" \"}{.status.readyReplicas}{\"\n\"}' | awk '{if (\$1 == \$2 && \$1 > 0) exit 0; else exit 1}'" \
+     300
+   echo "cluster $clustername deploy kosmos-scheduler success"
+
+   docker exec ${clustername}-control-plane /bin/sh -c "mv /etc/kubernetes/manifests/kube-scheduler.yaml /etc/kubernetes"
+
+   # add the args for e2e test case of mysql-operator
+   kubectl --context="kind-${clustername}" -n kosmos-system patch deployment clustertree-cluster-manager --type='json' -p='[{"op": "add", "path": "/spec/template/spec/containers/0/command/-", "value": "--auto-mcs-prefix=kosmos-e2e"}]'
+
+   util::wait_for_condition "kosmos clustertree are ready" \
+     "kubectl --context="kind-${clustername}" -n kosmos-system get deploy clustertree-cluster-manager -o jsonpath='{.status.replicas}{\" \"}{.status.readyReplicas}{\"\n\"}' | awk '{if (\$1 == \$2 && \$1 > 0) exit 0; else exit 1}'" \
+     300
+}
+
 function deploy_cluster() {
    local -r clustername=$1
    kubectl config use-context "kind-${clustername}"
    load_cluster_images "$clustername"
-
+   
    kubectl --context="kind-${clustername}" apply -f "$ROOT"/deploy/clusterlink-namespace.yml
    kubectl --context="kind-${clustername}" apply -f "$ROOT"/deploy/kosmos-rbac.yml
    kubectl --context="kind-${clustername}" apply -f "$ROOT"/deploy/crds

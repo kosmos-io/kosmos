@@ -40,8 +40,12 @@ type CommandCheckOptions struct {
 	HostNetwork bool
 
 	KubeConfig    string
+	Context       string
 	SrcKubeConfig string
+	SrcContext    string
+
 	DstKubeConfig string
+	DstContext    string
 
 	SrcFloater *Floater
 	DstFloater *Floater
@@ -86,8 +90,11 @@ func NewCmdCheck() *cobra.Command {
 	flags.StringVarP(&o.ImageRepository, "image-repository", "r", utils.DefaultImageRepository, "Image repository.")
 	flags.StringVarP(&o.DstImageRepository, "dst-image-repository", "", "", "Destination cluster image repository.")
 	flags.StringVar(&o.KubeConfig, "kubeconfig", "", "Absolute path to the host kubeconfig file.")
+	flags.StringVar(&o.Context, "context", "", "The name of the kubeconfig context.")
 	flags.StringVar(&o.SrcKubeConfig, "src-kubeconfig", "", "Absolute path to the source cluster kubeconfig file.")
+	flags.StringVar(&o.SrcContext, "src-context", "", "The name of the src-kubeconfig context.")
 	flags.StringVar(&o.DstKubeConfig, "dst-kubeconfig", "", "Absolute path to the destination cluster kubeconfig file.")
+	flags.StringVar(&o.DstContext, "dst-context", "", "The name of the dst-kubeconfig context.")
 	flags.BoolVar(&o.HostNetwork, "host-network", false, "Configure HostNetwork.")
 	flags.StringVar(&o.Port, "port", "8889", "Port used by floater.")
 	flags.IntVarP(&o.PodWaitTime, "pod-wait-time", "w", 30, "Time for wait pod(floater) launch.")
@@ -102,14 +109,14 @@ func (o *CommandCheckOptions) Complete() error {
 	}
 
 	srcFloater := NewCheckFloater(o, false)
-	if err := srcFloater.completeFromKubeConfigPath(o.SrcKubeConfig); err != nil {
+	if err := srcFloater.completeFromKubeConfigPath(o.SrcKubeConfig, o.SrcContext); err != nil {
 		return err
 	}
 	o.SrcFloater = srcFloater
 
 	if o.DstKubeConfig != "" {
 		dstFloater := NewCheckFloater(o, true)
-		if err := dstFloater.completeFromKubeConfigPath(o.DstKubeConfig); err != nil {
+		if err := dstFloater.completeFromKubeConfigPath(o.DstKubeConfig, o.DstContext); err != nil {
 			return err
 		}
 		o.DstFloater = dstFloater
