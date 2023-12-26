@@ -1,8 +1,6 @@
 package utils
 
 import (
-	"time"
-
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
@@ -131,7 +129,7 @@ const (
 	DefaultK8sOS   = "linux"
 	DefaultK8sArch = "amd64"
 
-	DefaultInformerResyncPeriod = 1 * time.Minute
+	DefaultInformerResyncPeriod = 0
 	DefaultListenPort           = 10250
 	DefaultPodSyncWorkers       = 10
 	DefaultWorkers              = 5
