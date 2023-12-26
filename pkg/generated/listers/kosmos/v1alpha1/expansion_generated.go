@@ -2,6 +2,14 @@
 
 package v1alpha1
 
+// ClusterDistributionPolicyListerExpansion allows custom methods to be added to
+// ClusterDistributionPolicyLister.
+type ClusterDistributionPolicyListerExpansion interface{}
+
 // DistributionPolicyListerExpansion allows custom methods to be added to
 // DistributionPolicyLister.
 type DistributionPolicyListerExpansion interface{}
+
+// DistributionPolicyNamespaceListerExpansion allows custom methods to be added to
+// DistributionPolicyNamespaceLister.
+type DistributionPolicyNamespaceListerExpansion interface{}

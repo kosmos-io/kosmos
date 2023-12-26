@@ -5,19 +5,19 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.11.0
   creationTimestamp: null
-  name: distributionpolicies.kosmos.io
+  name: clusterdistributionpolicies.kosmos.io
 spec:
   group: kosmos.io
   names:
     categories:
     - kosmos-io
-    kind: DistributionPolicy
-    listKind: DistributionPolicyList
-    plural: distributionpolicies
+    kind: ClusterDistributionPolicy
+    listKind: ClusterDistributionPolicyList
+    plural: clusterdistributionpolicies
     shortNames:
-    - dp
-    singular: distributionpolicy
-  scope: Namespaced
+    - cdp
+    singular: clusterdistributionpolicy
+  scope: Cluster
   versions:
   - additionalPrinterColumns:
     - description: CreationTimestamp is a timestamp representing the server time when
@@ -44,7 +44,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: DistributionSpec represents the desired behavior of DistributionPolicy.
+            description: DistributionSpec represents the desired behavior of ClusterDistributionPolicy.
             properties:
               policyTerms:
                 description: PolicyTerms represents the rule for select nodes to distribute

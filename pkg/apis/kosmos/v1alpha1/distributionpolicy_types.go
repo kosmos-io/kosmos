@@ -6,8 +6,7 @@ import (
 )
 
 // +genclient
-// +genclient:nonNamespaced
-// +kubebuilder:resource:scope="Cluster"
+// +kubebuilder:resource:shortName=dp,categories={kosmos-io}
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp",description="CreationTimestamp is a timestamp representing the server time when this object was created. It is not guaranteed to be set in happens-before order across separate operations. Clients may not set this value. It is represented in RFC3339 form and is in UTC."
 
@@ -39,19 +38,6 @@ type ResourceSelector struct {
 	// +required
 	PolicyName string `json:"policyName"`
 
-	// Namespace of the target resource.
-	// +optional
-	Namespace string `json:"namespace,omitempty" protobuf:"bytes,3,opt,name=namespace"`
-
-	// NamespacePrefix the prefix of the target resource namespace
-	// +optional
-	NamespacePrefix string `json:"namespacePrefix,omitempty"`
-
-	// Filter resource by labelSelector
-	// If target resource name is not empty, labelSelector will be ignored.
-	// +optional
-	NamespaceLabelSelector *metav1.LabelSelector `json:"namespaceLabelSelector,omitempty"`
-
 	// Name of the target resource.
 	// Default is empty, which means selecting all resources.
 	// +optional
@@ -78,6 +64,9 @@ const (
 
 	//MIXNODE represents the host nodes and child nodes
 	MIXNODE NodeType = "mix"
+
+	// ADVNODE represents nodes that satisfy advanced terms
+	ADVNODE NodeType = "adv"
 )
 
 type PolicyTerm struct {
@@ -85,10 +74,10 @@ type PolicyTerm struct {
 	Name string `json:"name"`
 
 	// NodeType declares the type for scheduling node.
-	// Valid options are "host", "leaf", "mix".
+	// Valid options are "host", "leaf", "mix", "adv".
 	//
 	// +kubebuilder:default="mix"
-	// +kubebuilder:validation:Enum=host;leaf;mix
+	// +kubebuilder:validation:Enum=host;leaf;mix;adv
 	// +optional
 	NodeType NodeType `json:"nodeType,omitempty"`
 
@@ -112,10 +101,6 @@ type AdvancedTerm struct {
 	// +mapType=atomic
 	NodeSelector map[string]string `json:"nodeSelector,omitempty" protobuf:"bytes,7,rep,name=nodeSelector"`
 
-	// If specified, the pod's scheduling constraints
-	// +optional
-	Affinity *corev1.Affinity `json:"affinity,omitempty" protobuf:"bytes,18,opt,name=affinity"`
-
 	// If specified, the pod's tolerations.
 	// +optional
 	Tolerations []*corev1.Toleration `json:"tolerations,omitempty" protobuf:"bytes,22,opt,name=tolerations"`
@@ -127,4 +112,27 @@ type DistributionPolicyList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata"`
 	Items           []DistributionPolicy `json:"items"`
+}
+
+// +genclient
+// +genclient:nonNamespaced
+// +kubebuilder:resource:scope="Cluster",shortName=cdp,categories={kosmos-io}
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp",description="CreationTimestamp is a timestamp representing the server time when this object was created. It is not guaranteed to be set in happens-before order across separate operations. Clients may not set this value. It is represented in RFC3339 form and is in UTC."
+
+type ClusterDistributionPolicy struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	// DistributionSpec represents the desired behavior of ClusterDistributionPolicy.
+	// +required
+	DistributionSpec DistributionSpec `json:"spec"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type ClusterDistributionPolicyList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
+	Items           []ClusterDistributionPolicy `json:"items"`
 }

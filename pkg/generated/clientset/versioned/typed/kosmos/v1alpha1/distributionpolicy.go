@@ -17,7 +17,7 @@ import (
 // DistributionPoliciesGetter has a method to return a DistributionPolicyInterface.
 // A group's client should implement this interface.
 type DistributionPoliciesGetter interface {
-	DistributionPolicies() DistributionPolicyInterface
+	DistributionPolicies(namespace string) DistributionPolicyInterface
 }
 
 // DistributionPolicyInterface has methods to work with DistributionPolicy resources.
@@ -36,12 +36,14 @@ type DistributionPolicyInterface interface {
 // distributionPolicies implements DistributionPolicyInterface
 type distributionPolicies struct {
 	client rest.Interface
+	ns     string
 }
 
 // newDistributionPolicies returns a DistributionPolicies
-func newDistributionPolicies(c *KosmosV1alpha1Client) *distributionPolicies {
+func newDistributionPolicies(c *KosmosV1alpha1Client, namespace string) *distributionPolicies {
 	return &distributionPolicies{
 		client: c.RESTClient(),
+		ns:     namespace,
 	}
 }
 
@@ -49,6 +51,7 @@ func newDistributionPolicies(c *KosmosV1alpha1Client) *distributionPolicies {
 func (c *distributionPolicies) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.DistributionPolicy, err error) {
 	result = &v1alpha1.DistributionPolicy{}
 	err = c.client.Get().
+		Namespace(c.ns).
 		Resource("distributionpolicies").
 		Name(name).
 		VersionedParams(&options, scheme.ParameterCodec).
@@ -65,6 +68,7 @@ func (c *distributionPolicies) List(ctx context.Context, opts v1.ListOptions) (r
 	}
 	result = &v1alpha1.DistributionPolicyList{}
 	err = c.client.Get().
+		Namespace(c.ns).
 		Resource("distributionpolicies").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
@@ -81,6 +85,7 @@ func (c *distributionPolicies) Watch(ctx context.Context, opts v1.ListOptions) (
 	}
 	opts.Watch = true
 	return c.client.Get().
+		Namespace(c.ns).
 		Resource("distributionpolicies").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
@@ -91,6 +96,7 @@ func (c *distributionPolicies) Watch(ctx context.Context, opts v1.ListOptions) (
 func (c *distributionPolicies) Create(ctx context.Context, distributionPolicy *v1alpha1.DistributionPolicy, opts v1.CreateOptions) (result *v1alpha1.DistributionPolicy, err error) {
 	result = &v1alpha1.DistributionPolicy{}
 	err = c.client.Post().
+		Namespace(c.ns).
 		Resource("distributionpolicies").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(distributionPolicy).
@@ -103,6 +109,7 @@ func (c *distributionPolicies) Create(ctx context.Context, distributionPolicy *v
 func (c *distributionPolicies) Update(ctx context.Context, distributionPolicy *v1alpha1.DistributionPolicy, opts v1.UpdateOptions) (result *v1alpha1.DistributionPolicy, err error) {
 	result = &v1alpha1.DistributionPolicy{}
 	err = c.client.Put().
+		Namespace(c.ns).
 		Resource("distributionpolicies").
 		Name(distributionPolicy.Name).
 		VersionedParams(&opts, scheme.ParameterCodec).
@@ -115,6 +122,7 @@ func (c *distributionPolicies) Update(ctx context.Context, distributionPolicy *v
 // Delete takes name of the distributionPolicy and deletes it. Returns an error if one occurs.
 func (c *distributionPolicies) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	return c.client.Delete().
+		Namespace(c.ns).
 		Resource("distributionpolicies").
 		Name(name).
 		Body(&opts).
@@ -129,6 +137,7 @@ func (c *distributionPolicies) DeleteCollection(ctx context.Context, opts v1.Del
 		timeout = time.Duration(*listOpts.TimeoutSeconds) * time.Second
 	}
 	return c.client.Delete().
+		Namespace(c.ns).
 		Resource("distributionpolicies").
 		VersionedParams(&listOpts, scheme.ParameterCodec).
 		Timeout(timeout).
@@ -141,6 +150,7 @@ func (c *distributionPolicies) DeleteCollection(ctx context.Context, opts v1.Del
 func (c *distributionPolicies) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.DistributionPolicy, err error) {
 	result = &v1alpha1.DistributionPolicy{}
 	err = c.client.Patch(pt).
+		Namespace(c.ns).
 		Resource("distributionpolicies").
 		Name(name).
 		SubResource(subresources...).

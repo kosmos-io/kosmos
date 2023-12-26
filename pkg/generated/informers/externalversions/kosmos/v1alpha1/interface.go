@@ -8,6 +8,8 @@ import (
 
 // Interface provides access to all the informers in this group version.
 type Interface interface {
+	// ClusterDistributionPolicies returns a ClusterDistributionPolicyInformer.
+	ClusterDistributionPolicies() ClusterDistributionPolicyInformer
 	// DistributionPolicies returns a DistributionPolicyInformer.
 	DistributionPolicies() DistributionPolicyInformer
 }
@@ -23,7 +25,12 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
 }
 
+// ClusterDistributionPolicies returns a ClusterDistributionPolicyInformer.
+func (v *version) ClusterDistributionPolicies() ClusterDistributionPolicyInformer {
+	return &clusterDistributionPolicyInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
+}
+
 // DistributionPolicies returns a DistributionPolicyInformer.
 func (v *version) DistributionPolicies() DistributionPolicyInformer {
-	return &distributionPolicyInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
+	return &distributionPolicyInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

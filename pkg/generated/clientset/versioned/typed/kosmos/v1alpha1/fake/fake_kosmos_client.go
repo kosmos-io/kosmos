@@ -12,8 +12,12 @@ type FakeKosmosV1alpha1 struct {
 	*testing.Fake
 }
 
-func (c *FakeKosmosV1alpha1) DistributionPolicies() v1alpha1.DistributionPolicyInterface {
-	return &FakeDistributionPolicies{c}
+func (c *FakeKosmosV1alpha1) ClusterDistributionPolicies() v1alpha1.ClusterDistributionPolicyInterface {
+	return &FakeClusterDistributionPolicies{c}
+}
+
+func (c *FakeKosmosV1alpha1) DistributionPolicies(namespace string) v1alpha1.DistributionPolicyInterface {
+	return &FakeDistributionPolicies{c, namespace}
 }
 
 // RESTClient returns a RESTClient that is used to communicate
