@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -19,6 +20,7 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/utils/strings/slices"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	mcsv1alpha1 "sigs.k8s.io/mcs-api/pkg/apis/v1alpha1"
 
@@ -26,6 +28,7 @@ import (
 	kosmosversioned "github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/generated/informers/externalversions"
 	"github.com/kosmos.io/kosmos/pkg/utils"
+	"github.com/kosmos.io/kosmos/pkg/utils/flags"
 	"github.com/kosmos.io/kosmos/pkg/utils/helper"
 	"github.com/kosmos.io/kosmos/pkg/utils/keys"
 )
@@ -35,16 +38,17 @@ const LeafServiceImportControllerName = "leaf-service-import-controller"
 // ServiceImportController watches serviceImport in leaf node and sync service and endpointSlice in root cluster
 type ServiceImportController struct {
 	LeafClient          client.Client
-	RootKosmosClient    kosmosversioned.Interface
+	LeafKosmosClient    kosmosversioned.Interface
 	LeafNodeName        string
 	IPFamilyType        kosmosv1alpha1.IPFamilyType
 	EventRecorder       record.EventRecorder
 	Logger              logr.Logger
 	processor           utils.AsyncWorker
 	RootResourceManager *utils.ResourceManager
-	ctx                 context.Context
 	// ReservedNamespaces are the protected namespaces to prevent Kosmos for deleting system resources
 	ReservedNamespaces []string
+	BackoffOptions     flags.BackoffOptions
+	SyncPeriod         time.Duration
 }
 
 func (c *ServiceImportController) AddController(mgr manager.Manager) error {
@@ -67,9 +71,8 @@ func (c *ServiceImportController) Start(ctx context.Context) error {
 		ReconcileFunc: c.Reconcile,
 	}
 	c.processor = utils.NewAsyncWorker(opt)
-	c.ctx = ctx
 
-	serviceImportInformerFactory := externalversions.NewSharedInformerFactory(c.RootKosmosClient, 0)
+	serviceImportInformerFactory := externalversions.NewSharedInformerFactory(c.LeafKosmosClient, c.SyncPeriod)
 	serviceImportInformer := serviceImportInformerFactory.Multicluster().V1alpha1().ServiceImports()
 	_, err := serviceImportInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    c.OnAdd,
@@ -93,7 +96,7 @@ func (c *ServiceImportController) Start(ctx context.Context) error {
 	serviceImportInformerFactory.Start(stopCh)
 	serviceImportInformerFactory.WaitForCacheSync(stopCh)
 
-	c.processor.Run(utils.DefaultWorkers, stopCh)
+	c.processor.Run(1, stopCh)
 	<-stopCh
 	return nil
 }
@@ -109,34 +112,35 @@ func (c *ServiceImportController) Reconcile(key utils.QueueKey) error {
 		klog.V(4).Infof("============ %s has been reconciled in cluster %s =============", clusterWideKey.NamespaceKey(), c.LeafNodeName)
 	}()
 
-	var shouldDelete bool
 	serviceImport := &mcsv1alpha1.ServiceImport{}
-	if err := c.LeafClient.Get(c.ctx, types.NamespacedName{Namespace: clusterWideKey.Namespace, Name: clusterWideKey.Name}, serviceImport); err != nil {
+	if err := c.LeafClient.Get(context.TODO(), types.NamespacedName{Namespace: clusterWideKey.Namespace, Name: clusterWideKey.Name}, serviceImport); err != nil {
 		if !apierrors.IsNotFound(err) {
 			klog.Errorf("Get %s in cluster %s failed, Error: %v", clusterWideKey.NamespaceKey(), c.LeafNodeName, err)
-			return err
-		}
-		shouldDelete = true
-	}
-
-	// The serviceImport is being deleted, in which case we should clear endpointSlice.
-	if shouldDelete || !serviceImport.DeletionTimestamp.IsZero() {
-		if err := c.cleanupServiceAndEndpointSlice(c.ctx, clusterWideKey.Namespace, clusterWideKey.Name); err != nil {
 			return err
 		}
 		return nil
 	}
 
-	err := c.syncServiceImport(c.ctx, serviceImport)
+	// The serviceImport is being deleted, in which case we should clear endpointSlice.
+	if !serviceImport.DeletionTimestamp.IsZero() {
+		if err := c.cleanupServiceAndEndpointSlice(clusterWideKey.Namespace, clusterWideKey.Name); err != nil {
+			klog.Errorf("Cleanup serviceImport %s/%s's related resources in cluster %s failed, Error: %v", serviceImport.Namespace, serviceImport.Name, c.LeafNodeName, err)
+			return err
+		}
+		return c.removeFinalizer(serviceImport)
+	}
+
+	err := c.syncServiceImport(serviceImport)
 	if err != nil {
+		klog.Errorf("Sync serviceImport %s/%s's finalizer in cluster %s failed, Error: %v", serviceImport.Namespace, serviceImport.Name, c.LeafNodeName, err)
 		return err
 	}
-	return nil
+	return c.ensureFinalizer(serviceImport)
 }
 
-func (c *ServiceImportController) cleanupServiceAndEndpointSlice(ctx context.Context, namespace, name string) error {
+func (c *ServiceImportController) cleanupServiceAndEndpointSlice(namespace, name string) error {
 	service := &corev1.Service{}
-	if err := c.LeafClient.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, service); err != nil {
+	if err := c.LeafClient.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, service); err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.V(4).Infof("ServiceImport %s/%s is deleting and Service %s/%s is not found, ignore it", namespace, name, namespace, name)
 			return nil
@@ -150,7 +154,7 @@ func (c *ServiceImportController) cleanupServiceAndEndpointSlice(ctx context.Con
 		return nil
 	}
 
-	if err := c.LeafClient.Delete(ctx, service); err != nil {
+	if err := c.LeafClient.Delete(context.TODO(), service); err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.V(4).Infof("ServiceImport %s/%s is deleting and Service %s/%s is not found, ignore it", namespace, name, namespace, name)
 			return nil
@@ -160,7 +164,7 @@ func (c *ServiceImportController) cleanupServiceAndEndpointSlice(ctx context.Con
 	}
 
 	endpointSlice := &discoveryv1.EndpointSlice{}
-	err := c.LeafClient.DeleteAllOf(ctx, endpointSlice, &client.DeleteAllOfOptions{
+	err := c.LeafClient.DeleteAllOf(context.TODO(), endpointSlice, &client.DeleteAllOfOptions{
 		ListOptions: client.ListOptions{
 			Namespace: namespace,
 			LabelSelector: labels.SelectorFromSet(map[string]string{
@@ -179,7 +183,7 @@ func (c *ServiceImportController) cleanupServiceAndEndpointSlice(ctx context.Con
 	return nil
 }
 
-func (c *ServiceImportController) syncServiceImport(ctx context.Context, serviceImport *mcsv1alpha1.ServiceImport) error {
+func (c *ServiceImportController) syncServiceImport(serviceImport *mcsv1alpha1.ServiceImport) error {
 	rootService, err := c.RootResourceManager.ServiceLister.Services(serviceImport.Namespace).Get(serviceImport.Name)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -190,7 +194,7 @@ func (c *ServiceImportController) syncServiceImport(ctx context.Context, service
 		return err
 	}
 
-	if err := c.importServiceHandler(ctx, rootService, serviceImport); err != nil {
+	if err := c.importServiceHandler(rootService, serviceImport); err != nil {
 		klog.Errorf("Create or update service %s/%s in client cluster %s failed, error: %v", serviceImport.Namespace, serviceImport.Name, c.LeafNodeName, err)
 		return err
 	}
@@ -210,7 +214,7 @@ func (c *ServiceImportController) syncServiceImport(ctx context.Context, service
 				addresses = append(addresses, newAddress)
 			}
 		}
-		err = c.importEndpointSliceHandler(ctx, epsCopy, serviceImport)
+		err = c.importEndpointSliceHandler(epsCopy, serviceImport)
 		if err != nil {
 			klog.Errorf("Create or update service %s/%s in client cluster failed, error: %v", serviceImport.Namespace, serviceImport.Name, err)
 			return err
@@ -218,8 +222,10 @@ func (c *ServiceImportController) syncServiceImport(ctx context.Context, service
 	}
 
 	addressString := strings.Join(addresses, ",")
-	helper.AddServiceImportAnnotation(serviceImport, utils.ServiceEndpointsKey, addressString)
-	if err = c.updateServiceImport(ctx, serviceImport, addressString); err != nil {
+	err = c.updateServiceImport(serviceImport, c.LeafClient, func(serviceImport *mcsv1alpha1.ServiceImport) {
+		helper.AddServiceImportAnnotation(serviceImport, utils.ServiceEndpointsKey, addressString)
+	})
+	if err != nil {
 		klog.Errorf("Update serviceImport (%s/%s) annotation in cluster %s failed, Error: %v", serviceImport.Namespace, serviceImport.Name, c.LeafNodeName, err)
 		return err
 	}
@@ -228,7 +234,7 @@ func (c *ServiceImportController) syncServiceImport(ctx context.Context, service
 	return nil
 }
 
-func (c *ServiceImportController) importEndpointSliceHandler(ctx context.Context, endpointSlice *discoveryv1.EndpointSlice, serviceImport *mcsv1alpha1.ServiceImport) error {
+func (c *ServiceImportController) importEndpointSliceHandler(endpointSlice *discoveryv1.EndpointSlice, serviceImport *mcsv1alpha1.ServiceImport) error {
 	if metav1.HasAnnotation(serviceImport.ObjectMeta, utils.DisconnectedEndpointsKey) {
 		annotationValue := helper.GetLabelOrAnnotationValue(serviceImport.Annotations, utils.DisconnectedEndpointsKey)
 		disConnectedAddress := strings.Split(annotationValue, ",")
@@ -241,15 +247,15 @@ func (c *ServiceImportController) importEndpointSliceHandler(ctx context.Context
 		return nil
 	}
 
-	return c.createOrUpdateEndpointSliceInClient(ctx, endpointSlice, serviceImport.Name)
+	return c.createOrUpdateEndpointSliceInClient(endpointSlice, serviceImport.Name)
 }
 
-func (c *ServiceImportController) createOrUpdateEndpointSliceInClient(ctx context.Context, endpointSlice *discoveryv1.EndpointSlice, serviceName string) error {
+func (c *ServiceImportController) createOrUpdateEndpointSliceInClient(endpointSlice *discoveryv1.EndpointSlice, serviceName string) error {
 	newSlice := retainEndpointSlice(endpointSlice, serviceName)
 
-	if err := c.LeafClient.Create(ctx, newSlice); err != nil {
+	if err := c.LeafClient.Create(context.TODO(), newSlice); err != nil {
 		if apierrors.IsAlreadyExists(err) {
-			err = c.updateEndpointSlice(ctx, newSlice)
+			err = c.updateEndpointSlice(newSlice, c.LeafClient)
 			if err != nil {
 				klog.Errorf("Update endpointSlice(%s/%s) in cluster %s failed, Error: %v", newSlice.Namespace, newSlice.Name, c.LeafNodeName, err)
 				return err
@@ -262,21 +268,28 @@ func (c *ServiceImportController) createOrUpdateEndpointSliceInClient(ctx contex
 	return nil
 }
 
-func (c *ServiceImportController) updateEndpointSlice(ctx context.Context, endpointSlice *discoveryv1.EndpointSlice) error {
-	newEps := endpointSlice.DeepCopy()
-	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		updateErr := c.LeafClient.Update(ctx, newEps)
+// nolint:dupl
+func (c *ServiceImportController) updateEndpointSlice(eps *discoveryv1.EndpointSlice, leafClient client.Client) error {
+	return retry.RetryOnConflict(flags.DefaultUpdateRetryBackoff(c.BackoffOptions), func() error {
+		updateErr := leafClient.Update(context.TODO(), eps)
+		if apierrors.IsNotFound(updateErr) {
+			return nil
+		}
 		if updateErr == nil {
 			return nil
 		}
-
-		updated := &discoveryv1.EndpointSlice{}
-		getErr := c.LeafClient.Get(ctx, types.NamespacedName{Namespace: newEps.Namespace, Name: newEps.Name}, updated)
+		klog.Errorf("Failed to update endpointSlice %s/%s: %v", eps.Namespace, eps.Name, updateErr)
+		newEps := &discoveryv1.EndpointSlice{}
+		getErr := leafClient.Get(context.TODO(), client.ObjectKey{Namespace: eps.Namespace, Name: eps.Name}, newEps)
 		if getErr == nil {
 			//Make a copy, so we don't mutate the shared cache
-			newEps = updated.DeepCopy()
+			eps = newEps.DeepCopy()
 		} else {
-			klog.Errorf("Failed to get updated endpointSlice %s/%s in cluster %s: %v", endpointSlice.Namespace, endpointSlice.Name, c.LeafNodeName, getErr)
+			if apierrors.IsNotFound(getErr) {
+				return nil
+			} else {
+				klog.Errorf("Failed to get updated endpointSlice %s/%s: %v", eps.Namespace, eps.Name, getErr)
+			}
 		}
 
 		return updateErr
@@ -318,7 +331,7 @@ func clearEndpointSlice(slice *discoveryv1.EndpointSlice, disconnectedAddress []
 	slice.Endpoints = newEndpoints
 }
 
-func (c *ServiceImportController) importServiceHandler(ctx context.Context, rootService *corev1.Service, serviceImport *mcsv1alpha1.ServiceImport) error {
+func (c *ServiceImportController) importServiceHandler(rootService *corev1.Service, serviceImport *mcsv1alpha1.ServiceImport) error {
 	err := c.checkServiceType(rootService)
 	if err != nil {
 		klog.Warningf("Cloud not create service in leaf cluster %s,Error: %v", c.LeafNodeName, err)
@@ -326,18 +339,18 @@ func (c *ServiceImportController) importServiceHandler(ctx context.Context, root
 		return nil
 	}
 	clientService := c.generateService(rootService, serviceImport)
-	err = c.createOrUpdateServiceInClient(ctx, clientService)
+	err = c.createOrUpdateServiceInClient(clientService)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (c *ServiceImportController) createOrUpdateServiceInClient(ctx context.Context, service *corev1.Service) error {
+func (c *ServiceImportController) createOrUpdateServiceInClient(service *corev1.Service) error {
 	oldService := &corev1.Service{}
-	if err := c.LeafClient.Get(ctx, types.NamespacedName{Namespace: service.Namespace, Name: service.Name}, oldService); err != nil {
+	if err := c.LeafClient.Get(context.TODO(), types.NamespacedName{Namespace: service.Namespace, Name: service.Name}, oldService); err != nil {
 		if apierrors.IsNotFound(err) {
-			if err = c.LeafClient.Create(ctx, service); err != nil {
+			if err = c.LeafClient.Create(context.TODO(), service); err != nil {
 				klog.Errorf("Create serviceImport service(%s/%s) in client cluster %s failed, Error: %v", service.Namespace, service.Name, c.LeafNodeName, err)
 				return err
 			} else {
@@ -350,33 +363,13 @@ func (c *ServiceImportController) createOrUpdateServiceInClient(ctx context.Cont
 
 	retainServiceFields(oldService, service)
 
-	if err := c.LeafClient.Update(ctx, service); err != nil {
+	if err := c.LeafClient.Update(context.TODO(), service); err != nil {
 		if err != nil {
 			klog.Errorf("Update serviceImport service(%s/%s) in cluster %s failed, Error: %v", service.Namespace, service.Name, c.LeafNodeName, err)
 			return err
 		}
 	}
 	return nil
-}
-
-func (c *ServiceImportController) updateServiceImport(ctx context.Context, serviceImport *mcsv1alpha1.ServiceImport, addresses string) error {
-	newImport := serviceImport.DeepCopy()
-	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		updateErr := c.LeafClient.Update(ctx, newImport)
-		if updateErr == nil {
-			return nil
-		}
-		updated := &mcsv1alpha1.ServiceImport{}
-		getErr := c.LeafClient.Get(ctx, types.NamespacedName{Namespace: newImport.Namespace, Name: newImport.Name}, updated)
-		if getErr == nil {
-			// Make a copy, so we don't mutate the shared cache
-			newImport = updated.DeepCopy()
-			helper.AddServiceImportAnnotation(newImport, utils.ServiceEndpointsKey, addresses)
-		} else {
-			klog.Errorf("Failed to get updated serviceImport %s/%s in cluster %s,Error : %v", newImport.Namespace, serviceImport.Name, c.LeafNodeName, getErr)
-		}
-		return updateErr
-	})
 }
 
 func (c *ServiceImportController) OnAdd(obj interface{}) {
@@ -507,6 +500,67 @@ func (c *ServiceImportController) checkServiceType(service *corev1.Service) erro
 		}
 	}
 	return nil
+}
+
+func (c *ServiceImportController) removeFinalizer(serviceImport *mcsv1alpha1.ServiceImport) error {
+	if !controllerutil.ContainsFinalizer(serviceImport, utils.MCSFinalizer) {
+		return nil
+	}
+
+	err := c.updateServiceImport(serviceImport, c.LeafClient, func(serviceImport *mcsv1alpha1.ServiceImport) {
+		controllerutil.RemoveFinalizer(serviceImport, utils.MCSFinalizer)
+	})
+	if err != nil {
+		klog.Errorf("Update serviceImport %s/%s's finalizer in cluster %s failed, Error: %v", serviceImport.Namespace, serviceImport.Name, c.LeafNodeName, err)
+		return err
+	}
+
+	return nil
+}
+
+func (c *ServiceImportController) ensureFinalizer(serviceImport *mcsv1alpha1.ServiceImport) error {
+	if controllerutil.ContainsFinalizer(serviceImport, utils.MCSFinalizer) {
+		return nil
+	}
+
+	err := c.updateServiceImport(serviceImport, c.LeafClient, func(serviceImport *mcsv1alpha1.ServiceImport) {
+		controllerutil.AddFinalizer(serviceImport, utils.MCSFinalizer)
+	})
+	if err != nil {
+		klog.Errorf("Update serviceImport %s/%s's finalizer in cluster %s failed, Error: %v", serviceImport.Namespace, serviceImport.Name, c.LeafNodeName, err)
+		return err
+	}
+
+	return nil
+}
+
+// nolint:dupl
+func (c *ServiceImportController) updateServiceImport(serviceImport *mcsv1alpha1.ServiceImport, leafClient client.Client, modifyImport func(serviceImport *mcsv1alpha1.ServiceImport)) error {
+	return retry.RetryOnConflict(flags.DefaultUpdateRetryBackoff(c.BackoffOptions), func() error {
+		modifyImport(serviceImport)
+		updateErr := leafClient.Update(context.TODO(), serviceImport)
+		if apierrors.IsNotFound(updateErr) {
+			return nil
+		}
+		if updateErr == nil {
+			return nil
+		}
+		klog.Errorf("Failed to update serviceImport %s/%s in cluster %s: %v", serviceImport.Namespace, serviceImport.Name, c.LeafNodeName, updateErr)
+		newImport := &mcsv1alpha1.ServiceImport{}
+		getErr := leafClient.Get(context.TODO(), client.ObjectKey{Namespace: serviceImport.Namespace, Name: serviceImport.Name}, newImport)
+		if getErr == nil {
+			//Make a copy, so we don't mutate the shared cache
+			serviceImport = newImport.DeepCopy()
+		} else {
+			if apierrors.IsNotFound(getErr) {
+				return nil
+			} else {
+				klog.Errorf("Failed to get updated serviceImport %s/%s in cluster %s: %v", serviceImport.Namespace, serviceImport.Name, c.LeafNodeName, getErr)
+			}
+		}
+
+		return updateErr
+	})
 }
 
 func isServiceIPSet(service *corev1.Service) bool {

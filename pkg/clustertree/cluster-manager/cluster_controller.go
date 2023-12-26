@@ -141,7 +141,7 @@ func (c *ClusterController) Reconcile(ctx context.Context, request reconcile.Req
 		return reconcile.Result{}, fmt.Errorf("could not build dynamic client for cluster %s: %v", cluster.Name, err)
 	}
 
-	kosmosClient, err := kosmosversioned.NewForConfig(config)
+	leafKosmosClient, err := kosmosversioned.NewForConfig(config)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("could not build kosmos clientset for cluster %s: %v", cluster.Name, err)
 	}
@@ -206,7 +206,7 @@ func (c *ClusterController) Reconcile(ctx context.Context, request reconcile.Req
 	c.ManagerCancelFuncs[cluster.Name] = &cancel
 	c.ControllerManagersLock.Unlock()
 
-	if err = c.setupControllers(mgr, cluster, nodes, leafDynamic, leafNodeSelectors, leafClient, kosmosClient, config); err != nil {
+	if err = c.setupControllers(mgr, cluster, nodes, leafDynamic, leafNodeSelectors, leafClient, leafKosmosClient, config); err != nil {
 		return reconcile.Result{}, fmt.Errorf("failed to setup cluster %s controllers: %v", cluster.Name, err)
 	}
 
@@ -242,13 +242,13 @@ func (c *ClusterController) setupControllers(
 	clientDynamic *dynamic.DynamicClient,
 	leafNodeSelector map[string]kosmosv1alpha1.NodeSelector,
 	leafClientset kubernetes.Interface,
-	kosmosClient kosmosversioned.Interface,
+	leafKosmosClient kosmosversioned.Interface,
 	leafRestConfig *rest.Config) error {
 	c.GlobalLeafManager.AddLeafResource(&leafUtils.LeafResource{
 		Client:        mgr.GetClient(),
 		DynamicClient: clientDynamic,
 		Clientset:     leafClientset,
-		KosmosClient:  kosmosClient,
+		KosmosClient:  leafKosmosClient,
 		ClusterName:   cluster.Name,
 		// TODO: define node options
 		Namespace:            "",
@@ -279,7 +279,7 @@ func (c *ClusterController) setupControllers(
 	if c.Options.MultiClusterService {
 		serviceImportController := &mcs.ServiceImportController{
 			LeafClient:       mgr.GetClient(),
-			RootKosmosClient: kosmosClient,
+			LeafKosmosClient: leafKosmosClient,
 			EventRecorder:    mgr.GetEventRecorderFor(mcs.LeafServiceImportControllerName),
 			Logger:           mgr.GetLogger(),
 			LeafNodeName:     cluster.Name,
@@ -287,6 +287,8 @@ func (c *ClusterController) setupControllers(
 			IPFamilyType:        cluster.Spec.ClusterLinkOptions.IPFamily,
 			RootResourceManager: c.RootResourceManager,
 			ReservedNamespaces:  c.Options.ReservedNamespaces,
+			BackoffOptions:      c.Options.BackoffOpts,
+			SyncPeriod:          c.Options.SyncPeriod,
 		}
 		if err := serviceImportController.AddController(mgr); err != nil {
 			return fmt.Errorf("error starting %s: %v", mcs.LeafServiceImportControllerName, err)

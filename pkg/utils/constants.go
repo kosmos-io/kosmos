@@ -83,8 +83,6 @@ const (
 	EnvNodeName    = "NODE_NAME"
 )
 
-const ClusterStartControllerFinalizer = "kosmos.io/cluster-start-finazlizer"
-
 // mcs
 const (
 	ServiceKey               = "kubernetes.io/service-name"
@@ -160,6 +158,12 @@ const (
 	RooTCAConfigMapName = "kube-root-ca.crt"
 	SATokenPrefix       = "kube-api-access"
 	MasterRooTCAName    = "master-root-ca.crt"
+)
+
+// finalizers
+const (
+	ClusterStartControllerFinalizer = "kosmos.io/cluster-start-finalizer"
+	MCSFinalizer                    = "kosmos.io/multi-cluster-service-finalizer"
 )
 
 var GVR_CONFIGMAP = schema.GroupVersionResource{

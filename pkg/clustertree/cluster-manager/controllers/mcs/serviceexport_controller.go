@@ -2,6 +2,7 @@ package mcs
 
 import (
 	"context"
+	"time"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -16,6 +17,8 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -25,6 +28,7 @@ import (
 	mcsv1alpha1 "sigs.k8s.io/mcs-api/pkg/apis/v1alpha1"
 
 	"github.com/kosmos.io/kosmos/pkg/utils"
+	"github.com/kosmos.io/kosmos/pkg/utils/flags"
 	"github.com/kosmos.io/kosmos/pkg/utils/helper"
 )
 
@@ -37,6 +41,8 @@ type ServiceExportController struct {
 	Logger        logr.Logger
 	// ReservedNamespaces are the protected namespaces to prevent Kosmos for deleting system resources
 	ReservedNamespaces []string
+	RateLimiterOptions flags.Options
+	BackoffOptions     flags.BackoffOptions
 }
 
 func (c *ServiceExportController) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
@@ -45,28 +51,30 @@ func (c *ServiceExportController) Reconcile(ctx context.Context, request reconci
 		klog.V(4).Infof("============ %s has been reconciled =============", request.NamespacedName.String())
 	}()
 
-	var shouldDelete bool
 	serviceExport := &mcsv1alpha1.ServiceExport{}
 	if err := c.RootClient.Get(ctx, request.NamespacedName, serviceExport); err != nil {
-		if !apierrors.IsNotFound(err) {
-			return controllerruntime.Result{Requeue: true}, err
+		if apierrors.IsNotFound(err) {
+			return controllerruntime.Result{}, nil
 		}
-		shouldDelete = true
+		klog.Errorf("Get serviceExport (%s/%s)'s failed, Error: %v", serviceExport.Namespace, serviceExport.Name, err)
+		return controllerruntime.Result{Requeue: true}, err
 	}
 
 	// The serviceExport is being deleted, in which case we should clear endpointSlice.
-	if shouldDelete || !serviceExport.DeletionTimestamp.IsZero() {
-		if err := c.removeAnnotation(ctx, request.Namespace, request.Name); err != nil {
-			return controllerruntime.Result{Requeue: true}, err
+	if !serviceExport.DeletionTimestamp.IsZero() {
+		if err := c.removeAnnotation(request.Namespace, request.Name); err != nil {
+			klog.Errorf("Remove serviceExport (%s/%s)'s annotation failed, Error: %v", serviceExport.Namespace, serviceExport.Name, err)
+			return controllerruntime.Result{Requeue: true, RequeueAfter: 10 * time.Second}, err
 		}
-		return controllerruntime.Result{}, nil
+		return c.removeFinalizer(serviceExport)
 	}
 
-	err := c.syncServiceExport(ctx, serviceExport)
+	err := c.syncServiceExport(serviceExport)
 	if err != nil {
-		return controllerruntime.Result{Requeue: true}, err
+		klog.Errorf("Sync serviceExport (%s/%s) failed, Error: %v", serviceExport.Namespace, serviceExport.Name, err)
+		return controllerruntime.Result{Requeue: true, RequeueAfter: 10 * time.Second}, err
 	}
-	return controllerruntime.Result{}, nil
+	return c.ensureFinalizer(serviceExport)
 }
 
 func (c *ServiceExportController) SetupWithManager(mgr manager.Manager) error {
@@ -106,6 +114,10 @@ func (c *ServiceExportController) SetupWithManager(mgr manager.Manager) error {
 			handler.EnqueueRequestsFromMapFunc(endpointSliceServiceExportFn),
 			endpointSlicePredicate,
 		).
+		WithOptions(controller.Options{
+			RateLimiter:             flags.DefaultControllerRateLimiter(c.RateLimiterOptions),
+			MaxConcurrentReconciles: 2,
+		}).
 		Complete(c)
 }
 
@@ -122,7 +134,7 @@ func (c *ServiceExportController) shouldEnqueue(object client.Object) bool {
 	return true
 }
 
-func (c *ServiceExportController) removeAnnotation(ctx context.Context, namespace, name string) error {
+func (c *ServiceExportController) removeAnnotation(namespace, name string) error {
 	var err error
 	selector := labels.SelectorFromSet(
 		map[string]string{
@@ -130,10 +142,11 @@ func (c *ServiceExportController) removeAnnotation(ctx context.Context, namespac
 		},
 	)
 	epsList := &discoveryv1.EndpointSliceList{}
-	err = c.RootClient.List(ctx, epsList, &client.ListOptions{
+	err = c.RootClient.List(context.TODO(), epsList, &client.ListOptions{
 		Namespace:     namespace,
 		LabelSelector: selector,
 	})
+
 	if err != nil {
 		klog.Errorf("List endpointSlice in %s failed, Error: %v", namespace, err)
 		return err
@@ -146,8 +159,10 @@ func (c *ServiceExportController) removeAnnotation(ctx context.Context, namespac
 			klog.V(4).Infof("EndpointSlice %s/%s is deleting and does not need to remove serviceExport annotation", namespace, newEps.Name)
 			continue
 		}
-		helper.RemoveAnnotation(newEps, utils.ServiceExportLabelKey)
-		err = c.updateEndpointSlice(ctx, newEps, c.RootClient)
+
+		err = c.updateEndpointSlice(newEps, c.RootClient, func(eps *discoveryv1.EndpointSlice) {
+			helper.RemoveAnnotation(eps, utils.ServiceExportLabelKey)
+		})
 		if err != nil {
 			klog.Errorf("Update endpointSlice (%s/%s) failed, Error: %v", namespace, newEps.Name, err)
 			return err
@@ -156,31 +171,65 @@ func (c *ServiceExportController) removeAnnotation(ctx context.Context, namespac
 	return nil
 }
 
-func (c *ServiceExportController) updateEndpointSlice(ctx context.Context, eps *discoveryv1.EndpointSlice, rootClient client.Client) error {
-	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		updateErr := rootClient.Update(ctx, eps)
+// nolint:dupl
+func (c *ServiceExportController) updateEndpointSlice(eps *discoveryv1.EndpointSlice, rootClient client.Client, modifyEps func(eps *discoveryv1.EndpointSlice)) error {
+	return retry.RetryOnConflict(flags.DefaultUpdateRetryBackoff(c.BackoffOptions), func() error {
+		modifyEps(eps)
+		updateErr := rootClient.Update(context.TODO(), eps)
+		if apierrors.IsNotFound(updateErr) {
+			return nil
+		}
 		if updateErr == nil {
 			return nil
 		}
-
+		klog.Errorf("Failed to update endpointSlice %s/%s: %v", eps.Namespace, eps.Name, updateErr)
 		newEps := &discoveryv1.EndpointSlice{}
-		key := types.NamespacedName{
-			Namespace: eps.Namespace,
-			Name:      eps.Name,
-		}
-		getErr := rootClient.Get(ctx, key, newEps)
+		getErr := rootClient.Get(context.TODO(), client.ObjectKey{Namespace: eps.Namespace, Name: eps.Name}, newEps)
 		if getErr == nil {
 			//Make a copy, so we don't mutate the shared cache
 			eps = newEps.DeepCopy()
 		} else {
-			klog.Errorf("Failed to get updated endpointSlice %s/%s: %v", eps.Namespace, eps.Name, getErr)
+			if apierrors.IsNotFound(getErr) {
+				return nil
+			} else {
+				klog.Errorf("Failed to get updated endpointSlice %s/%s: %v", eps.Namespace, eps.Name, getErr)
+			}
 		}
 
 		return updateErr
 	})
 }
 
-func (c *ServiceExportController) syncServiceExport(ctx context.Context, export *mcsv1alpha1.ServiceExport) error {
+// nolint:dupl
+func (c *ServiceExportController) updateServiceExport(export *mcsv1alpha1.ServiceExport, rootClient client.Client, modifyExport func(export *mcsv1alpha1.ServiceExport)) error {
+	return retry.RetryOnConflict(flags.DefaultUpdateRetryBackoff(c.BackoffOptions), func() error {
+		modifyExport(export)
+		updateErr := rootClient.Update(context.TODO(), export)
+		if apierrors.IsNotFound(updateErr) {
+			return nil
+		}
+		if updateErr == nil {
+			return nil
+		}
+		klog.Errorf("Failed to update serviceExport %s/%s: %v", export.Namespace, export.Name, updateErr)
+		newExport := &mcsv1alpha1.ServiceExport{}
+		getErr := rootClient.Get(context.TODO(), client.ObjectKey{Namespace: export.Namespace, Name: export.Name}, newExport)
+		if getErr == nil {
+			//Make a copy, so we don't mutate the shared cache
+			export = newExport.DeepCopy()
+		} else {
+			if apierrors.IsNotFound(getErr) {
+				return nil
+			} else {
+				klog.Errorf("Failed to get serviceExport %s/%s: %v", export.Namespace, export.Name, getErr)
+			}
+		}
+
+		return updateErr
+	})
+}
+
+func (c *ServiceExportController) syncServiceExport(export *mcsv1alpha1.ServiceExport) error {
 	var err error
 	selector := labels.SelectorFromSet(
 		map[string]string{
@@ -188,7 +237,7 @@ func (c *ServiceExportController) syncServiceExport(ctx context.Context, export 
 		},
 	)
 	epsList := &discoveryv1.EndpointSliceList{}
-	err = c.RootClient.List(ctx, epsList, &client.ListOptions{
+	err = c.RootClient.List(context.TODO(), epsList, &client.ListOptions{
 		Namespace:     export.Namespace,
 		LabelSelector: selector,
 	})
@@ -204,8 +253,10 @@ func (c *ServiceExportController) syncServiceExport(ctx context.Context, export 
 			klog.V(4).Infof("EndpointSlice %s/%s is deleting and does not need to remove serviceExport annotation", export.Namespace, newEps.Name)
 			continue
 		}
-		helper.AddEndpointSliceAnnotation(newEps, utils.ServiceExportLabelKey, utils.MCSLabelValue)
-		err = c.updateEndpointSlice(ctx, newEps, c.RootClient)
+
+		err = c.updateEndpointSlice(newEps, c.RootClient, func(eps *discoveryv1.EndpointSlice) {
+			helper.AddEndpointSliceAnnotation(eps, utils.ServiceExportLabelKey, utils.MCSLabelValue)
+		})
 		if err != nil {
 			klog.Errorf("Update endpointSlice (%s/%s) failed, Error: %v", export.Namespace, newEps.Name, err)
 			return err
@@ -214,4 +265,36 @@ func (c *ServiceExportController) syncServiceExport(ctx context.Context, export 
 
 	c.EventRecorder.Event(export, corev1.EventTypeNormal, "Synced", "serviceExport has been synced to endpointSlice's annotation successfully")
 	return nil
+}
+
+func (c *ServiceExportController) ensureFinalizer(export *mcsv1alpha1.ServiceExport) (reconcile.Result, error) {
+	if controllerutil.ContainsFinalizer(export, utils.MCSFinalizer) {
+		return controllerruntime.Result{}, nil
+	}
+
+	err := c.updateServiceExport(export, c.RootClient, func(export *mcsv1alpha1.ServiceExport) {
+		controllerutil.AddFinalizer(export, utils.MCSFinalizer)
+	})
+	if err != nil {
+		klog.Errorf("Update serviceExport (%s/%s) failed, Error: %v", export.Namespace, export.Name, err)
+		return controllerruntime.Result{Requeue: true, RequeueAfter: 10 * time.Second}, err
+	}
+
+	return controllerruntime.Result{}, nil
+}
+
+func (c *ServiceExportController) removeFinalizer(export *mcsv1alpha1.ServiceExport) (reconcile.Result, error) {
+	if !controllerutil.ContainsFinalizer(export, utils.MCSFinalizer) {
+		return controllerruntime.Result{}, nil
+	}
+
+	err := c.updateServiceExport(export, c.RootClient, func(export *mcsv1alpha1.ServiceExport) {
+		controllerutil.RemoveFinalizer(export, utils.MCSFinalizer)
+	})
+	if err != nil {
+		klog.Errorf("Update serviceExport %s/%s's finalizer failed, Error: %v", export.Namespace, export.Name, err)
+		return controllerruntime.Result{Requeue: true, RequeueAfter: 10 * time.Second}, err
+	}
+
+	return controllerruntime.Result{}, nil
 }
