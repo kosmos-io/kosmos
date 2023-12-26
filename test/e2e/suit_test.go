@@ -30,11 +30,11 @@ var (
 	hostDynamicClient     dynamic.Interface
 	hostClusterLinkClient versioned.Interface
 
-	// first-cluster
-	firstContext       string
-	firstRestConfig    *rest.Config
-	firstKubeClient    kubernetes.Interface
-	firstDynamicClient dynamic.Interface
+	// e2e-leaf-node-cluster
+	thirdContext       string
+	thirdRestConfig    *rest.Config
+	thirdKubeClient    kubernetes.Interface
+	thirdDynamicClient dynamic.Interface
 )
 
 const (
@@ -48,7 +48,7 @@ func init() {
 	flag.DurationVar(&pollInterval, "poll-interval", 5*time.Second, "poll-interval defines the interval time for a poll operation")
 	flag.DurationVar(&pollTimeout, "poll-timeout", 300*time.Second, "poll-timeout defines the time which the poll operation times out")
 	flag.StringVar(&hostContext, "host-context", "kind-cluster-host", "name of the host cluster context in kubeconfig file.")
-	flag.StringVar(&firstContext, "first-context", "kind-cluster-member1", "name of the first member cluster context in kubeconfig file.")
+	flag.StringVar(&thirdContext, "third-context", "kind-cluster-member3", "name of the third member cluster context in kubeconfig file.")
 }
 
 func TestE2E(t *testing.T) {
@@ -71,11 +71,10 @@ var _ = ginkgo.SynchronizedBeforeSuite(func() []byte {
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	gomega.Expect(kubeconfig).ShouldNot(gomega.BeEmpty())
-	firstRestConfig, err = framework.LoadRESTClientConfig(kubeconfig, firstContext)
+	thirdRestConfig, err = framework.LoadRESTClientConfig(kubeconfig, thirdContext)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-	firstKubeClient, err = kubernetes.NewForConfig(firstRestConfig)
+	thirdKubeClient, err = kubernetes.NewForConfig(thirdRestConfig)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-	firstDynamicClient, err = dynamic.NewForConfig(firstRestConfig)
+	thirdDynamicClient, err = dynamic.NewForConfig(thirdRestConfig)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-
 })
