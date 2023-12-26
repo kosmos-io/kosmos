@@ -21,6 +21,10 @@ spec:
           configMap:
             name: scheduler-config
             defaultMode: 420
+        - name: kubeconfig-path
+          configMap:
+            name: kosmos-control-config
+            defaultMode: 420
       containers:
         - name: kosmos-scheduler
           image: ghcr.io/kosmos-io/scheduler:0.0.2
@@ -34,6 +38,9 @@ spec:
             - name: scheduler-config
               readOnly: true
               mountPath: /etc/kubernetes/kube-scheduler
+            - name: kubeconfig-path
+              readOnly: true
+              mountPath: /etc/kubernetes
           livenessProbe:
             httpGet:
               path: /healthz
@@ -51,7 +58,6 @@ spec:
       dnsPolicy: ClusterFirst
       serviceAccountName: kosmos-scheduler
       serviceAccount: kosmos-scheduler
-
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -81,7 +87,7 @@ data:
             enabled:
               - name: "LeafNodeTaintToleration"
               - name: "LeafNodeVolumeBinding"
-            #  - name: "LeafNodeDistribution"
+              - name: "LeafNodeDistribution"
           score:
             disabled:
               - name: "VolumeBinding"
@@ -99,7 +105,7 @@ data:
           - name: LeafNodeVolumeBinding
             args:
               bindTimeoutSeconds: 5
-#          - name: LeafNodeDistribution
-#            args:
-#            # kubeConfigPath: "REPLACE_ME_WITH_KUBE_CONFIG_PATH"
-#              kubeConfigPath: "/etc/kubernetes/scheduler.conf"
+          - name: LeafNodeDistribution
+            args:
+            # kubeConfigPath: "REPLACE_ME_WITH_KUBE_CONFIG_PATH"
+              kubeConfigPath: "/etc/kubernetes/kubeconfig"
