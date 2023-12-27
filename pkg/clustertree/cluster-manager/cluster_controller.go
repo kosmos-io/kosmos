@@ -278,12 +278,11 @@ func (c *ClusterController) setupControllers(
 
 	if c.Options.MultiClusterService {
 		serviceImportController := &mcs.ServiceImportController{
-			LeafClient:       mgr.GetClient(),
-			LeafKosmosClient: leafKosmosClient,
-			EventRecorder:    mgr.GetEventRecorderFor(mcs.LeafServiceImportControllerName),
-			Logger:           mgr.GetLogger(),
-			LeafNodeName:     cluster.Name,
-			// todo @wyz
+			LeafClient:          mgr.GetClient(),
+			LeafKosmosClient:    leafKosmosClient,
+			EventRecorder:       mgr.GetEventRecorderFor(mcs.LeafServiceImportControllerName),
+			Logger:              mgr.GetLogger(),
+			LeafNodeName:        cluster.Name,
 			IPFamilyType:        cluster.Spec.ClusterLinkOptions.IPFamily,
 			RootResourceManager: c.RootResourceManager,
 			ReservedNamespaces:  c.Options.ReservedNamespaces,

@@ -27,6 +27,7 @@ import (
 	kosmosv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	kosmosversioned "github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/generated/informers/externalversions"
+	"github.com/kosmos.io/kosmos/pkg/generated/listers/apis/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/utils"
 	"github.com/kosmos.io/kosmos/pkg/utils/flags"
 	"github.com/kosmos.io/kosmos/pkg/utils/helper"
@@ -46,9 +47,10 @@ type ServiceImportController struct {
 	processor           utils.AsyncWorker
 	RootResourceManager *utils.ResourceManager
 	// ReservedNamespaces are the protected namespaces to prevent Kosmos for deleting system resources
-	ReservedNamespaces []string
-	BackoffOptions     flags.BackoffOptions
-	SyncPeriod         time.Duration
+	ReservedNamespaces  []string
+	BackoffOptions      flags.BackoffOptions
+	SyncPeriod          time.Duration
+	serviceImportLister v1alpha1.ServiceImportLister
 }
 
 func (c *ServiceImportController) AddController(mgr manager.Manager) error {
@@ -74,6 +76,7 @@ func (c *ServiceImportController) Start(ctx context.Context) error {
 
 	serviceImportInformerFactory := externalversions.NewSharedInformerFactory(c.LeafKosmosClient, c.SyncPeriod)
 	serviceImportInformer := serviceImportInformerFactory.Multicluster().V1alpha1().ServiceImports()
+	serviceImportLister := serviceImportInformer.Lister()
 	_, err := serviceImportInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    c.OnAdd,
 		UpdateFunc: c.OnUpdate,
@@ -82,6 +85,7 @@ func (c *ServiceImportController) Start(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	c.serviceImportLister = serviceImportLister
 
 	_, err = c.RootResourceManager.EndpointSliceInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    c.OnEpsAdd,
@@ -112,8 +116,8 @@ func (c *ServiceImportController) Reconcile(key utils.QueueKey) error {
 		klog.V(4).Infof("============ %s has been reconciled in cluster %s =============", clusterWideKey.NamespaceKey(), c.LeafNodeName)
 	}()
 
-	serviceImport := &mcsv1alpha1.ServiceImport{}
-	if err := c.LeafClient.Get(context.TODO(), types.NamespacedName{Namespace: clusterWideKey.Namespace, Name: clusterWideKey.Name}, serviceImport); err != nil {
+	serviceImport, err := c.serviceImportLister.ServiceImports(clusterWideKey.Namespace).Get(clusterWideKey.Name)
+	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			klog.Errorf("Get %s in cluster %s failed, Error: %v", clusterWideKey.NamespaceKey(), c.LeafNodeName, err)
 			return err
@@ -130,7 +134,7 @@ func (c *ServiceImportController) Reconcile(key utils.QueueKey) error {
 		return c.removeFinalizer(serviceImport)
 	}
 
-	err := c.syncServiceImport(serviceImport)
+	err = c.syncServiceImport(serviceImport)
 	if err != nil {
 		klog.Errorf("Sync serviceImport %s/%s's finalizer in cluster %s failed, Error: %v", serviceImport.Namespace, serviceImport.Name, c.LeafNodeName, err)
 		return err
