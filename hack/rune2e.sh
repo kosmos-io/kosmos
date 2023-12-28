@@ -62,15 +62,16 @@ kubectl --context=kind-${MEMBER1_CLUSTER_NAME} -n kosmos-e2e get endpointslices
 echo "主集群 esp"
 kubectl --context=kind-${HOST_CLUSTER_NAME} -n kosmos-e2e get endpointslices
 
-echo "主集群 mysql init容器日志"
+echo "集群1 mysql init容器日志"
 kubectl --context=kind-${MEMBER1_CLUSTER_NAME} -n kosmos-e2e logs mysql-cluster-e2e-mysql-0 init
-echo "主集群 mysql mysql容器日志"
+echo "集群1 mysql mysql容器日志"
 kubectl --context=kind-${MEMBER1_CLUSTER_NAME} -n kosmos-e2e logs mysql-cluster-e2e-mysql-0 mysql
+echo "集群1 mysql init容器旧日志"
+kubectl --context=kind-${MEMBER1_CLUSTER_NAME} -n kosmos-e2e logs -p mysql-cluster-e2e-mysql-0 init
+echo "集群1 mysql mysql容器旧日志"
+kubectl --context=kind-${MEMBER1_CLUSTER_NAME} -n kosmos-e2e logs -p mysql-cluster-e2e-mysql-0 mysql
 
-echo "主集群 mysql init容器日志"
-kubectl --context=kind-${HOST_CLUSTER_NAME} -n kosmos-e2e logs mysql-cluster-e2e-mysql-0 init
-echo "主集群 mysql mysql容器日志"
-kubectl --context=kind-${HOST_CLUSTER_NAME} -n kosmos-e2e logs mysql-cluster-e2e-mysql-0 mysql
+
 #util::wait_for_condition "mysql cr are ready" \
 #  "[ \$(kubectl get pods -n kosmos-e2e --field-selector=status.phase=Running --no-headers | wc -l) -eq 2 ]" \
 #  1200
