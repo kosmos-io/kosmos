@@ -62,18 +62,10 @@ kubectl --context=kind-${MEMBER1_CLUSTER_NAME} -n kosmos-e2e get endpointslices
 echo "主集群 esp"
 kubectl --context=kind-${HOST_CLUSTER_NAME} -n kosmos-e2e get endpointslices
 
-node=$(kubectl --context kind-cluster-host -n kosmos-e2e get pod -o wide | grep mysql-cluster-e2e-mysql-0 | awk '{print $9}')
-if node="kosmos-cluster-member2"; then
-  echo "主集群 mysql init容器日志"
-  kubectl --context=kind-${MEMBER2_CLUSTER_NAME} -n kosmos-e2e logs mysql-cluster-e2e-mysql-0 init
-  echo "主集群 mysql mysql容器日志"
-  kubectl --context=kind-${MEMBER2_CLUSTER_NAME} -n kosmos-e2e logs mysql-cluster-e2e-mysql-0 mysql
-else
-  echo "主集群 mysql init容器日志"
-  kubectl --context=kind-${MEMBER1_CLUSTER_NAME} -n kosmos-e2e logs mysql-cluster-e2e-mysql-0 init
-  echo "主集群 mysql mysql容器日志"
-  kubectl --context=kind-${MEMBER1_CLUSTER_NAME} -n kosmos-e2e logs mysql-cluster-e2e-mysql-0 mysql
-fi
+echo "主集群 mysql init容器日志"
+kubectl --context=kind-${MEMBER1_CLUSTER_NAME} -n kosmos-e2e logs mysql-cluster-e2e-mysql-0 init
+echo "主集群 mysql mysql容器日志"
+kubectl --context=kind-${MEMBER1_CLUSTER_NAME} -n kosmos-e2e logs mysql-cluster-e2e-mysql-0 mysql
 
 echo "主集群 mysql init容器日志"
 kubectl --context=kind-${HOST_CLUSTER_NAME} -n kosmos-e2e logs mysql-cluster-e2e-mysql-0 init
