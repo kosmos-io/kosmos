@@ -237,23 +237,6 @@ func (r *RootPodReconciler) SetupWithManager(mgr manager.Manager) error {
 			return false
 		}
 
-		/**
-		p := obj.(*corev1.Pod)
-
-		// skip daemonset
-		if p.OwnerReferences != nil && len(p.OwnerReferences) > 0 {
-			for _, or := range p.OwnerReferences {
-				if or.Kind == "DaemonSet" {
-					if p.Annotations != nil {
-						if _, ok := p.Annotations[utils.KosmosDaemonsetAllowAnnotations]; ok {
-							return true
-						}
-					}
-					return false
-				}
-			}
-		}
-		*/
 		return true
 	}
 
