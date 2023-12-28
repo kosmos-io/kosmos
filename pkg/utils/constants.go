@@ -1,8 +1,6 @@
 package utils
 
 import (
-	"time"
-
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
@@ -83,8 +81,6 @@ const (
 	EnvNodeName    = "NODE_NAME"
 )
 
-const ClusterStartControllerFinalizer = "kosmos.io/cluster-start-finazlizer"
-
 // mcs
 const (
 	ServiceKey               = "kubernetes.io/service-name"
@@ -133,7 +129,7 @@ const (
 	DefaultK8sOS   = "linux"
 	DefaultK8sArch = "amd64"
 
-	DefaultInformerResyncPeriod = 1 * time.Minute
+	DefaultInformerResyncPeriod = 0
 	DefaultListenPort           = 10250
 	DefaultPodSyncWorkers       = 10
 	DefaultWorkers              = 5
@@ -160,6 +156,12 @@ const (
 	RooTCAConfigMapName = "kube-root-ca.crt"
 	SATokenPrefix       = "kube-api-access"
 	MasterRooTCAName    = "master-root-ca.crt"
+)
+
+// finalizers
+const (
+	ClusterStartControllerFinalizer = "kosmos.io/cluster-start-finalizer"
+	MCSFinalizer                    = "kosmos.io/multi-cluster-service-finalizer"
 )
 
 var GVR_CONFIGMAP = schema.GroupVersionResource{

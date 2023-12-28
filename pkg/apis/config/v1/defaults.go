@@ -22,6 +22,6 @@ var (
 	defaultBindTimeoutSeconds int64 = 600
 )
 
-func SetDefaultsVolumeBindingArgs(obj *KnodeVolumeBindingArgs) {
+func SetDefaultsVolumeBindingArgs(obj *LeafNodeVolumeBindingArgs) {
 	obj.BindTimeoutSeconds = &defaultBindTimeoutSeconds
 }

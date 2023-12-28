@@ -314,6 +314,12 @@ func schema_pkg_apis_kosmos_v1alpha1_ClusterLinkOptions(ref common.ReferenceCall
 							},
 						},
 					},
+					"autodetectionMethod": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
 				},
 			},
 		},

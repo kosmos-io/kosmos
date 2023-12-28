@@ -36,7 +36,7 @@ func GetAddress(ctx context.Context, rootClient kubernetes.Interface, originAddr
 	}
 
 	prefixAddress := []corev1.NodeAddress{
-		{Type: preferredAddressType, Address: os.Getenv("KNODE_POD_IP")},
+		{Type: preferredAddressType, Address: os.Getenv("LEAF_NODE_IP")},
 	}
 
 	address, err := SortAddress(ctx, rootClient, originAddress)
@@ -49,7 +49,10 @@ func GetAddress(ctx context.Context, rootClient kubernetes.Interface, originAddr
 }
 
 func SortAddress(ctx context.Context, rootClient kubernetes.Interface, originAddress []corev1.NodeAddress) ([]corev1.NodeAddress, error) {
-	rootnodes, err := rootClient.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
+	rootnodes, err := rootClient.CoreV1().Nodes().List(ctx, metav1.ListOptions{
+		// get the node which is not created by kosmos
+		LabelSelector: fmt.Sprintf("%s!=%s", utils.KosmosNodeLabel, utils.KosmosNodeValue),
+	})
 	if err != nil {
 		return nil, fmt.Errorf("create node failed, cannot get node from root cluster, err: %v", err)
 	}

@@ -141,7 +141,7 @@ func (c *ClusterController) Reconcile(ctx context.Context, request reconcile.Req
 		return reconcile.Result{}, fmt.Errorf("could not build dynamic client for cluster %s: %v", cluster.Name, err)
 	}
 
-	kosmosClient, err := kosmosversioned.NewForConfig(config)
+	leafKosmosClient, err := kosmosversioned.NewForConfig(config)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("could not build kosmos clientset for cluster %s: %v", cluster.Name, err)
 	}
@@ -187,10 +187,10 @@ func (c *ClusterController) Reconcile(ctx context.Context, request reconcile.Req
 		return reconcile.Result{}, fmt.Errorf("new manager with err %v, cluster %s", err, cluster.Name)
 	}
 
-	leafModelHandler := leafUtils.NewLeafModelHandler(cluster, c.Root, mgr.GetClient(), c.RootClientset, leafClient)
+	leafModelHandler := leafUtils.NewLeafModelHandler(cluster, c.RootClientset, leafClient)
 	c.LeafModelHandler = leafModelHandler
 
-	nodes, err := c.createNode(ctx, cluster, leafClient)
+	nodes, leafNodeSelectors, err := c.createNode(ctx, cluster, leafClient)
 	if err != nil {
 		return reconcile.Result{RequeueAfter: RequeueTime}, fmt.Errorf("create node with err %v, cluster %s", err, cluster.Name)
 	}
@@ -206,7 +206,7 @@ func (c *ClusterController) Reconcile(ctx context.Context, request reconcile.Req
 	c.ManagerCancelFuncs[cluster.Name] = &cancel
 	c.ControllerManagersLock.Unlock()
 
-	if err = c.setupControllers(mgr, cluster, nodes, leafDynamic, leafClient, kosmosClient, config); err != nil {
+	if err = c.setupControllers(mgr, cluster, nodes, leafDynamic, leafNodeSelectors, leafClient, leafKosmosClient, config); err != nil {
 		return reconcile.Result{}, fmt.Errorf("failed to setup cluster %s controllers: %v", cluster.Name, err)
 	}
 
@@ -240,14 +240,15 @@ func (c *ClusterController) setupControllers(
 	cluster *kosmosv1alpha1.Cluster,
 	nodes []*corev1.Node,
 	clientDynamic *dynamic.DynamicClient,
+	leafNodeSelector map[string]kosmosv1alpha1.NodeSelector,
 	leafClientset kubernetes.Interface,
-	kosmosClient kosmosversioned.Interface,
+	leafKosmosClient kosmosversioned.Interface,
 	leafRestConfig *rest.Config) error {
 	c.GlobalLeafManager.AddLeafResource(&leafUtils.LeafResource{
 		Client:        mgr.GetClient(),
 		DynamicClient: clientDynamic,
 		Clientset:     leafClientset,
-		KosmosClient:  kosmosClient,
+		KosmosClient:  leafKosmosClient,
 		ClusterName:   cluster.Name,
 		// TODO: define node options
 		Namespace:            "",
@@ -262,6 +263,7 @@ func (c *ClusterController) setupControllers(
 		Root:              c.Root,
 		RootClientset:     c.RootClientset,
 		Nodes:             nodes,
+		LeafNodeSelectors: leafNodeSelector,
 		LeafModelHandler:  c.LeafModelHandler,
 		Cluster:           cluster,
 	}
@@ -269,22 +271,23 @@ func (c *ClusterController) setupControllers(
 		return fmt.Errorf("error starting %s: %v", controllers.NodeResourcesControllerName, err)
 	}
 
-	nodeLeaseController := controllers.NewNodeLeaseController(leafClientset, c.Root, nodes, c.RootClientset, c.LeafModelHandler)
+	nodeLeaseController := controllers.NewNodeLeaseController(leafClientset, c.Root, nodes, leafNodeSelector, c.RootClientset, c.LeafModelHandler)
 	if err := mgr.Add(nodeLeaseController); err != nil {
 		return fmt.Errorf("error starting %s: %v", controllers.NodeLeaseControllerName, err)
 	}
 
 	if c.Options.MultiClusterService {
 		serviceImportController := &mcs.ServiceImportController{
-			LeafClient:       mgr.GetClient(),
-			RootKosmosClient: kosmosClient,
-			EventRecorder:    mgr.GetEventRecorderFor(mcs.LeafServiceImportControllerName),
-			Logger:           mgr.GetLogger(),
-			LeafNodeName:     cluster.Name,
-			// todo @wyz
+			LeafClient:          mgr.GetClient(),
+			LeafKosmosClient:    leafKosmosClient,
+			EventRecorder:       mgr.GetEventRecorderFor(mcs.LeafServiceImportControllerName),
+			Logger:              mgr.GetLogger(),
+			LeafNodeName:        cluster.Name,
 			IPFamilyType:        cluster.Spec.ClusterLinkOptions.IPFamily,
 			RootResourceManager: c.RootResourceManager,
 			ReservedNamespaces:  c.Options.ReservedNamespaces,
+			BackoffOptions:      c.Options.BackoffOpts,
+			SyncPeriod:          c.Options.SyncPeriod,
 		}
 		if err := serviceImportController.AddController(mgr); err != nil {
 			return fmt.Errorf("error starting %s: %v", mcs.LeafServiceImportControllerName, err)
@@ -334,19 +337,19 @@ func (c *ClusterController) setupStorageControllers(mgr manager.Manager, isOne2O
 	return nil
 }
 
-func (c *ClusterController) createNode(ctx context.Context, cluster *kosmosv1alpha1.Cluster, leafClient kubernetes.Interface) ([]*corev1.Node, error) {
+func (c *ClusterController) createNode(ctx context.Context, cluster *kosmosv1alpha1.Cluster, leafClient kubernetes.Interface) ([]*corev1.Node, map[string]kosmosv1alpha1.NodeSelector, error) {
 	serverVersion, err := leafClient.Discovery().ServerVersion()
 	if err != nil {
 		klog.Errorf("create node failed, can not connect to leaf %s", cluster.Name)
-		return nil, err
+		return nil, nil, err
 	}
 
-	nodes, err := c.LeafModelHandler.CreateNodeInRoot(ctx, cluster, c.Options.ListenPort, serverVersion.GitVersion)
+	nodes, leafNodeSelectors, err := c.LeafModelHandler.CreateRootNode(ctx, c.Options.ListenPort, serverVersion.GitVersion)
 	if err != nil {
 		klog.Errorf("create node for cluster %s failed, err: %v", cluster.Name, err)
-		return nil, err
+		return nil, nil, err
 	}
-	return nodes, nil
+	return nodes, leafNodeSelectors, nil
 }
 
 func (c *ClusterController) deleteNode(ctx context.Context, cluster *kosmosv1alpha1.Cluster) error {

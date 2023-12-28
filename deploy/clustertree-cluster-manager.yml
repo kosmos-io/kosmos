@@ -79,7 +79,7 @@ spec:
           command:
             - clustertree-cluster-manager
             - --multi-cluster-service=true
-            - --auto-mcs-prefix=kosmos-auto
+            - --auto-mcs-prefix=kosmos-e2e
             - --v=4
       volumes:
         - name: credentials

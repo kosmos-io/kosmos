@@ -3,14 +3,14 @@ package utils
 import (
 	"context"
 	"fmt"
+	"reflect"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/retry"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	"k8s.io/klog/v2"
 
 	kosmosv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/utils"
@@ -18,228 +18,156 @@ import (
 
 // LeafModelHandler is the interface to handle the leafModel logic
 type LeafModelHandler interface {
-	// GetLeafModelType returns the leafModelType for a Cluster
-	GetLeafModelType() LeafModelType
+	// GetLeafMode returns the leafMode for a Cluster
+	GetLeafMode() LeafMode
 
 	// GetLeafNodes returns nodes in leaf cluster by the rootNode
-	GetLeafNodes(ctx context.Context, rootNode *corev1.Node) (*corev1.NodeList, error)
+	GetLeafNodes(ctx context.Context, rootNode *corev1.Node, selector kosmosv1alpha1.NodeSelector) (*corev1.NodeList, error)
 
 	// GetLeafPods returns pods in leaf cluster by the rootNode
-	GetLeafPods(ctx context.Context, rootNode *corev1.Node) (*corev1.PodList, error)
+	GetLeafPods(ctx context.Context, rootNode *corev1.Node, selector kosmosv1alpha1.NodeSelector) (*corev1.PodList, error)
 
-	// UpdateNodeStatus updates the node's status in root cluster
-	UpdateNodeStatus(ctx context.Context, node []*corev1.Node) error
+	// UpdateRootNodeStatus updates the node's status in root cluster
+	UpdateRootNodeStatus(ctx context.Context, node []*corev1.Node, leafNodeSelector map[string]kosmosv1alpha1.NodeSelector) error
 
-	// CreateNodeInRoot creates the node in root cluster
-	CreateNodeInRoot(ctx context.Context, cluster *kosmosv1alpha1.Cluster, listenPort int32, gitVersion string) ([]*corev1.Node, error)
+	// CreateRootNode creates the node in root cluster
+	CreateRootNode(ctx context.Context, listenPort int32, gitVersion string) ([]*corev1.Node, map[string]kosmosv1alpha1.NodeSelector, error)
 }
 
-// LeafModelType represents the type of leaf model
-type LeafModelType string
-
-const (
-	AggregationModel LeafModelType = "aggregation"
-	DispersionModel  LeafModelType = "dispersion"
-)
-
-// AggregationModelHandler handles the aggregation leaf model
-type AggregationModelHandler struct {
-	Cluster       *kosmosv1alpha1.Cluster
-	LeafClient    client.Client
-	RootClient    client.Client
+// ClassificationHandler handles the Classification leaf model
+type ClassificationHandler struct {
+	leafMode LeafMode
+	Cluster  *kosmosv1alpha1.Cluster
+	//LeafClient    client.Client
+	//RootClient    client.Client
 	RootClientset kubernetes.Interface
+	LeafClientset kubernetes.Interface
 }
 
-// CreateNodeInRoot creates the node in root cluster
-func (h AggregationModelHandler) CreateNodeInRoot(ctx context.Context, cluster *kosmosv1alpha1.Cluster, listenPort int32, gitVersion string) ([]*corev1.Node, error) {
-	nodes := make([]*corev1.Node, 0)
-	nodeName := fmt.Sprintf("%s%s", utils.KosmosNodePrefix, cluster.Name)
-	node, err := h.RootClientset.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
-	if err != nil {
-		if !errors.IsNotFound(err) {
-			return nil, err
-		}
-		node = utils.BuildNodeTemplate(nodeName)
-		node.Status.NodeInfo.KubeletVersion = gitVersion
-		node.Status.DaemonEndpoints = corev1.NodeDaemonEndpoints{
-			KubeletEndpoint: corev1.DaemonEndpoint{
-				Port: listenPort,
-			},
-		}
-
-		// node.Status.Addresses = GetAddress()
-
-		node, err = h.RootClientset.CoreV1().Nodes().Create(ctx, node, metav1.CreateOptions{})
-		if err != nil {
-			return nil, err
-		}
-	}
-	nodes = append(nodes, node)
-	return nodes, nil
-}
-
-// UpdateNodeStatus updates the node's status in root cluster
-func (h AggregationModelHandler) UpdateNodeStatus(ctx context.Context, n []*corev1.Node) error {
-	var name string
-	if len(n) > 0 {
-		name = n[0].Name
-	}
-
-	node := &corev1.Node{}
-	namespacedName := types.NamespacedName{
-		Name: name,
-	}
-	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		err := h.RootClient.Get(ctx, namespacedName, node)
-		if err != nil {
-			// TODO: If a node is accidentally deleted, recreate it
-			return fmt.Errorf("cannot get node while update node status %s, err: %v", name, err)
-		}
-
-		clone := node.DeepCopy()
-		clone.Status.Conditions = utils.NodeConditions()
-
-		nodeListInLeaf := &corev1.NodeList{}
-		err = h.LeafClient.List(ctx, nodeListInLeaf)
-		if err != nil {
-			return fmt.Errorf("cannot get node in leaf cluster while update node status err: %v", err)
-		}
-
-		if len(nodeListInLeaf.Items) == 0 {
-			return fmt.Errorf("cannot get node in leaf cluster while update node status, leaf node item is 0")
-		}
-
-		clone.Status.Addresses, err = GetAddress(ctx, h.RootClientset, nodeListInLeaf.Items[0].Status.Addresses)
-
-		if err != nil {
-			return err
-		}
-
-		patch, err := utils.CreateMergePatch(node, clone)
-
-		if err != nil {
-			return fmt.Errorf("cannot get node while update node status %s, err: %v", node.Name, err)
-		}
-
-		if node, err = h.RootClientset.CoreV1().Nodes().PatchStatus(ctx, node.Name, patch); err != nil {
-			return err
-		}
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// GetLeafPods returns pods in leaf cluster by the rootNode
-func (h AggregationModelHandler) GetLeafPods(ctx context.Context, rootNode *corev1.Node) (*corev1.PodList, error) {
-	pods := &corev1.PodList{}
-	err := h.LeafClient.List(ctx, pods)
-	if err != nil {
-		return nil, err
-	}
-	return pods, nil
+// GetLeafMode returns the leafMode for a Cluster
+func (h ClassificationHandler) GetLeafMode() LeafMode {
+	return h.leafMode
 }
 
 // GetLeafNodes returns nodes in leaf cluster by the rootNode
-func (h AggregationModelHandler) GetLeafNodes(ctx context.Context, _ *corev1.Node) (*corev1.NodeList, error) {
-	nodesInLeaf := &corev1.NodeList{}
-	err := h.LeafClient.List(ctx, nodesInLeaf)
+func (h ClassificationHandler) GetLeafNodes(ctx context.Context, rootNode *corev1.Node, selector kosmosv1alpha1.NodeSelector) (nodesInLeaf *corev1.NodeList, err error) {
+	listOption := metav1.ListOptions{}
+	if h.leafMode == Party {
+		listOption.LabelSelector = metav1.FormatLabelSelector(selector.LabelSelector)
+	}
+
+	if h.leafMode == Node {
+		listOption.FieldSelector = fmt.Sprintf("metadata.name=%s", rootNode.Name)
+	}
+
+	nodesInLeaf, err = h.LeafClientset.CoreV1().Nodes().List(ctx, listOption)
 	if err != nil {
 		return nil, err
 	}
 	return nodesInLeaf, nil
 }
 
-// GetLeafModelType returns the leafModelType for a Cluster
-func (h AggregationModelHandler) GetLeafModelType() LeafModelType {
-	return AggregationModel
-}
+// GetLeafPods returns pods in leaf cluster by the rootNode
+func (h ClassificationHandler) GetLeafPods(ctx context.Context, rootNode *corev1.Node, selector kosmosv1alpha1.NodeSelector) (pods *corev1.PodList, err error) {
+	if h.leafMode == Party {
+		pods, err = h.LeafClientset.CoreV1().Pods(metav1.NamespaceAll).List(ctx, metav1.ListOptions{})
+		if err != nil {
+			return nil, err
+		}
+	} else if h.leafMode == Node {
+		pods, err = h.LeafClientset.CoreV1().Pods(metav1.NamespaceAll).List(ctx, metav1.ListOptions{FieldSelector: fmt.Sprintf("spec.nodeName=%s", rootNode.Name)})
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		nodesInLeafs, err := h.GetLeafNodes(ctx, rootNode, selector)
+		if err != nil {
+			return nil, err
+		}
 
-// DispersionModelHandler handles the dispersion leaf model
-type DispersionModelHandler struct {
-	Cluster       *kosmosv1alpha1.Cluster
-	LeafClient    client.Client
-	RootClient    client.Client
-	RootClientset kubernetes.Interface
-	LeafClientset kubernetes.Interface
-}
-
-// CreateNodeInRoot creates the node in root cluster
-func (h DispersionModelHandler) CreateNodeInRoot(ctx context.Context, cluster *kosmosv1alpha1.Cluster, listenPort int32, gitVersion string) ([]*corev1.Node, error) {
-	nodes := make([]*corev1.Node, 0)
-	for _, leafModel := range cluster.Spec.ClusterTreeOptions.LeafModels {
-		// todo only support nodeName now
-		if leafModel.NodeSelector.NodeName != "" {
-			nodeName := leafModel.NodeSelector.NodeName
-			node, err := h.RootClientset.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
+		for _, node := range nodesInLeafs.Items {
+			podsInNode, err := h.LeafClientset.CoreV1().Pods(metav1.NamespaceAll).List(ctx, metav1.ListOptions{
+				FieldSelector: fmt.Sprintf("spec.nodeName=%s", node.Name),
+			})
 			if err != nil {
-				if !errors.IsNotFound(err) {
-					return nil, err
-				}
-
-				node = utils.BuildNodeTemplate(nodeName)
-				nodeAnnotations := node.GetAnnotations()
-				if nodeAnnotations == nil {
-					nodeAnnotations = make(map[string]string, 1)
-				}
-				nodeAnnotations[utils.KosmosNodeOwnedByClusterAnnotations] = cluster.Name
-				node.SetAnnotations(nodeAnnotations)
-
-				node.Status.NodeInfo.KubeletVersion = gitVersion
-				node.Status.DaemonEndpoints = corev1.NodeDaemonEndpoints{
-					KubeletEndpoint: corev1.DaemonEndpoint{
-						Port: listenPort,
-					},
-				}
-
-				// node.Status.Addresses = GetAddress()
-
-				node, err = h.RootClientset.CoreV1().Nodes().Create(ctx, node, metav1.CreateOptions{})
-				if err != nil {
-					return nil, err
-				}
+				return nil, err
 			}
-			nodes = append(nodes, node)
+			if pods == nil {
+				pods = podsInNode
+			} else {
+				pods.Items = append(pods.Items, podsInNode.Items...)
+			}
 		}
 	}
-	return nodes, nil
+	return pods, nil
 }
 
-// UpdateNodeStatus updates the node's status in root cluster
-func (h DispersionModelHandler) UpdateNodeStatus(ctx context.Context, n []*corev1.Node) error {
-	for _, node := range n {
-		nodeCopy := node.DeepCopy()
-		namespacedName := types.NamespacedName{
-			Name: nodeCopy.Name,
+// UpdateRootNodeStatus updates the node's status in root cluster
+func (h ClassificationHandler) UpdateRootNodeStatus(ctx context.Context, nodesInRoot []*corev1.Node, leafNodeSelector map[string]kosmosv1alpha1.NodeSelector) error {
+	for _, node := range nodesInRoot {
+		nodeNameInRoot := node.Name
+		listOptions := metav1.ListOptions{}
+		if h.leafMode == Party {
+			selector, ok := leafNodeSelector[nodeNameInRoot]
+			if !ok {
+				klog.Warningf("have no nodeSelector for the join node: v%", nodeNameInRoot)
+				continue
+			}
+			listOptions.LabelSelector = metav1.FormatLabelSelector(selector.LabelSelector)
 		}
+
 		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-			nodeInLeaf := &corev1.Node{}
-			err := h.LeafClient.Get(ctx, namespacedName, nodeInLeaf)
+			nodeInRoot, err := h.RootClientset.CoreV1().Nodes().Get(ctx, nodeNameInRoot, metav1.GetOptions{})
 			if err != nil {
 				// TODO: If a node is accidentally deleted, recreate it
-				return fmt.Errorf("cannot get node in leaf cluster while update node status %s, err: %v", nodeCopy.Name, err)
+				return fmt.Errorf("cannot get node in root cluster while update the join node status %s, err: %v", nodeNameInRoot, err)
 			}
 
-			nodeRoot := &corev1.Node{}
-			err = h.RootClient.Get(ctx, namespacedName, nodeRoot)
+			nodesInLeaf, err := h.LeafClientset.CoreV1().Nodes().List(ctx, listOptions)
 			if err != nil {
 				// TODO: If a node is accidentally deleted, recreate it
-				return fmt.Errorf("cannot get node in root cluster while update node status %s, err: %v", nodeCopy.Name, err)
+				return fmt.Errorf("cannot get node in leaf cluster while update the join node %s status, err: %v", nodeNameInRoot, err)
+			}
+			if len(nodesInLeaf.Items) == 0 {
+				// TODO: If a node is accidentally deleted, recreate it
+				return fmt.Errorf("have no node in leaf cluster while update the join node %s status", nodeNameInRoot)
 			}
 
-			rootCopy := nodeRoot.DeepCopy()
-			nodeRoot.Status = nodeInLeaf.Status
-			nodeRoot.Status.Addresses, err = GetAddress(ctx, h.RootClientset, nodeInLeaf.Status.Addresses)
+			rootCopy := nodeInRoot.DeepCopy()
+
+			if h.leafMode == Node {
+				rootCopy.Status = *nodesInLeaf.Items[0].Status.DeepCopy()
+			} else {
+				rootCopy.Status.Conditions = utils.NodeConditions()
+
+				// Aggregation the resources of the leaf nodes
+				pods, err := h.GetLeafPods(ctx, rootCopy, leafNodeSelector[nodeNameInRoot])
+				if err != nil {
+					return fmt.Errorf("could not list pod in leaf cluster while update the join node %s status, err: %v", nodeNameInRoot, err)
+				}
+				clusterResources := utils.CalculateClusterResources(nodesInLeaf, pods)
+				rootCopy.Status.Allocatable = clusterResources
+				rootCopy.Status.Capacity = clusterResources
+			}
+
+			updateAddress, err := GetAddress(ctx, h.RootClientset, nodesInLeaf.Items[0].Status.Addresses)
 			if err != nil {
 				return err
 			}
-			nodeRoot.Status.Allocatable = rootCopy.Status.Allocatable
-			nodeRoot.Status.Capacity = rootCopy.Status.Capacity
 
-			if node, err = h.RootClientset.CoreV1().Nodes().UpdateStatus(ctx, nodeRoot, metav1.UpdateOptions{}); err != nil {
+			patch, err := utils.CreateMergePatch(nodeInRoot, rootCopy)
+			if err != nil {
+				return fmt.Errorf("failed to CreateMergePatch while update join node %s status, err: %v", nodeNameInRoot, err)
+			}
+
+			if latestNode, err := h.RootClientset.CoreV1().Nodes().PatchStatus(ctx, node.Name, patch); err != nil {
 				return err
+			} else {
+				latestNode.ResourceVersion = ""
+				latestNode.Status.Addresses = updateAddress
+				if _, err = h.RootClientset.CoreV1().Nodes().UpdateStatus(ctx, latestNode, metav1.UpdateOptions{}); err != nil {
+					return err
+				}
 			}
 			return nil
 		})
@@ -250,43 +178,92 @@ func (h DispersionModelHandler) UpdateNodeStatus(ctx context.Context, n []*corev
 	return nil
 }
 
-func (h DispersionModelHandler) GetLeafPods(ctx context.Context, rootNode *corev1.Node) (*corev1.PodList, error) {
-	pods, err := h.LeafClientset.CoreV1().Pods("").List(ctx, metav1.ListOptions{FieldSelector: fmt.Sprintf("spec.nodeName=%s", rootNode.Name)})
+func createNode(ctx context.Context, clientset kubernetes.Interface, clusterName, nodeName, gitVersion string, listenPort int32) (*corev1.Node, error) {
+	nodeInRoot, err := clientset.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
 	if err != nil {
-		return nil, err
+		if !errors.IsNotFound(err) {
+			return nil, err
+		}
+
+		nodeInRoot = utils.BuildNodeTemplate(nodeName)
+		nodeAnnotations := nodeInRoot.GetAnnotations()
+		if nodeAnnotations == nil {
+			nodeAnnotations = make(map[string]string, 1)
+		}
+		nodeAnnotations[utils.KosmosNodeOwnedByClusterAnnotations] = clusterName
+		nodeInRoot.SetAnnotations(nodeAnnotations)
+
+		nodeInRoot.Status.NodeInfo.KubeletVersion = gitVersion
+		nodeInRoot.Status.DaemonEndpoints = corev1.NodeDaemonEndpoints{
+			KubeletEndpoint: corev1.DaemonEndpoint{
+				Port: listenPort,
+			},
+		}
+
+		nodeInRoot, err = clientset.CoreV1().Nodes().Create(ctx, nodeInRoot, metav1.CreateOptions{})
+		if err != nil {
+			return nil, err
+		}
 	}
-	return pods, nil
+	return nodeInRoot, nil
 }
 
-func (h DispersionModelHandler) GetLeafNodes(ctx context.Context, rootNode *corev1.Node) (*corev1.NodeList, error) {
-	nodesInLeaf, err := h.LeafClientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{FieldSelector: fmt.Sprintf("metadata.name=%s", rootNode.Name)})
-	if err != nil {
-		return nil, err
-	}
-	return nodesInLeaf, nil
-}
+// CreateRootNode creates the node in root cluster
+func (h ClassificationHandler) CreateRootNode(ctx context.Context, listenPort int32, gitVersion string) ([]*corev1.Node, map[string]kosmosv1alpha1.NodeSelector, error) {
+	nodes := make([]*corev1.Node, 0)
+	leafNodeSelectors := make(map[string]kosmosv1alpha1.NodeSelector)
+	cluster := h.Cluster
 
-func (h DispersionModelHandler) GetLeafModelType() LeafModelType {
-	return DispersionModel
+	if h.leafMode == ALL {
+		nodeNameInRoot := fmt.Sprintf("%s%s", utils.KosmosNodePrefix, cluster.Name)
+		nodeInRoot, err := createNode(ctx, h.RootClientset, cluster.Name, nodeNameInRoot, gitVersion, listenPort)
+		if err != nil {
+			return nil, nil, err
+		}
+		nodes = append(nodes, nodeInRoot)
+		leafNodeSelectors[nodeNameInRoot] = kosmosv1alpha1.NodeSelector{}
+	} else {
+		for i, leafModel := range cluster.Spec.ClusterTreeOptions.LeafModels {
+			var nodeNameInRoot string
+			if h.leafMode == Node {
+				nodeNameInRoot = leafModel.NodeSelector.NodeName
+			} else {
+				nodeNameInRoot = fmt.Sprintf("%v%v%v%v", utils.KosmosNodePrefix, leafModel.LeafNodeName, "-", i)
+			}
+			if len(nodeNameInRoot) > 63 {
+				nodeNameInRoot = nodeNameInRoot[:63]
+			}
+
+			nodeInRoot, err := createNode(ctx, h.RootClientset, cluster.Name, nodeNameInRoot, gitVersion, listenPort)
+			if err != nil {
+				return nil, nil, err
+			}
+			nodes = append(nodes, nodeInRoot)
+			leafNodeSelectors[nodeNameInRoot] = leafModel.NodeSelector
+		}
+	}
+
+	return nodes, leafNodeSelectors, nil
 }
 
 // NewLeafModelHandler create a LeafModelHandler for Cluster
-func NewLeafModelHandler(cluster *kosmosv1alpha1.Cluster, root, leafClient client.Client, rootClientset, leafClientset kubernetes.Interface) LeafModelHandler {
-	// todo support nodeSelector mode
-	if cluster.Spec.ClusterTreeOptions.LeafModels != nil {
-		return &DispersionModelHandler{
-			Cluster:       cluster,
-			LeafClient:    leafClient,
-			RootClient:    root,
-			RootClientset: rootClientset,
-			LeafClientset: leafClientset,
-		}
-	} else {
-		return &AggregationModelHandler{
-			Cluster:       cluster,
-			LeafClient:    leafClient,
-			RootClient:    root,
-			RootClientset: rootClientset,
+func NewLeafModelHandler(cluster *kosmosv1alpha1.Cluster, rootClientset, leafClientset kubernetes.Interface) LeafModelHandler {
+	classificationModel := &ClassificationHandler{
+		leafMode:      ALL,
+		Cluster:       cluster,
+		RootClientset: rootClientset,
+		LeafClientset: leafClientset,
+	}
+
+	leafModels := cluster.Spec.ClusterTreeOptions.LeafModels
+
+	if leafModels != nil && !reflect.DeepEqual(leafModels[0].NodeSelector, kosmosv1alpha1.NodeSelector{}) {
+		if leafModels[0].NodeSelector.LabelSelector != nil && !reflect.DeepEqual(leafModels[0].NodeSelector.LabelSelector, metav1.LabelSelector{}) {
+			// support nodeSelector mode
+			classificationModel.leafMode = Party
+		} else if leafModels[0].NodeSelector.NodeName != "" {
+			classificationModel.leafMode = Node
 		}
 	}
+	return classificationModel
 }

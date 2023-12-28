@@ -3,8 +3,6 @@ package install
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
@@ -13,9 +11,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/client-go/util/homedir"
 	"k8s.io/klog/v2"
 	ctlutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/i18n"
@@ -53,6 +49,7 @@ type CommandInstallOptions struct {
 	Version              string
 	Module               string
 	HostKubeConfig       string
+	HostContext          string
 	HostKubeConfigStream []byte
 	WaitTime             int
 
@@ -71,7 +68,7 @@ type CommandInstallOptions struct {
 }
 
 // NewCmdInstall Install the Kosmos control plane in a Kubernetes cluster.
-func NewCmdInstall(f ctlutil.Factory) *cobra.Command {
+func NewCmdInstall() *cobra.Command {
 	o := &CommandInstallOptions{}
 
 	cmd := &cobra.Command{
@@ -82,7 +79,7 @@ func NewCmdInstall(f ctlutil.Factory) *cobra.Command {
 		SilenceUsage:          true,
 		DisableFlagsInUseLine: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctlutil.CheckErr(o.Complete(f))
+			ctlutil.CheckErr(o.Complete())
 			ctlutil.CheckErr(o.Validate())
 			ctlutil.CheckErr(o.Run())
 			return nil
@@ -92,8 +89,10 @@ func NewCmdInstall(f ctlutil.Factory) *cobra.Command {
 	flags := cmd.Flags()
 	flags.StringVarP(&o.Namespace, "namespace", "n", utils.DefaultNamespace, "Kosmos namespace.")
 	flags.StringVarP(&o.ImageRegistry, "private-image-registry", "", utils.DefaultImageRepository, "Private image registry where pull images from. If set, all required images will be downloaded from it, it would be useful in offline installation scenarios.  In addition, you still can use --kube-image-registry to specify the registry for Kubernetes's images.")
+	flags.StringVar(&o.Version, "version", "", "image version for pull images")
 	flags.StringVarP(&o.Module, "module", "m", utils.All, "Kosmos specify the module to install.")
 	flags.StringVar(&o.HostKubeConfig, "kubeconfig", "", "Absolute path to the special kubeconfig file.")
+	flags.StringVar(&o.HostContext, "context", "", "The name of the kubeconfig context.")
 	flags.StringVar(&o.CNI, "cni", "", "The cluster is configured using cni and currently supports calico and flannel.")
 	flags.StringVar(&o.DefaultNICName, "default-nic", "", "Set default network interface card.")
 	flags.StringVar(&o.NetworkType, "network-type", utils.NetworkTypeGateway, "Set the cluster network connection mode, which supports gateway and p2p modes, gateway is used by default.")
@@ -107,33 +106,30 @@ func NewCmdInstall(f ctlutil.Factory) *cobra.Command {
 	return cmd
 }
 
-func (o *CommandInstallOptions) Complete(f ctlutil.Factory) error {
-	var config *rest.Config
-	var err error
-
-	if len(o.HostKubeConfig) > 0 {
-		config, err = clientcmd.BuildConfigFromFlags("", o.HostKubeConfig)
-		if err != nil {
-			return fmt.Errorf("kosmosctl install complete error, generate host config failed: %s", err)
-		}
-		o.HostKubeConfigStream, err = os.ReadFile(o.HostKubeConfig)
-		if err != nil {
-			return fmt.Errorf("kosmosctl install complete error, read host config failed: %s", err)
-		}
-	} else {
-		config, err = f.ToRESTConfig()
-		if err != nil {
-			return fmt.Errorf("kosmosctl install complete error, generate rest config failed: %v", err)
-		}
-		o.HostKubeConfigStream, err = os.ReadFile(filepath.Join(homedir.HomeDir(), ".kube", "config"))
-		if err != nil {
-			return fmt.Errorf("kosmosctl install complete error, read host config failed: %s", err)
-		}
+func (o *CommandInstallOptions) Complete() error {
+	config, err := utils.RestConfig(o.HostKubeConfig, o.HostContext)
+	if err != nil {
+		return fmt.Errorf("kosmosctl install complete error, generate host config failed: %s", err)
 	}
 
+	rawConfig, err := utils.RawConfig(o.HostKubeConfig, o.HostContext)
+	if err != nil {
+		return fmt.Errorf("kosmosctl install complete error, generate host config failed: %s", err)
+	}
+
+	streams, err := clientcmd.Write(rawConfig)
+	if err != nil {
+		return fmt.Errorf("kosmosctl install complete error, generate host config streams failed: %s", err)
+	}
+
+	o.HostKubeConfigStream = streams
 	o.KosmosClient, err = versioned.NewForConfig(config)
 	if err != nil {
 		return fmt.Errorf("kosmosctl install complete error, generate Kosmos client failed: %v", err)
+	}
+
+	if o.Version == "" {
+		o.Version = fmt.Sprintf("v%s", version.GetReleaseVersion().PatchRelease())
 	}
 
 	o.K8sClient, err = kubernetes.NewForConfig(config)
@@ -292,7 +288,7 @@ func (o *CommandInstallOptions) runClusterlink() error {
 	networkManagerDeploy, err := util.GenerateDeployment(manifest.ClusterlinkNetworkManagerDeployment, manifest.DeploymentReplace{
 		Namespace:       o.Namespace,
 		ImageRepository: o.ImageRegistry,
-		Version:         version.GetReleaseVersion().PatchRelease(),
+		Version:         o.Version,
 	})
 	if err != nil {
 		return err
@@ -312,7 +308,7 @@ func (o *CommandInstallOptions) runClusterlink() error {
 
 	operatorDeploy, err := util.GenerateDeployment(manifest.KosmosOperatorDeployment, manifest.DeploymentReplace{
 		Namespace:       o.Namespace,
-		Version:         version.GetReleaseVersion().PatchRelease(),
+		Version:         o.Version,
 		UseProxy:        o.UseProxy,
 		ImageRepository: o.ImageRegistry,
 	})
@@ -443,7 +439,7 @@ func (o *CommandInstallOptions) runClustertree() error {
 	clustertreeDeploy, err := util.GenerateDeployment(manifest.ClusterTreeClusterManagerDeployment, manifest.DeploymentReplace{
 		Namespace:       o.Namespace,
 		ImageRepository: o.ImageRegistry,
-		Version:         version.GetReleaseVersion().PatchRelease(),
+		Version:         o.Version,
 	})
 	if err != nil {
 		return err
@@ -463,7 +459,7 @@ func (o *CommandInstallOptions) runClustertree() error {
 
 	operatorDeploy, err := util.GenerateDeployment(manifest.KosmosOperatorDeployment, manifest.DeploymentReplace{
 		Namespace:       o.Namespace,
-		Version:         version.GetReleaseVersion().PatchRelease(),
+		Version:         o.Version,
 		UseProxy:        o.UseProxy,
 		ImageRepository: o.ImageRegistry,
 	})
@@ -489,7 +485,7 @@ func (o *CommandInstallOptions) createOperator() error {
 	klog.Info("Start creating Kosmos-Operator...")
 	operatorDeploy, err := util.GenerateDeployment(manifest.KosmosOperatorDeployment, manifest.DeploymentReplace{
 		Namespace:       o.Namespace,
-		Version:         version.GetReleaseVersion().PatchRelease(),
+		Version:         o.Version,
 		UseProxy:        o.UseProxy,
 		ImageRepository: o.ImageRegistry,
 	})

@@ -40,21 +40,22 @@ func NewCmdImport(f ctlutil.Factory) *cobra.Command {
 		SilenceUsage:          true,
 		DisableFlagsInUseLine: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctlutil.CheckErr(o.Complete(f, cmd))
+			ctlutil.CheckErr(o.Complete(cmd))
 			ctlutil.CheckErr(o.Validate(cmd))
 			ctlutil.CheckErr(o.Run(f, cmd, args))
 			return nil
 		},
 	}
 	cmd.Flags().StringVarP(&o.MasterKubeConfig, "kubeconfig", "", "", "Absolute path to the master kubeconfig file.")
+	cmd.Flags().StringVar(&o.MasterContext, "context", "", "The name of the kubeconfig context.")
 	cmd.Flags().StringVarP(&o.Namespace, "namespace", "n", "default", "The namespace scope for this CLI request")
 	cmd.Flags().StringVar(&o.DstLeafClusterOptions.LeafClusterName, "to-leafcluster", "", "Import resource to this destination leafcluster")
 
 	return cmd
 }
 
-func (o *CommandImportOptions) Complete(f ctlutil.Factory, cmd *cobra.Command) error {
-	err := o.CommandOptions.Complete(f, cmd)
+func (o *CommandImportOptions) Complete(cmd *cobra.Command) error {
+	err := o.CommandOptions.Complete(cmd)
 	if err != nil {
 		return err
 	}
@@ -71,11 +72,6 @@ func (o *CommandImportOptions) Complete(f ctlutil.Factory, cmd *cobra.Command) e
 }
 
 func (o *CommandImportOptions) Validate(cmd *cobra.Command) error {
-	err := o.CommandOptions.Validate(cmd)
-	if err != nil {
-		return fmt.Errorf("%s, valid args error: %s", importErr, err)
-	}
-
 	if !cmd.Flags().Changed("to-leafcluster") {
 		return fmt.Errorf("%s, required flag(s) 'to-leafcluster' not set", importErr)
 	}

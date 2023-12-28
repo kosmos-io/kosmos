@@ -10,6 +10,8 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/klog"
 
+	kosmosv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
+	clustertreeutil "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/utils"
 	"github.com/kosmos.io/kosmos/pkg/utils"
 )
 
@@ -141,7 +143,64 @@ func FitUnstructuredObjMeta(unstructuredObj *unstructured.Unstructured) {
 	}
 }
 
-func FitPod(pod *corev1.Pod, ignoreLabels []string, cleanNodeName bool) *corev1.Pod {
+func fitNodeAffinity(affinity *corev1.Affinity, nodeSelector kosmosv1alpha1.NodeSelector) (cpAffinity *corev1.Affinity) {
+	nodeSelectorTerms := make([]corev1.NodeSelectorTerm, 0)
+	nodeSelectorTerm := corev1.NodeSelectorTerm{
+		MatchExpressions: make([]corev1.NodeSelectorRequirement, 0),
+	}
+	if nodeSelector.LabelSelector.MatchLabels != nil {
+		for key, value := range nodeSelector.LabelSelector.MatchLabels {
+			selector := corev1.NodeSelectorRequirement{
+				Key:      key,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{value},
+			}
+			nodeSelectorTerm.MatchExpressions = append(nodeSelectorTerm.MatchExpressions, selector)
+		}
+	}
+
+	if nodeSelector.LabelSelector.MatchExpressions != nil {
+		for _, item := range nodeSelector.LabelSelector.MatchExpressions {
+			selector := corev1.NodeSelectorRequirement{
+				Key:      item.Key,
+				Operator: corev1.NodeSelectorOperator(item.Operator),
+				Values:   item.Values,
+			}
+			nodeSelectorTerm.MatchExpressions = append(nodeSelectorTerm.MatchExpressions, selector)
+		}
+	}
+	nodeSelectorTerms = append(nodeSelectorTerms, nodeSelectorTerm)
+
+	if affinity == nil {
+		cpAffinity = &corev1.Affinity{
+			NodeAffinity: &corev1.NodeAffinity{
+				RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+					NodeSelectorTerms: nodeSelectorTerms,
+				},
+			},
+		}
+	} else {
+		cpAffinity = affinity.DeepCopy()
+		if cpAffinity.NodeAffinity == nil {
+			cpAffinity.NodeAffinity = &corev1.NodeAffinity{
+				RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+					NodeSelectorTerms: nodeSelectorTerms,
+				},
+			}
+		} else if cpAffinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution == nil {
+			cpAffinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution = &corev1.NodeSelector{
+				NodeSelectorTerms: nodeSelectorTerms,
+			}
+		} else if cpAffinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms == nil {
+			cpAffinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms = nodeSelectorTerms
+		} else {
+			cpAffinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms = nodeSelectorTerms
+		}
+	}
+	return cpAffinity
+}
+
+func FitPod(pod *corev1.Pod, ignoreLabels []string, leafMode clustertreeutil.LeafMode, nodeSelector kosmosv1alpha1.NodeSelector) *corev1.Pod {
 	vols := []corev1.Volume{}
 	for _, v := range pod.Spec.Volumes {
 		if strings.HasPrefix(v.Name, "default-token") {
@@ -170,8 +229,12 @@ func FitPod(pod *corev1.Pod, ignoreLabels []string, cleanNodeName bool) *corev1.
 		podCopy.Spec.SchedulerName = ""
 	}
 
-	if cleanNodeName {
+	if leafMode != clustertreeutil.Node {
 		podCopy.Spec.NodeName = ""
+	}
+
+	if leafMode == clustertreeutil.Party {
+		podCopy.Spec.Affinity = fitNodeAffinity(pod.Spec.Affinity, nodeSelector)
 	}
 
 	tripped := FitLabels(podCopy.ObjectMeta.Labels, ignoreLabels)
@@ -240,7 +303,7 @@ func FitLabels(labels map[string]string, ignoreLabels []string) map[string]strin
 	return trippedLabels
 }
 
-func GetUpdatedPod(orig, update *corev1.Pod, ignoreLabels []string) {
+func GetUpdatedPod(orig, update *corev1.Pod, ignoreLabels []string, leafMode clustertreeutil.LeafMode, nodeSelector kosmosv1alpha1.NodeSelector) {
 	for i := range orig.Spec.InitContainers {
 		orig.Spec.InitContainers[i].Image = update.Spec.InitContainers[i].Image
 	}
@@ -264,6 +327,10 @@ func GetUpdatedPod(orig, update *corev1.Pod, ignoreLabels []string) {
 	orig.Spec.ActiveDeadlineSeconds = update.Spec.ActiveDeadlineSeconds
 	if orig.Labels != nil {
 		FitLabels(orig.ObjectMeta.Labels, ignoreLabels)
+	}
+
+	if leafMode == clustertreeutil.Party {
+		orig.Spec.Affinity = fitNodeAffinity(update.Spec.Affinity, nodeSelector)
 	}
 }
 
