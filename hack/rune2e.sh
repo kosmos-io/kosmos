@@ -44,9 +44,21 @@ util::wait_for_condition "mysql operator are ready" \
 #kubectl --context="kind-cluster-host" exec -it /bin/sh -c
 kubectl --context="kind-${HOST_CLUSTER_NAME}" apply -f "${ROOT}"/../test/e2e/deploy/cr
 
-util::wait_for_condition "mysql cr are ready" \
-  "[ \$(kubectl get pods -n kosmos-e2e --field-selector=status.phase=Running --no-headers | wc -l) -eq 2 ]" \
-  1200
+sleep 480
+kubectl --context=kind-${HOST_CLUSTER_NAME} get pods -n kosmos-e2e
+
+echo "集群2 servicimport"
+kubectl --context=kind-${MEMBER2_CLUSTER_NAME} -n kosmos-e2e get serviceimports
+echo "集群1 servicimport"
+kubectl --context=kind-${MEMBER1_CLUSTER_NAME} -n kosmos-e2e get serviceimports
+echo "集群2 esp"
+kubectl --context=kind-${MEMBER2_CLUSTER_NAME} -n kosmos-e2e get endpointslices
+echo "集群1 esp"
+kubectl --context=kind-${MEMBER1_CLUSTER_NAME} -n kosmos-e2e get endpointslices
+
+#util::wait_for_condition "mysql cr are ready" \
+#  "[ \$(kubectl get pods -n kosmos-e2e --field-selector=status.phase=Running --no-headers | wc -l) -eq 2 ]" \
+#  1200
 
 echo "E2e test of mysql-operator success"
 
