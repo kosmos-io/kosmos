@@ -42,7 +42,7 @@ kubectl --context="kind-cluster-host" apply -f "${ROOT}"/../test/e2e/deploy/mysq
 util::wait_for_condition "mysql operator are ready" \
   "kubectl --context=kind-${HOST_CLUSTER_NAME} get pods -n mysql-operator mysql-operator-0 | awk 'NR>1 {if (\$3 == \"Running\") exit 0; else exit 1; }'" \
   300
-
+kubectl --context=kind-${HOST_CLUSTER_NAME} create ns kosmos-e2e
 #kubectl --context="kind-cluster-host" exec -it /bin/sh -c
 kubectl --context="kind-${HOST_CLUSTER_NAME}" apply -f "${ROOT}"/../test/e2e/deploy/cr
 
@@ -70,7 +70,6 @@ echo "集群1 mysql init容器旧日志"
 kubectl --context=kind-${MEMBER1_CLUSTER_NAME} -n kosmos-e2e logs -p mysql-cluster-e2e-mysql-0 init
 echo "集群1 mysql mysql容器旧日志"
 kubectl --context=kind-${MEMBER1_CLUSTER_NAME} -n kosmos-e2e logs -p mysql-cluster-e2e-mysql-0 mysql
-
 
 #util::wait_for_condition "mysql cr are ready" \
 #  "[ \$(kubectl get pods -n kosmos-e2e --field-selector=status.phase=Running --no-headers | wc -l) -eq 2 ]" \
