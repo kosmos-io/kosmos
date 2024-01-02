@@ -66,6 +66,15 @@ echo "集群1 mysql init容器日志"
 kubectl --context=kind-${MEMBER1_CLUSTER_NAME} -n kosmos-e2e logs mysql-cluster-e2e-mysql-0 init
 echo "集群1 mysql mysql容器日志"
 kubectl --context=kind-${MEMBER1_CLUSTER_NAME} -n kosmos-e2e logs mysql-cluster-e2e-mysql-0 mysql
+
+echo "集群1 mysql pvc"
+kubectl --context=kind-${MEMBER1_CLUSTER_NAME} -n kosmos-e2e get pvc
+echo "集群1 mysql pv"
+kubectl --context=kind-${MEMBER1_CLUSTER_NAME} -n kosmos-e2e get pv
+
+echo "集群1 所有 pod"
+kubectl --context=kind-${MEMBER1_CLUSTER_NAME} -n kosmos-e2e get pvc
+
 echo "集群1 mysql init容器旧日志"
 kubectl --context=kind-${MEMBER1_CLUSTER_NAME} -n kosmos-e2e logs -p mysql-cluster-e2e-mysql-0 init
 echo "集群1 mysql mysql容器旧日志"
