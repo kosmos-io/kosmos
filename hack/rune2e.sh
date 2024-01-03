@@ -52,33 +52,33 @@ kubectl --context=kind-${HOST_CLUSTER_NAME} get pods -n kosmos-e2e -o wide
 echo "主集群所有 pod"
 kubectl --context=kind-${HOST_CLUSTER_NAME} get pods -A
 echo "集群2 servicimport"
-kubectl --context=kind-${MEMBER2_CLUSTER_NAME} -n kosmos-e2e get serviceimports
+kubectl --context=kind-${HOST_CLUSTER_NAME} -n kosmos-e2e get serviceimports
 echo "集群1 servicimport"
-kubectl --context=kind-${MEMBER1_CLUSTER_NAME} -n kosmos-e2e get serviceimports
+kubectl --context=kind-${HOST_CLUSTER_NAME} -n kosmos-e2e get serviceimports
 echo "集群2 esp"
-kubectl --context=kind-${MEMBER2_CLUSTER_NAME} -n kosmos-e2e get endpointslices
+kubectl --context=kind-${HOST_CLUSTER_NAME} -n kosmos-e2e get endpointslices
 echo "集群1 esp"
-kubectl --context=kind-${MEMBER1_CLUSTER_NAME} -n kosmos-e2e get endpointslices
+kubectl --context=kind-${HOST_CLUSTER_NAME} -n kosmos-e2e get endpointslices
 echo "主集群 esp"
 kubectl --context=kind-${HOST_CLUSTER_NAME} -n kosmos-e2e get endpointslices
 
 echo "集群1 mysql init容器日志"
-kubectl --context=kind-${MEMBER1_CLUSTER_NAME} -n kosmos-e2e logs mysql-cluster-e2e-mysql-0 init
+kubectl --context=kind-${HOST_CLUSTER_NAME} -n kosmos-e2e logs mysql-cluster-e2e-mysql-0 init
 echo "集群1 mysql mysql容器日志"
-kubectl --context=kind-${MEMBER1_CLUSTER_NAME} -n kosmos-e2e logs mysql-cluster-e2e-mysql-0 mysql
+kubectl --context=kind-${HOST_CLUSTER_NAME} -n kosmos-e2e logs mysql-cluster-e2e-mysql-0 mysql
 
 echo "集群1 mysql pvc"
-kubectl --context=kind-${MEMBER1_CLUSTER_NAME} -n kosmos-e2e get pvc
+kubectl --context=kind-${HOST_CLUSTER_NAME} -n kosmos-e2e get pvc
 echo "集群1 mysql pv"
-kubectl --context=kind-${MEMBER1_CLUSTER_NAME} -n kosmos-e2e get pv
+kubectl --context=kind-${HOST_CLUSTER_NAME} -n kosmos-e2e get pv
 
 echo "集群1 所有 pod"
-kubectl --context=kind-${MEMBER1_CLUSTER_NAME} -n kosmos-e2e get pvc
+kubectl --context=kind-${HOST_CLUSTER_NAME} -n kosmos-e2e get pvc
 
 echo "集群1 mysql init容器旧日志"
-kubectl --context=kind-${MEMBER1_CLUSTER_NAME} -n kosmos-e2e logs -p mysql-cluster-e2e-mysql-0 init
+kubectl --context=kind-${HOST_CLUSTER_NAME} -n kosmos-e2e logs -p mysql-cluster-e2e-mysql-0 init
 echo "集群1 mysql mysql容器旧日志"
-kubectl --context=kind-${MEMBER1_CLUSTER_NAME} -n kosmos-e2e logs -p mysql-cluster-e2e-mysql-0 mysql
+kubectl --context=kind-${HOST_CLUSTER_NAME} -n kosmos-e2e logs -p mysql-cluster-e2e-mysql-0 mysql
 
 #util::wait_for_condition "mysql cr are ready" \
 #  "[ \$(kubectl get pods -n kosmos-e2e --field-selector=status.phase=Running --no-headers | wc -l) -eq 2 ]" \
