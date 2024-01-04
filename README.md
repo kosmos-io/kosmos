@@ -45,23 +45,80 @@ The Kosmos scheduling module is an extension developed on top of the Kubernetes 
    Whether building a hybrid cloud environment or requiring flexible deployment of workloads across different clusters, the Kosmos scheduling module serves as a reliable solution, assisting users in managing containerized applications more efficiently.
 
 ## Quick Start
+
+This guide will cover:
+- Use Kind create three kubernetes cluster
+- Install `kosmosctl`, you can download from the <a href="https://github.com/kosmos-io/kosmos/releases">releases page</a> or build from source
+- Install `kosmos` control plane components in a Kubernetes cluster which is known as `host cluster`.
+- Join a member cluster to `kosmos` control plane on the `host cluster`.
+- Use the Kosmos clusters.
+
+### Prerequisites
+- [Go](https://golang.org/) version v1.20+
+- [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) version v1.19+
+- [kind](https://kind.sigs.k8s.io/) version v0.14.0+
+
+### Use Kind create cluster
+- Config your kind cluster use flow config, change the param as you need
+```yaml
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+- role: control-plane
+- role: worker
+- role: worker
+```
+- create cluster1
+  `kind create cluster -n kind-cluster1 --kubeconfig /path/to/kind-config`
+- create cluster2
+  `kind create cluster -n kind-cluster1 --kubeconfig /path/to/kind-config`
+- create cluster3
+  `kind create cluster -n kind-cluster1 --kubeconfig /path/to/kind-config`
+
+### Install `kosmosctl`
+
+#### Use prebuild Binary executable file
+- Download from the <a href="https://github.com/kosmos-io/kosmos/releases">releases page</a>, only support macOS and linux
+- put `kosmosctl` to you Path, so you can execute `kosmosctl` without absolute path
+
+#### Build from source
+- Download source
+`git clone https://github.com/kosmos-io/kosmos.git`
+- Build code, the output file is in the` <project_dir>/_output/bin/linux/amd64/kosmosctl`
+`make kosmosct VERSION=v0.1.9`]
+- you can find any available version or tags in [here](https://github.com/kosmos-io/kosmos/tags)
+
+#### Install `kosmos` control plane components
 The following command allows you to quickly run an experimental environment with three clusters. 
 Install the control plane in the host cluster.
 ```Shell
 kosmosctl install  --cni calico --default-nic eth0 (We build a network tunnel based the network interface value passed by the arg default-nic)
 ```
-
-Join the two member clusters.
+#### Join to `kosmos` control plane
+- Get the cluster1 and cluster2 kubeconfig and put it on the host cluster
+- Join the two member clusters(execute on the host cluster).
 ```Shell
 kosmosctl join cluster --name cluster1 --kubeconfig ~/kubeconfig/cluster1-kubeconfig  --cni calico --default-nic eth0  --enable-all
 kosmosctl join cluster --name cluster2 --kubeconfig ~/kubeconfig/cluster2-kubeconfig  --cni calico --default-nic eth0  --enable-all
 ```
-And then we can Use the Kosmos clusters like single cluster.
+#### Use the Kosmos clusters like single cluster on the control plane.
+```shell
+kubectl get nodes
+```
+- use this command we can see the two cluster nodes Name like `kosmos-*` roles as `agent`
+<div><img src="docs/images/demo-check-node.png" style="width:400px;"  alt="nodes"/></div>
 
 ## Contact
 If you have questions, feel free to reach out to us in the following ways:
 - [Email](mailto:wuyingjun@cmss.chinamobile.com)
 - [WeChat](./docs/images/kosmos-WeChatIMG.png)
+
+
+## Contributing
+
+If you're interested in being a contributor and want to get involved in
+developing the Karmada code, please see [CONTRIBUTING](CONTRIBUTING.md) for
+details on submitting patches and the contribution workflow.
 
 ## Contributors
 
@@ -75,7 +132,7 @@ Made with [contrib.rocks](https://contrib.rocks).
 
 Copyright 2023 the KOSMOS Authors. All rights reserved.
 
-Licensed under the Apache License, Version 2.0.
+Licensed under the Apache License, Version 2.0. See the [LICENSE](LICENSE) file for details.
 
 
 

@@ -442,8 +442,13 @@ function util::get_version() {
 }
 
 function util::version_ldflags() {
-  # Git information
-  GIT_VERSION=$(util::get_version)
+  # set GIT_VERSION from param
+  GIT_VERSION=${1:-}
+  # If GIT_VERSION is not provided, use util::get_version
+  if [ -z "$GIT_VERSION" ]; then
+    GIT_VERSION=$(util::get_version)
+  fi
+  #GIT_VERSION=$(util::get_version)
   GIT_COMMIT_HASH=$(git rev-parse HEAD)
   if git_status=$(git status --porcelain 2>/dev/null) && [[ -z ${git_status} ]]; then
     GIT_TREESTATE="clean"
@@ -527,4 +532,12 @@ function util::wait_for_crd() {
 
   echo "The following CRDs were not stored within the specified timeout of ${timeout}s: ${crd_names[*]}"
   return 1
+}
+
+function util::go_clean_cache() {
+    set -x
+    # clean go cache avoid macos make error
+    # vendor/github.com/prometheus/client_golang/prometheus/expvar_collector.go:18:2: open /usr/local/go/src/expvar: too many open files in system
+    go clean -cache
+    set +x
 }
