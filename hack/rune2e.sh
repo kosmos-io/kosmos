@@ -54,7 +54,7 @@ sleep 100 && docker exec -i ${HOST_CLUSTER_NAME}-control-plane sh -c "curl -sSf 
 GO111MODULE=on go install github.com/onsi/ginkgo/v2/ginkgo
 
 set +e
-#ginkgo -v --race --trace --fail-fast -p --randomize-all ./test/e2e/ --
+ginkgo -v --race --trace --fail-fast -p --randomize-all ./test/e2e/ --
 TESTING_RESULT=$?
 
 LOG_PATH=$ROOT/../e2e-logs
