@@ -4,7 +4,7 @@ metadata:
   name: mysql-cluster-e2e
   namespace: kosmos-e2e
 spec:
-  replicas: 1
+  replicas: 2
   secretName: my-secret
 
   ## For setting custom docker image or specifying mysql version
@@ -78,8 +78,7 @@ spec:
                 - key: kubernetes.io/hostname
                   operator: NotIn
                   values:
-                    - kosmos-cluster-member1
-                    - kosmos-cluster-member2
+                    - cluster-host-control-plane
       podAntiAffinity:
         requiredDuringSchedulingIgnoredDuringExecution:
           - labelSelector:
