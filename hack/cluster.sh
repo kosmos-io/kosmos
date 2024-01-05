@@ -219,7 +219,7 @@ function deploy_cluster_by_ctl() {
   docker exec ${clustername}-control-plane /bin/sh -c "mv /etc/kubernetes/manifests/kube-scheduler.yaml /etc/kubernetes"
 
   # add the args for e2e test case of mysql-operator
-  kubectl --context="kind-${clustername}" -n kosmos-system patch deployment clustertree-cluster-manager --type='json' -p='[{"op": "add", "path": "/spec/template/spec/containers/0/command/-", "value": "--auto-mcs-prefix=kosmos-e2e2"}]'
+  kubectl --context="kind-${clustername}" -n kosmos-system patch deployment clustertree-cluster-manager --type='json' -p='[{"op": "add", "path": "/spec/template/spec/containers/0/command/-", "value": "--auto-mcs-prefix=kosmos-e2e"}]'
 
   util::wait_for_condition "kosmos clustertree are ready" \
     "kubectl --context="kind-${clustername}" -n kosmos-system get deploy clustertree-cluster-manager -o jsonpath='{.status.replicas}{\" \"}{.status.readyReplicas}{\"\n\"}' | awk '{if (\$1 == \$2 && \$1 > 0) exit 0; else exit 1}'" \
