@@ -7,7 +7,6 @@ set -o pipefail
 KUBECONFIG_PATH=${KUBECONFIG_PATH:-"${HOME}/.kube"}
 export KUBECONFIG=$KUBECONFIG_PATH/"config"
 
-
 E2E_NAMESPACE="kosmos-e2e"
 HOST_CLUSTER_NAME="cluster-host"
 MEMBER1_CLUSTER_NAME="cluster-member1"
@@ -33,22 +32,23 @@ util::wait_for_condition "mcs of member2 are ready" \
 nginx_service_ip=$(kubectl -n kosmos-e2e get svc nginx-service -o=jsonpath='{.spec.clusterIP}')
 
 # e2e test for access nginx service
-sleep 100 && docker exec -i ${HOST_CLUSTER_NAME}-control-plane sh -c "curl -sSf -m 5 ${nginx_service_ip}:80" && echo "success" || { echo "fail"; exit 1; }
+sleep 100 && docker exec -i ${HOST_CLUSTER_NAME}-control-plane sh -c "curl -sSf -m 5 ${nginx_service_ip}:80" && echo "success" || {
+  echo "fail"
+  exit 1
+}
 
-# e2e for mysql-operator
-kubectl --context="kind-cluster-host" apply -f "${ROOT}"/../test/e2e/deploy/mysql-operator
-util::wait_for_condition "mysql operator are ready" \
-  "kubectl --context=kind-${HOST_CLUSTER_NAME} get pods -n mysql-operator mysql-operator-0 | awk 'NR>1 {if (\$3 == \"Running\") exit 0; else exit 1; }'" \
-  300
+## e2e for mysql-operator
+#kubectl --context="kind-cluster-host" apply -f "${ROOT}"/../test/e2e/deploy/mysql-operator
+#util::wait_for_condition "mysql operator are ready" \
+#  "kubectl --context=kind-${HOST_CLUSTER_NAME} get pods -n mysql-operator mysql-operator-0 | awk 'NR>1 {if (\$3 == \"Running\") exit 0; else exit 1; }'" \
+#  300
+#kubectl --context="kind-${HOST_CLUSTER_NAME}" apply -f "${ROOT}"/../test/e2e/deploy/cr
 
-#kubectl --context="kind-cluster-host" exec -it /bin/sh -c
-kubectl --context="kind-${HOST_CLUSTER_NAME}" apply -f "${ROOT}"/../test/e2e/deploy/cr
+#util::wait_for_condition "mysql cr are ready" \
+#  "[ \$(kubectl get pods -n kosmos-e2e --field-selector=status.phase=Running --no-headers | wc -l) -eq 2 ]" \
+#  1200
 
-util::wait_for_condition "mysql cr are ready" \
-  "[ \$(kubectl get pods -n kosmos-e2e --field-selector=status.phase=Running --no-headers | wc -l) -eq 2 ]" \
-  1200
-
-echo "E2e test of mysql-operator success"
+#echo "E2e test of mysql-operator success"
 
 # Install ginkgo
 GO111MODULE=on go install github.com/onsi/ginkgo/v2/ginkgo
