@@ -45,6 +45,8 @@ type Converters struct {
 	// +optional
 	NodeSelectorConverter *NodeSelectorConverter `json:"nodeSelectorConverter,omitempty"`
 	// +optional
+	TolerationConverter *TolerationConverter `json:"tolerationConverter,omitempty"`
+	// +optional
 	AffinityConverter *AffinityConverter `json:"affinityConverter,omitempty"`
 	// +optional
 	TopologySpreadConstraintsConverter *TopologySpreadConstraintsConverter `json:"topologySpreadConstraintsConverter,omitempty"`
