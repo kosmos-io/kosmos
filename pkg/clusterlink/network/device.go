@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/vishvananda/netlink"
@@ -59,9 +60,9 @@ func createNewVxlanIface(name string, addrIPWithMask *netlink.Addr, vxlanId int,
 	klog.Infof("name %v  ------------------------- %v", name, deviceIP)
 	iface := &netlink.Vxlan{
 		LinkAttrs: netlink.LinkAttrs{
-			Name:         name,
-			MTU:          rIface.MTU - vxlanOverhead,
-			Flags:        net.FlagUp,
+			Name: name,
+			MTU:  rIface.MTU - vxlanOverhead,
+			// Flags:        net.FlagUp,
 			HardwareAddr: hardwareAddr,
 		},
 		SrcAddr:      net.ParseIP(deviceIP),
@@ -94,9 +95,22 @@ func createNewVxlanIface(name string, addrIPWithMask *netlink.Addr, vxlanId int,
 
 	klog.Infof("name %v  ------------------------- addrIPWithMask %v", name, addrIPWithMask)
 
-	err = netlink.AddrAdd(iface, addrIPWithMask)
+	link, err := netlink.LinkByName(name)
+	if err != nil {
+		fmt.Printf("get link by name err: %v\n", err)
+		panic(err)
+	}
+
+	err = netlink.AddrAdd(link, addrIPWithMask)
 	if err != nil {
 		klog.Errorf("Add address %v to vxlan interface,get error : %v", addrIPWithMask, err)
+		return err
+	}
+
+	time.Sleep(1 * time.Second)
+	err = netlink.LinkSetUp(link)
+	if err != nil {
+		klog.Errorf("set up device err:  %v\n", err)
 		return err
 	}
 
