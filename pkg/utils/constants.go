@@ -1,8 +1,6 @@
 package utils
 
 import (
-	"time"
-
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
@@ -108,6 +106,7 @@ const (
 	KosmosGlobalLabel      = "kosmos.io/global"
 	KosmosSelectorKey      = "kosmos.io/cluster-selector"
 	KosmosTrippedLabels    = "kosmos-io/tripped"
+	KosmosConvertLabels    = "kosmos-io/convert-policy"
 	KosmosPvcLabelSelector = "kosmos-io/label-selector"
 	KosmosExcludeNodeLabel = "kosmos.io/exclude"
 	KosmosExcludeNodeValue = "true"
@@ -131,7 +130,7 @@ const (
 	DefaultK8sOS   = "linux"
 	DefaultK8sArch = "amd64"
 
-	DefaultInformerResyncPeriod = 1 * time.Minute
+	DefaultInformerResyncPeriod = 0
 	DefaultListenPort           = 10250
 	DefaultPodSyncWorkers       = 10
 	DefaultWorkers              = 5
