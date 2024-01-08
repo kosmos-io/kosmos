@@ -11,6 +11,7 @@ E2E_NAMESPACE="kosmos-e2e"
 HOST_CLUSTER_NAME="cluster-host"
 MEMBER1_CLUSTER_NAME="cluster-member1"
 MEMBER2_CLUSTER_NAME="cluster-member2"
+MEMBER3_CLUSTER_NAME="cluster-member3"
 
 ROOT="$(dirname "${BASH_SOURCE[0]}")"
 source "${ROOT}/util.sh"
@@ -29,6 +30,10 @@ util::wait_for_condition "mcs of member2 are ready" \
   "[ \$(kubectl --context=kind-${MEMBER2_CLUSTER_NAME} -n ${E2E_NAMESPACE} get endpointslices.discovery.k8s.io --no-headers -l kubernetes.io\/service-name=nginx-service | wc -l) -eq 1 ] " \
   120
 
+util::wait_for_condition "mcs of member3 are ready" \
+  "[ \$(kubectl --context=kind-${MEMBER3_CLUSTER_NAME} -n ${E2E_NAMESPACE} get endpointslices.discovery.k8s.io --no-headers -l kubernetes.io\/service-name=nginx-service | wc -l) -eq 1 ] " \
+  120
+
 nginx_service_ip=$(kubectl -n kosmos-e2e get svc nginx-service -o=jsonpath='{.spec.clusterIP}')
 
 # e2e test for access nginx service
@@ -45,7 +50,7 @@ sleep 100 && docker exec -i ${HOST_CLUSTER_NAME}-control-plane sh -c "curl -sSf 
 #kubectl --context="kind-${HOST_CLUSTER_NAME}" apply -f "${ROOT}"/../test/e2e/deploy/cr
 
 #util::wait_for_condition "mysql cr are ready" \
-#  "[ \$(kubectl get pods -n kosmos-e2e --field-selector=status.phase=Running --no-headers | wc -l) -eq 2 ]" \
+#  "[ \$(kubectl --context="kind-${HOST_CLUSTER_NAME}" get pods -n kosmos-e2e --field-selector=status.phase=Running -l app.kubernetes.io/name=mysql --no-headers | wc -l) -eq 2 ]" \
 #  1200
 
 #echo "E2e test of mysql-operator success"
@@ -72,6 +77,10 @@ kind export logs --name="$MEMBER1_CLUSTER_NAME" "$LOG_PATH/$MEMBER1_CLUSTER_NAME
 echo "Collecting $MEMBER2_CLUSTER_NAME logs..."
 mkdir -p "$MEMBER2_CLUSTER_NAME/$MEMBER2_CLUSTER_NAME"
 kind export logs --name="$MEMBER2_CLUSTER_NAME" "$LOG_PATH/$MEMBER2_CLUSTER_NAME"
+
+echo "Collecting $MEMBER3_CLUSTER_NAME logs..."
+mkdir -p "$MEMBER3_CLUSTER_NAME/$MEMBER3_CLUSTER_NAME"
+kind export logs --name="$MEMBER3_CLUSTER_NAME" "$LOG_PATH/$MEMBER3_CLUSTER_NAME"
 
 #TODO delete cluster
 
