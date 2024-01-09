@@ -65,7 +65,6 @@ spec:
             - mountPath: /etc/clusterlink
               name: proxy-config
               readOnly: true
-      serviceAccount: clusterlink-elector
       serviceAccountName: clusterlink-elector
       tolerations:
         - effect: NoSchedule

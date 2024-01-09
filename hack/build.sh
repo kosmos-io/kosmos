@@ -39,6 +39,7 @@ function build_binary() {
   done
 }
 
+
 function build_binary_for_platform() {
   local -r target=$1
   local -r platform=$2

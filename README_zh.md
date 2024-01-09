@@ -48,7 +48,7 @@ Kosmos调度模块是基于Kubernetes调度框架的扩展开发，旨在满足�
 ```bash
 kosmosctl install  --cni calico --default-nic eth0 (参数default-nic 表示基于哪个网卡创建网络隧道)
 ```
-加入两个子集群
+加入两个子集群(在kosmos控制面上执行)
 ```bash
 kosmosctl join cluster --name cluster1 --kubeconfig ~/kubeconfig/cluster1-kubeconfig  --cni calico --default-nic eth0  --enable-all
 kosmosctl join cluster --name cluster2 --kubeconfig ~/kubeconfig/cluster2-kubeconfig  --cni calico --default-nic eth0  --enable-all

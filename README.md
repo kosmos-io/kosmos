@@ -51,7 +51,7 @@ Install the control plane in the host cluster.
 kosmosctl install  --cni calico --default-nic eth0 (We build a network tunnel based the network interface value passed by the arg default-nic)
 ```
 
-Join the two member clusters.
+Join the two member clusters(execute on the host cluster).
 ```Shell
 kosmosctl join cluster --name cluster1 --kubeconfig ~/kubeconfig/cluster1-kubeconfig  --cni calico --default-nic eth0  --enable-all
 kosmosctl join cluster --name cluster2 --kubeconfig ~/kubeconfig/cluster2-kubeconfig  --cni calico --default-nic eth0  --enable-all

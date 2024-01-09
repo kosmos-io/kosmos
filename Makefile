@@ -9,6 +9,15 @@ REGISTRY_PASSWORD?=""
 REGISTRY_SERVER_ADDRESS?=""
 KIND_IMAGE_TAG?="v1.25.3"
 
+MACOS_TARGETS := clusterlink-controller-manager  \
+				kosmos-operator \
+				 clusterlink-elector \
+				clusterlink-network-manager \
+				clusterlink-proxy \
+				clustertree-cluster-manager \
+				scheduler \
+
+# clusterlink-agent and clusterlink-floater only support linux platform
 TARGETS :=  clusterlink-controller-manager  \
 			kosmos-operator \
 			clusterlink-agent \
@@ -18,6 +27,11 @@ TARGETS :=  clusterlink-controller-manager  \
 			clusterlink-proxy \
 			clustertree-cluster-manager \
 			scheduler \
+
+# If GOOS is macOS, assign the value of MACOS_TARGETS to TARGETS
+ifeq ($(GOOS), darwin)
+	TARGETS := $(MACOS_TARGETS)
+endif
 
 CTL_TARGETS := kosmosctl
 
@@ -82,12 +96,13 @@ multi-platform-images: $(MP_TARGET)
 
 .PHONY: clean
 clean:
-	rm -rf _tmp _output
+	hack/clean.sh
 
 .PHONY: update
 update:
 	hack/update-all.sh
 
+# verify-all.sh can not found
 .PHONY: verify
 verify:
 	hack/verify-all.sh

@@ -51,7 +51,6 @@ spec:
       restartPolicy: Always
       dnsPolicy: ClusterFirst
       serviceAccountName: kosmos-scheduler
-      serviceAccount: kosmos-scheduler
 
 ---
 apiVersion: v1

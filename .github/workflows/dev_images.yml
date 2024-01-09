@@ -1,0 +1,33 @@
+name: Dev Images
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+jobs:
+  images:
+    runs-on: ubuntu-latest
+    permissions: write-all
+    # not trigger on 'kosmos-io/kosmos'
+    if: github.repository != 'kosmos-io/kosmos'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Set up qemu
+        uses: docker/setup-qemu-action@v2
+      - name: Login registry
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      - name: 'Get Previous tag'
+        id: previoustag
+        uses: "WyriHaximus/github-action-get-previous-tag@v1"
+        with:
+          fallback: 1.0.0
+      - name: Push images
+        env:
+          ON_PLUGINS: true
+          REGISTRY: ghcr.io/${{ github.repository_owner }}/${{ github.repository_name }}
+          TAG: ${{ steps.previoustag.outputs.tag }}
+        run: |
+          make upload-images REGISTRY=${REGISTRY%?} VERSION=$TAG
