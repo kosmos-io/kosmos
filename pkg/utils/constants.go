@@ -38,6 +38,10 @@ const (
 	DefaultContainerdSockAddress = "/run/containerd/containerd.sock"
 	DefaultVersion               = "latest"
 	DefaultTarName               = "kosmos-io.tar.gz"
+	// nolint
+	DefaultServiceAccountName = "default"
+	// nolint
+	DefaultServiceAccountToken = "kosmos.io/service-account.name"
 )
 
 const (
