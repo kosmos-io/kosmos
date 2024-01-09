@@ -58,6 +58,10 @@ spec:
                     - ip
                     - ip6
                     type: object
+                  clusterpodCIDRs:
+                    items:
+                      type: string
+                    type: array
                   cni:
                     default: calico
                     type: string
@@ -107,8 +111,16 @@ spec:
                       - nodeName
                       type: object
                     type: array
+                  nodeElasticIPMap:
+                    additionalProperties:
+                      type: string
+                    description: NodeElasticIPMap presents mapping between nodename
+                      in kubernetes and elasticIP
+                    type: object
                   useIPPool:
                     default: false
+                    type: boolean
+                  useexternalapiserver:
                     type: boolean
                 type: object
               clusterTreeOptions:

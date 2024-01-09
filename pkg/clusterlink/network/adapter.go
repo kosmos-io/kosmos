@@ -2,10 +2,13 @@ package network
 
 import (
 	"fmt"
+	"net"
 
 	"github.com/pkg/errors"
+	"github.com/vishvananda/netlink"
 	"k8s.io/klog/v2"
 
+	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	clusterlinkv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 )
 
@@ -49,6 +52,27 @@ func (n *DefaultNetWork) LoadSysConfig() (*clusterlinkv1alpha1.NodeConfigSpec, e
 		errs = errors.Wrap(err, fmt.Sprint(errs))
 	} else {
 		nodeConfigSpec.Arps = arps
+	}
+
+	xfrmpolicies, err := loadXfrmPolicy()
+	if err != nil {
+		errs = errors.Wrap(err, fmt.Sprint(errs))
+	} else {
+		nodeConfigSpec.XfrmPolicies = xfrmpolicies
+	}
+
+	xfrmstates, err := loadXfrmState()
+	if err != nil {
+		errs = errors.Wrap(err, fmt.Sprint(errs))
+	} else {
+		nodeConfigSpec.XfrmStates = xfrmstates
+	}
+
+	ipsets, err := loadIPsetAvoidMasq()
+	if err != nil {
+		errs = errors.Wrap(err, fmt.Sprint(errs))
+	} else {
+		nodeConfigSpec.IPsetsAvoidMasqs = ipsets
 	}
 
 	return nodeConfigSpec, errs
@@ -104,6 +128,17 @@ func (n *DefaultNetWork) DeleteDevices(devices []clusterlinkv1alpha1.Device) err
 	return errs
 }
 
+func (n *DefaultNetWork) DeleteIPsetsAvoidMasq(ipsets []clusterlinkv1alpha1.IPset) error {
+	var errs error
+	for _, ipset := range ipsets {
+		err := deleteIPset(ipset)
+		if err != nil {
+			errs = errors.Wrap(err, fmt.Sprintf("add ipset avoid masq error: %v", ipset))
+		}
+	}
+	return errs
+}
+
 func (n *DefaultNetWork) UpdateArps([]clusterlinkv1alpha1.Arp) error {
 	return ErrNotImplemented
 }
@@ -121,6 +156,18 @@ func (n *DefaultNetWork) UpdateRoutes([]clusterlinkv1alpha1.Route) error {
 }
 
 func (n *DefaultNetWork) UpdateDevices([]clusterlinkv1alpha1.Device) error {
+	return ErrNotImplemented
+}
+
+func (n *DefaultNetWork) UpdateXfrmPolicies([]clusterlinkv1alpha1.XfrmPolicy) error {
+	return ErrNotImplemented
+}
+
+func (n *DefaultNetWork) UpdateXfrmStates([]clusterlinkv1alpha1.XfrmState) error {
+	return ErrNotImplemented
+}
+
+func (n *DefaultNetWork) UpdateIPsetsAvoidMasq([]clusterlinkv1alpha1.IPset) error {
 	return ErrNotImplemented
 }
 
@@ -159,6 +206,117 @@ func (n *DefaultNetWork) AddRoutes(routes []clusterlinkv1alpha1.Route) error {
 	for _, route := range routes {
 		if err := addRoute(route); err != nil {
 			errs = errors.Wrap(err, fmt.Sprintf("create route error, deivce name: %v", route))
+		}
+	}
+	return errs
+}
+
+// For reference:
+// https://github.com/flannel-io/flannel
+func (n *DefaultNetWork) AddXfrmPolicies(xfrmpolicies []clusterlinkv1alpha1.XfrmPolicy) error {
+	var errs error
+	for _, xfrmpolicy := range xfrmpolicies {
+		srcIP := net.ParseIP(xfrmpolicy.LeftIP)
+		dstIP := net.ParseIP(xfrmpolicy.RightIP)
+		_, srcNet, _ := net.ParseCIDR(xfrmpolicy.LeftNet)
+		_, dstNet, _ := net.ParseCIDR(xfrmpolicy.RightNet)
+		reqID := xfrmpolicy.ReqID
+
+		var err error
+		var xfrmpolicydir netlink.Dir
+		switch v1alpha1.IPSECDirection(xfrmpolicy.Dir) {
+		case v1alpha1.IPSECOut:
+			xfrmpolicydir = netlink.XFRM_DIR_OUT
+		case v1alpha1.IPSECIn:
+			xfrmpolicydir = netlink.XFRM_DIR_IN
+		case v1alpha1.IPSECFwd:
+			xfrmpolicydir = netlink.XFRM_DIR_FWD
+		}
+		err = AddXFRMPolicy(srcNet, dstNet, srcIP, dstIP, xfrmpolicydir, reqID)
+		if err != nil {
+			errs = errors.Wrap(err, fmt.Sprintf("error adding ipsec policy: %v", xfrmpolicy))
+		}
+	}
+	return errs
+}
+
+// For reference:
+// https://github.com/flannel-io/flannel
+func (n *DefaultNetWork) DeleteXfrmPolicies(xfrmpolicies []clusterlinkv1alpha1.XfrmPolicy) error {
+	var errs error
+	for _, xfrmpolicy := range xfrmpolicies {
+		srcIP := net.ParseIP(xfrmpolicy.LeftIP)
+		dstIP := net.ParseIP(xfrmpolicy.RightIP)
+		_, srcNet, _ := net.ParseCIDR(xfrmpolicy.LeftNet)
+		_, dstNet, _ := net.ParseCIDR(xfrmpolicy.RightNet)
+		reqID := xfrmpolicy.ReqID
+
+		var xfrmpolicydir netlink.Dir
+		switch v1alpha1.IPSECDirection(xfrmpolicy.Dir) {
+		case v1alpha1.IPSECOut:
+			xfrmpolicydir = netlink.XFRM_DIR_OUT
+		case v1alpha1.IPSECIn:
+			xfrmpolicydir = netlink.XFRM_DIR_IN
+		case v1alpha1.IPSECFwd:
+			xfrmpolicydir = netlink.XFRM_DIR_FWD
+		}
+
+		if reqID != v1alpha1.DefaultReqID {
+			klog.Info("Xfrm policy %v reqID is %d, not created by kosmos", xfrmpolicy, reqID)
+			continue
+		}
+		err := DeleteXFRMPolicy(srcNet, dstNet, srcIP, dstIP, xfrmpolicydir, reqID)
+		if err != nil {
+			errs = errors.Wrap(err, fmt.Sprintf("error deleting ipsec policy: %v", xfrmpolicy))
+		}
+	}
+	return errs
+}
+
+func (n *DefaultNetWork) AddXfrmStates(xfrmstates []clusterlinkv1alpha1.XfrmState) error {
+	var errs error
+	for _, xfrmstate := range xfrmstates {
+		srcIP := net.ParseIP(xfrmstate.LeftIP)
+		dstIP := net.ParseIP(xfrmstate.RightIP)
+		reqID := xfrmstate.ReqID
+		err := AddXFRMState(srcIP, dstIP, reqID, int(xfrmstate.SPI), xfrmstate.PSK)
+		if err != nil {
+			errs = errors.Wrap(err, fmt.Sprintf("error adding ipsec state: %v", xfrmstate))
+		}
+	}
+	return errs
+}
+
+func (n *DefaultNetWork) DeleteXfrmStates(xfrmstates []clusterlinkv1alpha1.XfrmState) error {
+	var errs error
+	for _, xfrmstate := range xfrmstates {
+		srcIP := net.ParseIP(xfrmstate.LeftIP)
+		dstIP := net.ParseIP(xfrmstate.RightIP)
+		reqID := xfrmstate.ReqID
+		if reqID != v1alpha1.DefaultReqID {
+			klog.Info("Xfrm state %v reqID is %d, not created by kosmos", xfrmstate, reqID)
+			continue
+		}
+		err := DeleteXFRMState(srcIP, dstIP, reqID, int(xfrmstate.SPI), xfrmstate.PSK)
+		if err != nil {
+			errs = errors.Wrap(err, fmt.Sprintf("error deleting ipsec state: %v", xfrmstate))
+		}
+	}
+	return errs
+}
+
+func (n *DefaultNetWork) AddIPsetsAvoidMasq(ipsets []clusterlinkv1alpha1.IPset) error {
+	var errs error
+	for _, ipset := range ipsets {
+		err := addIPset(ipset)
+		if err != nil {
+			errs = errors.Wrap(err, fmt.Sprintf("add ipset avoid masq error: %v", ipset))
+		}
+	}
+	if len(ipsets) > 0 {
+		err := ensureAvoidMasqRule()
+		if err != nil {
+			errs = errors.Wrap(err, "create iptables rule to avoid masq,error")
 		}
 	}
 	return errs

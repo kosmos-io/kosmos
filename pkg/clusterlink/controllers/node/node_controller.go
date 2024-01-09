@@ -107,11 +107,34 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 			},
 		},
 	}
+	cluster, err := r.ClusterLinkClient.KosmosV1alpha1().Clusters().Get(ctx, r.ClusterName, metav1.GetOptions{})
+	if err != nil {
+		klog.Errorf("get cluster %s err: %v", r.ClusterName, err)
+		return reconcile.Result{Requeue: true}, nil
+	}
 
-	err := CreateOrUpdateClusterNode(r.ClusterLinkClient, clusterNode, func(n *clusterlinkv1alpha1.ClusterNode) error {
+	var elasticIP string
+	elasticIPMap := cluster.Spec.ClusterLinkOptions.NodeElasticIPMap
+	if len(elasticIPMap) != 0 {
+		if elasticIPtoParse, ok := elasticIPMap[node.Name]; ok {
+			_, proto := ParseIP(elasticIPtoParse)
+			// Now elasticIP only support IPv4
+			if proto == 4 {
+				elasticIP = elasticIPtoParse
+			}
+		}
+	}
+	err = CreateOrUpdateClusterNode(r.ClusterLinkClient, clusterNode, func(n *clusterlinkv1alpha1.ClusterNode) error {
 		n.Spec.NodeName = node.Name
 		n.Spec.ClusterName = r.ClusterName
 		// n.Spec.InterfaceName while set by clusterlink-agent
+		n.Spec.ElasticIP = elasticIP
+
+		if utils.NodeReady(&node) {
+			n.Status.NodeStatus = string(corev1.NodeReady)
+		} else {
+			n.Status.NodeStatus = "NotReady"
+		}
 		return nil
 	})
 	if err != nil {

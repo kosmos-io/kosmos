@@ -126,10 +126,11 @@ func run(ctx context.Context, opts *options.Options) error {
 						err := elector.EnsureGateWayRole()
 						if err != nil {
 							klog.Errorf("set gateway role failure: %v, retry after 10 sec.", err)
-							time.Sleep(10 * time.Second)
+							time.Sleep(3 * time.Second)
 						} else {
-							klog.V(4).Info("ensure gateway role success, recheck after 60 sec.")
-							time.Sleep(60 * time.Second)
+							timeToRecheck := 3 * time.Second
+							klog.V(4).Infof("ensure gateway role success, recheck after %d sec.", int(timeToRecheck))
+							time.Sleep(timeToRecheck)
 						}
 					}
 				}

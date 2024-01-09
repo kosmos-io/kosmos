@@ -2,6 +2,7 @@ package helpers
 
 import (
 	"reflect"
+	"sort"
 
 	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 )
@@ -46,6 +47,23 @@ func (f *Filter) GetInternalNodes() []*v1alpha1.ClusterNode {
 		}
 	}
 	return results
+}
+
+func (f *Filter) GetClusterByCNI(cni []string) ([]*v1alpha1.Cluster, []*v1alpha1.Cluster) {
+	ss := sort.StringSlice(cni)
+	ss.Sort()
+	sc := []string(ss)
+	var targetCluster []*v1alpha1.Cluster
+	var otherCluster []*v1alpha1.Cluster
+	for _, cluster := range f.clusters {
+		pos := sort.SearchStrings(sc, cluster.Spec.ClusterLinkOptions.CNI)
+		if pos != len(sc) && sc[pos] == cluster.Spec.ClusterLinkOptions.CNI {
+			targetCluster = append(targetCluster, cluster)
+		} else {
+			otherCluster = append(otherCluster, cluster)
+		}
+	}
+	return targetCluster, otherCluster
 }
 
 func (f *Filter) GetEndpointNodes() []*v1alpha1.ClusterNode {

@@ -3,6 +3,7 @@ package join
 import (
 	"context"
 	"fmt"
+	"net"
 
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
@@ -17,6 +18,7 @@ import (
 	"k8s.io/kubectl/pkg/util/templates"
 
 	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
+	clustercontrollers "github.com/kosmos.io/kosmos/pkg/clusterlink/controllers/cluster"
 	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/manifest"
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/util"
@@ -53,12 +55,15 @@ type CommandJoinOptions struct {
 	RootFlag             bool
 	EnableAll            bool
 
-	EnableLink     bool
-	CNI            string
-	DefaultNICName string
-	NetworkType    string
-	IpFamily       string
-	UseProxy       string
+	EnableLink           bool
+	CNI                  string
+	DefaultNICName       string
+	NetworkType          string
+	IpFamily             string
+	UseProxy             string
+	NodeElasticIP        map[string]string
+	ClusterPodCIDRs      []string
+	UseExternalApiserver bool
 
 	EnableTree bool
 	LeafModel  string
@@ -107,6 +112,9 @@ func NewCmdJoin(f ctlutil.Factory) *cobra.Command {
 	flags.BoolVar(&o.EnableTree, "enable-tree", false, "Turn on clustertree.")
 	flags.StringVar(&o.LeafModel, "leaf-model", "", "Set leaf cluster model, which supports one-to-one model.")
 	flags.IntVarP(&o.WaitTime, "wait-time", "", utils.DefaultWaitTime, "Wait the specified time for the Kosmos install ready.")
+	flags.StringToStringVar(&o.NodeElasticIP, "node-elasticip", nil, "Set cluster node with elastic ip.")
+	flags.StringSliceVar(&o.ClusterPodCIDRs, "cluster-pod-cidrs", nil, "Set cluster pods cidrs.")
+	flags.BoolVar(&o.UseExternalApiserver, "use-extelnal-apiserver", true, "Apiserver is a pod in cluster or not.")
 
 	return cmd
 }
@@ -168,6 +176,17 @@ func (o *CommandJoinOptions) Validate(args []string) error {
 		return fmt.Errorf("kosmosctl join validate error, namespace is not valid")
 	}
 
+	validationErr := "kosmosctl join validate error"
+	for nodeName, elasticIP := range o.NodeElasticIP {
+		_, err := o.K8sClient.CoreV1().Nodes().Get(context.TODO(), nodeName, metav1.GetOptions{})
+		if err != nil {
+			return fmt.Errorf("%s, node %s is invalid: %v", validationErr, nodeName, err)
+		}
+		if net.ParseIP(elasticIP) == nil {
+			return fmt.Errorf("%s, ElasticIP %s is invalid", validationErr, elasticIP)
+		}
+	}
+
 	switch args[0] {
 	case "cluster":
 		_, err := o.KosmosClient.KosmosV1alpha1().Clusters().Get(context.TODO(), o.Name, metav1.GetOptions{})
@@ -176,6 +195,18 @@ func (o *CommandJoinOptions) Validate(args []string) error {
 				return fmt.Errorf("kosmosctl join validate error, clsuter already exists: %s", err)
 			}
 		}
+	}
+
+	if o.CNI == clustercontrollers.GlobalRouterCNI {
+		if o.ClusterPodCIDRs == nil {
+			return fmt.Errorf("%s, should specify ClusterPodCIDRs when using cni globalrouter", validationErr)
+		}
+		for _, podsCidr := range o.ClusterPodCIDRs {
+			if _, _, err := net.ParseCIDR(podsCidr); err != nil {
+				return fmt.Errorf("%s,  pod cidr is invalid", validationErr)
+			}
+		}
+		o.UseExternalApiserver = true
 	}
 
 	return nil
@@ -219,8 +250,9 @@ func (o *CommandJoinOptions) runCluster() error {
 					IP:  "210.0.0.0/8",
 					IP6: "9470::0/16",
 				},
-				NetworkType: v1alpha1.NetWorkTypeGateWay,
-				IPFamily:    v1alpha1.IPFamilyTypeIPV4,
+				NetworkType:      v1alpha1.NetWorkTypeGateWay,
+				IPFamily:         v1alpha1.IPFamilyTypeIPV4,
+				NodeElasticIPMap: o.NodeElasticIP,
 			},
 			ClusterTreeOptions: &v1alpha1.ClusterTreeOptions{
 				Enable: o.EnableTree,
@@ -247,6 +279,9 @@ func (o *CommandJoinOptions) runCluster() error {
 
 		cluster.Spec.ClusterLinkOptions.DefaultNICName = o.DefaultNICName
 		cluster.Spec.ClusterLinkOptions.CNI = o.CNI
+		cluster.Spec.ClusterLinkOptions.NodeElasticIPMap = o.NodeElasticIP
+		cluster.Spec.ClusterLinkOptions.ClusterPodCIDRs = o.ClusterPodCIDRs
+		cluster.Spec.ClusterLinkOptions.UseExternalApiserver = o.UseExternalApiserver
 	}
 
 	if o.EnableTree {
