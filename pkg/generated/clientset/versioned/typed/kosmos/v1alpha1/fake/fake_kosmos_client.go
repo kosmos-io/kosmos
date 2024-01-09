@@ -24,6 +24,10 @@ func (c *FakeKosmosV1alpha1) DaemonSets(namespace string) v1alpha1.DaemonSetInte
 	return &FakeDaemonSets{c, namespace}
 }
 
+func (c *FakeKosmosV1alpha1) DistributionPolicies() v1alpha1.DistributionPolicyInterface {
+	return &FakeDistributionPolicies{c}
+}
+
 func (c *FakeKosmosV1alpha1) Knodes() v1alpha1.KnodeInterface {
 	return &FakeKnodes{c}
 }

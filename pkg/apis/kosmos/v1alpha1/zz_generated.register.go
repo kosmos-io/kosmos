@@ -48,6 +48,8 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&ClusterNodeList{},
 		&DaemonSet{},
 		&DaemonSetList{},
+		&DistributionPolicy{},
+		&DistributionPolicyList{},
 		&Knode{},
 		&KnodeList{},
 		&NodeConfig{},

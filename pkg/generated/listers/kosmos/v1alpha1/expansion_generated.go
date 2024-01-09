@@ -18,6 +18,10 @@ type DaemonSetListerExpansion interface{}
 // DaemonSetNamespaceLister.
 type DaemonSetNamespaceListerExpansion interface{}
 
+// DistributionPolicyListerExpansion allows custom methods to be added to
+// DistributionPolicyLister.
+type DistributionPolicyListerExpansion interface{}
+
 // KnodeListerExpansion allows custom methods to be added to
 // KnodeLister.
 type KnodeListerExpansion interface{}
