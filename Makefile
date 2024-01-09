@@ -18,6 +18,7 @@ TARGETS :=  clusterlink-controller-manager  \
 			clusterlink-proxy \
 			clustertree-cluster-manager \
 			scheduler \
+			webhook
 
 CTL_TARGETS := kosmosctl
 
