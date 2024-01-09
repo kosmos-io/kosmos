@@ -382,6 +382,11 @@ func (in *Converters) DeepCopyInto(out *Converters) {
 		*out = new(NodeSelectorConverter)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.TolerationConverter != nil {
+		in, out := &in.TolerationConverter, &out.TolerationConverter
+		*out = new(TolerationConverter)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.AffinityConverter != nil {
 		in, out := &in.AffinityConverter, &out.AffinityConverter
 		*out = new(AffinityConverter)

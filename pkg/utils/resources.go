@@ -58,6 +58,9 @@ func GetPodsTotalRequestsAndLimits(podList *corev1.PodList) (reqs corev1.Resourc
 			if IsVirtualPod(&pod) {
 				continue
 			}
+			if pod.Status.Phase != corev1.PodRunning {
+				continue
+			}
 			podReqs, podLimits := v1resource.PodRequestsAndLimits(&pod)
 			for podReqName, podReqValue := range podReqs {
 				if value, ok := reqs[podReqName]; !ok {
@@ -90,6 +93,9 @@ func GetUsedPodNums(podList *corev1.PodList, nodes *corev1.NodeList) (res corev1
 	for _, p := range podList.Items {
 		pod := p
 		if IsVirtualPod(&pod) {
+			continue
+		}
+		if pod.Status.Phase != corev1.PodRunning {
 			continue
 		}
 		node, exists := nodeMap[pod.Spec.NodeName]

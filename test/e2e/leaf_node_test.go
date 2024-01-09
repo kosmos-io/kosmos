@@ -40,8 +40,8 @@ var _ = ginkgo.Describe("Test leaf node mode -- one2cluster, one2node, one2party
 		memberNodeNames = make([]string, 0)
 
 		for _, cluster := range clusters {
-			if cluster.Name == "cluster-member1" {
-				nodes, err := framework.FetchNodes(firstKubeClient)
+			if cluster.Name == "cluster-member3" {
+				nodes, err := framework.FetchNodes(thirdKubeClient)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 				cluster.ResourceVersion = ""
 
@@ -68,7 +68,7 @@ var _ = ginkgo.Describe("Test leaf node mode -- one2cluster, one2node, one2party
 						nodeLabels["test-leaf-party-mode"] = "yes"
 						node.SetLabels(nodeLabels)
 						node.ResourceVersion = ""
-						err = framework.UpdateNodeLabels(firstKubeClient, node)
+						err = framework.UpdateNodeLabels(thirdKubeClient, node)
 						gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 					}
 
@@ -79,6 +79,11 @@ var _ = ginkgo.Describe("Test leaf node mode -- one2cluster, one2node, one2party
 								Effect: utils.KosmosNodeTaintEffect,
 								Key:    utils.KosmosNodeTaintKey,
 								Value:  utils.KosmosNodeValue,
+							},
+							{
+								Effect: utils.KosmosNodeTaintEffect,
+								Key:    "test-node/e2e",
+								Value:  "leafnode",
 							},
 						},
 						NodeSelector: kosmosv1alpha1.NodeSelector{
@@ -99,6 +104,11 @@ var _ = ginkgo.Describe("Test leaf node mode -- one2cluster, one2node, one2party
 							Effect: utils.KosmosNodeTaintEffect,
 							Key:    utils.KosmosNodeTaintKey,
 							Value:  utils.KosmosNodeValue,
+						},
+						{
+							Effect: utils.KosmosNodeTaintEffect,
+							Key:    "test-node/e2e",
+							Value:  "leafnode",
 						},
 					},
 					NodeSelector: kosmosv1alpha1.NodeSelector{
@@ -148,7 +158,7 @@ var _ = ginkgo.Describe("Test leaf node mode -- one2cluster, one2node, one2party
 					LabelSelector: fmt.Sprintf("app=%v", deployName),
 				}
 				framework.WaitPodPresentOnCluster(hostKubeClient, deploy.Namespace, one2Cluster.Name, nodes, opt)
-				framework.WaitPodPresentOnCluster(firstKubeClient, deploy.Namespace, one2Cluster.Name, memberNodeNames, opt)
+				framework.WaitPodPresentOnCluster(thirdKubeClient, deploy.Namespace, one2Cluster.Name, memberNodeNames, opt)
 			})
 		})
 		ginkgo.AfterEach(func() {
@@ -195,7 +205,7 @@ var _ = ginkgo.Describe("Test leaf node mode -- one2cluster, one2node, one2party
 					LabelSelector: fmt.Sprintf("app=%v", deployName),
 				}
 				framework.WaitPodPresentOnCluster(hostKubeClient, deploy.Namespace, one2Node.Name, memberNodeNames, opt)
-				framework.WaitPodPresentOnCluster(firstKubeClient, deploy.Namespace, one2Node.Name, memberNodeNames, opt)
+				framework.WaitPodPresentOnCluster(thirdKubeClient, deploy.Namespace, one2Node.Name, memberNodeNames, opt)
 			})
 		})
 
@@ -247,7 +257,7 @@ var _ = ginkgo.Describe("Test leaf node mode -- one2cluster, one2node, one2party
 					LabelSelector: fmt.Sprintf("app=%v", deployName),
 				}
 				framework.WaitPodPresentOnCluster(hostKubeClient, deploy.Namespace, one2Party.Name, partyNodeNames, opt)
-				framework.WaitPodPresentOnCluster(firstKubeClient, deploy.Namespace, one2Party.Name, memberNodeNames, opt)
+				framework.WaitPodPresentOnCluster(thirdKubeClient, deploy.Namespace, one2Party.Name, memberNodeNames, opt)
 			})
 		})
 		ginkgo.AfterEach(func() {

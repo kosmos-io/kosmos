@@ -200,6 +200,17 @@ function join_cluster_by_ctl() {
   kosmosctl join cluster --name $member_cluster --host-kubeconfig $HOST_CLUSTER_DIR/kubeconfig --kubeconfig $MEMBER_CLUSTER_DIR/kubeconfig --enable-all --version latest
 }
 
+function addTaint() {
+  local host_cluster=$1
+  local member_cluster=$2
+  leafnode="kosmos-${member_cluster}"
+  HOST_CLUSTER_DIR="${ROOT}/environments/${host_cluster}"
+  MEMBER_CLUSTER_DIR="${ROOT}/environments/${member_cluster}"
+
+  sleep 100 && kubectl --kubeconfig $HOST_CLUSTER_DIR/kubeconfig get node -owide
+  kubectl --kubeconfig $HOST_CLUSTER_DIR/kubeconfig taint nodes $leafnode test-node/e2e=leafnode:NoSchedule
+}
+
 function deploy_cluster_by_ctl() {
   local -r clustername=$1
   CLUSTER_DIR="${ROOT}/environments/${clustername}"

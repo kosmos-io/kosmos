@@ -60,6 +60,12 @@ func NewDeployment(namespace, name string, replicas *int32, nodes []string) *app
 							Value:    "true",
 							Effect:   corev1.TaintEffectNoSchedule,
 						},
+						{
+							Key:      "test-node/e2e",
+							Operator: corev1.TolerationOpEqual,
+							Value:    "leafnode",
+							Effect:   corev1.TaintEffectNoSchedule,
+						},
 					},
 
 					HostNetwork: true,
