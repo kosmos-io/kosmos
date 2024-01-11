@@ -26,7 +26,7 @@ var PullExample = templates.Examples(i18n.T(`
      kosmosctl image pull
 
      # Pull and save images with custom config, e.g:
-     kosmosctl image pull --kosmos-version=[kosmos-image-version] --coredns-version=[coredns-image-version] --eps-version=[eps-image-version] --output=[output-dir] --container-runtime=[container-runtime]
+     kosmosctl image pull --kosmos-version=[kosmos-image-version] --coredns-version=[coredns-image-version] --eps-version=[eps-image-version] --output=[output-dir] --containerd-runtime=[container-runtime]
 `))
 
 type CommandPullOptions struct {
