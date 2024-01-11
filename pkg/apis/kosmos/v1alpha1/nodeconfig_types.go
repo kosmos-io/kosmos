@@ -10,6 +10,16 @@ import (
 // +kubebuilder:resource:scope="Cluster"
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
+const (
+	DeviceName       = "Devices"
+	RouteName        = "Routes"
+	IptablesName     = "Iptables"
+	FdbName          = "Fdbs"
+	ArpName          = "Arps"
+	DeleteConfigName = "deleteConfig"
+	CreateConfigName = "createConfig"
+)
+
 type NodeConfig struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
