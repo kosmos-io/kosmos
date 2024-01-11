@@ -15,14 +15,13 @@ var (
 		ClusterLinkProxy,
 		ClusterLinkElector,
 		ClusterLinkFloater,
-		KosmosOperator,
 		Coredns,
 		EpsProbePlugin}
 )
 
 const (
 	ClusterTreeClusterManager    = "ghcr.io/kosmos-io/clustertree-cluster-manager"
-	ClusterLinkOperator          = "ghcr.io/kosmos-io/clusterlink-operator"
+	ClusterLinkOperator          = "ghcr.io/kosmos-io/kosmos-operator"
 	ClusterLinkAgent             = "ghcr.io/kosmos-io/clusterlink-agent"
 	ClusterLinkNetworkManager    = "ghcr.io/kosmos-io/clusterlink-network-manager"
 	ClusterLinkControllerManager = "ghcr.io/kosmos-io/clusterlink-controller-manager"
@@ -31,7 +30,6 @@ const (
 	ClusterLinkFloater           = "ghcr.io/kosmos-io/clusterlink-floater"
 	Coredns                      = "ghcr.io/kosmos-io/coredns"
 	EpsProbePlugin               = "ghcr.io/kosmos-io/eps-probe-plugin"
-	KosmosOperator               = "ghcr.io/kosmos-io/kosmos-operator"
 	Containerd                   = "containerd"
 	DefaultContainerRuntime      = "docker"
 	DefaultContainerdNamespace   = "default"
