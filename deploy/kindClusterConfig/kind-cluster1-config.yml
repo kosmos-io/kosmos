@@ -1,0 +1,19 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+networking:
+  # WARNING: It is _strongly_ recommended that you keep this the default
+  # (127.0.0.1) for security reasons. However it is possible to change this.
+  apiServerAddress: "{{host_ipaddress}}"
+  # By default the API server listens on a random open port.
+  # You may choose a specific port but probably don't need to in most cases.
+  # Using a random port makes it easier to spin up multiple clusters.
+  apiServerPort: 1443
+nodes:
+  - role: control-plane
+#- role: worker
+#- role: worker
+#  extraPortMappings:
+#    - containerPort: 6443
+#      hostPort: 1443
+#      protocol: TCP
+#      listenAddress: 192.168.200.112

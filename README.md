@@ -58,50 +58,74 @@ This guide will cover:
 - [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) version v1.19+
 - [kind](https://kind.sigs.k8s.io/) version v0.14.0+
 
-### Use Kind create cluster
+### Deploy and run Kosmos control plane use script
+
+run the following script:
+
+```bash
+hack/local-up-kosmosctl.sh
+```
+
+### Deploy and run Kosmos step by step
+
+#### 1. Use Kind create cluster
 - Config your kind cluster use flow config, change the param as you need
 ```yaml
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
+networking:
+  # WARNING: It is _strongly_ recommended that you keep this the default
+  # (127.0.0.1) for security reasons. However it is possible to change this.
+  apiServerAddress: "192.168.200.112"
+  # By default the API server listens on a random open port.
+  # You may choose a specific port but probably don't need to in most cases.
+  # Using a random port makes it easier to spin up multiple clusters.
+  apiServerPort: 1443
 nodes:
 - role: control-plane
-- role: worker
-- role: worker
+  extraPortMappings:
+    - containerPort: "{{container_port}}"
+      hostPort: "{{host_port}}"
+      protocol: TCP
+      listenAddress: "{{host_ipaddress}}"
+#- role: worker
+#- role: worker
 ```
 - create cluster1
-  `kind create cluster -n kind-cluster1 --kubeconfig /path/to/kind-config`
+  `kind create cluster -n kind-cluster1 --config /path/to/kind-config`
 - create cluster2
-  `kind create cluster -n kind-cluster1 --kubeconfig /path/to/kind-config`
+  `kind create cluster -n kind-cluster2 --config /path/to/kind-config`
 - create cluster3
-  `kind create cluster -n kind-cluster1 --kubeconfig /path/to/kind-config`
+  `kind create cluster -n kind-cluster3 --config /path/to/kind-config`
 
-### Install `kosmosctl`
+#### 2. Install `kosmosctl`
 
-#### Use prebuild Binary executable file
+##### 2.1 Use prebuild Binary executable file
 - Download from the <a href="https://github.com/kosmos-io/kosmos/releases">releases page</a>, only support macOS and linux
 - put `kosmosctl` to you Path, so you can execute `kosmosctl` without absolute path
 
-#### Build from source
+##### 2.2 Build from source
 - Download source
 `git clone https://github.com/kosmos-io/kosmos.git`
 - Build code, the output file is in the` <project_dir>/_output/bin/linux/amd64/kosmosctl`
-`make kosmosct VERSION=v0.1.9`]
+`make kosmosctl VERSION=v0.1.9`]
 - you can find any available version or tags in [here](https://github.com/kosmos-io/kosmos/tags)
 
-#### Install `kosmos` control plane components
+##### 3. Install `kosmos` control plane components
 The following command allows you to quickly run an experimental environment with three clusters. 
-Install the control plane in the host cluster.
+Install the control plane in the host cluster. 
+Please config the pod can access the kind cluster apiServer, avoid the `kosmos-operator` CrashLoopBackOff
 ```Shell
 kosmosctl install  --cni calico --default-nic eth0 (We build a network tunnel based the network interface value passed by the arg default-nic)
 ```
-#### Join to `kosmos` control plane
+##### 4. Join to `kosmos` control plane
 - Get the cluster1 and cluster2 kubeconfig and put it on the host cluster
 - Join the two member clusters(execute on the host cluster).
 ```Shell
 kosmosctl join cluster --name cluster1 --kubeconfig ~/kubeconfig/cluster1-kubeconfig  --cni calico --default-nic eth0  --enable-all
 kosmosctl join cluster --name cluster2 --kubeconfig ~/kubeconfig/cluster2-kubeconfig  --cni calico --default-nic eth0  --enable-all
 ```
-#### Use the Kosmos clusters like single cluster on the control plane.
+##### 5. Use the Kosmos clusters like single cluster on the control plane.
 ```shell
 kubectl get nodes
 ```
