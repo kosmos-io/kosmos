@@ -18,6 +18,7 @@ import (
 
 	leafUtils "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/utils"
 	"github.com/kosmos.io/kosmos/pkg/utils"
+	"github.com/kosmos.io/kosmos/pkg/utils/podutils"
 )
 
 const (
@@ -52,6 +53,11 @@ func (r *RootPVController) SetupWithManager(mgr manager.Manager) error {
 				}
 
 				pv := deleteEvent.Object.(*v1.PersistentVolume)
+				// skip  one way pv, oneway_pv_controller will handle this PV
+				if podutils.IsOneWayPV(pv) {
+					return false
+				}
+
 				clusters := utils.ListResourceClusters(pv.Annotations)
 				if len(clusters) == 0 {
 					klog.Warningf("pv leaf %q doesn't existed", deleteEvent.Object.GetName())

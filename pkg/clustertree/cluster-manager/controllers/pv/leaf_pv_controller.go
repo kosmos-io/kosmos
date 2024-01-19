@@ -21,6 +21,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/kosmos.io/kosmos/pkg/utils"
+	"github.com/kosmos.io/kosmos/pkg/utils/podutils"
 )
 
 const (
@@ -177,13 +178,16 @@ func (l *LeafPVController) SetupWithManager(mgr manager.Manager) error {
 		WithOptions(controller.Options{}).
 		For(&v1.PersistentVolume{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(createEvent event.CreateEvent) bool {
-				return true
+				curr := createEvent.Object.(*v1.PersistentVolume)
+				return !podutils.IsOneWayPV(curr)
 			},
 			UpdateFunc: func(updateEvent event.UpdateEvent) bool {
-				return true
+				curr := updateEvent.ObjectNew.(*v1.PersistentVolume)
+				return !podutils.IsOneWayPV(curr)
 			},
 			DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
-				return true
+				curr := deleteEvent.Object.(*v1.PersistentVolume)
+				return !podutils.IsOneWayPV(curr)
 			},
 			GenericFunc: func(genericEvent event.GenericEvent) bool {
 				return false
