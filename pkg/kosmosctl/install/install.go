@@ -657,28 +657,29 @@ func (o *CommandInstallOptions) createControlCluster() error {
 			}
 		}
 	case utils.All:
+
+		joinOptions := join.CommandJoinOptions{
+			Name:                utils.DefaultClusterName,
+			Namespace:           o.Namespace,
+			ImageRegistry:       o.ImageRegistry,
+			KubeConfigStream:    o.HostKubeConfigStream,
+			K8sExtensionsClient: o.K8sExtensionsClient,
+			WaitTime:            o.WaitTime,
+			KosmosClient:        o.KosmosClient,
+			K8sClient:           o.K8sClient,
+			RootFlag:            true,
+			EnableLink:          true,
+			CNI:                 o.CNI,
+			DefaultNICName:      o.DefaultNICName,
+			NetworkType:         o.NetworkType,
+			IpFamily:            o.IpFamily,
+			UseProxy:            o.UseProxy,
+			EnableTree:          true,
+		}
+
 		controlCluster, err := o.KosmosClient.KosmosV1alpha1().Clusters().Get(context.TODO(), utils.DefaultClusterName, metav1.GetOptions{})
 		if err != nil {
 			if apierrors.IsNotFound(err) {
-				joinOptions := join.CommandJoinOptions{
-					Name:                utils.DefaultClusterName,
-					Namespace:           o.Namespace,
-					ImageRegistry:       o.ImageRegistry,
-					KubeConfigStream:    o.HostKubeConfigStream,
-					K8sExtensionsClient: o.K8sExtensionsClient,
-					WaitTime:            o.WaitTime,
-					KosmosClient:        o.KosmosClient,
-					K8sClient:           o.K8sClient,
-					RootFlag:            true,
-					EnableLink:          true,
-					CNI:                 o.CNI,
-					DefaultNICName:      o.DefaultNICName,
-					NetworkType:         o.NetworkType,
-					IpFamily:            o.IpFamily,
-					UseProxy:            o.UseProxy,
-					EnableTree:          true,
-				}
-
 				err = joinOptions.Run(clusterArgs)
 				if err != nil {
 					return fmt.Errorf("kosmosctl install run error, join control panel cluster failed: %s", err)
