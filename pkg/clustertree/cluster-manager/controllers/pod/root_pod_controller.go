@@ -739,14 +739,18 @@ func (r *RootPodReconciler) createVolumes(ctx context.Context, lr *leafUtils.Lea
 	// pvc
 	go func() {
 		if err := wait.PollImmediate(500*time.Millisecond, 30*time.Second, func() (bool, error) {
-			if !r.Options.OnewayStorageControllers {
-				klog.V(4).Info("Trying to creating dependent pvc")
-				if err := r.createStorageInLeafCluster(ctx, lr, utils.GVR_PVC, pvcs, basicPod, clusterNodeInfo); err != nil {
-					klog.Error(err)
-					return false, nil
-				}
-				klog.V(4).Infof("Create pvc %v of %v/%v success", pvcs, basicPod.Namespace, basicPod.Name)
+			pvcsWithoutEs, err := podutils.NoOneWayPVCFilter(ctx, r.DynamicRootClient, pvcs, basicPod.Namespace)
+			if err != nil {
+				klog.Error(err)
+				return false, err
 			}
+			klog.V(4).Info("Trying to creating dependent pvc")
+			if err := r.createStorageInLeafCluster(ctx, lr, utils.GVR_PVC, pvcsWithoutEs, basicPod, clusterNodeInfo); err != nil {
+				klog.Error(err)
+				return false, nil
+			}
+			klog.V(4).Infof("Create pvc %v of %v/%v success", pvcsWithoutEs, basicPod.Namespace, basicPod.Name)
+			// }
 			return true, nil
 		}); err != nil {
 			ch <- fmt.Sprintf("create pvc failed: %v", err)

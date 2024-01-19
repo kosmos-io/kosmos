@@ -226,23 +226,23 @@ func run(ctx context.Context, opts *options.Options) error {
 		return fmt.Errorf("error starting rootPodReconciler %s: %v", podcontrollers.RootPodControllerName, err)
 	}
 
-	if !opts.OnewayStorageControllers {
-		rootPVCController := pvc.RootPVCController{
-			RootClient:        mgr.GetClient(),
-			GlobalLeafManager: globalleafManager,
-		}
-		if err := rootPVCController.SetupWithManager(mgr); err != nil {
-			return fmt.Errorf("error starting root pvc controller %v", err)
-		}
+	rootPVCController := pvc.RootPVCController{
+		RootClient:        mgr.GetClient(),
+		GlobalLeafManager: globalleafManager,
+	}
+	if err := rootPVCController.SetupWithManager(mgr); err != nil {
+		return fmt.Errorf("error starting root pvc controller %v", err)
+	}
 
-		rootPVController := pv.RootPVController{
-			RootClient:        mgr.GetClient(),
-			GlobalLeafManager: globalleafManager,
-		}
-		if err := rootPVController.SetupWithManager(mgr); err != nil {
-			return fmt.Errorf("error starting root pv controller %v", err)
-		}
-	} else {
+	rootPVController := pv.RootPVController{
+		RootClient:        mgr.GetClient(),
+		GlobalLeafManager: globalleafManager,
+	}
+	if err := rootPVController.SetupWithManager(mgr); err != nil {
+		return fmt.Errorf("error starting root pv controller %v", err)
+	}
+
+	if len(os.Getenv("USE-ONEWAY-STORAGE")) > 0 {
 		onewayPVController := pv.OnewayPVController{
 			Root:              mgr.GetClient(),
 			RootDynamic:       dynamicClient,

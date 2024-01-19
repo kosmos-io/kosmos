@@ -21,6 +21,7 @@ import (
 
 	leafUtils "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/utils"
 	"github.com/kosmos.io/kosmos/pkg/utils"
+	"github.com/kosmos.io/kosmos/pkg/utils/podutils"
 )
 
 const (
@@ -106,7 +107,9 @@ func (r *RootPVCController) SetupWithManager(mgr manager.Manager) error {
 				return false
 			},
 			UpdateFunc: func(updateEvent event.UpdateEvent) bool {
-				return true
+				// skip  one way pvc, oneway_pv_controller will handle this PVC
+				curr := updateEvent.ObjectNew.(*v1.PersistentVolumeClaim)
+				return !podutils.IsOneWayPVC(curr)
 			},
 			DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
 				if deleteEvent.DeleteStateUnknown {
@@ -116,6 +119,11 @@ func (r *RootPVCController) SetupWithManager(mgr manager.Manager) error {
 				}
 
 				pvc := deleteEvent.Object.(*v1.PersistentVolumeClaim)
+				// skip  one way pvc, oneway_pv_controller will handle this PVC
+				if podutils.IsOneWayPVC(pvc) {
+					return false
+				}
+
 				clusters := utils.ListResourceClusters(pvc.Annotations)
 				if len(clusters) == 0 {
 					klog.V(4).Infof("pvc leaf %q: %q doesn't existed", deleteEvent.Object.GetNamespace(), deleteEvent.Object.GetName())
