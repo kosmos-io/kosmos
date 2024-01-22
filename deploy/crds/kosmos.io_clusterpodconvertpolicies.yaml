@@ -5,16 +5,16 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.11.0
   creationTimestamp: null
-  name: podconvertpolicies.kosmos.io
+  name: clusterpodconvertpolicies.kosmos.io
 spec:
   group: kosmos.io
   names:
-    kind: PodConvertPolicy
-    listKind: PodConvertPolicyList
-    plural: podconvertpolicies
+    kind: ClusterPodConvertPolicy
+    listKind: ClusterPodConvertPolicyList
+    plural: clusterpodconvertpolicies
     shortNames:
     - pc
-    singular: podconvertpolicy
+    singular: clusterpodconvertpolicy
   scope: Namespaced
   versions:
   - name: v1alpha1

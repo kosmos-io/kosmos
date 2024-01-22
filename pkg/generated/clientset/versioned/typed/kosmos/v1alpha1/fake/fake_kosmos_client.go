@@ -20,6 +20,10 @@ func (c *FakeKosmosV1alpha1) ClusterNodes() v1alpha1.ClusterNodeInterface {
 	return &FakeClusterNodes{c}
 }
 
+func (c *FakeKosmosV1alpha1) ClusterPodConvertPolicies() v1alpha1.ClusterPodConvertPolicyInterface {
+	return &FakeClusterPodConvertPolicies{c}
+}
+
 func (c *FakeKosmosV1alpha1) DaemonSets(namespace string) v1alpha1.DaemonSetInterface {
 	return &FakeDaemonSets{c, namespace}
 }
