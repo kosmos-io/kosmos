@@ -554,7 +554,6 @@ func (o *CommandInstallOptions) createOperator() error {
 }
 
 func (o *CommandInstallOptions) createControlCluster() error {
-
 	clusterArgs := []string{"cluster"}
 
 	switch o.Module {

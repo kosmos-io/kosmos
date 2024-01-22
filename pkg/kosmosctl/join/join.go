@@ -158,7 +158,6 @@ func (o *CommandJoinOptions) Complete(f ctlutil.Factory) error {
 
 	//no enable-all,enable-tree,enable-link found, make 'EnableAll' with other config
 	if !o.EnableAll && !o.EnableTree && !o.EnableLink {
-
 		//due to NetworkType or IpFamily is not empty, make EnableLink true
 		if o.NetworkType != "" || o.IpFamily != "" {
 			klog.Warning("due to NetworkType or IpFamily is not empty, make EnableLink ture.")
@@ -315,7 +314,6 @@ func (o *CommandJoinOptions) runCluster() error {
 	}
 
 	if o.EnableTree {
-
 		// create serviceExport and serviceImport
 		err := o.CreateServiceExportAndImport()
 		if err != nil {
