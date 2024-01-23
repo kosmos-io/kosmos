@@ -80,8 +80,8 @@ func NewCmdJoin(f ctlutil.Factory) *cobra.Command {
 		SilenceUsage:          true,
 		DisableFlagsInUseLine: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctlutil.CheckErr(o.Validate(args))
 			ctlutil.CheckErr(o.Complete(f))
+			ctlutil.CheckErr(o.Validate(args))
 			ctlutil.CheckErr(o.Run(args))
 			return nil
 		},
