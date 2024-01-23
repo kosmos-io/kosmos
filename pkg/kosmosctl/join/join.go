@@ -101,7 +101,7 @@ func NewCmdJoin(f ctlutil.Factory) *cobra.Command {
 	flags.BoolVar(&o.EnableLink, "enable-link", false, "Turn on clusterlink.")
 	flags.StringVar(&o.CNI, "cni", "", "The cluster is configured using cni and currently supports calico and flannel.")
 	flags.StringVar(&o.DefaultNICName, "default-nic", "", "Set default network interface card.")
-	flags.StringVar(&o.NetworkType, "network-type", "", "Set the cluster network connection mode, which supports gateway and p2p modes, gateway is used by default.")
+	flags.StringVar(&o.NetworkType, "network-type", "", "Set the cluster network connection mode, which supports gateway and p2p modes.")
 	flags.StringVar(&o.IpFamily, "ip-family", "", "Specify the IP protocol version used by network devices, common IP families include IPv4 and IPv6.")
 	flags.StringVar(&o.UseProxy, "use-proxy", "false", "Set whether to enable proxy.")
 	flags.BoolVar(&o.EnableTree, "enable-tree", false, "Turn on clustertree.")

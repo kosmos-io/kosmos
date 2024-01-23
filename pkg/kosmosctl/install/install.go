@@ -556,25 +556,27 @@ func (o *CommandInstallOptions) createOperator() error {
 func (o *CommandInstallOptions) createControlCluster() error {
 	clusterArgs := []string{"cluster"}
 
+	joinOptions := join.CommandJoinOptions{
+		Name:                utils.DefaultClusterName,
+		Namespace:           o.Namespace,
+		ImageRegistry:       o.ImageRegistry,
+		KubeConfigStream:    o.HostKubeConfigStream,
+		WaitTime:            o.WaitTime,
+		KosmosClient:        o.KosmosClient,
+		K8sClient:           o.K8sClient,
+		K8sExtensionsClient: o.K8sExtensionsClient,
+		RootFlag:            true,
+	}
+
 	switch o.Module {
 	case utils.ClusterLink:
-		joinOptions := join.CommandJoinOptions{
-			Name:                utils.DefaultClusterName,
-			Namespace:           o.Namespace,
-			ImageRegistry:       o.ImageRegistry,
-			KubeConfigStream:    o.HostKubeConfigStream,
-			WaitTime:            o.WaitTime,
-			KosmosClient:        o.KosmosClient,
-			K8sClient:           o.K8sClient,
-			K8sExtensionsClient: o.K8sExtensionsClient,
-			RootFlag:            true,
-			EnableLink:          true,
-			CNI:                 o.CNI,
-			DefaultNICName:      o.DefaultNICName,
-			NetworkType:         o.NetworkType,
-			IpFamily:            o.IpFamily,
-			UseProxy:            o.UseProxy,
-		}
+		joinOptions.EnableLink = true
+		joinOptions.CNI = o.CNI
+		joinOptions.DefaultNICName = o.DefaultNICName
+		joinOptions.NetworkType = o.NetworkType
+		joinOptions.IpFamily = o.IpFamily
+		joinOptions.UseProxy = o.UseProxy
+
 		controlCluster, err := o.KosmosClient.KosmosV1alpha1().Clusters().Get(context.TODO(), utils.DefaultClusterName, metav1.GetOptions{})
 		if err != nil {
 			if apierrors.IsNotFound(err) {
@@ -613,19 +615,7 @@ func (o *CommandInstallOptions) createControlCluster() error {
 			}
 		}
 	case utils.ClusterTree:
-
-		joinOptions := join.CommandJoinOptions{
-			Name:                utils.DefaultClusterName,
-			Namespace:           o.Namespace,
-			ImageRegistry:       o.ImageRegistry,
-			KubeConfigStream:    o.HostKubeConfigStream,
-			K8sExtensionsClient: o.K8sExtensionsClient,
-			WaitTime:            o.WaitTime,
-			KosmosClient:        o.KosmosClient,
-			K8sClient:           o.K8sClient,
-			RootFlag:            true,
-			EnableTree:          true,
-		}
+		joinOptions.EnableTree = true
 
 		controlCluster, err := o.KosmosClient.KosmosV1alpha1().Clusters().Get(context.TODO(), utils.DefaultClusterName, metav1.GetOptions{})
 		if err != nil {
@@ -656,25 +646,13 @@ func (o *CommandInstallOptions) createControlCluster() error {
 			}
 		}
 	case utils.All:
-
-		joinOptions := join.CommandJoinOptions{
-			Name:                utils.DefaultClusterName,
-			Namespace:           o.Namespace,
-			ImageRegistry:       o.ImageRegistry,
-			KubeConfigStream:    o.HostKubeConfigStream,
-			K8sExtensionsClient: o.K8sExtensionsClient,
-			WaitTime:            o.WaitTime,
-			KosmosClient:        o.KosmosClient,
-			K8sClient:           o.K8sClient,
-			RootFlag:            true,
-			EnableLink:          true,
-			CNI:                 o.CNI,
-			DefaultNICName:      o.DefaultNICName,
-			NetworkType:         o.NetworkType,
-			IpFamily:            o.IpFamily,
-			UseProxy:            o.UseProxy,
-			EnableTree:          true,
-		}
+		joinOptions.EnableLink = true
+		joinOptions.EnableTree = true
+		joinOptions.CNI = o.CNI
+		joinOptions.DefaultNICName = o.DefaultNICName
+		joinOptions.NetworkType = o.NetworkType
+		joinOptions.IpFamily = o.IpFamily
+		joinOptions.UseProxy = o.UseProxy
 
 		controlCluster, err := o.KosmosClient.KosmosV1alpha1().Clusters().Get(context.TODO(), utils.DefaultClusterName, metav1.GetOptions{})
 		if err != nil {
