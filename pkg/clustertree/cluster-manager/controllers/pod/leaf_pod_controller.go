@@ -2,7 +2,6 @@ package pod
 
 import (
 	"context"
-	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
@@ -25,7 +24,6 @@ import (
 
 const (
 	LeafPodControllerName = "leaf-pod-controller"
-	LeafPodRequeueTime    = 10 * time.Second
 )
 
 type LeafPodReconciler struct {
@@ -40,12 +38,12 @@ func (r *LeafPodReconciler) Reconcile(ctx context.Context, request reconcile.Req
 		if apierrors.IsNotFound(err) {
 			// delete pod in root
 			if err := DeletePodInRootCluster(ctx, request.NamespacedName, r.RootClient); err != nil {
-				return reconcile.Result{RequeueAfter: LeafPodRequeueTime}, nil
+				return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
 			}
 			return reconcile.Result{}, nil
 		}
 		klog.Errorf("get %s error: %v", request.NamespacedName, err)
-		return reconcile.Result{RequeueAfter: LeafPodRequeueTime}, nil
+		return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
 	}
 
 	podCopy := pod.DeepCopy()
@@ -59,7 +57,7 @@ func (r *LeafPodReconciler) Reconcile(ctx context.Context, request reconcile.Req
 		podCopy.ResourceVersion = "0"
 		if err := r.RootClient.Status().Update(ctx, podCopy); err != nil && !apierrors.IsNotFound(err) {
 			klog.V(4).Info(errors.Wrap(err, "error while updating pod status in kubernetes"))
-			return reconcile.Result{RequeueAfter: LeafPodRequeueTime}, nil
+			return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
 		}
 	}
 	return reconcile.Result{}, nil
