@@ -8,7 +8,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/klog"
@@ -23,20 +22,14 @@ import (
 
 	leafUtils "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/utils"
 	"github.com/kosmos.io/kosmos/pkg/utils"
+	"github.com/kosmos.io/kosmos/pkg/utils/podutils"
 )
 
 const (
 	controllerName   = "oneway-pv-controller"
 	requeueTime      = 10 * time.Second
 	quickRequeueTime = 3 * time.Second
-	csiDriverName    = "infini.volumepath.csi"
 )
-
-var VolumePathGVR = schema.GroupVersionResource{
-	Version:  "v1alpha1",
-	Group:    "lvm.infinilabs.com",
-	Resource: "volumepaths",
-}
 
 type OnewayPVController struct {
 	Root              client.Client
@@ -48,15 +41,15 @@ func (c *OnewayPVController) SetupWithManager(mgr manager.Manager) error {
 	predicatesFunc := predicate.Funcs{
 		CreateFunc: func(createEvent event.CreateEvent) bool {
 			curr := createEvent.Object.(*corev1.PersistentVolume)
-			return curr.Spec.CSI != nil && curr.Spec.CSI.Driver == csiDriverName
+			return podutils.IsOneWayPV(curr)
 		},
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
 			curr := updateEvent.ObjectNew.(*corev1.PersistentVolume)
-			return curr.Spec.CSI != nil && curr.Spec.CSI.Driver == csiDriverName
+			return podutils.IsOneWayPV(curr)
 		},
 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
 			curr := deleteEvent.Object.(*corev1.PersistentVolume)
-			return curr.Spec.CSI != nil && curr.Spec.CSI.Driver == csiDriverName
+			return podutils.IsOneWayPV(curr)
 		},
 		GenericFunc: func(genericEvent event.GenericEvent) bool {
 			return false
@@ -84,7 +77,7 @@ func (c *OnewayPVController) Reconcile(ctx context.Context, request reconcile.Re
 	}
 
 	// volumePath has the same name with pv
-	vp, err := c.RootDynamic.Resource(VolumePathGVR).Get(ctx, request.Name, metav1.GetOptions{})
+	vp, err := c.RootDynamic.Resource(podutils.VolumePathGVR).Get(ctx, request.Name, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			klog.V(4).Infof("vp %s not found", request.Name)
