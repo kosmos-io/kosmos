@@ -8,7 +8,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/klog"
@@ -23,19 +22,13 @@ import (
 
 	leafUtils "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/utils"
 	"github.com/kosmos.io/kosmos/pkg/utils"
+	"github.com/kosmos.io/kosmos/pkg/utils/podutils"
 )
 
 const (
-	controllerName  = "oneway-pvc-controller"
-	requeueTime     = 10 * time.Second
-	vpAnnotationKey = "volumepath"
+	controllerName = "oneway-pvc-controller"
+	requeueTime    = 10 * time.Second
 )
-
-var VolumePathGVR = schema.GroupVersionResource{
-	Version:  "v1alpha1",
-	Group:    "lvm.infinilabs.com",
-	Resource: "volumepaths",
-}
 
 type OnewayPVCController struct {
 	Root              client.Client
@@ -43,30 +36,19 @@ type OnewayPVCController struct {
 	GlobalLeafManager leafUtils.LeafResourceManager
 }
 
-func pvcEventFilter(pvc *corev1.PersistentVolumeClaim) bool {
-	anno := pvc.GetAnnotations()
-	if anno == nil {
-		return false
-	}
-	if _, ok := anno[vpAnnotationKey]; ok {
-		return true
-	}
-	return false
-}
-
 func (c *OnewayPVCController) SetupWithManager(mgr manager.Manager) error {
 	predicatesFunc := predicate.Funcs{
 		CreateFunc: func(createEvent event.CreateEvent) bool {
 			curr := createEvent.Object.(*corev1.PersistentVolumeClaim)
-			return pvcEventFilter(curr)
+			return podutils.IsOneWayPVC(curr)
 		},
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
 			curr := updateEvent.ObjectNew.(*corev1.PersistentVolumeClaim)
-			return pvcEventFilter(curr)
+			return podutils.IsOneWayPVC(curr)
 		},
 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
 			curr := deleteEvent.Object.(*corev1.PersistentVolumeClaim)
-			return pvcEventFilter(curr)
+			return podutils.IsOneWayPVC(curr)
 		},
 		GenericFunc: func(genericEvent event.GenericEvent) bool {
 			return false
@@ -93,7 +75,7 @@ func (c *OnewayPVCController) Reconcile(ctx context.Context, request reconcile.R
 	}
 
 	// volumePath has the same name with pvc
-	vp, err := c.RootDynamic.Resource(VolumePathGVR).Get(ctx, request.Name, metav1.GetOptions{})
+	vp, err := c.RootDynamic.Resource(podutils.VolumePathGVR).Get(ctx, request.Name, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			klog.V(4).Infof("vp %s not found", request.Name)
