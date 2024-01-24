@@ -347,6 +347,8 @@ spec:
             properties:
               clusterName:
                 type: string
+              elasticip:
+                type: string
               interfaceName:
                 type: string
               ip:
@@ -365,16 +367,17 @@ spec:
                 type: array
             type: object
           status:
+            properties:
+              nodeStatus:
+                type: string
             type: object
         required:
         - spec
         type: object
     served: true
     storage: true
-    subresources:
-      status: {}
+    subresources: {}
 `
-
 const Cluster = `---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
@@ -420,6 +423,8 @@ spec:
             properties:
               clusterLinkOptions:
                 properties:
+                  autodetectionMethod:
+                    type: string
                   bridgeCIDRs:
                     default:
                       ip: 220.0.0.0/8
@@ -433,6 +438,10 @@ spec:
                     - ip
                     - ip6
                     type: object
+                  clusterpodCIDRs:
+                    items:
+                      type: string
+                    type: array
                   cni:
                     default: calico
                     type: string
@@ -482,8 +491,16 @@ spec:
                       - nodeName
                       type: object
                     type: array
+                  nodeElasticIPMap:
+                    additionalProperties:
+                      type: string
+                    description: NodeElasticIPMap presents mapping between nodename
+                      in kubernetes and elasticIP
+                    type: object
                   useIPPool:
                     default: false
+                    type: boolean
+                  useexternalapiserver:
                     type: boolean
                 type: object
               clusterTreeOptions:
@@ -652,7 +669,6 @@ spec:
     storage: true
     subresources: {}
 `
-
 const NodeConfig = `---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
@@ -747,6 +763,18 @@ spec:
                   - mac
                   type: object
                 type: array
+              ipsetsavoidmasq:
+                items:
+                  properties:
+                    cidr:
+                      type: string
+                    name:
+                      type: string
+                  required:
+                  - cidr
+                  - name
+                  type: object
+                type: array
               iptables:
                 items:
                   properties:
@@ -777,6 +805,52 @@ spec:
                   - gw
                   type: object
                 type: array
+              xfrmpolicies:
+                items:
+                  properties:
+                    dir:
+                      type: integer
+                    leftip:
+                      type: string
+                    leftnet:
+                      type: string
+                    reqid:
+                      type: integer
+                    rightip:
+                      type: string
+                    rightnet:
+                      type: string
+                  required:
+                  - dir
+                  - leftip
+                  - leftnet
+                  - reqid
+                  - rightip
+                  - rightnet
+                  type: object
+                type: array
+              xfrmstates:
+                items:
+                  properties:
+                    PSK:
+                      type: string
+                    leftip:
+                      type: string
+                    reqid:
+                      type: integer
+                    rightip:
+                      type: string
+                    spi:
+                      format: int32
+                      type: integer
+                  required:
+                  - PSK
+                  - leftip
+                  - reqid
+                  - rightip
+                  - spi
+                  type: object
+                type: array
             type: object
           status:
             properties:
@@ -795,7 +869,6 @@ spec:
     subresources:
       status: {}
 `
-
 const DaemonSet = `---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition

@@ -19,18 +19,27 @@ type NetWork interface {
 	DeleteIptables([]clusterlinkv1alpha1.Iptables) error
 	DeleteRoutes([]clusterlinkv1alpha1.Route) error
 	DeleteDevices([]clusterlinkv1alpha1.Device) error
+	DeleteXfrmPolicies([]clusterlinkv1alpha1.XfrmPolicy) error
+	DeleteXfrmStates([]clusterlinkv1alpha1.XfrmState) error
+	DeleteIPsetsAvoidMasq([]clusterlinkv1alpha1.IPset) error
 
 	UpdateArps([]clusterlinkv1alpha1.Arp) error
 	UpdateFdbs([]clusterlinkv1alpha1.Fdb) error
 	UpdateIptables([]clusterlinkv1alpha1.Iptables) error
 	UpdateRoutes([]clusterlinkv1alpha1.Route) error
 	UpdateDevices([]clusterlinkv1alpha1.Device) error
+	UpdateXfrmPolicies([]clusterlinkv1alpha1.XfrmPolicy) error
+	UpdateXfrmStates([]clusterlinkv1alpha1.XfrmState) error
+	UpdateIPsetsAvoidMasq([]clusterlinkv1alpha1.IPset) error
 
 	AddArps([]clusterlinkv1alpha1.Arp) error
 	AddFdbs([]clusterlinkv1alpha1.Fdb) error
 	AddIptables([]clusterlinkv1alpha1.Iptables) error
 	AddRoutes([]clusterlinkv1alpha1.Route) error
 	AddDevices([]clusterlinkv1alpha1.Device) error
+	AddXfrmPolicies([]clusterlinkv1alpha1.XfrmPolicy) error
+	AddXfrmStates([]clusterlinkv1alpha1.XfrmState) error
+	AddIPsetsAvoidMasq([]clusterlinkv1alpha1.IPset) error
 
 	InitSys()
 

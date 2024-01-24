@@ -112,6 +112,29 @@ func (e *NetworkManager) Diff(oldConfig, newConfig *clusterlinkv1alpha1.NodeConf
 		createConfig.Routes = createRecord
 		isSame = false
 	}
+	// ipsec:
+	if flag, deleteRecord, createRecord := compareFunc(oldConfig.XfrmPolicies, newConfig.XfrmPolicies, func(a, b clusterlinkv1alpha1.XfrmPolicy) bool {
+		return a.Compare(b)
+	}); !flag {
+		deleteConfig.XfrmPolicies = deleteRecord
+		createConfig.XfrmPolicies = createRecord
+		isSame = false
+	}
+	if flag, deleteRecord, createRecord := compareFunc(oldConfig.XfrmStates, newConfig.XfrmStates, func(a, b clusterlinkv1alpha1.XfrmState) bool {
+		return a.Compare(b)
+	}); !flag {
+		deleteConfig.XfrmStates = deleteRecord
+		createConfig.XfrmStates = createRecord
+		isSame = false
+	}
+	//ipset
+	if flag, deleteRecord, createRecord := compareFunc(oldConfig.IPsetsAvoidMasqs, newConfig.IPsetsAvoidMasqs, func(a, b clusterlinkv1alpha1.IPset) bool {
+		return a.Compare(b)
+	}); !flag {
+		deleteConfig.IPsetsAvoidMasqs = deleteRecord
+		createConfig.IPsetsAvoidMasqs = createRecord
+		isSame = false
+	}
 	// iptables:
 	if flag, deleteRecord, createRecord := compareFunc(oldConfig.Iptables, newConfig.Iptables, func(a, b clusterlinkv1alpha1.Iptables) bool {
 		return a.Compare(b)
@@ -188,6 +211,24 @@ func (e *NetworkManager) WriteSys(configDiff *ConfigDiff) error {
 				errs = errors.Wrap(err, fmt.Sprint(errs))
 			}
 		}
+		if config.XfrmPolicies != nil {
+			if err := e.NetworkInterface.DeleteXfrmPolicies(config.XfrmPolicies); err != nil {
+				klog.Warning(err)
+				errs = errors.Wrap(err, fmt.Sprint(errs))
+			}
+		}
+		if config.XfrmStates != nil {
+			if err := e.NetworkInterface.DeleteXfrmStates(config.XfrmStates); err != nil {
+				klog.Warning(err)
+				errs = errors.Wrap(err, fmt.Sprint(errs))
+			}
+		}
+		if config.IPsetsAvoidMasqs != nil {
+			if err := e.NetworkInterface.DeleteIPsetsAvoidMasq(config.IPsetsAvoidMasqs); err != nil {
+				klog.Warning(err)
+				errs = errors.Wrap(err, fmt.Sprint(errs))
+			}
+		}
 	}
 
 	if configDiff.createConfig != nil {
@@ -223,6 +264,24 @@ func (e *NetworkManager) WriteSys(configDiff *ConfigDiff) error {
 				errs = errors.Wrap(err, fmt.Sprint(errs))
 			}
 		}
+		if config.XfrmPolicies != nil {
+			if err := e.NetworkInterface.AddXfrmPolicies(config.XfrmPolicies); err != nil {
+				klog.Warning(err)
+				errs = errors.Wrap(err, fmt.Sprint(errs))
+			}
+		}
+		if config.XfrmStates != nil {
+			if err := e.NetworkInterface.AddXfrmStates(config.XfrmStates); err != nil {
+				klog.Warning(err)
+				errs = errors.Wrap(err, fmt.Sprint(errs))
+			}
+		}
+		if config.IPsetsAvoidMasqs != nil {
+			if err := e.NetworkInterface.AddIPsetsAvoidMasq(config.IPsetsAvoidMasqs); err != nil {
+				klog.Warning(err)
+				errs = errors.Wrap(err, fmt.Sprint(errs))
+			}
+		}
 	}
 
 	return errs
@@ -254,11 +313,14 @@ func (e *NetworkManager) UpdateFromChecker() NodeConfigSyncStatus {
 }
 
 func printNodeConfig(data *clusterlinkv1alpha1.NodeConfigSpec) {
-	klog.Infof("device: ", data.Devices)
-	klog.Infof("Arps: ", data.Arps)
-	klog.Infof("Fdbs: ", data.Fdbs)
-	klog.Infof("Iptables: ", data.Iptables)
-	klog.Infof("Routes: ", data.Routes)
+	klog.Infof("device: %v", data.Devices)
+	klog.Infof("Arps: %v", data.Arps)
+	klog.Infof("Fdbs: %v", data.Fdbs)
+	klog.Infof("Iptables: %v", data.Iptables)
+	klog.Infof("Routes: %v", data.Routes)
+	klog.Infof("XfrmPolicys: %v", data.XfrmPolicies)
+	klog.Infof("XfrmStates: %v", data.XfrmStates)
+	klog.Infof("IPsetsAvoidMasqs: %v", data.IPsetsAvoidMasqs)
 }
 
 func (e *NetworkManager) UpdateSync() NodeConfigSyncStatus {

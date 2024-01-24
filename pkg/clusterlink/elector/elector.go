@@ -2,12 +2,16 @@ package elector
 
 import (
 	"context"
+	"net"
 	"os"
+	"sort"
 
+	apicorev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 
 	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
+	"github.com/kosmos.io/kosmos/pkg/clusterlink/controllers/node"
 	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/utils"
 	"github.com/kosmos.io/kosmos/pkg/utils/role"
@@ -32,12 +36,66 @@ func (e *Elector) EnsureGateWayRole() error {
 	if err != nil {
 		return err
 	}
-	_, err = e.controlPanelClient.KosmosV1alpha1().Clusters().Get(context.TODO(), e.clusterName, metav1.GetOptions{})
+	cluster, err := e.controlPanelClient.KosmosV1alpha1().Clusters().Get(context.TODO(), e.clusterName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
+	if len(cluster.Spec.ClusterLinkOptions.NodeElasticIPMap) > 0 {
+		// TODO: it's not a good way, there is problem when one cluster has EIP and other clusters do not have,
+		var readyNodes = make([]string, 0, 5)
+		currentNodeName := os.Getenv(utils.EnvNodeName)
+		elasticIPMap := cluster.Spec.ClusterLinkOptions.NodeElasticIPMap
+		isCurrentNodeWithEIP := false
+		needReelect := true
+
+		for nodeName := range elasticIPMap {
+			if nodeName == currentNodeName {
+				isCurrentNodeWithEIP = true
+				break
+			}
+		}
+		// check all node's elasticIP is valid
+		for nodeName := range elasticIPMap {
+			if net.ParseIP(elasticIPMap[nodeName]) == nil {
+				klog.Errorf("elasticIP %s is invalid", elasticIPMap[nodeName])
+				continue
+			}
+			clusternode, err := e.controlPanelClient.KosmosV1alpha1().ClusterNodes().Get(context.TODO(),
+				node.ClusterNodeName(e.clusterName, nodeName), metav1.GetOptions{})
+			if err != nil {
+				klog.Errorf("node %s is invalid: %v", nodeName, err)
+				continue
+			}
+			if len(clusternode.Status.NodeStatus) > 0 &&
+				clusternode.Status.NodeStatus == string(apicorev1.NodeReady) {
+				// if some node with elasticIP is valid, don't need reelect
+				if clusternode.IsGateway() {
+					needReelect = false
+					e.nodeName = clusternode.Spec.NodeName
+					break
+				}
+				// put ready nodes with elasticIP into readyNodes slice
+				readyNodes = append(readyNodes, nodeName)
+			}
+		}
+
+		if needReelect {
+			if !isCurrentNodeWithEIP && len(readyNodes) > 0 {
+				// TODO: now choose first one, find a better way
+				sort.Strings(readyNodes)
+				e.nodeName = readyNodes[0]
+			} else {
+				e.nodeName = os.Getenv(utils.EnvNodeName)
+			}
+		}
+	} else {
+		e.nodeName = os.Getenv(utils.EnvNodeName)
+	}
+
 	modifyNodes := e.genModifyNode(clusterNodes.Items)
-	klog.Infof("%d node need modify", len(modifyNodes))
+	if len(modifyNodes) > 0 {
+		klog.Infof("%d node need modify", len(modifyNodes))
+	}
 	for i := range modifyNodes {
 		node := modifyNodes[i]
 		_, err := e.controlPanelClient.KosmosV1alpha1().ClusterNodes().Update(context.TODO(), &node, metav1.UpdateOptions{})
@@ -56,12 +114,12 @@ func (e *Elector) genModifyNode(clusterNodes []v1alpha1.ClusterNode) []v1alpha1.
 		clusterNode := clusterNodes[i]
 		isGateWay := clusterNode.IsGateway()
 		isSameCluster := clusterNode.Spec.ClusterName == e.clusterName
-		isCurrentNode := clusterNode.Spec.NodeName == e.nodeName
+		isNewGwNode := clusterNode.Spec.NodeName == e.nodeName
 		if isSameCluster {
-			if !isCurrentNode && isGateWay {
+			if !isNewGwNode && isGateWay {
 				role.RemoveRole(&clusterNode, v1alpha1.RoleGateway)
 				modifyNodes = append(modifyNodes, clusterNode)
-			} else if isCurrentNode && !isGateWay {
+			} else if isNewGwNode && !isGateWay {
 				role.AddRole(&clusterNode, v1alpha1.RoleGateway)
 				modifyNodes = append(modifyNodes, clusterNode)
 			}

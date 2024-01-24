@@ -45,6 +45,8 @@ spec:
             properties:
               clusterName:
                 type: string
+              elasticip:
+                type: string
               interfaceName:
                 type: string
               ip:
@@ -63,11 +65,13 @@ spec:
                 type: array
             type: object
           status:
+            properties:
+              nodeStatus:
+                type: string
             type: object
         required:
         - spec
         type: object
     served: true
     storage: true
-    subresources:
-      status: {}
+    subresources: {}

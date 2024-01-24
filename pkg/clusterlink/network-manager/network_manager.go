@@ -83,7 +83,8 @@ func (n *Manager) CalculateNetworkConfigs(clusters []v1alpha1.Cluster, clusterNo
 		SetNext(&handlers.VxLocalMacCache{}).
 		SetNext(&handlers.VxBridgeMacCache{}).
 		SetNext(&handlers.HostNetwork{}).
-		SetNext(&handlers.GlobalMap{})
+		SetNext(&handlers.GlobalMap{}).
+		SetNext(&handlers.CNISupport{})
 
 	if err := rootHandler.Run(c); err != nil {
 		return nil, fmt.Errorf("filed to calculate network config, err: %v", err)

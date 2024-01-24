@@ -28,3 +28,17 @@ type DeviceType string
 const (
 	VxlanDevice DeviceType = "vxlan"
 )
+
+const (
+	DefaultPSK       string = "bfd6224354977084568832b811226b3d6cff6685"
+	DefaultPSKPreStr        = "WelcometoKosmos"
+	DefaultReqID     int    = 336
+)
+
+type IPSECDirection int
+
+const (
+	IPSECIn  IPSECDirection = 0
+	IPSECOut IPSECDirection = 1
+	IPSECFwd IPSECDirection = 2
+)
