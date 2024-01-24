@@ -7,14 +7,15 @@ set -o pipefail
 REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 source "${REPO_ROOT}/hack/util.sh"
 
-LDFLAGS="$(util::version_ldflags) ${LDFLAGS:-}"
+LDFLAGS="$(util::version_ldflags "$VERSION") ${LDFLAGS:-}"
 
 function release_binary() {
   local -r target=$1
   local -r os=$2
   local -r arch=$3
+  local -r tag=$4
 
-  release_binary_for_platform "${target}" "${os}" "${arch}"
+  release_binary_for_platform "${target}" "${os}" "${arch}" "${tag}"
 }
 
 function release_binary_for_platform() {
