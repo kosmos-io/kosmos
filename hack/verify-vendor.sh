@@ -4,6 +4,8 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
+git init
+
 SCRIPT_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 
 _vendor_root="${SCRIPT_ROOT}/vendor"
