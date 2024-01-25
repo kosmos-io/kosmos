@@ -17,9 +17,6 @@ jobs:
         shell: sh
         run:
           hack/run-golint.sh
-        #uses: golangci/golangci-lint-action@v3
-        #with:
-          #version: v1.54.1
   verify:
     name: verify
     runs-on: self-hosted
