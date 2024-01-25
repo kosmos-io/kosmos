@@ -8,6 +8,7 @@ set -o pipefail
 echo "go lint is not installed. Installing..."
 
 SCRIPT_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
-bash "${SCRIPT_ROOT}/hack/install-golint.sh -b ${GOPATH}/bin v1.54.2"
+GOLINT_PATH=$(go env GOPATH)/bin
+bash "${SCRIPT_ROOT}/hack/install-golint.sh -b GOLINT_PATH v1.54.2"
 
 echo "go lint is installed and the version is correct."
