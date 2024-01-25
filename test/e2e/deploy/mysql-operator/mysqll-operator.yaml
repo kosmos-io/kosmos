@@ -114,7 +114,6 @@ spec:
         runAsGroup: 65532
         runAsNonRoot: true
         runAsUser: 65532
-      serviceAccount: mysql-operator
       serviceAccountName: mysql-operator
       volumes:
         - configMap:
