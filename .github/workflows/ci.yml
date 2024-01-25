@@ -5,7 +5,7 @@ on:
 jobs:
   golangci:
     name: lint
-    runs-on: ubuntu-22.04
+    runs-on: self-hosted
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -22,7 +22,7 @@ jobs:
           #version: v1.54.1
   verify:
     name: verify
-    runs-on: ubuntu-22.04
+    runs-on: self-hosted
     if: ${{ always() }}
     needs: golangci
     env:
@@ -46,7 +46,7 @@ jobs:
   build:
     name: build
     needs: verify
-    runs-on: ubuntu-22.04
+    runs-on: self-hosted
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -62,7 +62,7 @@ jobs:
   test:
     name: Unit test
     needs: build
-    runs-on: ubuntu-22.04
+    runs-on: self-hosted
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -74,7 +74,7 @@ jobs:
   e2e:
     name: E2e test
     needs: build
-    runs-on: ubuntu-22.04
+    runs-on: self-hosted
     steps:
       # Free up disk space on Ubuntu
       - name: Free Disk Space (Ubuntu)
