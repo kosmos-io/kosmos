@@ -2,27 +2,19 @@ name: CI
 on:
   push:
   pull_request:
+  workflow_dispatch:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.actor }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
 jobs:
-  golangci:
-    name: lint
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-      - name: Install Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: '1.20'
-      - name: golint
-        uses: golangci/golangci-lint-action@v3
-        with:
-          version: v1.54.1
   verify:
     name: verify
-    runs-on: ubuntu-22.04
+    runs-on: self-hosted
+    if: ${{ always() }}
     env:
-      GOPATH: ${{ github.workspace }}
+      #GOPATH: ${{ github.workspace }}
       WORKSPACE: ${{ github.workspace }}/src/github.com/kosmos-io/kosmos
+      GOPROXY: "https://goproxy.cn,direct"
     defaults:
       run:
         working-directory: ${{ env.WORKSPACE }}
@@ -35,13 +27,18 @@ jobs:
         uses: actions/setup-go@v4
         with:
           go-version: '1.20'
-      - run: hack/verify-vendor.sh
-      - run: hack/verify-codegen.sh
-      - run: hack/verify-crds.sh
+      - name: lint
+        run: hack/verify-staticcheck.sh
+      - name: vendor
+        run: hack/verify-vendor.sh
+      - name: codegen
+        run: hack/verify-codegen.sh
+      - name: crds
+        run: hack/verify-crds.sh
   build:
     name: build
     needs: verify
-    runs-on: ubuntu-22.04
+    runs-on: self-hosted
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -57,7 +54,7 @@ jobs:
   test:
     name: Unit test
     needs: build
-    runs-on: ubuntu-22.04
+    runs-on: self-hosted
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -69,7 +66,9 @@ jobs:
   e2e:
     name: E2e test
     needs: build
-    runs-on: ubuntu-22.04
+    env:
+      GOPROXY: "https://goproxy.cn,direct"
+    runs-on: self-hosted
     steps:
       # Free up disk space on Ubuntu
       - name: Free Disk Space (Ubuntu)
