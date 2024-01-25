@@ -16,7 +16,7 @@ jobs:
       - name: golint
         shell: sh
         run:
-          hack/install-golint.sh -b ${{env.GOPATH}}}/bin v1.54.2
+          hack/run-golint.sh
         #uses: golangci/golangci-lint-action@v3
         #with:
           #version: v1.54.1
