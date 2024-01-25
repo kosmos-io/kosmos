@@ -17,7 +17,7 @@ jobs:
         shell: sh
         run:
           #hack/run-golint.sh
-          hack/install-golint.sh -b /home/runner/go/bin v1.54.2
+          hack/install-golint.sh -b /home/runner/go/bin v1.54.1
   verify:
     name: verify
     runs-on: self-hosted
