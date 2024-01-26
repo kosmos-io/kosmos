@@ -59,7 +59,7 @@ jobs:
         run: make all
   test:
     name: Unit test
-    needs: build
+    needs: e2e
     runs-on: self-hosted
     steps:
       - name: Checkout code
@@ -71,7 +71,7 @@ jobs:
       - run: make test
   e2e:
     name: E2e test
-    needs: test
+    needs: build
     runs-on: self-hosted
     steps:
       # Free up disk space on Ubuntu
