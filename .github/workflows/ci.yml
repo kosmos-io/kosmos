@@ -59,7 +59,7 @@ jobs:
         run: make all
   test:
     name: Unit test
-    needs: e2e
+    needs: build
     runs-on: self-hosted
     steps:
       - name: Checkout code
