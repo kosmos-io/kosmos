@@ -24,7 +24,7 @@ jobs:
     if: ${{ always() }}
     needs: golangci
     env:
-      GOPATH: ${{ github.workspace }}
+      #GOPATH: ${{ github.workspace }}
       WORKSPACE: ${{ github.workspace }}/src/github.com/kosmos-io/kosmos
     defaults:
       run:
