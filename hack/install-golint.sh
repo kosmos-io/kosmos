@@ -120,7 +120,7 @@ tag_to_version() {
 #    exit 1
 #  fi
 #  # if version starts with 'v', remove it
-  TAG="$REALTAG"
+#  TAG="$REALTAG"
   VERSION=${TAG#v}
 }
 adjust_format() {
