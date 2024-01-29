@@ -234,6 +234,13 @@ func run(ctx context.Context, opts *options.Options) error {
 		return fmt.Errorf("error starting root pvc controller %v", err)
 	}
 
+	//promotePolicyController := controllers.PromotePolicyController{
+	//	Client: mgr.GetClient(),
+	//}
+	//if err := promotePolicyController.SetupWithManager(mgr); err != nil {
+	//	return fmt.Errorf("error starting promotePolicyController %s: %v", controllers.PromotePolicyControllerName, err)
+	//}
+
 	rootPVController := pv.RootPVController{
 		RootClient:        mgr.GetClient(),
 		GlobalLeafManager: globalleafManager,

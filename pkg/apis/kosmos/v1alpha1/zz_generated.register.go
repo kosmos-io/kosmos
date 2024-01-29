@@ -60,6 +60,8 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&NodeConfigList{},
 		&PodConvertPolicy{},
 		&PodConvertPolicyList{},
+		&PromotePolicy{},
+		&PromotePolicyList{},
 		&Proxy{},
 		&ShadowDaemonSet{},
 		&ShadowDaemonSetList{},
