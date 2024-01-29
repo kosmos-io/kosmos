@@ -6,6 +6,7 @@ set -o pipefail
 
 KUBECONFIG_PATH=${KUBECONFIG_PATH:-"${HOME}/.kube"}
 export KUBECONFIG=$KUBECONFIG_PATH/"config"
+echo "$KUBECONFIG"
 
 E2E_NAMESPACE="kosmos-e2e"
 HOST_CLUSTER_NAME="cluster-host"
@@ -15,6 +16,7 @@ MEMBER3_CLUSTER_NAME="cluster-member3"
 
 ROOT="$(dirname "${BASH_SOURCE[0]}")"
 source "${ROOT}/util.sh"
+echo "$ROOT"
 
 # e2e for nginx and mcs
 kubectl --context="kind-${HOST_CLUSTER_NAME}" apply -f "${ROOT}"/../test/e2e/deploy/nginx
