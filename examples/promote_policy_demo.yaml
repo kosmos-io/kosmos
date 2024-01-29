@@ -1,0 +1,18 @@
+apiVersion: kosmos.io/v1alpha1
+kind: PromotePolicy
+metadata:
+  name: promote-pilicy-sample
+spec:
+  includedNamespaces:
+    - namespace1
+    - namespace2
+  excludedNamespaces:
+    - namespace3
+  includedNamespaceScopedResources:
+    - deployment
+    - service
+  excludedNamespaceScopedResources:
+    - pod
+  clusterName:
+    cluster
+
