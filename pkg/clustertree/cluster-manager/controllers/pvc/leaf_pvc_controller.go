@@ -28,7 +28,6 @@ import (
 
 const (
 	LeafPVCControllerName = "leaf-pvc-controller"
-	LeafPVCRequeueTime    = 10 * time.Second
 )
 
 type LeafPVCController struct {
@@ -44,7 +43,7 @@ func (l *LeafPVCController) Reconcile(ctx context.Context, request reconcile.Req
 	if err != nil {
 		if !errors.IsNotFound(err) {
 			klog.Errorf("get pvc from leaf cluster failed, error: %v", err)
-			return reconcile.Result{RequeueAfter: LeafPVCRequeueTime}, nil
+			return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
 		}
 		klog.V(4).Infof("leaf pvc namespace: %q, name: %q deleted", request.NamespacedName.Namespace,
 			request.NamespacedName.Name)
@@ -55,7 +54,7 @@ func (l *LeafPVCController) Reconcile(ctx context.Context, request reconcile.Req
 	err = l.RootClient.Get(ctx, request.NamespacedName, rootPVC)
 	if err != nil {
 		if !errors.IsNotFound(err) {
-			return reconcile.Result{RequeueAfter: LeafPVCRequeueTime}, nil
+			return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
 		}
 		klog.Warningf("pvc namespace: %q, name: %q has been deleted from root cluster", request.NamespacedName.Namespace,
 			request.NamespacedName.Name)
@@ -83,7 +82,7 @@ func (l *LeafPVCController) Reconcile(ctx context.Context, request reconcile.Req
 		})
 		if err != nil {
 			if !errors.IsNotFound(err) {
-				return reconcile.Result{RequeueAfter: LeafPVCRequeueTime}, nil
+				return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
 			}
 			return reconcile.Result{}, nil
 		}
@@ -110,7 +109,7 @@ func (l *LeafPVCController) Reconcile(ctx context.Context, request reconcile.Req
 	if err != nil {
 		klog.Errorf("patch pvc namespace: %q, name: %q to root cluster failed, error: %v",
 			request.NamespacedName.Namespace, request.NamespacedName.Name, err)
-		return reconcile.Result{RequeueAfter: RootPVCRequeueTime}, nil
+		return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
 	}
 
 	return reconcile.Result{}, nil

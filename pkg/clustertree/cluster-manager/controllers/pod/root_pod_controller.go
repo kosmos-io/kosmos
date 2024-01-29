@@ -37,7 +37,6 @@ import (
 
 const (
 	RootPodControllerName = "root-pod-controller"
-	RootPodRequeueTime    = 10 * time.Second
 )
 
 type RootPodReconciler struct {
@@ -128,17 +127,17 @@ func (r *RootPodReconciler) Reconcile(ctx context.Context, request reconcile.Req
 				lr, err := r.GlobalLeafManager.GetLeafResourceByNodeName(nodeName)
 				if err != nil {
 					// wait for leaf resource init
-					return reconcile.Result{RequeueAfter: RootPodRequeueTime}, nil
+					return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
 				}
 				if err := r.DeletePodInLeafCluster(ctx, lr, request.NamespacedName, false); err != nil {
 					klog.Errorf("delete pod in leaf error[1]: %v,  %s", err, request.NamespacedName)
-					return reconcile.Result{RequeueAfter: RootPodRequeueTime}, nil
+					return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
 				}
 			}
 			return reconcile.Result{}, nil
 		}
 		klog.Errorf("get %s error: %v", request.NamespacedName, err)
-		return reconcile.Result{RequeueAfter: RootPodRequeueTime}, nil
+		return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
 	}
 
 	rootpod := *(cachepod.DeepCopy())
@@ -154,7 +153,7 @@ func (r *RootPodReconciler) Reconcile(ctx context.Context, request reconcile.Req
 
 		targetNode := &corev1.Node{}
 		if err := r.RootClient.Get(ctx, nn, targetNode); err != nil {
-			return reconcile.Result{RequeueAfter: RootPodRequeueTime}, nil
+			return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
 		}
 
 		if targetNode.Annotations == nil {
@@ -171,13 +170,13 @@ func (r *RootPodReconciler) Reconcile(ctx context.Context, request reconcile.Req
 	// TODO: GlobalLeafResourceManager may not inited....
 	// belongs to the current node
 	if !r.GlobalLeafManager.HasNode(rootpod.Spec.NodeName) {
-		return reconcile.Result{RequeueAfter: RootPodRequeueTime}, nil
+		return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
 	}
 
 	lr, err := r.GlobalLeafManager.GetLeafResourceByNodeName(rootpod.Spec.NodeName)
 	if err != nil {
 		// wait for leaf resource init
-		return reconcile.Result{RequeueAfter: RootPodRequeueTime}, nil
+		return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
 	}
 
 	// skip namespace
@@ -189,7 +188,7 @@ func (r *RootPodReconciler) Reconcile(ctx context.Context, request reconcile.Req
 	if !rootpod.GetDeletionTimestamp().IsZero() {
 		if err := r.DeletePodInLeafCluster(ctx, lr, request.NamespacedName, true); err != nil {
 			klog.Errorf("delete pod in leaf error[1]: %v,  %s", err, request.NamespacedName)
-			return reconcile.Result{RequeueAfter: RootPodRequeueTime}, nil
+			return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
 		}
 		return reconcile.Result{}, nil
 	}
@@ -202,20 +201,20 @@ func (r *RootPodReconciler) Reconcile(ctx context.Context, request reconcile.Req
 		if errors.IsNotFound(err) {
 			if err := r.CreatePodInLeafCluster(ctx, lr, &rootpod, r.GlobalLeafManager.GetClusterNode(rootpod.Spec.NodeName).LeafNodeSelector); err != nil {
 				klog.Errorf("create pod inleaf error, err: %s", err)
-				return reconcile.Result{RequeueAfter: RootPodRequeueTime}, nil
+				return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
 			} else {
 				return reconcile.Result{}, nil
 			}
 		} else {
 			klog.Errorf("get pod in leaf error[3]: %v,  %s", err, request.NamespacedName)
-			return reconcile.Result{RequeueAfter: RootPodRequeueTime}, nil
+			return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
 		}
 	}
 
 	// update pod in leaf
 	if podutils.ShouldEnqueue(leafPod, &rootpod) {
 		if err := r.UpdatePodInLeafCluster(ctx, lr, &rootpod, leafPod, r.GlobalLeafManager.GetClusterNode(rootpod.Spec.NodeName).LeafNodeSelector); err != nil {
-			return reconcile.Result{RequeueAfter: RootPodRequeueTime}, nil
+			return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
 		}
 	}
 
