@@ -112,6 +112,7 @@ func (c *ClusterController) SetupWithManager(mgr manager.Manager) error {
 }
 
 func (c *ClusterController) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
+	// reconcile
 	klog.V(4).Infof("============ %s starts to reconcile %s ============", ControllerName, request.Name)
 
 	cluster := &kosmosv1alpha1.Cluster{}
