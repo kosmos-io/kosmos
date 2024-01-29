@@ -7,7 +7,7 @@ REGISTRY?="ghcr.io/kosmos-io"
 REGISTRY_USER_NAME?=""
 REGISTRY_PASSWORD?=""
 REGISTRY_SERVER_ADDRESS?=""
-KIND_IMAGE_TAG?="v1.27.3"
+KIND_IMAGE_TAG?="v1.25.3"
 
 TARGETS :=  clusterlink-controller-manager  \
 			kosmos-operator \
