@@ -16,7 +16,7 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/sharedcli/klogflag"
 )
 
-func NewAgentCommand(ctx context.Context) *cobra.Command {
+func NewNetworkManagerCommand(ctx context.Context) *cobra.Command {
 	opts := options.NewOptions()
 
 	cmd := &cobra.Command{
