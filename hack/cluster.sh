@@ -8,7 +8,7 @@ HOST_CLUSTER_NAME="cluster-host"
 CURRENT="$(dirname "${BASH_SOURCE[0]}")"
 ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 #KIND_IMAGE="ghcr.io/kosmos-io/node:v1.25.3"
-KIND_IMAGE="kindest/node:v1.25.3"
+KIND_IMAGE="kindest/node:v1.27.3"
 # true: when cluster is exist, reuse exist one!
 REUSE=${REUSE:-false}
 VERSION=${VERSION:-latest}
