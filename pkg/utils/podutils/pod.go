@@ -326,6 +326,7 @@ func GetUpdatedPod(orig, update *corev1.Pod, ignoreLabels []string, leafMode clu
 		orig.Labels = make(map[string]string)
 	}
 	orig.Labels[utils.KosmosPodLabel] = "true"
+	//delete(update.Annotations, "kubectl.kubernetes.io/last-applied-configuration")
 	orig.Annotations = update.Annotations
 	orig.Spec.ActiveDeadlineSeconds = update.Spec.ActiveDeadlineSeconds
 	if orig.Labels != nil {

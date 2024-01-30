@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -38,6 +39,7 @@ type ClusterNode struct {
 type LeafResource struct {
 	Client               client.Client
 	DynamicClient        dynamic.Interface
+	DiscoveryClient      *discovery.DiscoveryClient
 	Clientset            kubernetes.Interface
 	KosmosClient         kosmosversioned.Interface
 	ClusterName          string

@@ -214,6 +214,7 @@ func (r *RootPodReconciler) Reconcile(ctx context.Context, request reconcile.Req
 	// update pod in leaf
 	if podutils.ShouldEnqueue(leafPod, &rootpod) {
 		if err := r.UpdatePodInLeafCluster(ctx, lr, &rootpod, leafPod, r.GlobalLeafManager.GetClusterNode(rootpod.Spec.NodeName).LeafNodeSelector); err != nil {
+			klog.Errorf("Error Update pod in leafcluster. %v", err)
 			return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
 		}
 	}
@@ -919,6 +920,7 @@ func (r *RootPodReconciler) UpdatePodInLeafCluster(ctx context.Context, lr *leaf
 	if reflect.DeepEqual(leafPod.Spec, podCopy.Spec) &&
 		reflect.DeepEqual(leafPod.Annotations, podCopy.Annotations) &&
 		reflect.DeepEqual(leafPod.Labels, podCopy.Labels) {
+		klog.V(4).Info("Skipping leaf pod update")
 		return nil
 	}
 
