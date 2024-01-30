@@ -34,6 +34,10 @@ function create_cluster() {
 
   CLUSTER_DIR="${ROOT}/environments/${clustername}"
   mkdir -p "${CLUSTER_DIR}"
+
+  echo "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+  echo "$CLUSTER_DIR"
+  
   ipFamily=ipv4
   if [ "$isDual" == true ]; then
     ipFamily=dual
