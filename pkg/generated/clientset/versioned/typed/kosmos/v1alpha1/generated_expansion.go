@@ -14,4 +14,6 @@ type NodeConfigExpansion interface{}
 
 type PodConvertPolicyExpansion interface{}
 
+type PromotePolicyExpansion interface{}
+
 type ShadowDaemonSetExpansion interface{}
