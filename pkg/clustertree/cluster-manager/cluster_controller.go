@@ -12,6 +12,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -141,6 +142,11 @@ func (c *ClusterController) Reconcile(ctx context.Context, request reconcile.Req
 		return reconcile.Result{}, fmt.Errorf("could not build dynamic client for cluster %s: %v", cluster.Name, err)
 	}
 
+	leafDiscovery, err := discovery.NewDiscoveryClientForConfig(config)
+	if err != nil {
+		return reconcile.Result{}, fmt.Errorf("could not build discovery client for cluster %s: %v", cluster.Name, err)
+	}
+
 	leafKosmosClient, err := kosmosversioned.NewForConfig(config)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("could not build kosmos clientset for cluster %s: %v", cluster.Name, err)
@@ -206,7 +212,7 @@ func (c *ClusterController) Reconcile(ctx context.Context, request reconcile.Req
 	c.ManagerCancelFuncs[cluster.Name] = &cancel
 	c.ControllerManagersLock.Unlock()
 
-	if err = c.setupControllers(mgr, cluster, nodes, leafDynamic, leafNodeSelectors, leafClient, leafKosmosClient, config); err != nil {
+	if err = c.setupControllers(mgr, cluster, nodes, leafDynamic, leafDiscovery, leafNodeSelectors, leafClient, leafKosmosClient, config); err != nil {
 		return reconcile.Result{}, fmt.Errorf("failed to setup cluster %s controllers: %v", cluster.Name, err)
 	}
 
@@ -240,16 +246,18 @@ func (c *ClusterController) setupControllers(
 	cluster *kosmosv1alpha1.Cluster,
 	nodes []*corev1.Node,
 	clientDynamic *dynamic.DynamicClient,
+	discoveryClient *discovery.DiscoveryClient,
 	leafNodeSelector map[string]kosmosv1alpha1.NodeSelector,
 	leafClientset kubernetes.Interface,
 	leafKosmosClient kosmosversioned.Interface,
 	leafRestConfig *rest.Config) error {
 	c.GlobalLeafManager.AddLeafResource(&leafUtils.LeafResource{
-		Client:        mgr.GetClient(),
-		DynamicClient: clientDynamic,
-		Clientset:     leafClientset,
-		KosmosClient:  leafKosmosClient,
-		ClusterName:   cluster.Name,
+		Client:          mgr.GetClient(),
+		DynamicClient:   clientDynamic,
+		DiscoveryClient: discoveryClient,
+		Clientset:       leafClientset,
+		KosmosClient:    leafKosmosClient,
+		ClusterName:     cluster.Name,
 		// TODO: define node options
 		Namespace:            "",
 		IgnoreLabels:         strings.Split("", ","),
