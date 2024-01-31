@@ -1787,15 +1787,6 @@ k8s.io/kubernetes/pkg/volume/util/recyclerclient
 k8s.io/kubernetes/pkg/volume/util/subpath
 k8s.io/kubernetes/pkg/volume/util/types
 k8s.io/kubernetes/pkg/volume/util/volumepathhandler
-# k8s.io/metrics v0.26.3 => k8s.io/metrics v0.26.3
-## explicit; go 1.19
-k8s.io/metrics/pkg/apis/metrics
-k8s.io/metrics/pkg/apis/metrics/v1alpha1
-k8s.io/metrics/pkg/apis/metrics/v1beta1
-k8s.io/metrics/pkg/client/clientset/versioned
-k8s.io/metrics/pkg/client/clientset/versioned/scheme
-k8s.io/metrics/pkg/client/clientset/versioned/typed/metrics/v1alpha1
-k8s.io/metrics/pkg/client/clientset/versioned/typed/metrics/v1beta1
 # k8s.io/mount-utils v0.23.3 => k8s.io/mount-utils v0.26.3
 ## explicit; go 1.19
 k8s.io/mount-utils
