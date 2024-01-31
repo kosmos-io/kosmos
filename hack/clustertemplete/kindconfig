@@ -1,8 +1,36 @@
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
+- |
+  [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc.options]
+        SystemdCgroup = false
+  [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.test-handler.options]
+        SystemdCgroup = false
 nodes:
 - role: control-plane
-#- role: worker
+  kubeadmConfigPatches:
+  - |
+    kind: KubeletConfiguration
+    cgroupDriver: cgroupfs
+- role: control-plane
+  kubeadmConfigPatches:
+  - |
+    kind: KubeletConfiguration
+    cgroupDriver: cgroupfs
+- role: control-plane
+  kubeadmConfigPatches:
+  - |
+    kind: KubeletConfiguration
+    cgroupDriver: cgroupfs
+- role: worker
+  kubeadmConfigPatches:
+  - |
+    kind: KubeletConfiguration
+    cgroupDriver: cgroupfs
+- role: worker
+  kubeadmConfigPatches:
+  - |
+    kind: KubeletConfiguration
+    cgroupDriver: cgroupfs
 networking:
   ipFamily: __IP_FAMILY__
   disableDefaultCNI: true # disable kindnet
