@@ -148,7 +148,11 @@ func (c *NodeResourcesController) Reconcile(ctx context.Context, request reconci
 				// 	Taints: rootNode.Spec.Taints,
 				// }
 				clone.Spec.Taints = rootNode.Spec.Taints
+				// node-lease-controller will modify the address, do not modify it here as there may be issues.
+				// relate to https://github.com/kosmos-io/kosmos/pull/338
+				cloneAddress := clone.Status.Addresses
 				clone.Status = node.Status
+				clone.Status.Addresses = cloneAddress
 			}
 		}
 
@@ -165,13 +169,13 @@ func (c *NodeResourcesController) Reconcile(ctx context.Context, request reconci
 		if _, err = c.RootClientset.CoreV1().Nodes().Patch(ctx, rootNode.Name, types.MergePatchType, patch, metav1.PatchOptions{}); err != nil {
 			return reconcile.Result{
 				RequeueAfter: RequeueTime,
-			}, fmt.Errorf("failed to patch node resources: %v, will requeue", err)
+			}, fmt.Errorf("(patch) failed to patch node resources: %v, will requeue", err)
 		}
 
 		if _, err = c.RootClientset.CoreV1().Nodes().PatchStatus(ctx, rootNode.Name, patch); err != nil {
 			return reconcile.Result{
 				RequeueAfter: RequeueTime,
-			}, fmt.Errorf("failed to patch node resources: %v, will requeue", err)
+			}, fmt.Errorf("(patch-status) failed to patch node resources: %v, will requeue", err)
 		}
 	}
 	return reconcile.Result{}, nil
