@@ -89,7 +89,11 @@ func UpdateSecret(old, new *corev1.Secret) {
 	}
 }
 
-func UpdateUnstructured[T *corev1.ConfigMap | *corev1.Secret](old, new *unstructured.Unstructured, oldObj T, newObj T, update func(old, new T)) (*unstructured.Unstructured, error) {
+func UpdateNamespace(old, new *corev1.Namespace) {
+	old.Labels = new.Labels
+}
+
+func UpdateUnstructured[T *corev1.ConfigMap | *corev1.Secret | *corev1.Namespace](old, new *unstructured.Unstructured, oldObj T, newObj T, update func(old, new T)) (*unstructured.Unstructured, error) {
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(old.UnstructuredContent(), &oldObj); err != nil {
 		return nil, err
 	}

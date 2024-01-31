@@ -107,6 +107,7 @@ const (
 	KosmosNodeTaintValue   = "true"
 	KosmosNodeTaintEffect  = "NoSchedule"
 	KosmosPodLabel         = "kosmos-io/pod"
+	KosmosNameSpaceLabel   = "kosmos-io/ns"
 	KosmosGlobalLabel      = "kosmos.io/global"
 	KosmosSelectorKey      = "kosmos.io/cluster-selector"
 	KosmosTrippedLabels    = "kosmos-io/tripped"
@@ -115,7 +116,7 @@ const (
 	KosmosExcludeNodeLabel = "kosmos.io/exclude"
 	KosmosExcludeNodeValue = "true"
 
-	// on resorce (pv, configmap, secret), represents which cluster this resource belongs to
+	// on resource (pv, configmap, secret), represents which cluster this resource belongs to
 	KosmosResourceOwnersAnnotations = "kosmos-io/cluster-owners"
 	// on node, represents which cluster this node belongs to
 	KosmosNodeOwnedByClusterAnnotations = "kosmos-io/owned-by-cluster"
@@ -186,4 +187,10 @@ var GVR_SERVICE = schema.GroupVersionResource{
 	Group:    "",
 	Version:  "v1",
 	Resource: "services",
+}
+
+var GVR_NAMESPACE = schema.GroupVersionResource{
+	Group:    "",
+	Version:  "v1",
+	Resource: "namespaces",
 }
