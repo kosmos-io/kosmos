@@ -12,21 +12,6 @@ nodes:
   - |
     kind: KubeletConfiguration
     cgroupDriver: cgroupfs
-- role: control-plane
-  kubeadmConfigPatches:
-  - |
-    kind: KubeletConfiguration
-    cgroupDriver: cgroupfs
-- role: control-plane
-  kubeadmConfigPatches:
-  - |
-    kind: KubeletConfiguration
-    cgroupDriver: cgroupfs
-- role: worker
-  kubeadmConfigPatches:
-  - |
-    kind: KubeletConfiguration
-    cgroupDriver: cgroupfs
 - role: worker
   kubeadmConfigPatches:
   - |
