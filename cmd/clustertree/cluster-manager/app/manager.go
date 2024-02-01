@@ -31,7 +31,7 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/utils"
 )
 
-func NewAgentCommand(ctx context.Context) (*cobra.Command, error) {
+func NewClusterManagerCommand(ctx context.Context) (*cobra.Command, error) {
 	opts, err := options.NewOptions()
 	if err != nil {
 		return nil, err

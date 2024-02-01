@@ -11,7 +11,7 @@ import (
 
 func main() {
 	ctx := apiserver.SetupSignalContext()
-	cmd := app.NewAgentCommand(ctx)
+	cmd := app.NewNetworkManagerCommand(ctx)
 	code := cli.Run(cmd)
 	os.Exit(code)
 }
