@@ -7,8 +7,8 @@ set -o pipefail
 HOST_CLUSTER_NAME="cluster-host"
 CURRENT="$(dirname "${BASH_SOURCE[0]}")"
 ROOT=$(dirname "${BASH_SOURCE[0]}")/..
-#KIND_IMAGE="ghcr.io/kosmos-io/node:v1.25.3"
-KIND_IMAGE="kindest/node:v1.27.2"
+KIND_IMAGE="ghcr.m.daocloud.io/kosmos-io/node:v1.25.3"
+#KIND_IMAGE="kindest/node:v1.27.2"
 # true: when cluster is exist, reuse exist one!
 REUSE=${REUSE:-false}
 VERSION=${VERSION:-latest}
@@ -183,7 +183,7 @@ metadata:
   $common_metadata
   name: ${member_cluster}
 spec:
-  imageRepository: "ghcr.io/kosmos-io"
+  imageRepository: "ghcr.m.daocloud.io/kosmos-io"
   kubeconfig: "$base64_kubeconfig"
   clusterLinkOptions:
     cni: "calico"
@@ -284,14 +284,14 @@ function deploy_cluster() {
 function load_cluster_images() {
   local -r clustername=$1
 
-  kind load docker-image -n "$clustername" ghcr.io/kosmos-io/clusterlink-network-manager:"${VERSION}"
-  kind load docker-image -n "$clustername" ghcr.io/kosmos-io/clusterlink-controller-manager:"${VERSION}"
-  kind load docker-image -n "$clustername" ghcr.io/kosmos-io/clusterlink-elector:"${VERSION}"
-  kind load docker-image -n "$clustername" ghcr.io/kosmos-io/kosmos-operator:"${VERSION}"
-  kind load docker-image -n "$clustername" ghcr.io/kosmos-io/clusterlink-agent:"${VERSION}"
-  kind load docker-image -n "$clustername" ghcr.io/kosmos-io/clusterlink-proxy:"${VERSION}"
-  kind load docker-image -n "$clustername" ghcr.io/kosmos-io/clustertree-cluster-manager:"${VERSION}"
-  kind load docker-image -n "$clustername" ghcr.io/kosmos-io/scheduler:"${VERSION}"
+  kind load docker-image -n "$clustername" ghcr.m.daocloud.io/kosmos-io/clusterlink-network-manager:"${VERSION}"
+  kind load docker-image -n "$clustername" ghcr.m.daocloud.io/kosmos-io/clusterlink-controller-manager:"${VERSION}"
+  kind load docker-image -n "$clustername" ghcr.m.daocloud.io/kosmos-io/clusterlink-elector:"${VERSION}"
+  kind load docker-image -n "$clustername" ghcr.m.daocloud.io/kosmos-io/kosmos-operator:"${VERSION}"
+  kind load docker-image -n "$clustername" ghcr.m.daocloud.io/kosmos-io/clusterlink-agent:"${VERSION}"
+  kind load docker-image -n "$clustername" ghcr.m.daocloud.io/kosmos-io/clusterlink-proxy:"${VERSION}"
+  kind load docker-image -n "$clustername" ghcr.m.daocloud.io/kosmos-io/clustertree-cluster-manager:"${VERSION}"
+  kind load docker-image -n "$clustername" ghcr.m.daocloud.io/kosmos-io/scheduler:"${VERSION}"
 }
 
 function delete_cluster() {
