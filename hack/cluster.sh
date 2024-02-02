@@ -203,7 +203,7 @@ function join_cluster_by_ctl() {
   local member_cluster=$2
   HOST_CLUSTER_DIR="${ROOT}/environments/${host_cluster}"
   MEMBER_CLUSTER_DIR="${ROOT}/environments/${member_cluster}"
-  kosmosctl join cluster --name $member_cluster --host-kubeconfig $HOST_CLUSTER_DIR/kubeconfig --kubeconfig $MEMBER_CLUSTER_DIR/kubeconfig --enable-all --version "${VERSION}"
+  kosmosctl join cluster --name $member_cluster --host-kubeconfig $HOST_CLUSTER_DIR/kubeconfig --kubeconfig $MEMBER_CLUSTER_DIR/kubeconfig --enable-all --version ${VERSION}
 }
 
 function addTaint() {
@@ -221,7 +221,7 @@ function deploy_cluster_by_ctl() {
   local -r clustername=$1
   CLUSTER_DIR="${ROOT}/environments/${clustername}"
   load_cluster_images "$clustername"
-  kosmosctl install --version "${VERSION}" --kubeconfig $CLUSTER_DIR/kubeconfig
+  kosmosctl install --version ${VERSION} --kubeconfig $CLUSTER_DIR/kubeconfig
 
   # deploy kosmos-scheduler for e2e test case of mysql-operator
   sed -e "s|__VERSION__|$VERSION|g" -e "w ${ROOT}/environments/kosmos-scheduler.yml" "$ROOT"/deploy/scheduler/deployment.yaml
