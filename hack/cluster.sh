@@ -11,8 +11,8 @@ ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 KIND_IMAGE="kindest/node:v1.27.2"
 # true: when cluster is exist, reuse exist one!
 REUSE=${REUSE:-false}
-#VERSION=${VERSION:-latest}
-VERSION="v0.2.0-lts"
+VERSION=${VERSION:-latest}
+#VERSION="v0.2.0-lts"
 
 # default cert and key for node server https
 CERT=$(cat ${ROOT}/pkg/cert/crt.pem | base64 -w 0)
