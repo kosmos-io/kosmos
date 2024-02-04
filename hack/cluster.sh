@@ -63,87 +63,87 @@ function create_cluster() {
   # prepare external kubeconfig
   docker exec ${clustername}-control-plane /bin/sh -c "cat /etc/kubernetes/admin.conf" | sed -e "s|${clustername}-control-plane|$dockerip|g" -e "/certificate-authority-data:/d" -e "5s/^/    insecure-skip-tls-verify: true\n/" -e "w ${CLUSTER_DIR}/kubeconfig"
 
-  # install calico
-  if [ "${CN_ZONE}" == false ]; then
-    docker pull quay.io/tigera/operator:v1.29.0
-    docker pull docker.io/calico/cni:v3.25.0
-    docker pull docker.io/calico/typha:v3.25.0
-    docker pull docker.io/calico/pod2daemon-flexvol:v3.25.0
-    docker pull docker.io/calico/kube-controllers:v3.25.0
-    docker pull docker.io/calico/node:v3.25.0
-    docker pull docker.io/calico/csi:v3.25.0
-    docker pull docker.io/percona:5.7
-    docker pull docker.io/bitpoke/mysql-operator-sidecar-5.7:v0.6.3
-    docker pull docker.io/library/nginx:latest
-    docker pull docker.io/library/busybox:latest
-    docker pull docker.io/prom/mysqld-exporter:v0.13.0
-  else
-    docker pull quay.m.daocloud.io/tigera/operator:v1.29.0
-    docker pull docker.m.daocloud.io/calico/cni:v3.25.0
-    docker pull docker.m.daocloud.io/calico/typha:v3.25.0
-    docker pull docker.m.daocloud.io/calico/pod2daemon-flexvol:v3.25.0
-    docker pull docker.m.daocloud.io/calico/kube-controllers:v3.25.0
-    docker pull docker.m.daocloud.io/calico/node:v3.25.0
-    docker pull docker.m.daocloud.io/calico/csi:v3.25.0
-    docker pull docker.m.daocloud.io/percona:5.7
-    docker pull docker.m.daocloud.io/library/nginx:latest
-    docker pull docker.m.daocloud.io/library/busybox:latest
-    docker pull docker.m.daocloud.io/prom/mysqld-exporter:v0.13.0
-    docker pull docker.m.daocloud.io/bitpoke/mysql-operator-sidecar-5.7:v0.6.3
-
-    docker tag quay.m.daocloud.io/tigera/operator:v1.29.0 quay.io/tigera/operator:v1.29.0
-    docker tag docker.m.daocloud.io/calico/cni:v3.25.0 docker.io/calico/cni:v3.25.0
-    docker tag docker.m.daocloud.io/calico/typha:v3.25.0 docker.io/calico/typha:v3.25.0
-    docker tag docker.m.daocloud.io/calico/pod2daemon-flexvol:v3.25.0 docker.io/calico/pod2daemon-flexvol:v3.25.0
-    docker tag docker.m.daocloud.io/calico/kube-controllers:v3.25.0 docker.io/calico/kube-controllers:v3.25.0
-    docker tag docker.m.daocloud.io/calico/node:v3.25.0 docker.io/calico/node:v3.25.0
-    docker tag docker.m.daocloud.io/calico/csi:v3.25.0 docker.io/calico/csi:v3.25.0
-    docker tag docker.m.daocloud.io/percona:5.7 docker.io/percona:5.7
-    docker tag docker.m.daocloud.io/library/nginx:latest docker.io/library/nginx:latest
-    docker tag docker.m.daocloud.io/library/busybox:latest docker.io/library/busybox:latest
-    docker tag docker.m.daocloud.io/prom/mysqld-exporter:v0.13.0 docker.io/prom/mysqld-exporter:v0.13.0
-    docker tag docker.m.daocloud.io/bitpoke/mysql-operator-sidecar-5.7:v0.6.3 docker.io/bitpoke/mysql-operator-sidecar-5.7:v0.6.3
-  fi
-
-  kind load docker-image -n "$clustername" quay.io/tigera/operator:v1.29.0
-  kind load docker-image -n "$clustername" docker.io/calico/cni:v3.25.0
-  kind load docker-image -n "$clustername" docker.io/calico/typha:v3.25.0
-  kind load docker-image -n "$clustername" docker.io/calico/pod2daemon-flexvol:v3.25.0
-  kind load docker-image -n "$clustername" docker.io/calico/kube-controllers:v3.25.0
-  kind load docker-image -n "$clustername" docker.io/calico/node:v3.25.0
-  kind load docker-image -n "$clustername" docker.io/calico/csi:v3.25.0
-  kind load docker-image -n "$clustername" docker.io/percona:5.7
-  kind load docker-image -n "$clustername" docker.io/library/nginx:latest
-  kind load docker-image -n "$clustername" docker.io/library/busybox:latest
-  kind load docker-image -n "$clustername" docker.io/prom/mysqld-exporter:v0.13.0
-  kind load docker-image -n "$clustername" docker.io/bitpoke/mysql-operator-sidecar-5.7:v0.6.3
-
-  if "${clustername}" == $HOST_CLUSTER_NAME; then
-    if [ "${CN_ZONE}" == false ]; then
-      docker pull docker.io/bitpoke/mysql-operator-orchestrator:v0.6.3
-      docker pull docker.io/prom/mysqld-exporter:v0.13.0
-      docker pull docker.io/bitpoke/mysql-operator-sidecar-8.0:v0.6.3
-      docker pull docker.io/bitpoke/mysql-operator-sidecar-5.7:v0.6.3
-      docker pull docker.io/bitpoke/mysql-operator:v0.6.3
-    else
-      docker pull docker.m.daocloud.io/bitpoke/mysql-operator-orchestrator:v0.6.3
-      docker pull docker.m.daocloud.io/prom/mysqld-exporter:v0.13.0
-      docker pull docker.m.daocloud.io/bitpoke/mysql-operator-sidecar-8.0:v0.6.3
-      docker pull docker.m.daocloud.io/bitpoke/mysql-operator-sidecar-5.7:v0.6.3
-      docker pull docker.m.daocloud.io/bitpoke/mysql-operator:v0.6.3
-
-      docker tag docker.m.daocloud.io/bitpoke/mysql-operator-orchestrator:v0.6.3 docker.io/bitpoke/mysql-operator-orchestrator:v0.6.3
-      docker tag docker.m.daocloud.io/prom/mysqld-exporter:v0.13.0 docker.io/prom/mysqld-exporter:v0.13.0
-      docker tag docker.m.daocloud.io/bitpoke/mysql-operator-sidecar-8.0:v0.6.3 docker.io/bitpoke/mysql-operator-sidecar-8.0:v0.6.3
-      docker tag docker.m.daocloud.io/bitpoke/mysql-operator-sidecar-5.7:v0.6.3 docker.io/bitpoke/mysql-operator-sidecar-5.7:v0.6.3
-      docker tag docker.m.daocloud.io/bitpoke/mysql-operator:v0.6.3 docker.io/bitpoke/mysql-operator:v0.6.3
-    fi
-    kind load docker-image -n "$clustername" docker.io/bitpoke/mysql-operator-orchestrator:v0.6.3
-    kind load docker-image -n "$clustername" docker.io/prom/mysqld-exporter:v0.13.0
-    kind load docker-image -n "$clustername" docker.io/bitpoke/mysql-operator-sidecar-8.0:v0.6.3
-    kind load docker-image -n "$clustername" docker.io/bitpoke/mysql-operator-sidecar-5.7:v0.6.3
-    kind load docker-image -n "$clustername" docker.io/bitpoke/mysql-operator:v0.6.3
-  fi
+#  # install calico
+#  if [ "${CN_ZONE}" == false ]; then
+#    docker pull quay.io/tigera/operator:v1.29.0
+#    docker pull docker.io/calico/cni:v3.25.0
+#    docker pull docker.io/calico/typha:v3.25.0
+#    docker pull docker.io/calico/pod2daemon-flexvol:v3.25.0
+#    docker pull docker.io/calico/kube-controllers:v3.25.0
+#    docker pull docker.io/calico/node:v3.25.0
+#    docker pull docker.io/calico/csi:v3.25.0
+#    docker pull docker.io/percona:5.7
+#    docker pull docker.io/bitpoke/mysql-operator-sidecar-5.7:v0.6.3
+#    docker pull docker.io/library/nginx:latest
+#    docker pull docker.io/library/busybox:latest
+#    docker pull docker.io/prom/mysqld-exporter:v0.13.0
+#  else
+#    docker pull quay.m.daocloud.io/tigera/operator:v1.29.0
+#    docker pull docker.m.daocloud.io/calico/cni:v3.25.0
+#    docker pull docker.m.daocloud.io/calico/typha:v3.25.0
+#    docker pull docker.m.daocloud.io/calico/pod2daemon-flexvol:v3.25.0
+#    docker pull docker.m.daocloud.io/calico/kube-controllers:v3.25.0
+#    docker pull docker.m.daocloud.io/calico/node:v3.25.0
+#    docker pull docker.m.daocloud.io/calico/csi:v3.25.0
+#    docker pull docker.m.daocloud.io/percona:5.7
+#    docker pull docker.m.daocloud.io/library/nginx:latest
+#    docker pull docker.m.daocloud.io/library/busybox:latest
+#    docker pull docker.m.daocloud.io/prom/mysqld-exporter:v0.13.0
+#    docker pull docker.m.daocloud.io/bitpoke/mysql-operator-sidecar-5.7:v0.6.3
+#
+#    docker tag quay.m.daocloud.io/tigera/operator:v1.29.0 quay.io/tigera/operator:v1.29.0
+#    docker tag docker.m.daocloud.io/calico/cni:v3.25.0 docker.io/calico/cni:v3.25.0
+#    docker tag docker.m.daocloud.io/calico/typha:v3.25.0 docker.io/calico/typha:v3.25.0
+#    docker tag docker.m.daocloud.io/calico/pod2daemon-flexvol:v3.25.0 docker.io/calico/pod2daemon-flexvol:v3.25.0
+#    docker tag docker.m.daocloud.io/calico/kube-controllers:v3.25.0 docker.io/calico/kube-controllers:v3.25.0
+#    docker tag docker.m.daocloud.io/calico/node:v3.25.0 docker.io/calico/node:v3.25.0
+#    docker tag docker.m.daocloud.io/calico/csi:v3.25.0 docker.io/calico/csi:v3.25.0
+#    docker tag docker.m.daocloud.io/percona:5.7 docker.io/percona:5.7
+#    docker tag docker.m.daocloud.io/library/nginx:latest docker.io/library/nginx:latest
+#    docker tag docker.m.daocloud.io/library/busybox:latest docker.io/library/busybox:latest
+#    docker tag docker.m.daocloud.io/prom/mysqld-exporter:v0.13.0 docker.io/prom/mysqld-exporter:v0.13.0
+#    docker tag docker.m.daocloud.io/bitpoke/mysql-operator-sidecar-5.7:v0.6.3 docker.io/bitpoke/mysql-operator-sidecar-5.7:v0.6.3
+#  fi
+#
+#  kind load docker-image -n "$clustername" quay.io/tigera/operator:v1.29.0
+#  kind load docker-image -n "$clustername" docker.io/calico/cni:v3.25.0
+#  kind load docker-image -n "$clustername" docker.io/calico/typha:v3.25.0
+#  kind load docker-image -n "$clustername" docker.io/calico/pod2daemon-flexvol:v3.25.0
+#  kind load docker-image -n "$clustername" docker.io/calico/kube-controllers:v3.25.0
+#  kind load docker-image -n "$clustername" docker.io/calico/node:v3.25.0
+#  kind load docker-image -n "$clustername" docker.io/calico/csi:v3.25.0
+#  kind load docker-image -n "$clustername" docker.io/percona:5.7
+#  kind load docker-image -n "$clustername" docker.io/library/nginx:latest
+#  kind load docker-image -n "$clustername" docker.io/library/busybox:latest
+#  kind load docker-image -n "$clustername" docker.io/prom/mysqld-exporter:v0.13.0
+#  kind load docker-image -n "$clustername" docker.io/bitpoke/mysql-operator-sidecar-5.7:v0.6.3
+#
+#  if "${clustername}" == $HOST_CLUSTER_NAME; then
+#    if [ "${CN_ZONE}" == false ]; then
+#      docker pull docker.io/bitpoke/mysql-operator-orchestrator:v0.6.3
+#      docker pull docker.io/prom/mysqld-exporter:v0.13.0
+#      docker pull docker.io/bitpoke/mysql-operator-sidecar-8.0:v0.6.3
+#      docker pull docker.io/bitpoke/mysql-operator-sidecar-5.7:v0.6.3
+#      docker pull docker.io/bitpoke/mysql-operator:v0.6.3
+#    else
+#      docker pull docker.m.daocloud.io/bitpoke/mysql-operator-orchestrator:v0.6.3
+#      docker pull docker.m.daocloud.io/prom/mysqld-exporter:v0.13.0
+#      docker pull docker.m.daocloud.io/bitpoke/mysql-operator-sidecar-8.0:v0.6.3
+#      docker pull docker.m.daocloud.io/bitpoke/mysql-operator-sidecar-5.7:v0.6.3
+#      docker pull docker.m.daocloud.io/bitpoke/mysql-operator:v0.6.3
+#
+#      docker tag docker.m.daocloud.io/bitpoke/mysql-operator-orchestrator:v0.6.3 docker.io/bitpoke/mysql-operator-orchestrator:v0.6.3
+#      docker tag docker.m.daocloud.io/prom/mysqld-exporter:v0.13.0 docker.io/prom/mysqld-exporter:v0.13.0
+#      docker tag docker.m.daocloud.io/bitpoke/mysql-operator-sidecar-8.0:v0.6.3 docker.io/bitpoke/mysql-operator-sidecar-8.0:v0.6.3
+#      docker tag docker.m.daocloud.io/bitpoke/mysql-operator-sidecar-5.7:v0.6.3 docker.io/bitpoke/mysql-operator-sidecar-5.7:v0.6.3
+#      docker tag docker.m.daocloud.io/bitpoke/mysql-operator:v0.6.3 docker.io/bitpoke/mysql-operator:v0.6.3
+#    fi
+#    kind load docker-image -n "$clustername" docker.io/bitpoke/mysql-operator-orchestrator:v0.6.3
+#    kind load docker-image -n "$clustername" docker.io/prom/mysqld-exporter:v0.13.0
+#    kind load docker-image -n "$clustername" docker.io/bitpoke/mysql-operator-sidecar-8.0:v0.6.3
+#    kind load docker-image -n "$clustername" docker.io/bitpoke/mysql-operator-sidecar-5.7:v0.6.3
+#    kind load docker-image -n "$clustername" docker.io/bitpoke/mysql-operator:v0.6.3
+#  fi
   kubectl --context="kind-${clustername}" create -f "$CURRENT/calicooperator/tigera-operator.yaml" || $("${REUSE}" -eq "true")
   kind export kubeconfig --name "$clustername"
   util::wait_for_crd installations.operator.tigera.io
