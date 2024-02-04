@@ -40,7 +40,7 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: kosmos-operator
+  name: clusterlink-operator
   namespace: {{ .Namespace }}
   labels:
     app: operator
@@ -54,7 +54,7 @@ spec:
       labels:
         app: operator
     spec:
-      serviceAccountName: kosmos-operator
+      serviceAccountName: clusterlink-operator
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -69,11 +69,11 @@ spec:
               topologyKey: kubernetes.io/hostname
       containers:
       - name: operator
-        image: {{ .ImageRepository }}/kosmos-operator:{{ .Version }}
+        image: {{ .ImageRepository }}/clusterlink-operator:{{ .Version }}
         imagePullPolicy: IfNotPresent
         command:
-          - kosmos-operator
-          - --controlpanelconfig=/etc/kosmos-operator/kubeconfig
+          - clusterlink-operator
+          - --controlpanelconfig=/etc/clusterlink-operator/kubeconfig
         resources:
           limits:
             memory: 200Mi
@@ -87,7 +87,7 @@ spec:
         - name: USE_PROXY
           value: "{{ .UseProxy }}"
         volumeMounts:
-          - mountPath: /etc/kosmos-operator
+          - mountPath: /etc/clusterlink-operator
             name: proxy-config
             readOnly: true
       volumes:

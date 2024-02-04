@@ -14,9 +14,9 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 
-	"github.com/kosmos.io/kosmos/pkg/operator/clusterlink/option"
-	"github.com/kosmos.io/kosmos/pkg/operator/clusterlink/utils"
-	utils2 "github.com/kosmos.io/kosmos/pkg/utils"
+	"github.com/kosmos.io/kosmos/pkg/clusterlink/clusterlink-operator/option"
+	operatorutils "github.com/kosmos.io/kosmos/pkg/clusterlink/clusterlink-operator/utils"
+	kosmosutils "github.com/kosmos.io/kosmos/pkg/utils"
 )
 
 type ProxyInstaller struct {
@@ -48,7 +48,7 @@ func applySecret(opt *option.AddonOption) error {
 	}
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      utils2.ProxySecretName,
+			Name:      kosmosutils.ProxySecretName,
 			Namespace: opt.GetSpecNamespace(),
 		},
 		Data: map[string][]byte{
@@ -56,7 +56,7 @@ func applySecret(opt *option.AddonOption) error {
 		},
 	}
 
-	if err := utils.CreateOrUpdateSecret(opt.KubeClientSet, secret); err != nil {
+	if err := operatorutils.CreateOrUpdateSecret(opt.KubeClientSet, secret); err != nil {
 		return fmt.Errorf("create clusterlink agent secret error: %v", err)
 	}
 
@@ -64,7 +64,7 @@ func applySecret(opt *option.AddonOption) error {
 }
 
 func applyService(opt *option.AddonOption) error {
-	proxyServiceBytes, err := utils.ParseTemplate(clusterlinkProxyService, ServiceReplace{
+	proxyServiceBytes, err := operatorutils.ParseTemplate(clusterlinkProxyService, ServiceReplace{
 		Namespace: opt.GetSpecNamespace(),
 		Name:      ResourceName,
 	})
@@ -78,7 +78,7 @@ func applyService(opt *option.AddonOption) error {
 		return fmt.Errorf("decode controller-proxy service error: %v", err)
 	}
 
-	if err := utils.CreateOrUpdateService(opt.KubeClientSet, proxyService); err != nil {
+	if err := operatorutils.CreateOrUpdateService(opt.KubeClientSet, proxyService); err != nil {
 		return fmt.Errorf("create clusterlink-proxy service error: %v", err)
 	}
 
@@ -88,10 +88,10 @@ func applyService(opt *option.AddonOption) error {
 }
 
 func applyDeployment(opt *option.AddonOption) error {
-	proxyDeploymentBytes, err := utils.ParseTemplate(clusterlinkProxyDeployment, DeploymentReplace{
+	proxyDeploymentBytes, err := operatorutils.ParseTemplate(clusterlinkProxyDeployment, DeploymentReplace{
 		Namespace:              opt.GetSpecNamespace(),
 		Name:                   ResourceName,
-		ControlPanelSecretName: utils2.ControlPanelSecretName,
+		ControlPanelSecretName: kosmosutils.ControlPanelSecretName,
 		ImageRepository:        opt.GetImageRepository(),
 		Version:                opt.Version,
 	})
@@ -106,7 +106,7 @@ func applyDeployment(opt *option.AddonOption) error {
 		return fmt.Errorf("decode clusterlink-proxy deployment error: %v", err)
 	}
 
-	if err := utils.CreateOrUpdateDeployment(opt.KubeClientSet, proxyDeployment); err != nil {
+	if err := operatorutils.CreateOrUpdateDeployment(opt.KubeClientSet, proxyDeployment); err != nil {
 		return fmt.Errorf("create controller-proxy deployment error: %v", err)
 	}
 

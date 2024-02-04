@@ -6,12 +6,12 @@ import (
 	apiserver "k8s.io/apiserver/pkg/server"
 	"k8s.io/component-base/cli"
 
-	"github.com/kosmos.io/kosmos/cmd/operator/app"
+	"github.com/kosmos.io/kosmos/cmd/clusterlink/clusterlink-operator/app"
 )
 
 func main() {
 	ctx := apiserver.SetupSignalContext()
-	cmd := app.NewOperatorCommand(ctx)
+	cmd := app.NewLinkOperatorCommand(ctx)
 	code := cli.Run(cmd)
 	os.Exit(code)
 }

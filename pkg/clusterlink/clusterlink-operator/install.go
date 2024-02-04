@@ -1,14 +1,14 @@
-package clusterlink
+package clusterlink_operator
 
 import (
 	"k8s.io/klog/v2"
 
-	"github.com/kosmos.io/kosmos/pkg/operator/clusterlink/agent"
-	"github.com/kosmos.io/kosmos/pkg/operator/clusterlink/elector"
-	"github.com/kosmos.io/kosmos/pkg/operator/clusterlink/global"
-	"github.com/kosmos.io/kosmos/pkg/operator/clusterlink/manager"
-	"github.com/kosmos.io/kosmos/pkg/operator/clusterlink/option"
-	"github.com/kosmos.io/kosmos/pkg/operator/clusterlink/proxy"
+	"github.com/kosmos.io/kosmos/pkg/clusterlink/clusterlink-operator/agent"
+	"github.com/kosmos.io/kosmos/pkg/clusterlink/clusterlink-operator/elector"
+	"github.com/kosmos.io/kosmos/pkg/clusterlink/clusterlink-operator/global"
+	"github.com/kosmos.io/kosmos/pkg/clusterlink/clusterlink-operator/manager"
+	"github.com/kosmos.io/kosmos/pkg/clusterlink/clusterlink-operator/option"
+	"github.com/kosmos.io/kosmos/pkg/clusterlink/clusterlink-operator/proxy"
 )
 
 type AddonInstaller interface {

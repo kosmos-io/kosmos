@@ -16,21 +16,21 @@ import (
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	"github.com/kosmos.io/kosmos/cmd/operator/app/options"
-	"github.com/kosmos.io/kosmos/pkg/operator"
+	"github.com/kosmos.io/kosmos/cmd/clusterlink/clusterlink-operator/app/options"
+	clusterlinkoperator "github.com/kosmos.io/kosmos/pkg/clusterlink/clusterlink-operator"
 	"github.com/kosmos.io/kosmos/pkg/scheme"
 	"github.com/kosmos.io/kosmos/pkg/sharedcli"
 	"github.com/kosmos.io/kosmos/pkg/sharedcli/klogflag"
 	"github.com/kosmos.io/kosmos/pkg/utils"
 )
 
-// NewOperatorCommand creates a *cobra.Command object with default parameters
-func NewOperatorCommand(ctx context.Context) *cobra.Command {
+// NewLinkOperatorCommand creates a *cobra.Command object with default parameters
+func NewLinkOperatorCommand(ctx context.Context) *cobra.Command {
 	opts := options.NewOptions()
 
 	cmd := &cobra.Command{
-		Use:  "kosmos-operator",
-		Long: `Deploy Kosmos components according to the cluster`,
+		Use:  "kosmos-clusterlink-operator",
+		Long: `Deploy Kosmos clusterlink components according to the cluster`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// validate options
 			if errs := opts.Validate(); len(errs) != 0 {
@@ -116,7 +116,7 @@ func Run(ctx context.Context, opts *options.Options) error {
 		return err
 	}
 
-	clusterNodeController := operator.Reconciler{
+	clusterNodeController := clusterlinkoperator.Reconciler{
 		Scheme:                 mgr.GetScheme(),
 		ControlPanelKubeConfig: controlPanelKubeConfig,
 		ClusterName:            os.Getenv(utils.EnvClusterName),

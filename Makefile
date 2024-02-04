@@ -9,8 +9,17 @@ REGISTRY_PASSWORD?=""
 REGISTRY_SERVER_ADDRESS?=""
 KIND_IMAGE_TAG?="v1.25.3"
 
-TARGETS :=  clusterlink-controller-manager  \
-			kosmos-operator \
+MACOS_TARGETS := clusterlink-controller-manager \
+				 clusterlink-operator \
+				 clusterlink-elector \
+				 clusterlink-network-manager \
+				 clusterlink-proxy \
+				 clustertree-cluster-manager \
+				 scheduler \
+
+# clusterlink-agent and clusterlink-floater only support linux platform
+TARGETS :=  clusterlink-controller-manager \
+			clusterlink-operator \
 			clusterlink-agent \
             clusterlink-elector \
 			clusterlink-floater \
@@ -18,6 +27,11 @@ TARGETS :=  clusterlink-controller-manager  \
 			clusterlink-proxy \
 			clustertree-cluster-manager \
 			scheduler \
+
+# If GOOS is macOS, assign the value of MACOS_TARGETS to TARGETS
+ifeq ($(GOOS), darwin)
+	TARGETS := $(MACOS_TARGETS)
+endif
 
 CTL_TARGETS := kosmosctl
 
@@ -82,12 +96,13 @@ multi-platform-images: $(MP_TARGET)
 
 .PHONY: clean
 clean:
-	rm -rf _tmp _output
+	hack/clean.sh
 
 .PHONY: update
 update:
 	hack/update-all.sh
 
+# verify-all.sh for verify crds vendor codegen
 .PHONY: verify
 verify:
 	hack/verify-all.sh
@@ -101,7 +116,7 @@ test:
 upload-images: images
 	@echo "push images to $(REGISTRY)"
 	docker push ${REGISTRY}/clusterlink-controller-manager:${VERSION}
-	docker push ${REGISTRY}/kosmos-operator:${VERSION}
+	docker push ${REGISTRY}/clusterlink-operator:${VERSION}
 	docker push ${REGISTRY}/clusterlink-agent:${VERSION}
 	docker push ${REGISTRY}/clusterlink-proxy:${VERSION}
 	docker push ${REGISTRY}/clusterlink-network-manager:${VERSION}
@@ -118,7 +133,7 @@ release:
 	@make release-kosmosctl GOOS=darwin GOARCH=arm64
 
 release-kosmosctl:
-	hack/release.sh kosmosctl ${GOOS} ${GOARCH}
+	hack/release.sh kosmosctl ${GOOS} ${GOARCH} ${VERSION}
 
 .PHONY: lint
 lint: golangci-lint
