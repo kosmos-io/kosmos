@@ -1,4 +1,4 @@
-package operator
+package clusterlink_operator
 
 import (
 	"context"
@@ -16,11 +16,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	cmdOptions "github.com/kosmos.io/kosmos/cmd/operator/app/options"
+	cmdOptions "github.com/kosmos.io/kosmos/cmd/clusterlink/clusterlink-operator/app/options"
 	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
+	"github.com/kosmos.io/kosmos/pkg/clusterlink/clusterlink-operator/option"
 	lister "github.com/kosmos.io/kosmos/pkg/generated/listers/kosmos/v1alpha1"
-	"github.com/kosmos.io/kosmos/pkg/operator/clusterlink"
-	"github.com/kosmos.io/kosmos/pkg/operator/clusterlink/option"
 	"github.com/kosmos.io/kosmos/pkg/utils"
 )
 
@@ -74,7 +73,7 @@ func (r *Reconciler) syncCluster(cluster *v1alpha1.Cluster) (reconcile.Result, e
 		return reconcile.Result{Requeue: true}, err
 	}
 
-	if err := clusterlink.Install(opt); err != nil {
+	if err := Install(opt); err != nil {
 		klog.Error(err)
 		return reconcile.Result{Requeue: true}, err
 	}
@@ -92,7 +91,7 @@ func (r *Reconciler) removeCluster(cluster *v1alpha1.Cluster) (reconcile.Result,
 		klog.Error(err)
 		return reconcile.Result{Requeue: true}, err
 	}
-	if err := clusterlink.Uninstall(opt); err != nil {
+	if err := Uninstall(opt); err != nil {
 		klog.Error(err)
 		return reconcile.Result{Requeue: true}, err
 	}

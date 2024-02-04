@@ -9,17 +9,17 @@ REGISTRY_PASSWORD?=""
 REGISTRY_SERVER_ADDRESS?=""
 KIND_IMAGE_TAG?="v1.25.3"
 
-MACOS_TARGETS := clusterlink-controller-manager  \
-				kosmos-operator \
+MACOS_TARGETS := clusterlink-controller-manager \
+				 clusterlink-operator \
 				 clusterlink-elector \
-				clusterlink-network-manager \
-				clusterlink-proxy \
-				clustertree-cluster-manager \
-				scheduler \
+				 clusterlink-network-manager \
+				 clusterlink-proxy \
+				 clustertree-cluster-manager \
+				 scheduler \
 
 # clusterlink-agent and clusterlink-floater only support linux platform
-TARGETS :=  clusterlink-controller-manager  \
-			kosmos-operator \
+TARGETS :=  clusterlink-controller-manager \
+			clusterlink-operator \
 			clusterlink-agent \
             clusterlink-elector \
 			clusterlink-floater \
@@ -116,7 +116,7 @@ test:
 upload-images: images
 	@echo "push images to $(REGISTRY)"
 	docker push ${REGISTRY}/clusterlink-controller-manager:${VERSION}
-	docker push ${REGISTRY}/kosmos-operator:${VERSION}
+	docker push ${REGISTRY}/clusterlink-operator:${VERSION}
 	docker push ${REGISTRY}/clusterlink-agent:${VERSION}
 	docker push ${REGISTRY}/clusterlink-proxy:${VERSION}
 	docker push ${REGISTRY}/clusterlink-network-manager:${VERSION}

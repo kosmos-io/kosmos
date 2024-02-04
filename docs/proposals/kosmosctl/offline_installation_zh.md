@@ -165,7 +165,7 @@ kosmosctl install --private-image-registry=registry.local.com --kosmos-vesion=0.
 
    ```txt
    ghcr.io/kosmos-io/clustertree-cluster-manager:v0.3,0
-   ghcr.io/kosmos-io/kosmos-operator:v0.3.0
+   ghcr.io/kosmos-io/clusterlink-operator:v0.3.0
    ghcr.io/kosmos-io/clusterlink-agent:v0.3.0
    ghcr.io/kosmos-io/clusterlink-network-manager:v0.3.0
    ghcr.io/kosmos-io/clusterlink-controller-manager:v0.3.0

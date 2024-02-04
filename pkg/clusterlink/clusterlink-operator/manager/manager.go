@@ -13,9 +13,9 @@ import (
 	clientsetscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/klog/v2"
 
-	"github.com/kosmos.io/kosmos/pkg/operator/clusterlink/option"
-	"github.com/kosmos.io/kosmos/pkg/operator/clusterlink/utils"
-	utils2 "github.com/kosmos.io/kosmos/pkg/utils"
+	"github.com/kosmos.io/kosmos/pkg/clusterlink/clusterlink-operator/option"
+	operatorutils "github.com/kosmos.io/kosmos/pkg/clusterlink/clusterlink-operator/utils"
+	kosmosutils "github.com/kosmos.io/kosmos/pkg/utils"
 )
 
 type ManagerInstaller struct {
@@ -30,7 +30,7 @@ const (
 )
 
 func applyServiceAccount(opt *option.AddonOption) error {
-	clCtrManagerServiceAccountBytes, err := utils.ParseTemplate(clusterlinkManagerServiceAccount, ServiceAccountReplace{
+	clCtrManagerServiceAccountBytes, err := operatorutils.ParseTemplate(clusterlinkManagerServiceAccount, ServiceAccountReplace{
 		Namespace: opt.GetSpecNamespace(),
 		Name:      ResourceName,
 	})
@@ -44,7 +44,7 @@ func applyServiceAccount(opt *option.AddonOption) error {
 		return fmt.Errorf("decode controller-manager serviceaccount error: %v", err)
 	}
 
-	if err := utils.CreateOrUpdateServiceAccount(opt.KubeClientSet, clCtrManagerServiceAccount); err != nil {
+	if err := operatorutils.CreateOrUpdateServiceAccount(opt.KubeClientSet, clCtrManagerServiceAccount); err != nil {
 		return fmt.Errorf("create clusterlink agent serviceaccount error: %v", err)
 	}
 
@@ -54,10 +54,10 @@ func applyServiceAccount(opt *option.AddonOption) error {
 }
 
 func applyDeployment(opt *option.AddonOption) error {
-	clCtrManagerDeploymentBytes, err := utils.ParseTemplate(clusterlinkManagerDeployment, DeploymentReplace{
+	clCtrManagerDeploymentBytes, err := operatorutils.ParseTemplate(clusterlinkManagerDeployment, DeploymentReplace{
 		Namespace:          opt.GetSpecNamespace(),
 		Name:               ResourceName,
-		ProxyConfigMapName: utils2.ProxySecretName,
+		ProxyConfigMapName: kosmosutils.ProxySecretName,
 		ClusterName:        opt.GetName(),
 		ImageRepository:    opt.GetImageRepository(),
 		Version:            opt.Version,
@@ -77,7 +77,7 @@ func applyDeployment(opt *option.AddonOption) error {
 		return fmt.Errorf("decode controller-manager deployment error: %v", err)
 	}
 
-	if err := utils.CreateOrUpdateDeployment(opt.KubeClientSet, clCtrManagerDeployment); err != nil {
+	if err := operatorutils.CreateOrUpdateDeployment(opt.KubeClientSet, clCtrManagerDeployment); err != nil {
 		return fmt.Errorf("create clusterlink controller-manager deployment error: %v", err)
 	}
 
@@ -87,7 +87,7 @@ func applyDeployment(opt *option.AddonOption) error {
 }
 
 func applyClusterRole(opt *option.AddonOption) error {
-	clCtrManagerClusterRoleBytes, err := utils.ParseTemplate(clusterlinkManagerClusterRole, ClusterRoleReplace{
+	clCtrManagerClusterRoleBytes, err := operatorutils.ParseTemplate(clusterlinkManagerClusterRole, ClusterRoleReplace{
 		Name: ResourceName,
 	})
 
@@ -105,7 +105,7 @@ func applyClusterRole(opt *option.AddonOption) error {
 		return fmt.Errorf("decode controller-manager clusterrole error: %v", err)
 	}
 
-	if err := utils.CreateOrUpdateClusterRole(opt.KubeClientSet, clCtrManagerClusterRole); err != nil {
+	if err := operatorutils.CreateOrUpdateClusterRole(opt.KubeClientSet, clCtrManagerClusterRole); err != nil {
 		return fmt.Errorf("create clusterlink controller-manager clusterrole error: %v", err)
 	}
 
@@ -115,7 +115,7 @@ func applyClusterRole(opt *option.AddonOption) error {
 }
 
 func applyClusterRoleBinding(opt *option.AddonOption) error {
-	clCtrManagerClusterRoleBindingBytes, err := utils.ParseTemplate(clusterlinkManagerClusterRoleBinding, ClusterRoleBindingReplace{
+	clCtrManagerClusterRoleBindingBytes, err := operatorutils.ParseTemplate(clusterlinkManagerClusterRoleBinding, ClusterRoleBindingReplace{
 		Name:      ResourceName,
 		Namespace: opt.GetSpecNamespace(),
 	})
@@ -134,7 +134,7 @@ func applyClusterRoleBinding(opt *option.AddonOption) error {
 		return fmt.Errorf("decode controller-manager clusterrolebinding error: %v", err)
 	}
 
-	if err := utils.CreateOrUpdateClusterRoleBinding(opt.KubeClientSet, clCtrManagerClusterRoleBinding); err != nil {
+	if err := operatorutils.CreateOrUpdateClusterRoleBinding(opt.KubeClientSet, clCtrManagerClusterRoleBinding); err != nil {
 		return fmt.Errorf("create clusterlink controller-manager clusterrolebinding error: %v", err)
 	}
 

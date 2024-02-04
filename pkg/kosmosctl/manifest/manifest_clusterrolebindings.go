@@ -48,7 +48,7 @@ subjects:
     name: clusterlink-controller-manager
     namespace: {{ .Namespace }}
   - kind: ServiceAccount
-    name: kosmos-operator
+    name: clusterlink-operator
     namespace: {{ .Namespace }}
 `
 

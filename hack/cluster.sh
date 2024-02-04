@@ -259,10 +259,10 @@ function deploy_cluster() {
 
   kubectl --context="kind-${clustername}" -n kosmos-system delete secret controlpanel-config || true
   kubectl --context="kind-${clustername}" -n kosmos-system create secret generic controlpanel-config --from-file=kubeconfig="${ROOT}/environments/cluster-host/kubeconfig"
-  sed -e "s|__VERSION__|$VERSION|g" -e "w ${ROOT}/environments/kosmos-operator.yml" "$ROOT"/deploy/kosmos-operator.yml
-  kubectl --context="kind-${clustername}" apply -f "${ROOT}/environments/kosmos-operator.yml"
+  sed -e "s|__VERSION__|$VERSION|g" -e "w ${ROOT}/environments/clusterlink-operator.yml" "$ROOT"/deploy/clusterlink-operator.yml
+  kubectl --context="kind-${clustername}" apply -f "${ROOT}/environments/clusterlink-operator.yml"
 
-  echo "cluster $clustername deploy kosmos-operator success"
+  echo "cluster $clustername deploy clusterlink-operator success"
 
   sed -e "s|__VERSION__|$VERSION|g" -e "w ${ROOT}/environments/kosmos-scheduler.yml" "$ROOT"/deploy/scheduler/deployment.yaml
   kubectl --context="kind-${clustername}" apply -f "${ROOT}/environments/kosmos-scheduler.yml"
@@ -282,7 +282,7 @@ function load_cluster_images() {
   kind load docker-image -n "$clustername" ghcr.io/kosmos-io/clusterlink-network-manager:"${VERSION}"
   kind load docker-image -n "$clustername" ghcr.io/kosmos-io/clusterlink-controller-manager:"${VERSION}"
   kind load docker-image -n "$clustername" ghcr.io/kosmos-io/clusterlink-elector:"${VERSION}"
-  kind load docker-image -n "$clustername" ghcr.io/kosmos-io/kosmos-operator:"${VERSION}"
+  kind load docker-image -n "$clustername" ghcr.io/kosmos-io/clusterlink-operator:"${VERSION}"
   kind load docker-image -n "$clustername" ghcr.io/kosmos-io/clusterlink-agent:"${VERSION}"
   kind load docker-image -n "$clustername" ghcr.io/kosmos-io/clusterlink-proxy:"${VERSION}"
   kind load docker-image -n "$clustername" ghcr.io/kosmos-io/clustertree-cluster-manager:"${VERSION}"

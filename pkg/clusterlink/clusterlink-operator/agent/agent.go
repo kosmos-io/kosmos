@@ -15,9 +15,9 @@ import (
 	bootstrapapi "k8s.io/cluster-bootstrap/token/api"
 	"k8s.io/klog/v2"
 
-	"github.com/kosmos.io/kosmos/pkg/operator/clusterlink/option"
-	"github.com/kosmos.io/kosmos/pkg/operator/clusterlink/utils"
-	utils2 "github.com/kosmos.io/kosmos/pkg/utils"
+	"github.com/kosmos.io/kosmos/pkg/clusterlink/clusterlink-operator/option"
+	operatorutils "github.com/kosmos.io/kosmos/pkg/clusterlink/clusterlink-operator/utils"
+	kosmosutils "github.com/kosmos.io/kosmos/pkg/utils"
 )
 
 const (
@@ -33,11 +33,11 @@ func New() *AgentInstaller {
 
 // create daemonset
 func applyDaemonSet(opt *option.AddonOption) error {
-	clusterlinkAgentDaemonSetBytes, err := utils.ParseTemplate(clusterlinkAgentDaemonSet, DaemonSetReplace{
+	clusterlinkAgentDaemonSetBytes, err := operatorutils.ParseTemplate(clusterlinkAgentDaemonSet, DaemonSetReplace{
 		Namespace:          opt.GetSpecNamespace(),
 		Name:               ResourceName,
 		ImageRepository:    opt.GetImageRepository(),
-		ProxyConfigMapName: utils2.ProxySecretName,
+		ProxyConfigMapName: kosmosutils.ProxySecretName,
 		Version:            opt.Version,
 		ClusterName:        opt.GetName(),
 	})
@@ -56,7 +56,7 @@ func applyDaemonSet(opt *option.AddonOption) error {
 		return fmt.Errorf("decode agent daemonset error: %v", err)
 	}
 
-	if err := utils.CreateOrUpdateDaemonSet(opt.KubeClientSet, clAgentDaemonSet); err != nil {
+	if err := operatorutils.CreateOrUpdateDaemonSet(opt.KubeClientSet, clAgentDaemonSet); err != nil {
 		return fmt.Errorf("create clusterlink agent daemonset error: %v", err)
 	}
 
@@ -91,9 +91,9 @@ func applySecret(opt *option.AddonOption) error {
 	// Create or update the Secret in the kube-public namespace
 	klog.Infof("[bootstrap-token] creating/updating Secret in kube-public namespace")
 
-	return utils.CreateOrUpdateSecret(opt.KubeClientSet, &corev1.Secret{
+	return operatorutils.CreateOrUpdateSecret(opt.KubeClientSet, &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      utils2.ProxySecretName,
+			Name:      kosmosutils.ProxySecretName,
 			Namespace: opt.GetSpecNamespace(),
 		},
 		StringData: map[string]string{
@@ -123,7 +123,7 @@ func (i *AgentInstaller) Uninstall(opt *option.AddonOption) error {
 	}
 
 	configMapClient := opt.KubeClientSet.CoreV1().ConfigMaps(opt.GetSpecNamespace())
-	if err := configMapClient.Delete(context.TODO(), utils2.ProxySecretName, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+	if err := configMapClient.Delete(context.TODO(), kosmosutils.ProxySecretName, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
 

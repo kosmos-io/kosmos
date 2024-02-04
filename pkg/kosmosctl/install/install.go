@@ -482,7 +482,7 @@ func (o *CommandInstallOptions) runClustertree() error {
 }
 
 func (o *CommandInstallOptions) createOperator() error {
-	klog.Info("Start creating Kosmos-Operator...")
+	klog.Info("Start creating ClusterLink-Operator...")
 	operatorDeploy, err := util.GenerateDeployment(manifest.KosmosOperatorDeployment, manifest.DeploymentReplace{
 		Namespace:       o.Namespace,
 		Version:         o.Version,

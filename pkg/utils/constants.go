@@ -23,7 +23,7 @@ var (
 
 const (
 	ClusterTreeClusterManager    = "ghcr.io/kosmos-io/clustertree-cluster-manager"
-	ClusterLinkOperator          = "ghcr.io/kosmos-io/kosmos-operator"
+	ClusterLinkOperator          = "ghcr.io/kosmos-io/clusterlink-operator"
 	ClusterLinkAgent             = "ghcr.io/kosmos-io/clusterlink-agent"
 	ClusterLinkNetworkManager    = "ghcr.io/kosmos-io/clusterlink-network-manager"
 	ClusterLinkControllerManager = "ghcr.io/kosmos-io/clusterlink-controller-manager"
