@@ -296,7 +296,7 @@ func (o *CommandUninstallOptions) runClusterlink() error {
 			}
 		}
 	} else {
-		klog.Info("Kosmos-Clustertree is still running, skip uninstall Kosmos-Operator.")
+		klog.Info("Kosmos-Clustertree is still running, skip uninstall Clusterlink-Operator.")
 	}
 
 	klog.Info("Clusterlink uninstalled.")
@@ -428,7 +428,7 @@ func (o *CommandUninstallOptions) runClustertree() error {
 			}
 		}
 	} else {
-		klog.Info("Kosmos-Clusterlink is still running, skip uninstall Kosmos-Operator.")
+		klog.Info("Kosmos-Clusterlink is still running, skip uninstall Clusterlink-Operator.")
 	}
 
 	klog.Info("Clustertree uninstalled.")

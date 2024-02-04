@@ -13,7 +13,7 @@ metadata:
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name:  kosmos-operator
+  name:  clusterlink-operator
   namespace: {{ .Namespace }}
 `
 
