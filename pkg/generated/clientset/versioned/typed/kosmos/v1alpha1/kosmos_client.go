@@ -20,6 +20,7 @@ type KosmosV1alpha1Interface interface {
 	NodeConfigsGetter
 	PodConvertPoliciesGetter
 	ShadowDaemonSetsGetter
+	VirtualClustersGetter
 }
 
 // KosmosV1alpha1Client is used to interact with features provided by the kosmos.io group.
@@ -57,6 +58,10 @@ func (c *KosmosV1alpha1Client) PodConvertPolicies(namespace string) PodConvertPo
 
 func (c *KosmosV1alpha1Client) ShadowDaemonSets(namespace string) ShadowDaemonSetInterface {
 	return newShadowDaemonSets(c, namespace)
+}
+
+func (c *KosmosV1alpha1Client) VirtualClusters() VirtualClusterInterface {
+	return newVirtualClusters(c)
 }
 
 // NewForConfig creates a new KosmosV1alpha1Client for the given config.
