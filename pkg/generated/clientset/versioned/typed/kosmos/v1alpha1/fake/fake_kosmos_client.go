@@ -44,6 +44,10 @@ func (c *FakeKosmosV1alpha1) ShadowDaemonSets(namespace string) v1alpha1.ShadowD
 	return &FakeShadowDaemonSets{c, namespace}
 }
 
+func (c *FakeKosmosV1alpha1) VirtualClusters() v1alpha1.VirtualClusterInterface {
+	return &FakeVirtualClusters{c}
+}
+
 // RESTClient returns a RESTClient that is used to communicate
 // with API server by this client implementation.
 func (c *FakeKosmosV1alpha1) RESTClient() rest.Interface {
