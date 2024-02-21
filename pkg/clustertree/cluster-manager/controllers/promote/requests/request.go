@@ -58,6 +58,8 @@ type PromoteRequest struct {
 	BackedUpItems             map[ItemKey]struct{}
 	DetachedItems             map[ItemKey]struct{}
 	RestoredItems             map[ItemKey]struct{}
+
+	ForbidNamespaces []string
 }
 
 // ResourceSelector is a collection of included/excluded namespaces,

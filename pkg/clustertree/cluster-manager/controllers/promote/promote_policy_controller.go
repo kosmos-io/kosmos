@@ -16,10 +16,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/kosmos.io/kosmos/cmd/clustertree/cluster-manager/app/options"
 	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/promote/backup"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/promote/constants"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/promote/detach"
+	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/promote/precheck"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/promote/requests"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/promote/restore"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/promote/utils/collections"
@@ -32,11 +34,12 @@ const (
 )
 
 type PromotePolicyController struct {
-	RootClient          client.Client
-	RootClientSet       kubernetes.Interface
-	RootDynamicClient   *dynamic.DynamicClient
-	RootDiscoveryClient *discovery.DiscoveryClient
-	GlobalLeafManager   leafUtils.LeafResourceManager
+	RootClient           client.Client
+	RootClientSet        kubernetes.Interface
+	RootDynamicClient    *dynamic.DynamicClient
+	RootDiscoveryClient  *discovery.DiscoveryClient
+	GlobalLeafManager    leafUtils.LeafResourceManager
+	PromotePolicyOptions options.PromotePolicyOptions
 }
 
 func (p *PromotePolicyController) SetupWithManager(mgr ctrl.Manager) error {
@@ -74,6 +77,16 @@ func (p *PromotePolicyController) Reconcile(ctx context.Context, request reconci
 	promoteRequest, err := p.preparePromoteRequest(original, lr)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("error prepareSyncRequest: %v", err)
+	}
+
+	err = runPrecheck(promoteRequest)
+	if err != nil {
+		promoteRequest.Status.Phase = v1alpha1.PromotePolicyPhaseFailedPrecheck
+		promoteRequest.Status.FailureReason = err.Error()
+		if err := p.RootClient.Patch(context.TODO(), promoteRequest.PromotePolicy, client.MergeFrom(original)); err != nil {
+			klog.Errorf("error updating syncleaf %s final status", original.Name)
+		}
+		return reconcile.Result{}, err
 	}
 
 	backupFile, err := runBackup(promoteRequest)
@@ -117,14 +130,14 @@ func (p *PromotePolicyController) Reconcile(ctx context.Context, request reconci
 	return reconcile.Result{}, nil
 }
 
-func (s *PromotePolicyController) preparePromoteRequest(promote *v1alpha1.PromotePolicy, lf *leafUtils.LeafResource) (*requests.PromoteRequest, error) {
+func (p *PromotePolicyController) preparePromoteRequest(promote *v1alpha1.PromotePolicy, lf *leafUtils.LeafResource) (*requests.PromoteRequest, error) {
 	// todo validate params
 
 	request := &requests.PromoteRequest{
 		PromotePolicy:             promote.DeepCopy(),
-		RootClientSet:             s.RootClientSet,
-		RootDynamicClient:         s.RootDynamicClient,
-		RootDiscoveryClient:       s.RootDiscoveryClient,
+		RootClientSet:             p.RootClientSet,
+		RootDynamicClient:         p.RootDynamicClient,
+		RootDiscoveryClient:       p.RootDiscoveryClient,
 		LeafClientSet:             lf.Clientset,
 		LeafDynamicClient:         lf.DynamicClient,
 		LeafDiscoveryClient:       lf.DiscoveryClient,
@@ -132,8 +145,24 @@ func (s *PromotePolicyController) preparePromoteRequest(promote *v1alpha1.Promot
 		BackedUpItems:             make(map[requests.ItemKey]struct{}),
 		DetachedItems:             make(map[requests.ItemKey]struct{}),
 		RestoredItems:             make(map[requests.ItemKey]struct{}),
+		ForbidNamespaces:          p.PromotePolicyOptions.ForbidNamespaces,
 	}
 	return request, nil
+}
+
+func runPrecheck(promoteRequest *requests.PromoteRequest) error {
+	klog.Info("start precheck...")
+	prechecker, err := precheck.NewKubernetesPrecheck(promoteRequest)
+	if err != nil {
+		return errors.Wrap(err, "error new precheck instance")
+	}
+
+	err = prechecker.Precheck()
+	if err != nil {
+		return errors.Wrap(err, "error precheck")
+	}
+
+	return nil
 }
 
 func runBackup(promoteRequest *requests.PromoteRequest) (file string, err error) {
