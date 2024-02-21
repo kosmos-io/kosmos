@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kosmos-webhook
+  namespace: kosmos-system
+spec:
+  selector:
+    matchLabels:
+      app: kosmos-webhook
+  template:
+    metadata:
+      labels:
+        app: kosmos-webhook
+    spec:
+      serviceAccountName: kosmos-webhook
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kosmos.io/node
+                    operator: DoesNotExist
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - kosmos-webhook
+              namespaces:
+                - kosmos-system
+              topologyKey: kubernetes.io/hostname
+      containers:
+        - image: ghcr.io/kosmos-io/webhook:__VERSION__
+          name: kosmos-webhook
+          volumeMounts:
+            - name: tls
+              mountPath: "/etc/certs"
+          command:
+            - webhook
+            - --v=4
+          resources:
+            limits:
+              memory: 500Mi
+              cpu: 500m
+            requests:
+              cpu: 500m
+              memory: 500Mi
+      volumes:
+        - name: tls
+          secret:
+            secretName: kosmos-webhook-tls

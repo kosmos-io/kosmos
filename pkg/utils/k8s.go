@@ -42,6 +42,7 @@ func CreateMergePatch(original, new interface{}) ([]byte, error) {
 	return patch, nil
 }
 
+// IsKosmosNode judge whether node is kosmos's node
 func IsKosmosNode(node *corev1.Node) bool {
 	if node == nil {
 		return false
@@ -181,4 +182,14 @@ func ListResourceClusters(anno map[string]string) []string {
 	}
 	owners := strings.Split(anno[KosmosResourceOwnersAnnotations], ",")
 	return owners
+}
+
+// IsNotReady judge whether node is not ready
+func IsNotReady(node *corev1.Node) bool {
+	for _, condition := range node.Status.Conditions {
+		if condition.Type == corev1.NodeReady && condition.Status == corev1.ConditionTrue {
+			return false
+		}
+	}
+	return true
 }
