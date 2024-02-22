@@ -31,7 +31,7 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/utils"
 )
 
-func NewAgentCommand(ctx context.Context) (*cobra.Command, error) {
+func NewClusterManagerCommand(ctx context.Context) (*cobra.Command, error) {
 	opts, err := options.NewOptions()
 	if err != nil {
 		return nil, err
@@ -182,6 +182,8 @@ func run(ctx context.Context, opts *options.Options) error {
 			EventRecorder:      mgr.GetEventRecorderFor(mcs.ServiceExportControllerName),
 			Logger:             mgr.GetLogger(),
 			ReservedNamespaces: opts.ReservedNamespaces,
+			RateLimiterOptions: opts.RateLimiterOpts,
+			BackoffOptions:     opts.BackoffOpts,
 		}
 		if err = ServiceExportController.SetupWithManager(mgr); err != nil {
 			return fmt.Errorf("error starting %s: %v", mcs.ServiceExportControllerName, err)
@@ -224,23 +226,23 @@ func run(ctx context.Context, opts *options.Options) error {
 		return fmt.Errorf("error starting rootPodReconciler %s: %v", podcontrollers.RootPodControllerName, err)
 	}
 
-	if !opts.OnewayStorageControllers {
-		rootPVCController := pvc.RootPVCController{
-			RootClient:        mgr.GetClient(),
-			GlobalLeafManager: globalleafManager,
-		}
-		if err := rootPVCController.SetupWithManager(mgr); err != nil {
-			return fmt.Errorf("error starting root pvc controller %v", err)
-		}
+	rootPVCController := pvc.RootPVCController{
+		RootClient:        mgr.GetClient(),
+		GlobalLeafManager: globalleafManager,
+	}
+	if err := rootPVCController.SetupWithManager(mgr); err != nil {
+		return fmt.Errorf("error starting root pvc controller %v", err)
+	}
 
-		rootPVController := pv.RootPVController{
-			RootClient:        mgr.GetClient(),
-			GlobalLeafManager: globalleafManager,
-		}
-		if err := rootPVController.SetupWithManager(mgr); err != nil {
-			return fmt.Errorf("error starting root pv controller %v", err)
-		}
-	} else {
+	rootPVController := pv.RootPVController{
+		RootClient:        mgr.GetClient(),
+		GlobalLeafManager: globalleafManager,
+	}
+	if err := rootPVController.SetupWithManager(mgr); err != nil {
+		return fmt.Errorf("error starting root pv controller %v", err)
+	}
+
+	if len(os.Getenv("USE-ONEWAY-STORAGE")) > 0 {
 		onewayPVController := pv.OnewayPVController{
 			Root:              mgr.GetClient(),
 			RootDynamic:       dynamicClient,

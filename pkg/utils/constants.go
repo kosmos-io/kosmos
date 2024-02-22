@@ -17,7 +17,6 @@ var (
 		ClusterLinkProxy,
 		ClusterLinkElector,
 		ClusterLinkFloater,
-		KosmosOperator,
 		Coredns,
 		EpsProbePlugin}
 )
@@ -33,13 +32,16 @@ const (
 	ClusterLinkFloater           = "ghcr.io/kosmos-io/clusterlink-floater"
 	Coredns                      = "ghcr.io/kosmos-io/coredns"
 	EpsProbePlugin               = "ghcr.io/kosmos-io/eps-probe-plugin"
-	KosmosOperator               = "ghcr.io/kosmos-io/kosmos-operator"
 	Containerd                   = "containerd"
 	DefaultContainerRuntime      = "docker"
 	DefaultContainerdNamespace   = "default"
 	DefaultContainerdSockAddress = "/run/containerd/containerd.sock"
 	DefaultVersion               = "latest"
 	DefaultTarName               = "kosmos-io.tar.gz"
+	// nolint
+	DefaultServiceAccountName = "default"
+	// nolint
+	DefaultServiceAccountToken = "kosmos.io/service-account.name"
 )
 
 const (
@@ -83,8 +85,6 @@ const (
 	EnvNodeName    = "NODE_NAME"
 )
 
-const ClusterStartControllerFinalizer = "kosmos.io/cluster-start-finazlizer"
-
 // mcs
 const (
 	ServiceKey               = "kubernetes.io/service-name"
@@ -110,6 +110,7 @@ const (
 	KosmosGlobalLabel      = "kosmos.io/global"
 	KosmosSelectorKey      = "kosmos.io/cluster-selector"
 	KosmosTrippedLabels    = "kosmos-io/tripped"
+	KosmosConvertLabels    = "kosmos-io/convert-policy"
 	KosmosPvcLabelSelector = "kosmos-io/label-selector"
 	KosmosExcludeNodeLabel = "kosmos.io/exclude"
 	KosmosExcludeNodeValue = "true"
@@ -133,14 +134,7 @@ const (
 	DefaultK8sOS   = "linux"
 	DefaultK8sArch = "amd64"
 
-	DefaultInformerResyncPeriod = 1 * time.Minute
-	DefaultListenPort           = 10250
-	DefaultPodSyncWorkers       = 10
-	DefaultWorkers              = 5
-	DefaultKubeNamespace        = corev1.NamespaceAll
-
-	DefaultTaintEffect = string(corev1.TaintEffectNoSchedule)
-	DefaultTaintKey    = "kosmos-node.io/plugin"
+	DefaultInformerResyncPeriod = 0
 
 	DefaultLeafKubeQPS   = 40.0
 	DefaultLeafKubeBurst = 60
@@ -153,6 +147,8 @@ const (
 
 	// LabelNodeRoleNode specifies that a node hosts node components
 	LabelNodeRoleNode = "node-role.kubernetes.io/node"
+
+	DefaultRequeueTime = 10 * time.Second
 )
 
 const (
@@ -160,6 +156,12 @@ const (
 	RooTCAConfigMapName = "kube-root-ca.crt"
 	SATokenPrefix       = "kube-api-access"
 	MasterRooTCAName    = "master-root-ca.crt"
+)
+
+// finalizers
+const (
+	ClusterStartControllerFinalizer = "kosmos.io/cluster-start-finalizer"
+	MCSFinalizer                    = "kosmos.io/multi-cluster-service-finalizer"
 )
 
 var GVR_CONFIGMAP = schema.GroupVersionResource{

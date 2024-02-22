@@ -3,8 +3,6 @@ package join
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
@@ -12,9 +10,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/client-go/util/homedir"
 	"k8s.io/klog/v2"
 	ctlutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/i18n"
@@ -25,6 +21,7 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/manifest"
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/util"
 	"github.com/kosmos.io/kosmos/pkg/utils"
+	"github.com/kosmos.io/kosmos/pkg/version"
 )
 
 var joinExample = templates.Examples(i18n.T(`
@@ -45,9 +42,12 @@ type CommandJoinOptions struct {
 	Name                 string
 	Namespace            string
 	ImageRegistry        string
+	Version              string
 	KubeConfig           string
+	Context              string
 	KubeConfigStream     []byte
 	HostKubeConfig       string
+	HostContext          string
 	HostKubeConfigStream []byte
 	WaitTime             int
 	RootFlag             bool
@@ -91,15 +91,18 @@ func NewCmdJoin(f ctlutil.Factory) *cobra.Command {
 	flags.StringVar(&o.Name, "name", "", "Specify the name of the resource to join.")
 	flags.StringVarP(&o.Namespace, "namespace", "n", utils.DefaultNamespace, "Kosmos namespace.")
 	flags.StringVar(&o.KubeConfig, "kubeconfig", "", "Absolute path to the cluster kubeconfig file.")
+	flags.StringVar(&o.Context, "context", "", "The name of the kubeconfig context.")
 	flags.StringVar(&o.HostKubeConfig, "host-kubeconfig", "", "Absolute path to the special host kubeconfig file.")
+	flags.StringVar(&o.HostContext, "host-context", "", "The name of the host-kubeconfig context.")
 	flags.StringVar(&o.ImageRegistry, "private-image-registry", utils.DefaultImageRepository, "Private image registry where pull images from. If set, all required images will be downloaded from it, it would be useful in offline installation scenarios.")
+	flags.StringVar(&o.Version, "version", "", "image version for pull images")
 	flags.BoolVar(&o.RootFlag, "root-flag", false, "Tag control cluster.")
 	flags.BoolVar(&o.EnableAll, "enable-all", false, "Turn on all module.")
 	flags.BoolVar(&o.EnableLink, "enable-link", false, "Turn on clusterlink.")
 	flags.StringVar(&o.CNI, "cni", "", "The cluster is configured using cni and currently supports calico and flannel.")
 	flags.StringVar(&o.DefaultNICName, "default-nic", "", "Set default network interface card.")
-	flags.StringVar(&o.NetworkType, "network-type", utils.NetworkTypeGateway, "Set the cluster network connection mode, which supports gateway and p2p modes, gateway is used by default.")
-	flags.StringVar(&o.IpFamily, "ip-family", utils.DefaultIPv4, "Specify the IP protocol version used by network devices, common IP families include IPv4 and IPv6.")
+	flags.StringVar(&o.NetworkType, "network-type", "", "Set the cluster network connection mode, which supports gateway and p2p modes, gateway is used by default.")
+	flags.StringVar(&o.IpFamily, "ip-family", "", "Specify the IP protocol version used by network devices, common IP families include IPv4 and IPv6.")
 	flags.StringVar(&o.UseProxy, "use-proxy", "false", "Set whether to enable proxy.")
 	flags.BoolVar(&o.EnableTree, "enable-tree", false, "Turn on clustertree.")
 	flags.StringVar(&o.LeafModel, "leaf-model", "", "Set leaf cluster model, which supports one-to-one model.")
@@ -109,46 +112,37 @@ func NewCmdJoin(f ctlutil.Factory) *cobra.Command {
 }
 
 func (o *CommandJoinOptions) Complete(f ctlutil.Factory) error {
-	var hostConfig *rest.Config
-	var clusterConfig *rest.Config
-	var err error
+	hostConfig, err := utils.RestConfig(o.HostKubeConfig, o.HostContext)
+	if err != nil {
+		return fmt.Errorf("kosmosctl join complete error, generate host rest config failed: %s", err)
+	}
 
-	if len(o.HostKubeConfig) > 0 {
-		hostConfig, err = clientcmd.BuildConfigFromFlags("", o.HostKubeConfig)
-		if err != nil {
-			return fmt.Errorf("kosmosctl join complete error, generate hostConfig failed: %s", err)
-		}
-		o.HostKubeConfigStream, err = os.ReadFile(o.HostKubeConfig)
-		if err != nil {
-			return fmt.Errorf("kosmosctl join complete error, read hostConfig failed: %s", err)
-		}
-	} else {
-		hostConfig, err = f.ToRESTConfig()
-		if err != nil {
-			return fmt.Errorf("kosmosctl join complete error, generate hostConfig failed: %s", err)
-		}
-		o.HostKubeConfigStream, err = os.ReadFile(filepath.Join(homedir.HomeDir(), ".kube", "config"))
-		if err != nil {
-			return fmt.Errorf("kosmosctl join complete error, read hostConfig failed: %s", err)
-		}
+	if o.Version == "" {
+		o.Version = fmt.Sprintf("v%s", version.GetReleaseVersion().PatchRelease())
 	}
 
 	o.KosmosClient, err = versioned.NewForConfig(hostConfig)
 	if err != nil {
-		return fmt.Errorf("kosmosctl install complete error, generate Kosmos client failed: %v", err)
+		return fmt.Errorf("kosmosctl join complete error, generate Kosmos client failed: %v", err)
 	}
 
 	if len(o.KubeConfig) > 0 {
-		o.KubeConfigStream, err = os.ReadFile(o.KubeConfig)
+		clusterConfig, err := utils.RestConfig(o.KubeConfig, o.Context)
 		if err != nil {
-			return fmt.Errorf("kosmosctl join run error, read KubeConfigStream failed: %s", err)
+			return fmt.Errorf("kosmosctl join complete error, generate rest config failed: %s", err)
 		}
 
-		clusterConfig, err = clientcmd.BuildConfigFromFlags("", o.KubeConfig)
+		rawConfig, err := utils.RawConfig(o.KubeConfig, o.Context)
 		if err != nil {
-			return fmt.Errorf("kosmosctl join complete error, generate clusterConfig failed: %s", err)
+			return fmt.Errorf("kosmosctl join complete error, generate raw config failed: %s", err)
 		}
 
+		streams, err := clientcmd.Write(rawConfig)
+		if err != nil {
+			return fmt.Errorf("kosmosctl join complete error, wite restconfig to streams failed: %s", err)
+		}
+
+		o.KubeConfigStream = streams
 		o.K8sClient, err = kubernetes.NewForConfig(clusterConfig)
 		if err != nil {
 			return fmt.Errorf("kosmosctl join complete error, generate K8s basic client failed: %v", err)
@@ -162,6 +156,40 @@ func (o *CommandJoinOptions) Complete(f ctlutil.Factory) error {
 		return fmt.Errorf("kosmosctl join complete error, arg ClusterKubeConfig is required")
 	}
 
+	//no enable-all,enable-tree,enable-link found, make 'EnableAll' with other config
+	if !o.EnableAll && !o.EnableTree && !o.EnableLink {
+		//due to NetworkType or IpFamily is not empty, make EnableLink true
+		if o.NetworkType != "" || o.IpFamily != "" {
+			klog.Warning("due to NetworkType or IpFamily is not empty, make EnableLink ture.")
+			o.EnableLink = true
+		}
+
+		//due to LeafModel is not empty, make EnableTree true
+		if o.LeafModel != "" {
+			klog.Warning("due to LeafModel is not empty, make EnableTree true.")
+			o.EnableTree = true
+		}
+
+		// without other config, make EnableAll default true
+		if !o.EnableAll && !o.EnableTree && !o.EnableLink {
+			klog.Warning("All of EnableAll,EnableLink,EnableTree equals false, make EnableAll default true.")
+			o.EnableAll = true
+		}
+	}
+
+	if o.EnableAll {
+		o.EnableLink = true
+		o.EnableTree = true
+	}
+
+	if o.IpFamily == "" {
+		o.IpFamily = utils.DefaultIPv4
+	}
+
+	if o.NetworkType == "" {
+		o.NetworkType = utils.NetworkTypeGateway
+	}
+
 	return nil
 }
 
@@ -172,6 +200,11 @@ func (o *CommandJoinOptions) Validate(args []string) error {
 
 	if len(o.Namespace) == 0 {
 		return fmt.Errorf("kosmosctl join validate error, namespace is not valid")
+	}
+
+	//validate: at least one of [EnableAll,EnableTree,EnableLink] need true
+	if !o.EnableAll && !o.EnableTree && !o.EnableLink {
+		return fmt.Errorf("kosmosctl join validate error, need at least one of enable-all,enable-tree,enable-link")
 	}
 
 	switch args[0] {
@@ -199,12 +232,37 @@ func (o *CommandJoinOptions) Run(args []string) error {
 	return nil
 }
 
+// CreateServiceExportAndImport only enable tree, create serviceExport and serviceImport
+func (o *CommandJoinOptions) CreateServiceExportAndImport() error {
+	serviceExport, err := util.GenerateCustomResourceDefinition(manifest.ServiceExport, nil)
+	if err != nil {
+		return err
+	}
+	_, err = o.K8sExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Create(context.Background(), serviceExport, metav1.CreateOptions{})
+	if err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return fmt.Errorf("kosmosctl join run error, crd options failed: %v", err)
+		}
+	}
+	klog.Info("Create CRD " + serviceExport.Name + " successful.")
+
+	serviceImport, err := util.GenerateCustomResourceDefinition(manifest.ServiceImport, nil)
+	if err != nil {
+		return err
+	}
+	_, err = o.K8sExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Create(context.Background(), serviceImport, metav1.CreateOptions{})
+	if err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return fmt.Errorf("kosmosctl join run error, crd options failed: %v", err)
+		}
+	}
+	klog.Info("Create CRD " + serviceImport.Name + " successful.")
+
+	return nil
+}
+
 func (o *CommandJoinOptions) runCluster() error {
 	klog.Info("Start registering cluster to kosmos control plane...")
-	if o.EnableAll {
-		o.EnableLink = true
-		o.EnableTree = true
-	}
 
 	// create cluster in control panel
 	cluster := v1alpha1.Cluster{
@@ -256,29 +314,11 @@ func (o *CommandJoinOptions) runCluster() error {
 	}
 
 	if o.EnableTree {
-		serviceExport, err := util.GenerateCustomResourceDefinition(manifest.ServiceExport, nil)
+		// create serviceExport and serviceImport
+		err := o.CreateServiceExportAndImport()
 		if err != nil {
 			return err
 		}
-		_, err = o.K8sExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Create(context.Background(), serviceExport, metav1.CreateOptions{})
-		if err != nil {
-			if !apierrors.IsAlreadyExists(err) {
-				return fmt.Errorf("kosmosctl join run error, crd options failed: %v", err)
-			}
-		}
-		klog.Info("Create CRD " + serviceExport.Name + " successful.")
-
-		serviceImport, err := util.GenerateCustomResourceDefinition(manifest.ServiceImport, nil)
-		if err != nil {
-			return err
-		}
-		_, err = o.K8sExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Create(context.Background(), serviceImport, metav1.CreateOptions{})
-		if err != nil {
-			if !apierrors.IsAlreadyExists(err) {
-				return fmt.Errorf("kosmosctl join run error, crd options failed: %v", err)
-			}
-		}
-		klog.Info("Create CRD " + serviceImport.Name + " successful.")
 
 		if len(o.LeafModel) > 0 {
 			switch o.LeafModel {

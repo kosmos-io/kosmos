@@ -23,7 +23,7 @@ set -o pipefail
 REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 source "${REPO_ROOT}/hack/util.sh"
 
-LDFLAGS="$(util::version_ldflags) ${LDFLAGS:-}"
+LDFLAGS="$(util::version_ldflags "${VERSION:-}") ${LDFLAGS:-}"
 
 function build_binary() {
   local -r target=$1
@@ -38,6 +38,7 @@ function build_binary() {
     build_binary_for_platform "${target}" "${platform}"
   done
 }
+
 
 function build_binary_for_platform() {
   local -r target=$1

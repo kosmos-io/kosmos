@@ -22,7 +22,7 @@ spec:
       serviceAccountName: clusterlink-network-manager
       containers:
         - name: manager
-          image: {{ .ImageRepository }}/clusterlink-network-manager:v{{ .Version }}
+          image: {{ .ImageRepository }}/clusterlink-network-manager:{{ .Version }}
           imagePullPolicy: IfNotPresent
           command:
             - clusterlink-network-manager
@@ -40,7 +40,7 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: kosmos-operator
+  name: clusterlink-operator
   namespace: {{ .Namespace }}
   labels:
     app: operator
@@ -54,7 +54,7 @@ spec:
       labels:
         app: operator
     spec:
-      serviceAccountName: kosmos-operator
+      serviceAccountName: clusterlink-operator
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -69,11 +69,11 @@ spec:
               topologyKey: kubernetes.io/hostname
       containers:
       - name: operator
-        image: {{ .ImageRepository }}/kosmos-operator:v{{ .Version }}
+        image: {{ .ImageRepository }}/clusterlink-operator:{{ .Version }}
         imagePullPolicy: IfNotPresent
         command:
-          - kosmos-operator
-          - --controlpanelconfig=/etc/kosmos-operator/kubeconfig
+          - clusterlink-operator
+          - --controlpanelconfig=/etc/clusterlink-operator/kubeconfig
         resources:
           limits:
             memory: 200Mi
@@ -83,11 +83,11 @@ spec:
             memory: 200Mi
         env:
         - name: VERSION
-          value: v{{ .Version }}
+          value: {{ .Version }}
         - name: USE_PROXY
           value: "{{ .UseProxy }}"
         volumeMounts:
-          - mountPath: /etc/kosmos-operator
+          - mountPath: /etc/clusterlink-operator
             name: proxy-config
             readOnly: true
       volumes:
@@ -118,7 +118,7 @@ spec:
       serviceAccountName: clustertree
       containers:
         - name: manager
-          image: {{ .ImageRepository }}/clustertree-cluster-manager:v{{ .Version }}
+          image: {{ .ImageRepository }}/clustertree-cluster-manager:{{ .Version }}
           imagePullPolicy: IfNotPresent
           env:
             - name: APISERVER_CERT_LOCATION

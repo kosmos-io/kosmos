@@ -73,13 +73,14 @@ func (c *AutoCreateMCSController) Reconcile(ctx context.Context, request reconci
 
 	// The service is being deleted, in which case we should clear serviceExport and serviceImport.
 	if shouldDelete || !service.DeletionTimestamp.IsZero() {
-		if err := c.cleanUpMcsResources(ctx, request.Namespace, request.Name, clusterList); err != nil {
+		if err := c.cleanUpMcsResources(request.Namespace, request.Name, clusterList); err != nil {
+			klog.Errorf("Cleanup MCS resources failed, err: %v", err)
 			return controllerruntime.Result{Requeue: true, RequeueAfter: 10 * time.Second}, err
 		}
 		return controllerruntime.Result{}, nil
 	}
 
-	err := c.autoCreateMcsResources(ctx, service, clusterList)
+	err := c.autoCreateMcsResources(service, clusterList)
 	if err != nil {
 		return controllerruntime.Result{Requeue: true, RequeueAfter: 10 * time.Second}, err
 	}
@@ -209,9 +210,9 @@ func (c *AutoCreateMCSController) SetupWithManager(mgr manager.Manager) error {
 		Complete(c)
 }
 
-func (c *AutoCreateMCSController) cleanUpMcsResources(ctx context.Context, namespace string, name string, clusterList *kosmosv1alpha1.ClusterList) error {
+func (c *AutoCreateMCSController) cleanUpMcsResources(namespace string, name string, clusterList *kosmosv1alpha1.ClusterList) error {
 	// delete serviceExport in root cluster
-	if err := c.RootKosmosClient.MulticlusterV1alpha1().ServiceExports(namespace).Delete(ctx, name, metav1.DeleteOptions{}); err != nil {
+	if err := c.RootKosmosClient.MulticlusterV1alpha1().ServiceExports(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{}); err != nil {
 		if !apierrors.IsNotFound(err) {
 			klog.Errorf("Delete serviceExport in root cluster failed %s/%s, Error: %v", namespace, name, err)
 			return err
@@ -229,7 +230,7 @@ func (c *AutoCreateMCSController) cleanUpMcsResources(ctx context.Context, names
 			klog.Errorf("get leafManager for cluster %s failed,Error: %v", cluster.Name, err)
 			return err
 		}
-		if err = leafManager.KosmosClient.MulticlusterV1alpha1().ServiceImports(namespace).Delete(ctx, name, metav1.DeleteOptions{}); err != nil {
+		if err = leafManager.KosmosClient.MulticlusterV1alpha1().ServiceImports(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{}); err != nil {
 			if !apierrors.IsNotFound(err) {
 				klog.Errorf("Delete serviceImport in leaf cluster failed %s/%s, Error: %v", namespace, name, err)
 				return err
@@ -239,7 +240,7 @@ func (c *AutoCreateMCSController) cleanUpMcsResources(ctx context.Context, names
 	return nil
 }
 
-func (c *AutoCreateMCSController) autoCreateMcsResources(ctx context.Context, service *corev1.Service, clusterList *kosmosv1alpha1.ClusterList) error {
+func (c *AutoCreateMCSController) autoCreateMcsResources(service *corev1.Service, clusterList *kosmosv1alpha1.ClusterList) error {
 	// create serviceExport in root cluster
 	serviceExport := &mcsv1alpha1.ServiceExport{
 		ObjectMeta: metav1.ObjectMeta{
@@ -247,7 +248,7 @@ func (c *AutoCreateMCSController) autoCreateMcsResources(ctx context.Context, se
 			Namespace: service.Namespace,
 		},
 	}
-	if _, err := c.RootKosmosClient.MulticlusterV1alpha1().ServiceExports(service.Namespace).Create(ctx, serviceExport, metav1.CreateOptions{}); err != nil {
+	if _, err := c.RootKosmosClient.MulticlusterV1alpha1().ServiceExports(service.Namespace).Create(context.TODO(), serviceExport, metav1.CreateOptions{}); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
 			klog.Errorf("Could not create serviceExport(%s/%s) in root cluster, Error: %v", service.Namespace, service.Name, err)
 			return err
@@ -266,6 +267,14 @@ func (c *AutoCreateMCSController) autoCreateMcsResources(ctx context.Context, se
 			klog.Errorf("get leafManager for cluster %s failed,Error: %v", cluster.Name, err)
 			return err
 		}
+
+		if err = c.createNamespace(leafManager.Client, service.Namespace); err != nil {
+			if !apierrors.IsAlreadyExists(err) {
+				klog.Errorf("Create namespace %s in leaf cluster failed, Error: %v", service.Namespace, err)
+				return err
+			}
+		}
+
 		serviceImport := &mcsv1alpha1.ServiceImport{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      service.Name,
@@ -281,12 +290,25 @@ func (c *AutoCreateMCSController) autoCreateMcsResources(ctx context.Context, se
 				},
 			},
 		}
-		if _, err = leafManager.KosmosClient.MulticlusterV1alpha1().ServiceImports(service.Namespace).Create(ctx, serviceImport, metav1.CreateOptions{}); err != nil {
+		if _, err = leafManager.KosmosClient.MulticlusterV1alpha1().ServiceImports(service.Namespace).Create(context.TODO(), serviceImport, metav1.CreateOptions{}); err != nil {
 			if !apierrors.IsAlreadyExists(err) {
 				klog.Errorf("Create serviceImport in leaf cluster failed %s/%s, Error: %v", service.Namespace, service.Name, err)
 				return err
 			}
 		}
+	}
+	return nil
+}
+
+func (c *AutoCreateMCSController) createNamespace(client client.Client, namespace string) error {
+	ns := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: namespace,
+		},
+	}
+	err := client.Create(context.TODO(), ns)
+	if err != nil {
+		return err
 	}
 	return nil
 }

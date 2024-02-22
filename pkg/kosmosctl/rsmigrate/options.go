@@ -2,13 +2,9 @@ package rsmigrate
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/util/homedir"
-	ctlutil "k8s.io/kubectl/pkg/cmd/util"
 
 	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	kosmosversioned "github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
@@ -25,6 +21,7 @@ type LeafClusterOptions struct {
 
 type CommandOptions struct {
 	MasterKubeConfig string
+	MasterContext    string
 	MasterClient     kubernetes.Interface
 	//clientset operate leafCluster releted resource
 	MasterKosmosClient kosmosversioned.Interface
@@ -33,30 +30,19 @@ type CommandOptions struct {
 	Namespace             string
 }
 
-func (o *CommandOptions) Validate(cmd *cobra.Command) error {
-	return nil
-}
-
-func (o *CommandOptions) Complete(f ctlutil.Factory, cmd *cobra.Command) error {
-	var err error
-	var kubeConfigStream []byte
-	// get master kubernetes clientset
-	if len(o.MasterKubeConfig) > 0 {
-		kubeConfigStream, err = os.ReadFile(o.MasterKubeConfig)
-	} else {
-		kubeConfigStream, err = os.ReadFile(filepath.Join(homedir.HomeDir(), ".kube", "config"))
-	}
+func (o *CommandOptions) Complete(cmd *cobra.Command) error {
+	config, err := utils.RestConfig(o.MasterKubeConfig, o.MasterContext)
 	if err != nil {
 		return fmt.Errorf("get master kubeconfig failed: %s", err)
 	}
 
-	masterClient, err := utils.NewClientFromBytes(kubeConfigStream)
+	masterClient, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		return fmt.Errorf("create master clientset error: %s ", err)
 	}
 	o.MasterClient = masterClient
 
-	kosmosClient, err := utils.NewKosmosClientFromBytes(kubeConfigStream)
+	kosmosClient, err := kosmosversioned.NewForConfig(config)
 	if err != nil {
 		return fmt.Errorf("get master rest client config error:%s", err)
 	}

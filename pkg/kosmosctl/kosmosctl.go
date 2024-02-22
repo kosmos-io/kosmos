@@ -59,8 +59,8 @@ func NewKosmosCtlCommand() *cobra.Command {
 		{
 			Message: "Install/UnInstall Commands:",
 			Commands: []*cobra.Command{
-				install.NewCmdInstall(f),
-				uninstall.NewCmdUninstall(f),
+				install.NewCmdInstall(),
+				uninstall.NewCmdUninstall(),
 			},
 		},
 		{
@@ -81,7 +81,7 @@ func NewKosmosCtlCommand() *cobra.Command {
 			Message: "Cluster Resource Import/Export Commands:",
 			Commands: []*cobra.Command{
 				rsmigrate.NewCmdImport(f),
-				rsmigrate.NewCmdExport(f),
+				rsmigrate.NewCmdExport(),
 			},
 		},
 		{

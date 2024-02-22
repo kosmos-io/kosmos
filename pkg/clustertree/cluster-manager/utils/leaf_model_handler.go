@@ -8,6 +8,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
@@ -104,6 +105,7 @@ func (h ClassificationHandler) GetLeafPods(ctx context.Context, rootNode *corev1
 
 // UpdateRootNodeStatus updates the node's status in root cluster
 func (h ClassificationHandler) UpdateRootNodeStatus(ctx context.Context, nodesInRoot []*corev1.Node, leafNodeSelector map[string]kosmosv1alpha1.NodeSelector) error {
+	errors := []error{}
 	for _, node := range nodesInRoot {
 		nodeNameInRoot := node.Name
 		listOptions := metav1.ListOptions{}
@@ -114,6 +116,8 @@ func (h ClassificationHandler) UpdateRootNodeStatus(ctx context.Context, nodesIn
 				continue
 			}
 			listOptions.LabelSelector = metav1.FormatLabelSelector(selector.LabelSelector)
+		} else if h.leafMode == Node {
+			listOptions.FieldSelector = fmt.Sprintf("metadata.name=%s", nodeNameInRoot)
 		}
 
 		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
@@ -150,7 +154,7 @@ func (h ClassificationHandler) UpdateRootNodeStatus(ctx context.Context, nodesIn
 				rootCopy.Status.Capacity = clusterResources
 			}
 
-			rootCopy.Status.Addresses, err = GetAddress(ctx, h.RootClientset, nodesInLeaf.Items[0].Status.Addresses)
+			updateAddress, err := GetAddress(ctx, h.RootClientset, nodesInLeaf.Items[0].Status.Addresses)
 			if err != nil {
 				return err
 			}
@@ -160,16 +164,22 @@ func (h ClassificationHandler) UpdateRootNodeStatus(ctx context.Context, nodesIn
 				return fmt.Errorf("failed to CreateMergePatch while update join node %s status, err: %v", nodeNameInRoot, err)
 			}
 
-			if _, err = h.RootClientset.CoreV1().Nodes().PatchStatus(ctx, node.Name, patch); err != nil {
+			if latestNode, err := h.RootClientset.CoreV1().Nodes().PatchStatus(ctx, node.Name, patch); err != nil {
 				return err
+			} else {
+				latestNode.ResourceVersion = ""
+				latestNode.Status.Addresses = updateAddress
+				if _, err = h.RootClientset.CoreV1().Nodes().UpdateStatus(ctx, latestNode, metav1.UpdateOptions{}); err != nil {
+					return err
+				}
 			}
 			return nil
 		})
 		if err != nil {
-			return err
+			errors = append(errors, err)
 		}
 	}
-	return nil
+	return utilerrors.NewAggregate(errors)
 }
 
 func createNode(ctx context.Context, clientset kubernetes.Interface, clusterName, nodeName, gitVersion string, listenPort int32) (*corev1.Node, error) {

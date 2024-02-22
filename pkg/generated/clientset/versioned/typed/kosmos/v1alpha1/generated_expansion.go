@@ -8,6 +8,8 @@ type ClusterDistributionPolicyExpansion interface{}
 
 type ClusterNodeExpansion interface{}
 
+type ClusterPodConvertPolicyExpansion interface{}
+
 type DaemonSetExpansion interface{}
 
 type DistributionPolicyExpansion interface{}
@@ -19,3 +21,5 @@ type NodeConfigExpansion interface{}
 type PodConvertPolicyExpansion interface{}
 
 type ShadowDaemonSetExpansion interface{}
+
+type VirtualClusterExpansion interface{}

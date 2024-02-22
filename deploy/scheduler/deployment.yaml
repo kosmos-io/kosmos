@@ -51,7 +51,6 @@ spec:
       restartPolicy: Always
       dnsPolicy: ClusterFirst
       serviceAccountName: kosmos-scheduler
-      serviceAccount: kosmos-scheduler
 
 ---
 apiVersion: v1
@@ -74,14 +73,14 @@ data:
             disabled:
               - name: "VolumeBinding"
             enabled:
-              - name: "KnodeVolumeBinding"
+              - name: "LeafNodeVolumeBinding"
           filter:
             disabled:
               - name: "VolumeBinding"
             #  - name: "TaintToleration"
             enabled:
-            #  - name: "KNodeTaintToleration"
-              - name: "KnodeVolumeBinding"
+            #  - name: "LeafNodeTaintToleration"
+              - name: "LeafNodeVolumeBinding"
           score:
             disabled:
               - name: "VolumeBinding"
@@ -89,13 +88,13 @@ data:
             disabled:
               - name: "VolumeBinding"
             enabled:
-              - name: "KnodeVolumeBinding"
+              - name: "LeafNodeVolumeBinding"
           preBind:
             disabled:
               - name: "VolumeBinding"
             enabled:
-              - name: "KnodeVolumeBinding"
+              - name: "LeafNodeVolumeBinding"
         pluginConfig:
-          - name: KnodeVolumeBinding
+          - name: LeafNodeVolumeBinding
             args:
               bindTimeoutSeconds: 5

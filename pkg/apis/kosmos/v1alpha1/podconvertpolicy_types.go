@@ -7,14 +7,14 @@ import (
 
 // +genclient
 // +kubebuilder:subresource:status
-// +kubebuilder:resource:shortName=pc;pcs
+// +kubebuilder:resource:shortName=pc
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 type PodConvertPolicy struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	// Spec is the specification for the behaviour of the podConversion.
+	// Spec is the specification for the behaviour of the PodConvertPolicy.
 	// +required
 	Spec PodConvertPolicySpec `json:"spec"`
 }
@@ -44,6 +44,8 @@ type Converters struct {
 	NodeNameConverter *NodeNameConverter `json:"nodeNameConverter,omitempty"`
 	// +optional
 	NodeSelectorConverter *NodeSelectorConverter `json:"nodeSelectorConverter,omitempty"`
+	// +optional
+	TolerationConverter *TolerationConverter `json:"tolerationConverter,omitempty"`
 	// +optional
 	AffinityConverter *AffinityConverter `json:"affinityConverter,omitempty"`
 	// +optional

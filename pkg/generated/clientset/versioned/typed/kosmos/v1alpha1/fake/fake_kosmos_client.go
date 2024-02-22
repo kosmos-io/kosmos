@@ -24,6 +24,10 @@ func (c *FakeKosmosV1alpha1) ClusterNodes() v1alpha1.ClusterNodeInterface {
 	return &FakeClusterNodes{c}
 }
 
+func (c *FakeKosmosV1alpha1) ClusterPodConvertPolicies() v1alpha1.ClusterPodConvertPolicyInterface {
+	return &FakeClusterPodConvertPolicies{c}
+}
+
 func (c *FakeKosmosV1alpha1) DaemonSets(namespace string) v1alpha1.DaemonSetInterface {
 	return &FakeDaemonSets{c, namespace}
 }
@@ -46,6 +50,10 @@ func (c *FakeKosmosV1alpha1) PodConvertPolicies(namespace string) v1alpha1.PodCo
 
 func (c *FakeKosmosV1alpha1) ShadowDaemonSets(namespace string) v1alpha1.ShadowDaemonSetInterface {
 	return &FakeShadowDaemonSets{c, namespace}
+}
+
+func (c *FakeKosmosV1alpha1) VirtualClusters() v1alpha1.VirtualClusterInterface {
+	return &FakeVirtualClusters{c}
 }
 
 // RESTClient returns a RESTClient that is used to communicate
