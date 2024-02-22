@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"time"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
@@ -152,6 +154,8 @@ const (
 
 	// LabelNodeRoleNode specifies that a node hosts node components
 	LabelNodeRoleNode = "node-role.kubernetes.io/node"
+
+	DefaultRequeueTime = 10 * time.Second
 )
 
 const (
