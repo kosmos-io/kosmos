@@ -10,6 +10,7 @@ import (
 
 type KosmosV1alpha1Interface interface {
 	RESTClient() rest.Interface
+	ClusterDistributionPoliciesGetter
 	DistributionPoliciesGetter
 }
 
@@ -18,8 +19,12 @@ type KosmosV1alpha1Client struct {
 	restClient rest.Interface
 }
 
-func (c *KosmosV1alpha1Client) DistributionPolicies() DistributionPolicyInterface {
-	return newDistributionPolicies(c)
+func (c *KosmosV1alpha1Client) ClusterDistributionPolicies() ClusterDistributionPolicyInterface {
+	return newClusterDistributionPolicies(c)
+}
+
+func (c *KosmosV1alpha1Client) DistributionPolicies(namespace string) DistributionPolicyInterface {
+	return newDistributionPolicies(c, namespace)
 }
 
 // NewForConfig creates a new KosmosV1alpha1Client for the given config.

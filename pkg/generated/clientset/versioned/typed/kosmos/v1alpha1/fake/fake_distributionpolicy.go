@@ -17,6 +17,7 @@ import (
 // FakeDistributionPolicies implements DistributionPolicyInterface
 type FakeDistributionPolicies struct {
 	Fake *FakeKosmosV1alpha1
+	ns   string
 }
 
 var distributionpoliciesResource = schema.GroupVersionResource{Group: "kosmos.io", Version: "v1alpha1", Resource: "distributionpolicies"}
@@ -26,7 +27,8 @@ var distributionpoliciesKind = schema.GroupVersionKind{Group: "kosmos.io", Versi
 // Get takes name of the distributionPolicy, and returns the corresponding distributionPolicy object, and an error if there is any.
 func (c *FakeDistributionPolicies) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.DistributionPolicy, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootGetAction(distributionpoliciesResource, name), &v1alpha1.DistributionPolicy{})
+		Invokes(testing.NewGetAction(distributionpoliciesResource, c.ns, name), &v1alpha1.DistributionPolicy{})
+
 	if obj == nil {
 		return nil, err
 	}
@@ -36,7 +38,8 @@ func (c *FakeDistributionPolicies) Get(ctx context.Context, name string, options
 // List takes label and field selectors, and returns the list of DistributionPolicies that match those selectors.
 func (c *FakeDistributionPolicies) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.DistributionPolicyList, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootListAction(distributionpoliciesResource, distributionpoliciesKind, opts), &v1alpha1.DistributionPolicyList{})
+		Invokes(testing.NewListAction(distributionpoliciesResource, distributionpoliciesKind, c.ns, opts), &v1alpha1.DistributionPolicyList{})
+
 	if obj == nil {
 		return nil, err
 	}
@@ -57,13 +60,15 @@ func (c *FakeDistributionPolicies) List(ctx context.Context, opts v1.ListOptions
 // Watch returns a watch.Interface that watches the requested distributionPolicies.
 func (c *FakeDistributionPolicies) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewRootWatchAction(distributionpoliciesResource, opts))
+		InvokesWatch(testing.NewWatchAction(distributionpoliciesResource, c.ns, opts))
+
 }
 
 // Create takes the representation of a distributionPolicy and creates it.  Returns the server's representation of the distributionPolicy, and an error, if there is any.
 func (c *FakeDistributionPolicies) Create(ctx context.Context, distributionPolicy *v1alpha1.DistributionPolicy, opts v1.CreateOptions) (result *v1alpha1.DistributionPolicy, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootCreateAction(distributionpoliciesResource, distributionPolicy), &v1alpha1.DistributionPolicy{})
+		Invokes(testing.NewCreateAction(distributionpoliciesResource, c.ns, distributionPolicy), &v1alpha1.DistributionPolicy{})
+
 	if obj == nil {
 		return nil, err
 	}
@@ -73,7 +78,8 @@ func (c *FakeDistributionPolicies) Create(ctx context.Context, distributionPolic
 // Update takes the representation of a distributionPolicy and updates it. Returns the server's representation of the distributionPolicy, and an error, if there is any.
 func (c *FakeDistributionPolicies) Update(ctx context.Context, distributionPolicy *v1alpha1.DistributionPolicy, opts v1.UpdateOptions) (result *v1alpha1.DistributionPolicy, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateAction(distributionpoliciesResource, distributionPolicy), &v1alpha1.DistributionPolicy{})
+		Invokes(testing.NewUpdateAction(distributionpoliciesResource, c.ns, distributionPolicy), &v1alpha1.DistributionPolicy{})
+
 	if obj == nil {
 		return nil, err
 	}
@@ -83,13 +89,14 @@ func (c *FakeDistributionPolicies) Update(ctx context.Context, distributionPolic
 // Delete takes name of the distributionPolicy and deletes it. Returns an error if one occurs.
 func (c *FakeDistributionPolicies) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewRootDeleteAction(distributionpoliciesResource, name), &v1alpha1.DistributionPolicy{})
+		Invokes(testing.NewDeleteAction(distributionpoliciesResource, c.ns, name), &v1alpha1.DistributionPolicy{})
+
 	return err
 }
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeDistributionPolicies) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewRootDeleteCollectionAction(distributionpoliciesResource, listOpts)
+	action := testing.NewDeleteCollectionAction(distributionpoliciesResource, c.ns, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1alpha1.DistributionPolicyList{})
 	return err
@@ -98,7 +105,8 @@ func (c *FakeDistributionPolicies) DeleteCollection(ctx context.Context, opts v1
 // Patch applies the patch and returns the patched distributionPolicy.
 func (c *FakeDistributionPolicies) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.DistributionPolicy, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootPatchSubresourceAction(distributionpoliciesResource, name, pt, data, subresources...), &v1alpha1.DistributionPolicy{})
+		Invokes(testing.NewPatchSubresourceAction(distributionpoliciesResource, c.ns, name, pt, data, subresources...), &v1alpha1.DistributionPolicy{})
+
 	if obj == nil {
 		return nil, err
 	}

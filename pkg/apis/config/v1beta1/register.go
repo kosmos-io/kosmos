@@ -20,6 +20,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	schedschemev1beta1 "k8s.io/kube-scheduler/config/v1beta1"
+
+	"github.com/kosmos.io/kosmos/pkg/apis/config"
 )
 
 // GroupName is the group name used in this package
@@ -48,6 +50,6 @@ func init() {
 	// generated functions takes place in the generated files. The separation
 	// makes the code compile even when the generated files are missing.
 	localSchemeBuilder.Register(addKnownTypes)
-	localSchemeBuilder.Register(RegisterDefaults)
+	localSchemeBuilder.Register(config.RegisterDefaults)
 	localSchemeBuilder.Register(RegisterConversions)
 }
