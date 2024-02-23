@@ -40,12 +40,16 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 	// Group=kosmos.io, Version=v1alpha1
 	case v1alpha1.SchemeGroupVersion.WithResource("clusters"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Kosmos().V1alpha1().Clusters().Informer()}, nil
+	case v1alpha1.SchemeGroupVersion.WithResource("clusterdistributionpolicies"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Kosmos().V1alpha1().ClusterDistributionPolicies().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("clusternodes"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Kosmos().V1alpha1().ClusterNodes().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("clusterpodconvertpolicies"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Kosmos().V1alpha1().ClusterPodConvertPolicies().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("daemonsets"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Kosmos().V1alpha1().DaemonSets().Informer()}, nil
+	case v1alpha1.SchemeGroupVersion.WithResource("distributionpolicies"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Kosmos().V1alpha1().DistributionPolicies().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("knodes"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Kosmos().V1alpha1().Knodes().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("nodeconfigs"):

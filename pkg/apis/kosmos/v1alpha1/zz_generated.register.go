@@ -43,6 +43,8 @@ func init() {
 func addKnownTypes(scheme *runtime.Scheme) error {
 	scheme.AddKnownTypes(SchemeGroupVersion,
 		&Cluster{},
+		&ClusterDistributionPolicy{},
+		&ClusterDistributionPolicyList{},
 		&ClusterList{},
 		&ClusterNode{},
 		&ClusterNodeList{},
@@ -50,6 +52,8 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&ClusterPodConvertPolicyList{},
 		&DaemonSet{},
 		&DaemonSetList{},
+		&DistributionPolicy{},
+		&DistributionPolicyList{},
 		&Knode{},
 		&KnodeList{},
 		&NodeConfig{},

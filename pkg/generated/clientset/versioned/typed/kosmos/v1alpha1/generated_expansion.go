@@ -4,11 +4,15 @@ package v1alpha1
 
 type ClusterExpansion interface{}
 
+type ClusterDistributionPolicyExpansion interface{}
+
 type ClusterNodeExpansion interface{}
 
 type ClusterPodConvertPolicyExpansion interface{}
 
 type DaemonSetExpansion interface{}
+
+type DistributionPolicyExpansion interface{}
 
 type KnodeExpansion interface{}
 

@@ -13,9 +13,11 @@ import (
 type KosmosV1alpha1Interface interface {
 	RESTClient() rest.Interface
 	ClustersGetter
+	ClusterDistributionPoliciesGetter
 	ClusterNodesGetter
 	ClusterPodConvertPoliciesGetter
 	DaemonSetsGetter
+	DistributionPoliciesGetter
 	KnodesGetter
 	NodeConfigsGetter
 	PodConvertPoliciesGetter
@@ -32,6 +34,10 @@ func (c *KosmosV1alpha1Client) Clusters() ClusterInterface {
 	return newClusters(c)
 }
 
+func (c *KosmosV1alpha1Client) ClusterDistributionPolicies() ClusterDistributionPolicyInterface {
+	return newClusterDistributionPolicies(c)
+}
+
 func (c *KosmosV1alpha1Client) ClusterNodes() ClusterNodeInterface {
 	return newClusterNodes(c)
 }
@@ -42,6 +48,10 @@ func (c *KosmosV1alpha1Client) ClusterPodConvertPolicies() ClusterPodConvertPoli
 
 func (c *KosmosV1alpha1Client) DaemonSets(namespace string) DaemonSetInterface {
 	return newDaemonSets(c, namespace)
+}
+
+func (c *KosmosV1alpha1Client) DistributionPolicies(namespace string) DistributionPolicyInterface {
+	return newDistributionPolicies(c, namespace)
 }
 
 func (c *KosmosV1alpha1Client) Knodes() KnodeInterface {
