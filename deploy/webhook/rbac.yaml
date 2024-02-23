@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kosmos-webhook
+  namespace: kosmos-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kosmos-webhook
+rules:
+  - apiGroups: ['*']
+    resources: ["nodes", "pods"]
+    verbs: ["*"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kosmos-webhook
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kosmos-webhook
+subjects:
+  - kind: ServiceAccount
+    name: kosmos-webhook
+    namespace: kosmos-system
