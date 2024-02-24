@@ -24,8 +24,12 @@ const (
 	PollTimeout = 180 * time.Second
 )
 
-func NewDeployment(namespace, name string, replicas *int32, nodes []string) *appsv1.Deployment {
-	return &appsv1.Deployment{
+func NewDeployment(namespace, name, schedulerName string, labels map[string]string, replicas *int32, nodes []string, toleration bool) *appsv1.Deployment {
+	if len(schedulerName) == 0 {
+		schedulerName = "default-scheduler"
+	}
+
+	deploy := &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1",
 			Kind:       "Deployment",
@@ -70,24 +74,6 @@ func NewDeployment(namespace, name string, replicas *int32, nodes []string) *app
 
 					HostNetwork: true,
 
-					Affinity: &corev1.Affinity{
-						NodeAffinity: &corev1.NodeAffinity{
-							RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-								NodeSelectorTerms: []corev1.NodeSelectorTerm{
-									{
-										MatchExpressions: []corev1.NodeSelectorRequirement{
-											{
-												Key:      "kubernetes.io/hostname",
-												Operator: corev1.NodeSelectorOpIn,
-												Values:   nodes,
-											},
-										},
-									},
-								},
-							},
-						},
-					},
-
 					Containers: []corev1.Container{
 						{
 							Name:  "nginx-container",
@@ -111,6 +97,58 @@ func NewDeployment(namespace, name string, replicas *int32, nodes []string) *app
 			},
 		},
 	}
+
+	if toleration {
+		deploy.Spec.Template.Spec.Tolerations = []corev1.Toleration{
+			{
+				Key:      "kosmos.io/node",
+				Operator: corev1.TolerationOpEqual,
+				Value:    "true",
+				Effect:   corev1.TaintEffectNoSchedule,
+			},
+		}
+	}
+
+	if labels != nil {
+		if deploy.Labels == nil {
+			deploy.SetLabels(labels)
+		} else {
+			for key, value := range labels {
+				deploy.Labels[key] = value
+			}
+		}
+		if deploy.Spec.Template.ObjectMeta.Labels == nil {
+			deploy.Spec.Template.ObjectMeta.SetLabels(labels)
+		} else {
+			for key, value := range labels {
+				deploy.Spec.Template.ObjectMeta.Labels[key] = value
+			}
+		}
+	}
+
+	if nodes != nil {
+		affinity := &corev1.Affinity{
+			NodeAffinity: &corev1.NodeAffinity{
+				RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+					NodeSelectorTerms: []corev1.NodeSelectorTerm{
+						{
+							MatchExpressions: []corev1.NodeSelectorRequirement{
+								{
+									Key:      "kubernetes.io/hostname",
+									Operator: corev1.NodeSelectorOpIn,
+									Values:   nodes,
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+		deploy.Spec.Template.Spec.Affinity = affinity
+	}
+
+	deploy.Spec.Template.Spec.SchedulerName = schedulerName
+	return deploy
 }
 
 func CreateDeployment(client kubernetes.Interface, deployment *appsv1.Deployment) {
@@ -153,23 +191,4 @@ func HasElement(str string, strs []string) bool {
 		}
 	}
 	return false
-}
-
-func WaitPodPresentOnCluster(client kubernetes.Interface, namespace, cluster string, nodes []string, opt metav1.ListOptions) {
-	ginkgo.By(fmt.Sprintf("Waiting for pod of the deployment on cluster(%v)", cluster), func() {
-		gomega.Eventually(func() bool {
-			pods, err := client.CoreV1().Pods(namespace).List(context.TODO(), opt)
-			if err != nil {
-				klog.Errorf("Failed to get pod on cluster(%s), err: %v", cluster, err)
-				return false
-			}
-
-			for _, pod := range pods.Items {
-				if HasElement(pod.Spec.NodeName, nodes) {
-					return true
-				}
-			}
-			return false
-		}, PollTimeout, PollInterval).Should(gomega.Equal(true))
-	})
 }

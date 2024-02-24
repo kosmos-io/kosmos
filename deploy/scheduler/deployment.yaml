@@ -77,10 +77,11 @@ data:
           filter:
             disabled:
               - name: "VolumeBinding"
-            #  - name: "TaintToleration"
+              - name: "TaintToleration"
             enabled:
-            #  - name: "LeafNodeTaintToleration"
+              - name: "LeafNodeTaintToleration"
               - name: "LeafNodeVolumeBinding"
+              - name: "LeafNodeDistribution"
           score:
             disabled:
               - name: "VolumeBinding"

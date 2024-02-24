@@ -217,6 +217,8 @@ function deploy_cluster_by_ctl() {
   load_cluster_images "$clustername"
   kosmosctl install --version latest --kubeconfig $CLUSTER_DIR/kubeconfig
 
+  kubectl --context="kind-${clustername}" apply -f "$ROOT"/deploy/crds
+
   # deploy kosmos-scheduler for e2e test case of mysql-operator
   sed -e "s|__VERSION__|$VERSION|g" -e "w ${ROOT}/environments/kosmos-scheduler.yml" "$ROOT"/deploy/scheduler/deployment.yaml
   kubectl --context="kind-${clustername}" apply -f "${ROOT}/environments/kosmos-scheduler.yml"
@@ -245,7 +247,7 @@ function deploy_cluster() {
   kubectl --context="kind-${clustername}" apply -f "$ROOT"/deploy/clusterlink-namespace.yml
   kubectl --context="kind-${clustername}" apply -f "$ROOT"/deploy/kosmos-rbac.yml
   kubectl --context="kind-${clustername}" apply -f "$ROOT"/deploy/crds
-  util::wait_for_crd clusternodes.kosmos.io clusters.kosmos.io
+  util::wait_for_crd clusternodes.kosmos.io clusters.kosmos.io clusterdistributionpolicies.kosmos.io distributionpolicies.kosmos.io
 
   sed -e "s|__VERSION__|$VERSION|g" -e "w ${ROOT}/environments/clusterlink-network-manager.yml" "$ROOT"/deploy/clusterlink-network-manager.yml
   kubectl --context="kind-${clustername}" apply -f "${ROOT}/environments/clusterlink-network-manager.yml"
@@ -269,7 +271,7 @@ function deploy_cluster() {
   kubectl --context="kind-${clustername}" apply -f "$ROOT"/deploy/scheduler/rbac.yaml
 
   util::wait_for_condition "kosmos scheduler are ready" \
-    "kubectl -n kosmos-system get deploy kosmos-scheduler -o jsonpath='{.status.replicas}{\" \"}{.status.readyReplicas}{\"\n\"}' | awk '{if (\$1 == \$2 && \$1 > 0) exit 0; else exit 1}'" \
+    "kubectl  --context="kind-${clustername}" -n kosmos-system get deploy kosmos-scheduler -o jsonpath='{.status.replicas}{\" \"}{.status.readyReplicas}{\"\n\"}' | awk '{if (\$1 == \$2 && \$1 > 0) exit 0; else exit 1}'" \
     300
   echo "cluster $clustername deploy kosmos-scheduler success"
 

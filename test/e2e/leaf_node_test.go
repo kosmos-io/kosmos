@@ -148,7 +148,7 @@ var _ = ginkgo.Describe("Test leaf node mode -- one2cluster, one2node, one2party
 				nodes := []string{nodeNameInRoot}
 				deployName := one2Cluster.GetName() + "-nginx"
 				rp := int32(1)
-				deploy = framework.NewDeployment(corev1.NamespaceDefault, deployName, &rp, nodes)
+				deploy = framework.NewDeployment(corev1.NamespaceDefault, deployName, framework.SchedulerName, framework.ResourceLabel("app", deployName), &rp, nodes, true)
 				framework.RemoveDeploymentOnCluster(hostKubeClient, deploy.Namespace, deploy.Name)
 				framework.CreateDeployment(hostKubeClient, deploy)
 
@@ -195,7 +195,7 @@ var _ = ginkgo.Describe("Test leaf node mode -- one2cluster, one2node, one2party
 			ginkgo.By("Test one2cluster mode", func() {
 				deployName := one2Node.GetName() + "-nginx"
 				rp := int32(1)
-				deploy = framework.NewDeployment(corev1.NamespaceDefault, deployName, &rp, memberNodeNames)
+				deploy = framework.NewDeployment(corev1.NamespaceDefault, deployName, framework.SchedulerName, framework.ResourceLabel("app", deployName), &rp, memberNodeNames, true)
 				framework.RemoveDeploymentOnCluster(hostKubeClient, deploy.Namespace, deploy.Name)
 				framework.CreateDeployment(hostKubeClient, deploy)
 
@@ -247,7 +247,7 @@ var _ = ginkgo.Describe("Test leaf node mode -- one2cluster, one2node, one2party
 			ginkgo.By("Test one2party mode", func() {
 				deployName := one2Party.GetName() + "-nginx"
 				rp := int32(1)
-				deploy = framework.NewDeployment(corev1.NamespaceDefault, deployName, &rp, partyNodeNames)
+				deploy = framework.NewDeployment(corev1.NamespaceDefault, deployName, framework.SchedulerName, framework.ResourceLabel("app", deployName), &rp, partyNodeNames, true)
 				framework.RemoveDeploymentOnCluster(hostKubeClient, deploy.Namespace, deploy.Name)
 				framework.CreateDeployment(hostKubeClient, deploy)
 
