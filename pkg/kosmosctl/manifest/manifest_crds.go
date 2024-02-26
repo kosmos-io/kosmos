@@ -420,6 +420,8 @@ spec:
             properties:
               clusterLinkOptions:
                 properties:
+                  autodetectionMethod:
+                    type: string
                   bridgeCIDRs:
                     default:
                       ip: 220.0.0.0/8
@@ -652,7 +654,6 @@ spec:
     storage: true
     subresources: {}
 `
-
 const NodeConfig = `---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
