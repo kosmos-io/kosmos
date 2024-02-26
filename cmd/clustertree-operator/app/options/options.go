@@ -26,7 +26,7 @@ func NewOptions() *Options {
 			LeaderElect:       true,
 			ResourceLock:      resourcelock.LeasesResourceLock,
 			ResourceNamespace: utils.DefaultNamespace,
-			ResourceName:      "network-manager",
+			ResourceName:      "virtual-cluster-controller",
 		},
 	}
 }

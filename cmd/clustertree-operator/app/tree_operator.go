@@ -10,10 +10,11 @@ import (
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 
-	"github.com/kosmos.io/kosmos/cmd/clusterlink/network-manager/app/options"
+	"github.com/kosmos.io/kosmos/cmd/clustertree-operator/app/options"
 	"github.com/kosmos.io/kosmos/pkg/scheme"
 	"github.com/kosmos.io/kosmos/pkg/sharedcli/klogflag"
-	"github.com/kosmos.io/kosmos/pkg/treeoperator"
+	"github.com/kosmos.io/kosmos/pkg/treeoperator/constants"
+	"github.com/kosmos.io/kosmos/pkg/treeoperator/controller"
 )
 
 func NewVirtualClusterOperatorCommand(ctx context.Context) *cobra.Command {
@@ -65,20 +66,21 @@ func run(ctx context.Context, opts *options.Options) error {
 		return fmt.Errorf("failed to build controller manager: %v", err)
 	}
 
-	VirtualClusterInitController := treeoperator.VirtualClusterInitController{
+	VirtualClusterInitController := controller.VirtualClusterInitController{
 		Client:        mgr.GetClient(),
-		EventRecorder: mgr.GetEventRecorderFor(treeoperator.InitControllerName),
+		Config:        mgr.GetConfig(),
+		EventRecorder: mgr.GetEventRecorderFor(constants.InitControllerName),
 	}
 	if err = VirtualClusterInitController.SetupWithManager(mgr); err != nil {
-		return fmt.Errorf("error starting %s: %v", treeoperator.InitControllerName, err)
+		return fmt.Errorf("error starting %s: %v", constants.InitControllerName, err)
 	}
 
-	VirtualClusterJoinController := treeoperator.VirtualClusterJoinController{
+	VirtualClusterJoinController := controller.VirtualClusterJoinController{
 		Client:        mgr.GetClient(),
-		EventRecorder: mgr.GetEventRecorderFor(treeoperator.JoinControllerName),
+		EventRecorder: mgr.GetEventRecorderFor(constants.JoinControllerName),
 	}
 	if err = VirtualClusterJoinController.SetupWithManager(mgr); err != nil {
-		return fmt.Errorf("error starting %s: %v", treeoperator.JoinControllerName, err)
+		return fmt.Errorf("error starting %s: %v", constants.JoinControllerName, err)
 	}
 
 	if err := mgr.Start(ctx); err != nil {
