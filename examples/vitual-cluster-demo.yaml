@@ -1,0 +1,13 @@
+apiVersion: kosmos.io/v1alpha1
+kind: VirtualCluster
+metadata:
+  namespace: test
+  name: test
+spec:
+  promoteResources:
+    nodes:
+      - node1
+      - node2
+    resources:
+      cpu: 1
+      memory: "1Gi"
