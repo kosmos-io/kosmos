@@ -159,14 +159,8 @@ func NewClusterDistributionPolicy() *kosmosv1alpha1.ClusterDistributionPolicy {
 
 func CreateDistributionPolicy(client versioned.Interface, ns string, dp *kosmosv1alpha1.DistributionPolicy) {
 	ginkgo.By("Creating DistributionPolicy", func() {
-		err := client.KosmosV1alpha1().DistributionPolicies(ns).Delete(context.TODO(), dp.Name, metav1.DeleteOptions{})
-		if err != nil {
-			klog.Errorf("delete old DistributionPolicy occur error ：", err)
-			gomega.Expect(apierrors.IsNotFound(err)).Should(gomega.Equal(true))
-		}
-
-		_, err = client.KosmosV1alpha1().DistributionPolicies(ns).Create(context.TODO(), dp, metav1.CreateOptions{})
-		if err != nil {
+		_, err := client.KosmosV1alpha1().DistributionPolicies(ns).Create(context.TODO(), dp, metav1.CreateOptions{})
+		if err != nil && !apierrors.IsAlreadyExists(err) {
 			klog.Errorf("create DistributionPolicy occur error ：", err)
 			gomega.Expect(err).Should(gomega.HaveOccurred())
 		}
@@ -175,14 +169,8 @@ func CreateDistributionPolicy(client versioned.Interface, ns string, dp *kosmosv
 
 func CreateClusterDistributionPolicy(client versioned.Interface, cdp *kosmosv1alpha1.ClusterDistributionPolicy) {
 	ginkgo.By("Creating ClusterDistributionPolicy", func() {
-		err := client.KosmosV1alpha1().ClusterDistributionPolicies().Delete(context.TODO(), cdp.Name, metav1.DeleteOptions{})
-		if err != nil {
-			klog.Errorf("delete old ClusterDistributionPolicy occur error ：", err)
-			gomega.Expect(apierrors.IsNotFound(err)).Should(gomega.Equal(true))
-		}
-
-		_, err = client.KosmosV1alpha1().ClusterDistributionPolicies().Create(context.TODO(), cdp, metav1.CreateOptions{})
-		if err != nil {
+		_, err := client.KosmosV1alpha1().ClusterDistributionPolicies().Create(context.TODO(), cdp, metav1.CreateOptions{})
+		if err != nil && !apierrors.IsAlreadyExists(err) {
 			klog.Errorf("create ClusterDistributionPolicy occur error ：", err)
 			gomega.Expect(err).Should(gomega.HaveOccurred())
 		}
