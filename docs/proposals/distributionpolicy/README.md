@@ -28,7 +28,7 @@ The more the precise, the higher the priority. Defaults to zero which means sche
 
 **PolicyTerms**
 1. PolicyTerms is required
-2. The current node scheduling policy is divided into three nodeType （host, leaf, mix）.
+2. The current node scheduling policy is divided into four nodeTypes （host, leaf, mix, adv）.
 3. Advanced options will be supported in the future. Sure as NodeSelector, Affinity and so on.
 
 ## Use cases
@@ -151,10 +151,10 @@ kosmos-member2-cluster-1   Ready      agent                       24m   v1.21.5-
 kosmos-member2-cluster-2   Ready      agent                       24m   v1.21.5-eki.0
  
 # Show the taint information on the virtual node
-kubectl describe node kosmos-member2-cluster-1  |grep Tai
+kubectl describe node kosmos-member2-cluster-1  |grep Taints
 Taints:             node.kubernetes.io/unreachable:NoExecute
  
-kubectl describe node kosmos-member2-cluster-2  |grep Tai
+kubectl describe node kosmos-member2-cluster-2  |grep Taints
 Taints:             node.kubernetes.io/unreachable:NoExecute
  
 # Scheduling by the kosmos-scheduler (hybrid scheduling)
