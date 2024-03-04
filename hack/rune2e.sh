@@ -16,6 +16,7 @@ MEMBER3_CLUSTER_NAME="cluster-member3"
 ROOT="$(dirname "${BASH_SOURCE[0]}")"
 source "${ROOT}/util.sh"
 
+
 # e2e for nginx and mcs
 kubectl --context="kind-${HOST_CLUSTER_NAME}" apply -f "${ROOT}"/../test/e2e/deploy/nginx
 util::wait_for_condition "nginx are ready" \

@@ -7,10 +7,12 @@ set -o pipefail
 HOST_CLUSTER_NAME="cluster-host"
 CURRENT="$(dirname "${BASH_SOURCE[0]}")"
 ROOT=$(dirname "${BASH_SOURCE[0]}")/..
-KIND_IMAGE="ghcr.io/kosmos-io/node:v1.25.3"
+#KIND_IMAGE="ghcr.io/kosmos-io/node:v1.25.3"
+KIND_IMAGE="kindest/node:v1.27.2"
 # true: when cluster is exist, reuse exist one!
 REUSE=${REUSE:-false}
-VERSION=${VERSION:-latest}
+#VERSION=${VERSION:-latest}
+VERSION="v0.2.0"
 
 # default cert and key for node server https
 CERT=$(cat ${ROOT}/pkg/cert/crt.pem | base64 -w 0)
@@ -34,6 +36,10 @@ function create_cluster() {
 
   CLUSTER_DIR="${ROOT}/environments/${clustername}"
   mkdir -p "${CLUSTER_DIR}"
+
+  echo "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+  echo "$CLUSTER_DIR"
+
   ipFamily=ipv4
   if [ "$isDual" == true ]; then
     ipFamily=dual
@@ -197,7 +203,7 @@ function join_cluster_by_ctl() {
   local member_cluster=$2
   HOST_CLUSTER_DIR="${ROOT}/environments/${host_cluster}"
   MEMBER_CLUSTER_DIR="${ROOT}/environments/${member_cluster}"
-  kosmosctl join cluster --name $member_cluster --host-kubeconfig $HOST_CLUSTER_DIR/kubeconfig --kubeconfig $MEMBER_CLUSTER_DIR/kubeconfig --enable-all --version latest
+  kosmosctl join cluster --name $member_cluster --host-kubeconfig $HOST_CLUSTER_DIR/kubeconfig --kubeconfig $MEMBER_CLUSTER_DIR/kubeconfig --enable-all --version ${VERSION}
 }
 
 function addTaint() {
@@ -215,7 +221,7 @@ function deploy_cluster_by_ctl() {
   local -r clustername=$1
   CLUSTER_DIR="${ROOT}/environments/${clustername}"
   load_cluster_images "$clustername"
-  kosmosctl install --version latest --kubeconfig $CLUSTER_DIR/kubeconfig
+  kosmosctl install --version ${VERSION} --kubeconfig $CLUSTER_DIR/kubeconfig
 
   kubectl --context="kind-${clustername}" apply -f "$ROOT"/deploy/crds
 
