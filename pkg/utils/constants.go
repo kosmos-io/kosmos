@@ -194,3 +194,9 @@ var GVR_SERVICE = schema.GroupVersionResource{
 	Version:  "v1",
 	Resource: "services",
 }
+
+var GVR_CRD = schema.GroupVersionResource{
+	Group:    "apiextensions.k8s.io",
+	Version:  "v1",
+	Resource: "customresourcedefinitions",
+}

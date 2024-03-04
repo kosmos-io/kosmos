@@ -4,15 +4,18 @@ metadata:
   name: promote-pilicy-sample
 spec:
   includedNamespaces:
-    - namespace1
-    - namespace2
+    - test
+    - kube-system
   excludedNamespaces:
-    - namespace3
+    - kube-system
   includedNamespaceScopedResources:
-    - deployment
-    - service
+    - pods
+    - daemonsets.apps
+#    - serviceexports.multicluster.x-k8s.io
+    - nodeconfigs.kosmos.io
   excludedNamespaceScopedResources:
-    - pod
+#    - pods
+#    - nodeconfigs.kosmos.io
   clusterName:
-    cluster
+    cluster7
 

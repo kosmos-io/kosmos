@@ -136,6 +136,7 @@ spec:
           command:
             - clustertree-cluster-manager
             - --multi-cluster-service=true
+            - --forbid-promote-namespace=kube-node-lease,kube-public,kube-system
             - --v=4
       volumes:
         - name: credentials
