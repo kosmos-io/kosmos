@@ -159,19 +159,9 @@ func (h ClassificationHandler) UpdateRootNodeStatus(ctx context.Context, nodesIn
 				return err
 			}
 
-			patch, err := utils.CreateMergePatch(nodeInRoot, rootCopy)
-			if err != nil {
-				return fmt.Errorf("failed to CreateMergePatch while update join node %s status, err: %v", nodeNameInRoot, err)
-			}
-
-			if latestNode, err := h.RootClientset.CoreV1().Nodes().PatchStatus(ctx, node.Name, patch); err != nil {
+			rootCopy.Status.Addresses = updateAddress
+			if _, err = h.RootClientset.CoreV1().Nodes().UpdateStatus(ctx, rootCopy, metav1.UpdateOptions{}); err != nil {
 				return err
-			} else {
-				latestNode.ResourceVersion = ""
-				latestNode.Status.Addresses = updateAddress
-				if _, err = h.RootClientset.CoreV1().Nodes().UpdateStatus(ctx, latestNode, metav1.UpdateOptions{}); err != nil {
-					return err
-				}
 			}
 			return nil
 		})
