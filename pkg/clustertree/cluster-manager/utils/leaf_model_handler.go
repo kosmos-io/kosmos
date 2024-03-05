@@ -115,20 +115,10 @@ func (h AggregationModelHandler) UpdateNodeStatus(ctx context.Context, n []*core
 			return err
 		}
 
-		patch, err := utils.CreateMergePatch(node, clone)
+		clone.Status.Addresses = updateAddress
 
-		if err != nil {
-			return fmt.Errorf("cannot get node while update node status %s, err: %v", node.Name, err)
-		}
-
-		if latestNode, err := h.RootClientset.CoreV1().Nodes().PatchStatus(ctx, node.Name, patch); err != nil {
+		if _, err = h.RootClientset.CoreV1().Nodes().UpdateStatus(ctx, clone, metav1.UpdateOptions{}); err != nil {
 			return err
-		} else {
-			latestNode.ResourceVersion = ""
-			latestNode.Status.Addresses = updateAddress
-			if _, err = h.RootClientset.CoreV1().Nodes().UpdateStatus(ctx, latestNode, metav1.UpdateOptions{}); err != nil {
-				return err
-			}
 		}
 		return nil
 	})
