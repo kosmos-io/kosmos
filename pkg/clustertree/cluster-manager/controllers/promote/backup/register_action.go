@@ -5,6 +5,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/promote/requests"
+	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/promote/types"
 )
 
 // BackupItemAction is an actor that performs an operation on an individual item being backed up.
@@ -34,7 +35,7 @@ func registerBackupActions() (map[string]BackupItemAction, error) {
 	return actionMap, nil
 }
 
-func registerBackupItemAction(actionsMap map[string]BackupItemAction, initializer requests.HandlerInitializer) error {
+func registerBackupItemAction(actionsMap map[string]BackupItemAction, initializer types.HandlerInitializer) error {
 	instance, err := initializer()
 	if err != nil {
 		return errors.WithMessage(err, "init backup action instance error")

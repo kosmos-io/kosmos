@@ -23,17 +23,21 @@ import (
 var (
 	ClusterRoleBindings       = schema.GroupResource{Group: "rbac.authorization.k8s.io", Resource: "clusterrolebindings"}
 	ClusterRoles              = schema.GroupResource{Group: "rbac.authorization.k8s.io", Resource: "clusterroles"}
+	RoleBindings              = schema.GroupResource{Group: "rbac.authorization.k8s.io", Resource: "rolebindings"}
+	Roles                     = schema.GroupResource{Group: "rbac.authorization.k8s.io", Resource: "roles"}
 	CustomResourceDefinitions = schema.GroupResource{Group: "apiextensions.k8s.io", Resource: "customresourcedefinitions"}
 	Jobs                      = schema.GroupResource{Group: "batch", Resource: "jobs"}
 	Namespaces                = schema.GroupResource{Group: "", Resource: "namespaces"}
 	PersistentVolumeClaims    = schema.GroupResource{Group: "", Resource: "persistentvolumeclaims"}
 	PersistentVolumes         = schema.GroupResource{Group: "", Resource: "persistentvolumes"}
 	Pods                      = schema.GroupResource{Group: "", Resource: "pods"}
+	Configmaps                = schema.GroupResource{Group: "", Resource: "configmaps"}
 	ServiceAccounts           = schema.GroupResource{Group: "", Resource: "serviceaccounts"}
 	Secrets                   = schema.GroupResource{Group: "", Resource: "secrets"}
 	StatefulSets              = schema.GroupResource{Group: "apps", Resource: "statefulsets"}
 	Deployments               = schema.GroupResource{Group: "apps", Resource: "deployments"}
 	ReplicaSets               = schema.GroupResource{Group: "apps", Resource: "replicasets"}
+	Services                  = schema.GroupResource{Group: "", Resource: "services"}
 	VolumeSnapshotClasses     = schema.GroupResource{Group: "snapshot.storage.k8s.io", Resource: "volumesnapshotclasses"}
 	VolumeSnapshots           = schema.GroupResource{Group: "snapshot.storage.k8s.io", Resource: "volumesnapshots"}
 	VolumeSnapshotContents    = schema.GroupResource{Group: "snapshot.storage.k8s.io", Resource: "volumesnapshotcontents"}

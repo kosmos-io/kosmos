@@ -35,6 +35,11 @@ type PromotePolicySpec struct {
 	// +optional
 	// +nullable
 	ExcludedNamespaceScopedResources []string `json:"excludedNamespaceScopedResources,omitempty"`
+
+	// Rollback set true, then rollback from the backup
+	// +optional
+	// +nullable
+	Rollback string `json:"rollback,omitempty"`
 }
 
 // PromotePolicyPhase is a string representation of the lifecycle phase
@@ -64,6 +69,12 @@ const (
 
 	// PromotePolicyPhaseFailedRestore means restore has failed
 	PromotePolicyPhaseFailedRestore PromotePolicyPhase = "FailedRestore"
+
+	// PromotePolicyPhaseFailedRollback means rollback has failed
+	PromotePolicyPhaseFailedRollback PromotePolicyPhase = "FailedRollback"
+
+	// PromotePolicyPhaseRolledback means rollback has successed
+	PromotePolicyPhaseRolledback PromotePolicyPhase = "RolledBack"
 
 	// PromotePolicyPhaseCompleted means the sync has run successfully
 	PromotePolicyPhaseCompleted PromotePolicyPhase = "Completed"
@@ -118,6 +129,8 @@ type PromotePolicyStatus struct {
 	// +optional
 	// +nullable
 	Progress *PromotePolicyProgress `json:"progress,omitempty"`
+
+	BackedupFile string `json:"backedupFile,omitempty"`
 }
 
 // +genclient

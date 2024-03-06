@@ -2059,6 +2059,13 @@ func schema_pkg_apis_kosmos_v1alpha1_PromotePolicySpec(ref common.ReferenceCallb
 							},
 						},
 					},
+					"rollback": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Rollback set true, then rollback from the backup",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},
@@ -2117,6 +2124,12 @@ func schema_pkg_apis_kosmos_v1alpha1_PromotePolicyStatus(ref common.ReferenceCal
 						SchemaProps: spec.SchemaProps{
 							Description: "Progress contains information about the sync's execution progress. Note that this information is best-effort only -- if fails to update it for any reason, it may be inaccurate/stale.",
 							Ref:         ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PromotePolicyProgress"),
+						},
+					},
+					"backedupFile": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
 						},
 					},
 				},
