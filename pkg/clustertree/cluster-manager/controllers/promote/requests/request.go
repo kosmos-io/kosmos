@@ -30,17 +30,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
+	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/promote/types"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/promote/utils/collections"
 )
-
-// HandlerInitializer is a function that initializes and returns a new instance of one of action interfaces
-type HandlerInitializer func() (interface{}, error)
-
-type ItemKey struct {
-	Resource  string
-	Namespace string
-	Name      string
-}
 
 type PromoteRequest struct {
 	*v1alpha1.PromotePolicy
@@ -55,9 +47,9 @@ type PromoteRequest struct {
 
 	ResourceIncludesExcludes  collections.IncludesExcludesInterface
 	NamespaceIncludesExcludes *collections.IncludesExcludes
-	BackedUpItems             map[ItemKey]struct{}
-	DetachedItems             map[ItemKey]struct{}
-	RestoredItems             map[ItemKey]struct{}
+	BackedUpItems             map[types.ItemKey]struct{}
+	DetachedItems             map[types.ItemKey]struct{}
+	RestoredItems             map[types.ItemKey]types.RestoredItemStatus
 
 	ForbidNamespaces []string
 }
