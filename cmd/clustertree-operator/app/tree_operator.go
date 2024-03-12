@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/client-go/tools/clientcmd"
 	cliflag "k8s.io/component-base/cli/flag"
 	"k8s.io/klog/v2"
@@ -55,9 +56,15 @@ func run(ctx context.Context, opts *options.Options) error {
 	}
 	config.QPS, config.Burst = opts.KubernetesOptions.QPS, opts.KubernetesOptions.Burst
 
+	newscheme := scheme.NewSchema()
+	err = apiextensionsv1.AddToScheme(newscheme)
+	if err != nil {
+		panic(err)
+	}
+
 	mgr, err := controllerruntime.NewManager(config, controllerruntime.Options{
 		Logger:                  klog.Background(),
-		Scheme:                  scheme.NewSchema(),
+		Scheme:                  newscheme,
 		LeaderElection:          opts.LeaderElection.LeaderElect,
 		LeaderElectionID:        opts.LeaderElection.ResourceName,
 		LeaderElectionNamespace: opts.LeaderElection.ResourceNamespace,
@@ -76,8 +83,9 @@ func run(ctx context.Context, opts *options.Options) error {
 	}
 
 	VirtualClusterJoinController := controller.VirtualClusterJoinController{
-		Client:        mgr.GetClient(),
-		EventRecorder: mgr.GetEventRecorderFor(constants.JoinControllerName),
+		Client:         mgr.GetClient(),
+		EventRecorder:  mgr.GetEventRecorderFor(constants.JoinControllerName),
+		KubeconfigPath: opts.KubernetesOptions.KubeConfig,
 	}
 	if err = VirtualClusterJoinController.SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("error starting %s: %v", constants.JoinControllerName, err)
