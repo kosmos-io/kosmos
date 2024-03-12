@@ -17,8 +17,8 @@ func NewPvAction() *PvAction {
 	return &PvAction{}
 }
 
-func (p *PvAction) Resource() string {
-	return "persistentvolumes"
+func (p *PvAction) Resource() []string {
+	return []string{"persistentvolumes"}
 }
 
 func (p *PvAction) Execute(obj *unstructured.Unstructured, restorer *kubernetesRestorer) (*unstructured.Unstructured, error) {
@@ -56,4 +56,26 @@ func (p *PvAction) Execute(obj *unstructured.Unstructured, restorer *kubernetesR
 	} else {
 		return obj, nil
 	}
+}
+
+func (p *PvAction) Revert(fromCluster *unstructured.Unstructured, restorer *kubernetesRestorer) (*unstructured.Unstructured, error) {
+	updatedPv := new(corev1.PersistentVolume)
+
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(fromCluster.UnstructuredContent(), updatedPv); err != nil {
+		return nil, errors.Wrap(err, "unable to convert unstructured item to pv")
+	}
+
+	annotations := updatedPv.Annotations
+	if annotations != nil {
+		if _, ok := annotations["kosmos-io/cluster-owners"]; ok {
+			delete(annotations, "kosmos-io/cluster-owners")
+			pvMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&updatedPv)
+			if err != nil {
+				return nil, errors.Wrap(err, "unable to convert pod to unstructured item")
+			}
+			return &unstructured.Unstructured{Object: pvMap}, nil
+		}
+	}
+
+	return fromCluster, nil
 }

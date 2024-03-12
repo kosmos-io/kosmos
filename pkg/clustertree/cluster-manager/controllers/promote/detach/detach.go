@@ -7,6 +7,7 @@ import (
 	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/api/equality"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -17,29 +18,59 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/promote/discovery"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/promote/kuberesource"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/promote/requests"
+	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/promote/types"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/promote/utils/archive"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/promote/utils/filesystem"
+	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/promote/utils/kube"
 )
 
 // detach order, crd is detached first
 var defaultDetachPriorities = []schema.GroupResource{
-	kuberesource.CustomResourceDefinitions,
 	kuberesource.StatefulSets,
 	kuberesource.Deployments,
 	kuberesource.ReplicaSets,
+	kuberesource.Services,
 	kuberesource.PersistentVolumeClaims,
+	kuberesource.PersistentVolumes,
+	kuberesource.ServiceAccounts,
+	kuberesource.Configmaps,
+	kuberesource.Secrets,
+	kuberesource.Roles,
+	kuberesource.RoleBindings,
 	kuberesource.Pods,
 }
 
+var defaultUndetachPriorities = []schema.GroupResource{
+	kuberesource.Pods,
+	kuberesource.RoleBindings,
+	kuberesource.Roles,
+	kuberesource.Configmaps,
+	kuberesource.Secrets,
+	kuberesource.ServiceAccounts,
+	kuberesource.PersistentVolumes,
+	kuberesource.PersistentVolumeClaims,
+	kuberesource.Services,
+	kuberesource.ReplicaSets,
+	kuberesource.Deployments,
+	kuberesource.StatefulSets,
+}
+
 type kubernetesDetacher struct {
-	request         *requests.PromoteRequest
-	discoveryHelper discovery.Helper
-	dynamicFactory  client.DynamicFactory // used for connect leaf cluster
-	fileSystem      filesystem.Interface
-	backupReader    io.Reader
-	resourceClients map[resourceClientKey]client.Dynamic
-	detachDir       string
-	actions         map[string]DetachItemAction
+	request           *requests.PromoteRequest
+	discoveryHelper   discovery.Helper
+	dynamicFactory    client.DynamicFactory // used for connect leaf cluster
+	fileSystem        filesystem.Interface
+	backupReader      io.Reader
+	resourceClients   map[resourceClientKey]client.Dynamic
+	detachDir         string
+	actions           map[string]DetachItemAction
+	kosmosClusterName string
+	ownerItems        map[ownerReferenceKey]struct{}
+}
+
+type ownerReferenceKey struct {
+	apiVersion string
+	kind       string
 }
 
 func NewKubernetesDetacher(request *requests.PromoteRequest, backupReader io.Reader) (*kubernetesDetacher, error) {
@@ -54,13 +85,14 @@ func NewKubernetesDetacher(request *requests.PromoteRequest, backupReader io.Rea
 	}
 
 	return &kubernetesDetacher{
-		request:         request,
-		discoveryHelper: discoveryHelper,
-		dynamicFactory:  dynamicFactory,
-		fileSystem:      filesystem.NewFileSystem(),
-		backupReader:    backupReader,
-		resourceClients: make(map[resourceClientKey]client.Dynamic),
-		actions:         actions,
+		request:           request,
+		discoveryHelper:   discoveryHelper,
+		dynamicFactory:    dynamicFactory,
+		fileSystem:        filesystem.NewFileSystem(),
+		backupReader:      backupReader,
+		resourceClients:   make(map[resourceClientKey]client.Dynamic),
+		actions:           actions,
+		kosmosClusterName: request.Spec.ClusterName,
 	}, nil
 }
 
@@ -101,6 +133,7 @@ func (d *kubernetesDetacher) Detach() error {
 
 	// Need to set this for additionalItems to be restored.
 	d.detachDir = dir
+	d.ownerItems = map[ownerReferenceKey]struct{}{}
 
 	backupResources, err := archive.NewParser(d.fileSystem).Parse(d.detachDir)
 	if err != nil {
@@ -138,12 +171,12 @@ func (d *kubernetesDetacher) processSelectedResource(selectedResource detachable
 				return errors.Wrap(err, "detachItem error")
 			}
 
-			key := requests.ItemKey{
+			item := types.ItemKey{
 				Resource:  groupResource.String(),
-				Namespace: obj.GetNamespace(),
-				Name:      obj.GetName(),
+				Name:      selectedItem.name,
+				Namespace: selectedItem.targetNamespace,
 			}
-			d.request.DetachedItems[key] = struct{}{}
+			d.request.DetachedItems[item] = struct{}{}
 		}
 	}
 	return nil
@@ -155,53 +188,137 @@ func (d *kubernetesDetacher) detachItem(obj *unstructured.Unstructured, groupRes
 		return errors.Wrap(err, "getResourceClient error")
 	}
 
-	if groupResource == kuberesource.StatefulSets || groupResource == kuberesource.Deployments || groupResource == kuberesource.ReplicaSets {
-		//级联删除sts、deployment、replicaset等
-		orphanOption := metav1.DeletePropagationOrphan
-		if err = resourceClient.Delete(obj.GetName(), metav1.DeleteOptions{PropagationPolicy: &orphanOption}); err != nil {
-			return errors.Wrap(err, "DeletePropagationOrphan err")
-		}
-	} else if action, ok := d.actions[groupResource.String()]; ok {
-		err := action.Execute(obj, resourceClient)
+	klog.Infof("detach resource %s, name: %s, namespace: %s", groupResource.String(), obj.GetName(), obj.GetNamespace())
+
+	if action, ok := d.actions[groupResource.String()]; ok {
+		err := action.Execute(obj, resourceClient, d)
 		if err != nil {
 			return errors.Errorf("%s detach action error: %v", groupResource.String(), err)
 		}
+		return nil
 	} else {
-		// todo check if the gr provided was a custom resource
-		customResource := false
-		if customResource {
-			updatedObj := obj.DeepCopy()
-			res, ok := updatedObj.Object["metadata"]
-			if !ok {
-				return errors.New("metadata not found")
-			}
-			metadata, ok := res.(map[string]interface{})
-			if !ok {
-				return errors.Errorf("metadata was of type %T, expected map[string]interface{}", res)
+		klog.Infof("no action found for resource %s, delete it", groupResource.String())
+		updatedOwnerObj := obj.DeepCopy()
+		if updatedOwnerObj.GetFinalizers() != nil {
+			updatedOwnerObj.SetFinalizers(nil)
+			patchBytes, err := generatePatch(obj, updatedOwnerObj)
+			if err != nil {
+				return errors.Wrap(err, "error generating patch")
 			}
 
-			if _, ok := metadata["finalizers"]; ok {
-				delete(metadata, "finalizers")
-				patchBytes, err := generatePatch(obj, updatedObj)
-				if err != nil {
-					return errors.Wrap(err, "error generating patch")
-				}
-				if patchBytes == nil {
-					klog.Warningf("the same crd obj, %s", updatedObj.GetName())
-				}
-
-				klog.Infof("delete finalizers for %s", updatedObj.GetName())
-				_, err = resourceClient.Patch(updatedObj.GetName(), patchBytes)
-				if err != nil {
-					return err
-				}
-
-				klog.Infof("delete cr %s", updatedObj.GetName())
-				return resourceClient.Delete(updatedObj.GetName(), metav1.DeleteOptions{})
+			_, err = resourceClient.Patch(updatedOwnerObj.GetName(), patchBytes)
+			if err != nil {
+				return errors.Wrapf(err, "error patch %s %s", groupResource.String(), updatedOwnerObj.GetName())
 			}
+		}
+
+		deleteGraceSeconds := int64(0)
+		err = resourceClient.Delete(updatedOwnerObj.GetName(), metav1.DeleteOptions{GracePeriodSeconds: &deleteGraceSeconds})
+		if err != nil {
+			return errors.Wrapf(err, "error delete %s %s", groupResource.String(), updatedOwnerObj.GetName())
+		}
+	}
+	return nil
+}
+
+func (d *kubernetesDetacher) Rollback(allDetached bool) error {
+	dir, err := archive.NewExtractor(d.fileSystem).UnzipAndExtractBackup(d.backupReader)
+	if err != nil {
+		return errors.Errorf("error unzipping and extracting: %v", err)
+	}
+	defer func() {
+		if err := d.fileSystem.RemoveAll(dir); err != nil {
+			klog.Errorf("error removing temporary directory %s: %s", dir, err.Error())
+		}
+	}()
+
+	d.detachDir = dir
+	d.ownerItems = map[ownerReferenceKey]struct{}{}
+	backupedResources, err := archive.NewParser(d.fileSystem).Parse(d.detachDir)
+	if err != nil {
+		return errors.Errorf("error parse detachDir %s: %v", d.detachDir, err)
+	}
+	klog.Infof("total backup resources size: %v", len(backupedResources))
+
+	resourceCollection, err := d.getOrderedResourceCollection(backupedResources, defaultUndetachPriorities)
+	if err != nil {
+		return err
+	}
+
+	for _, selectedResource := range resourceCollection {
+		err = d.rollbackSelectedResource(selectedResource, allDetached)
+		if err != nil {
+			return err
 		}
 	}
 
+	return nil
+}
+
+func (d *kubernetesDetacher) rollbackSelectedResource(selectedResource detachableResource, allDetached bool) error {
+	groupResource := schema.ParseGroupResource(selectedResource.resource)
+
+	for _, selectedItems := range selectedResource.selectedItemsByNamespace {
+		for _, selectedItem := range selectedItems {
+			if !allDetached {
+				item := types.ItemKey{
+					Resource:  groupResource.String(),
+					Name:      selectedItem.name,
+					Namespace: selectedItem.targetNamespace,
+				}
+
+				if _, ok := d.request.DetachedItems[item]; !ok {
+					// undetached resource, doesn't need to handle
+					continue
+				}
+			}
+
+			obj, err := archive.Unmarshal(d.fileSystem, selectedItem.path)
+			if err != nil {
+				return errors.Errorf("error decoding %q: %v", strings.Replace(selectedItem.path, d.detachDir+"/", "", -1), err)
+			}
+
+			err = d.undetachItem(obj, groupResource, selectedItem.targetNamespace)
+			if err != nil {
+				return errors.Wrap(err, "UndetachItem error")
+			}
+		}
+	}
+	return nil
+}
+
+func (d *kubernetesDetacher) undetachItem(obj *unstructured.Unstructured, groupResource schema.GroupResource, namespace string) error {
+	resourceClient, err := d.getResourceClient(groupResource, obj, namespace)
+	if err != nil {
+		return errors.Wrap(err, "getResourceClient error")
+	}
+
+	klog.Infof("Undetach resource %s, name: %s", groupResource.String(), obj.GetName())
+
+	if action, ok := d.actions[groupResource.String()]; ok {
+		err = action.Revert(obj, resourceClient, d)
+		if err != nil {
+			return errors.Errorf("%s Undetach action error: %v", groupResource.String(), err)
+		}
+
+		return nil
+	} else {
+		klog.Infof("no action found for resource %s, create it immediately", groupResource.String())
+		newObj := obj.DeepCopy()
+		newObj, err := kube.ResetMetadataAndStatus(newObj)
+		if err != nil {
+			return errors.Wrapf(err, "reset %s %s metadata error", obj.GroupVersionKind().String(), obj.GetName())
+		}
+
+		_, err = resourceClient.Create(newObj)
+		if err != nil {
+			if apierrors.IsAlreadyExists(err) {
+				klog.Infof("resource %s is already exist. skip create", newObj.GetName())
+				return nil
+			}
+			return errors.Wrap(err, "create resource "+newObj.GetName()+" failed.")
+		}
+	}
 	return nil
 }
 
@@ -237,6 +354,31 @@ func (d *kubernetesDetacher) getOrderedResourceCollection(
 			detachResourceCollection = append(detachResourceCollection, res)
 		}
 	}
+
+	for owner := range d.ownerItems {
+		klog.Infof("ownerReference: %s %s", owner.apiVersion, owner.kind)
+		gvk := schema.FromAPIVersionAndKind(owner.apiVersion, owner.kind)
+		gvr, _, err := d.discoveryHelper.KindFor(gvk)
+		if err != nil {
+			return nil, errors.Wrapf(err, "resource %s cannot be resolved via discovery", gvk.String())
+		}
+
+		resourceList := backupResources[gvr.GroupResource().String()]
+		if resourceList == nil {
+			klog.Infof("Skipping restore of resource %s because it's not present in the backup tarball", gvr.GroupResource().String())
+			continue
+		}
+
+		for namespace, items := range resourceList.ItemsByNamespace {
+			res, err := d.getSelectedDetachableItems(gvr.GroupResource().String(), namespace, items)
+			if err != nil {
+				return nil, err
+			}
+
+			detachResourceCollection = append(detachResourceCollection, res)
+		}
+	}
+
 	return detachResourceCollection, nil
 }
 
@@ -280,6 +422,17 @@ func (d *kubernetesDetacher) getSelectedDetachableItems(resource string, namespa
 		detachable.selectedItemsByNamespace[namespace] =
 			append(detachable.selectedItemsByNamespace[namespace], selectedItem)
 		detachable.totalItems++
+
+		if resource == kuberesource.StatefulSets.String() || resource == kuberesource.Deployments.String() {
+			for _, owner := range obj.GetOwnerReferences() {
+				ownerKey := ownerReferenceKey{
+					apiVersion: owner.APIVersion,
+					kind:       owner.Kind,
+				}
+
+				d.ownerItems[ownerKey] = struct{}{}
+			}
+		}
 	}
 	return detachable, nil
 }

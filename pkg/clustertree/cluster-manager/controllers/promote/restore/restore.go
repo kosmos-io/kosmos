@@ -13,7 +13,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -25,6 +24,7 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/promote/discovery"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/promote/kuberesource"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/promote/requests"
+	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/promote/types"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/promote/utils/archive"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/promote/utils/filesystem"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/promote/utils/kube"
@@ -51,17 +51,8 @@ High priorities:
     have pod volume restores run before controllers adopt the pods.
   - Replica sets go before deployments/other controllers so they can be explicitly
     restored and be adopted by controllers.
-  - CAPI ClusterClasses go before Clusters.
-  - Endpoints go before Services so no new Endpoints will be created
   - Services go before Clusters so they can be adopted by AKO-operator and no new Services will be created
     for the same clusters
-
-Low priorities:
-  - Tanzu ClusterBootstraps go last as it can reference any other kind of resources.
-  - ClusterBootstraps go before CAPI Clusters otherwise a new default ClusterBootstrap object is created for the cluster
-  - CAPI Clusters come before ClusterResourceSets because failing to do so means the CAPI controller-manager will panic.
-    Both Clusters and ClusterResourceSets need to come before ClusterResourceSetBinding in order to properly restore workload clusters.
-    See https://github.com/kubernetes-sigs/cluster-api/issues/4105
 */
 var defaultRestorePriorities = Priorities{
 	HighPriorities: []string{
@@ -70,17 +61,14 @@ var defaultRestorePriorities = Priorities{
 		"persistentvolumeclaims",
 		"persistentvolumes",
 		"serviceaccounts",
+		"roles.rbac.authorization.k8s.io",
+		"rolebindings.rbac.authorization.k8s.io",
 		"secrets",
 		"configmaps",
-		"limitranges",
 		"pods",
-		// we fully qualify replicasets.apps because prior to Kubernetes 1.16, replicasets also
-		// existed in the extensions API group, but we back up replicasets from "apps" so we want
-		// to ensure that we prioritize restoring from "apps" too, since this is how they're stored
-		// in the backup.
 		"replicasets.apps",
 		"deployments.apps",
-		//"endpoints",
+		"statefulsets.apps",
 		"services",
 	},
 	LowPriorities: []string{},
@@ -88,18 +76,18 @@ var defaultRestorePriorities = Priorities{
 
 // kubernetesRestorer implements Restorer for restoring into a Kubernetes cluster.
 type kubernetesRestorer struct {
+	request                    *requests.PromoteRequest
 	discoveryHelper            discovery.Helper
 	dynamicFactory             client.DynamicFactory
 	fileSystem                 filesystem.Interface
 	restoreDir                 string
 	actions                    map[string]RestoreItemAction
 	namespaceClient            corev1.NamespaceInterface
-	restoredItems              map[requests.ItemKey]restoredItemStatus
 	resourceClients            map[resourceClientKey]client.Dynamic
 	resourceTerminatingTimeout time.Duration
-	resourcePriorities         Priorities
 	backupReader               io.Reader
-	clusterNodeName            string
+	kosmosClusterName          string
+	kosmosNodeName             string
 }
 
 // restoreableResource represents map of individual items of each resource
@@ -136,15 +124,15 @@ func NewKubernetesRestorer(request *requests.PromoteRequest, backupReader io.Rea
 		return nil, err
 	}
 	return &kubernetesRestorer{
+		request:                    request,
 		discoveryHelper:            discoveryHelper,
 		dynamicFactory:             dynamicFactory,
 		namespaceClient:            request.RootClientSet.CoreV1().Namespaces(),
 		resourceTerminatingTimeout: 10 * time.Minute,
 		fileSystem:                 filesystem.NewFileSystem(),
-		resourcePriorities:         defaultRestorePriorities,
 		backupReader:               backupReader,
-		clusterNodeName:            request.Spec.ClusterName,
-		restoredItems:              make(map[requests.ItemKey]restoredItemStatus),
+		kosmosClusterName:          request.Spec.ClusterName,
+		kosmosNodeName:             "kosmos-" + request.Spec.ClusterName,
 		resourceClients:            make(map[resourceClientKey]client.Dynamic),
 		actions:                    actions,
 	}, nil
@@ -183,35 +171,27 @@ func (kr *kubernetesRestorer) Restore() error {
 	klog.Infof("total backup resources size: %v", len(backupResources))
 
 	// totalItems: previously discovered items, i: iteration counter.
-	totalItems, processedItems, existingNamespaces := 0, 0, sets.KeySet(make(map[string]struct{}))
+	processedItems, existingNamespaces := 0, sets.KeySet(make(map[string]struct{}))
 
-	// First restore CRDs. This is needed so that they are available in the cluster
-	// when getOrderedResourceCollection is called again on the whole backup and
-	// needs to validate all resources listed.
-	crdResourceCollection, processedResources, err := kr.getOrderedResourceCollection(
+	klog.Infof("Restore everything order by defaultRestorePriorities")
+	// Restore everything else
+	selectedResourceCollection, _, err := kr.getOrderedResourceCollection(
 		backupResources,
 		make([]restoreableResource, 0),
 		sets.KeySet(make(map[string]string)),
-		Priorities{HighPriorities: []string{"customresourcedefinitions"}},
-		false,
+		defaultRestorePriorities,
+		true,
 	)
 	if err != nil {
 		return errors.Wrap(err, "getOrderedResourceCollection err")
 	}
 
-	klog.Infof("crdResourceCollection size: %s", len(crdResourceCollection))
+	klog.Infof("resource collection size: %s", len(selectedResourceCollection))
 
-	for _, selectedResource := range crdResourceCollection {
-		totalItems += selectedResource.totalItems
-	}
-
-	for _, selectedResource := range crdResourceCollection {
-		// Restore this resource, the update channel is set to nil, to avoid misleading value of "totalItems"
-		// more details see #5990
-		klog.Infof("restore source: %s", selectedResource.resource)
+	for _, selectedResource := range selectedResourceCollection {
+		// Restore this resource
 		processedItems, err = kr.processSelectedResource(
 			selectedResource,
-			totalItems,
 			processedItems,
 			existingNamespaces,
 		)
@@ -220,32 +200,59 @@ func (kr *kubernetesRestorer) Restore() error {
 		}
 	}
 
-	klog.Infof("Restore everything else")
+	return nil
+}
 
-	// Restore everything else
+func (kr *kubernetesRestorer) Rollback(allRestored bool) error {
+	dir, err := archive.NewExtractor(kr.fileSystem).UnzipAndExtractBackup(kr.backupReader)
+	if err != nil {
+		return errors.Errorf("error unzipping and extracting: %v", err)
+	}
+	defer func() {
+		if err := kr.fileSystem.RemoveAll(dir); err != nil {
+			klog.Errorf("error removing temporary directory %s: %s", dir, err.Error())
+		}
+	}()
+
+	// Need to set this for additionalItems to be restored.
+	kr.restoreDir = dir
+
+	backupResources, err := archive.NewParser(kr.fileSystem).Parse(kr.restoreDir)
+	// If ErrNotExist occurs, it implies that the backup to be restored includes zero items.
+	// Need to add a warning about it and jump out of the function.
+	if errors.Cause(err) == archive.ErrNotExist {
+		return errors.Wrap(err, "zero items to be restored")
+	}
+	if err != nil {
+		return errors.Wrap(err, "error parsing backup contents")
+	}
+
+	klog.Infof("total backup resources size: %v", len(backupResources))
+
+	var highProprites []string
+	highProprites = append(highProprites, defaultRestorePriorities.HighPriorities...)
+	reversSlice(highProprites)
+	unestorePriorities := Priorities{
+		HighPriorities: highProprites,
+		LowPriorities:  defaultRestorePriorities.LowPriorities,
+	}
+
 	selectedResourceCollection, _, err := kr.getOrderedResourceCollection(
 		backupResources,
-		crdResourceCollection,
-		processedResources,
-		kr.resourcePriorities,
+		make([]restoreableResource, 0),
+		sets.KeySet(make(map[string]string)),
+		unestorePriorities,
 		true,
 	)
 	if err != nil {
 		return errors.Wrap(err, "getOrderedResourceCollection err")
 	}
 
-	klog.Infof("Restore everything size: %v", len(selectedResourceCollection))
-
 	for _, selectedResource := range selectedResourceCollection {
 		// Restore this resource
-		processedItems, err = kr.processSelectedResource(
-			selectedResource,
-			totalItems,
-			processedItems,
-			existingNamespaces,
-		)
+		err = kr.deleteSelectedResource(selectedResource, allRestored)
 		if err != nil {
-			return errors.Wrap(err, "processSelectedResource err")
+			return errors.Wrap(err, "deleteSelectedResource err")
 		}
 	}
 
@@ -320,7 +327,6 @@ func (kr *kubernetesRestorer) getOrderedResourceCollection(
 // in the expected total restore count.
 func (kr *kubernetesRestorer) processSelectedResource(
 	selectedResource restoreableResource,
-	totalItems int,
 	processedItems int,
 	existingNamespaces sets.Set[string],
 ) (int, error) {
@@ -352,12 +358,12 @@ func (kr *kubernetesRestorer) processSelectedResource(
 
 				// Add the newly created namespace to the list of restored items.
 				if nsCreated {
-					itemKey := requests.ItemKey{
-						Resource:  resourceKey(ns),
+					itemKey := types.ItemKey{
+						Resource:  groupResource.String(),
 						Namespace: ns.Namespace,
 						Name:      ns.Name,
 					}
-					kr.restoredItems[itemKey] = restoredItemStatus{action: constants.ItemRestoreResultCreated, itemExists: true}
+					kr.request.RestoredItems[itemKey] = types.RestoredItemStatus{Action: constants.ItemRestoreResultCreated, ItemExists: true}
 				}
 
 				// Keep track of namespaces that we know exist so we don't
@@ -386,6 +392,41 @@ func (kr *kubernetesRestorer) processSelectedResource(
 	}
 
 	return processedItems, nil
+}
+
+func (kr *kubernetesRestorer) deleteSelectedResource(selectedResource restoreableResource, allRestored bool) error {
+	groupResource := schema.ParseGroupResource(selectedResource.resource)
+
+	for _, selectedItems := range selectedResource.selectedItemsByNamespace {
+		for _, selectedItem := range selectedItems {
+			obj, err := archive.Unmarshal(kr.fileSystem, selectedItem.path)
+			if err != nil {
+				if err != nil {
+					return errors.Errorf("error decoding %q: %v", strings.Replace(selectedItem.path, kr.restoreDir+"/", "", -1), err)
+				}
+			}
+
+			if !allRestored {
+				item := types.ItemKey{
+					Resource:  groupResource.String(),
+					Name:      selectedItem.name,
+					Namespace: selectedItem.targetNamespace,
+				}
+
+				if _, ok := kr.request.RestoredItems[item]; !ok {
+					// unrestored resource, doesn't need to handle
+					continue
+				}
+			}
+
+			_, err = kr.deleteItem(obj, groupResource, selectedItem.targetNamespace)
+			if err != nil {
+				return errors.Wrap(err, "deleteItem error")
+			}
+		}
+	}
+
+	return nil
 }
 
 // getSelectedRestoreableItems applies Kubernetes selectors on individual items
@@ -437,16 +478,6 @@ func (kr *kubernetesRestorer) restoreItem(obj *unstructured.Unstructured, groupR
 	itemExists := false
 	resourceID := getResourceID(groupResource, namespace, obj.GetName())
 
-	//restoreLogger := ctx.log.WithFields(logrus.Fields{
-	//	"namespace":     obj.GetNamespace(),
-	//	"name":          obj.GetName(),
-	//	"groupResource": groupResource.String(),
-	//})
-
-	// Check if group/resource should be restored. We need to do this here since
-	// this method may be getting called for an additional item which is a group/resource
-	// that's excluded.
-
 	if namespace != "" {
 		nsToEnsure := getNamespace(archive.GetItemFilePath(kr.restoreDir, "namespaces", "", obj.GetNamespace()), namespace)
 		_, nsCreated, err := kube.EnsureNamespaceExistsAndIsReady(nsToEnsure, kr.namespaceClient, kr.resourceTerminatingTimeout)
@@ -455,12 +486,12 @@ func (kr *kubernetesRestorer) restoreItem(obj *unstructured.Unstructured, groupR
 		}
 		// Add the newly created namespace to the list of restored items.
 		if nsCreated {
-			itemKey := requests.ItemKey{
-				Resource:  resourceKey(nsToEnsure),
+			itemKey := types.ItemKey{
+				Resource:  groupResource.String(),
 				Namespace: nsToEnsure.Namespace,
 				Name:      nsToEnsure.Name,
 			}
-			kr.restoredItems[itemKey] = restoredItemStatus{action: constants.ItemRestoreResultCreated, itemExists: true}
+			kr.request.RestoredItems[itemKey] = types.RestoredItemStatus{Action: constants.ItemRestoreResultCreated, ItemExists: true}
 		}
 	}
 
@@ -476,33 +507,27 @@ func (kr *kubernetesRestorer) restoreItem(obj *unstructured.Unstructured, groupR
 	name := obj.GetName()
 
 	// Check if we've already restored this itemKey.
-	itemKey := requests.ItemKey{
-		Resource:  resourceKey(obj),
+	itemKey := types.ItemKey{
+		Resource:  groupResource.String(),
 		Namespace: namespace,
 		Name:      name,
 	}
 
-	if prevRestoredItemStatus, exists := kr.restoredItems[itemKey]; exists {
+	if prevRestoredItemStatus, exists := kr.request.RestoredItems[itemKey]; exists {
 		klog.Infof("Skipping %s because it's already been restored.", resourceID)
-		itemExists = prevRestoredItemStatus.itemExists
+		itemExists = prevRestoredItemStatus.ItemExists
 		return itemExists, nil
 	}
-	kr.restoredItems[itemKey] = restoredItemStatus{itemExists: itemExists}
+	kr.request.RestoredItems[itemKey] = types.RestoredItemStatus{ItemExists: itemExists}
 	defer func() {
-		itemStatus := kr.restoredItems[itemKey]
+		itemStatus := kr.request.RestoredItems[itemKey]
 		// the action field is set explicitly
-		if len(itemStatus.action) > 0 {
+		if len(itemStatus.Action) > 0 {
 			return
 		}
-		// no action specified, and no warnings and errors
-		//if errs.IsEmpty() && warnings.IsEmpty() {
-		//	itemStatus.action = itemRestoreResultSkipped
-		//	kr.restoredItems[itemKey] = itemStatus
-		//	return
-		//}
 		// others are all failed
-		itemStatus.action = constants.ItemRestoreResultFailed
-		kr.restoredItems[itemKey] = itemStatus
+		itemStatus.Action = constants.ItemRestoreResultFailed
+		kr.request.RestoredItems[itemKey] = itemStatus
 	}()
 
 	if action, ok := kr.actions[groupResource.String()]; ok {
@@ -514,16 +539,9 @@ func (kr *kubernetesRestorer) restoreItem(obj *unstructured.Unstructured, groupR
 
 	//objStatus, statusFieldExists, statusFieldErr := unstructured.NestedFieldCopy(obj.Object, "status")
 	// Clear out non-core metadata fields and status.
-	if obj, err = resetMetadataAndStatus(obj); err != nil {
+	if obj, err = kube.ResetMetadataAndStatus(obj); err != nil {
 		return itemExists, err
 	}
-
-	// Necessary because we may have remapped the namespace if the namespace is
-	// blank, don't create the key.
-	//originalNamespace := obj.GetNamespace()
-	//if namespace != "" {
-	//	obj.SetNamespace(namespace)
-	//}
 
 	// The object apiVersion might get modified by a RestorePlugin so we need to
 	// get a new client to reflect updated resource path.
@@ -542,7 +560,7 @@ func (kr *kubernetesRestorer) restoreItem(obj *unstructured.Unstructured, groupR
 	_, restoreErr = resourceClient.Create(obj)
 	if restoreErr == nil {
 		itemExists = true
-		kr.restoredItems[itemKey] = restoredItemStatus{action: constants.ItemRestoreResultCreated, itemExists: itemExists}
+		kr.request.RestoredItems[itemKey] = types.RestoredItemStatus{Action: constants.ItemRestoreResultCreated, ItemExists: itemExists}
 	}
 
 	// Error was something other than an AlreadyExists.
@@ -555,6 +573,70 @@ func (kr *kubernetesRestorer) restoreItem(obj *unstructured.Unstructured, groupR
 	}
 
 	return itemExists, nil
+}
+
+func (kr *kubernetesRestorer) deleteItem(obj *unstructured.Unstructured, groupResource schema.GroupResource, namespace string) (bool, error) {
+	// Check if we've already restored this itemKey.
+	itemKey := types.ItemKey{
+		Resource:  groupResource.String(),
+		Namespace: namespace,
+		Name:      obj.GetName(),
+	}
+
+	// The object apiVersion might get modified by a RestorePlugin so we need to
+	// get a new client to reflect updated resource path.
+	resourceClient, err := kr.getResourceClient(groupResource, obj, obj.GetNamespace())
+	if err != nil {
+		return false, errors.Errorf("error getting updated resource client for namespace %q, resource %q: %v", namespace, &groupResource, err)
+	}
+
+	if action, ok := kr.actions[groupResource.String()]; ok {
+		klog.Infof("Attempting to revert %s: %v", obj.GroupVersionKind().Kind, obj.GetName())
+		fromCluster, err := resourceClient.Get(obj.GetName(), metav1.GetOptions{})
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				klog.Warningf("resource %s not found. skip unstore", obj.GroupVersionKind().String(), obj.GetName())
+				return true, nil
+			} else {
+				return false, errors.Wrapf(err, "get resource %s %s failed.", obj.GroupVersionKind().String(), obj.GetName())
+			}
+		}
+
+		updatedObj, err := action.Revert(fromCluster, kr)
+		if err != nil {
+			return false, errors.Errorf("error revert %s action: %v", groupResource.String(), err)
+		}
+
+		patchBytes, err := kube.GeneratePatch(fromCluster, updatedObj)
+		if err != nil {
+			return false, errors.Wrap(err, "error generating patch")
+		}
+		if patchBytes == nil {
+			klog.Infof("the same obj %s. skipped patch", obj.GetName())
+		} else {
+			_, err = resourceClient.Patch(obj.GetName(), patchBytes)
+			if err != nil {
+				return false, errors.Wrapf(err, "patch %s error", obj.GetName())
+			}
+		}
+	}
+
+	klog.Infof("Deleting %s: %v", obj.GroupVersionKind().Kind, obj.GetName())
+	deleteOptions := metav1.DeleteOptions{}
+	if groupResource == kuberesource.Pods {
+		graceDeleteSecond := int64(0)
+		deleteOptions = metav1.DeleteOptions{GracePeriodSeconds: &graceDeleteSecond}
+	}
+	err = resourceClient.Delete(obj.GetName(), deleteOptions)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			klog.Warningf("delete %s %s error because resource not found.", obj.GroupVersionKind().String(), obj.GetName())
+		} else {
+			klog.Errorf("error delete delete %s %s. %s", obj.GroupVersionKind().String(), obj.GetName(), err.Error())
+		}
+	}
+	delete(kr.request.RestoredItems, itemKey)
+	return true, nil
 }
 
 func (kr *kubernetesRestorer) getResourceClient(groupResource schema.GroupResource, obj *unstructured.Unstructured, namespace string) (client.Dynamic, error) {
@@ -621,40 +703,6 @@ func getResourceID(groupResource schema.GroupResource, namespace, name string) s
 	}
 
 	return fmt.Sprintf("%s/%s/%s", groupResource.String(), namespace, name)
-}
-
-func resetStatus(obj *unstructured.Unstructured) {
-	unstructured.RemoveNestedField(obj.UnstructuredContent(), "status")
-}
-
-func resetMetadataAndStatus(obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
-	_, err := resetMetadata(obj)
-	if err != nil {
-		return nil, err
-	}
-	resetStatus(obj)
-	return obj, nil
-}
-
-func resetMetadata(obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
-	res, ok := obj.Object["metadata"]
-	if !ok {
-		return nil, errors.New("metadata not found")
-	}
-	metadata, ok := res.(map[string]interface{})
-	if !ok {
-		return nil, errors.Errorf("metadata was of type %T, expected map[string]interface{}", res)
-	}
-
-	for k := range metadata {
-		switch k {
-		case "generateName", "selfLink", "uid", "resourceVersion", "generation", "creationTimestamp", "deletionTimestamp",
-			"deletionGracePeriodSeconds", "ownerReferences":
-			delete(metadata, k)
-		}
-	}
-
-	return obj, nil
 }
 
 // getNamespace returns a namespace API object that we should attempt to
@@ -734,12 +782,9 @@ func getOrderedResources(resourcePriorities Priorities, backupResources map[stri
 	return append(list, resourcePriorities.LowPriorities...)
 }
 
-func resourceKey(obj runtime.Object) string {
-	gvk := obj.GetObjectKind().GroupVersionKind()
-	return fmt.Sprintf("%s/%s", gvk.GroupVersion().String(), gvk.Kind)
-}
-
-type restoredItemStatus struct {
-	action     string
-	itemExists bool
+// ReversSlice reverse the slice
+func reversSlice(s []string) {
+	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
+		s[i], s[j] = s[j], s[i]
+	}
 }

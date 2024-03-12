@@ -2,7 +2,6 @@ package backup
 
 import (
 	"archive/tar"
-	"fmt"
 	"time"
 
 	"github.com/pkg/errors"
@@ -18,6 +17,7 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/promote/client"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/promote/discovery"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/promote/requests"
+	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/promote/types"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/promote/utils/archive"
 )
 
@@ -68,8 +68,8 @@ func (ib *itemBackupper) backupItemInternal(obj runtime.Unstructured, groupResou
 	namespace := metadata.GetNamespace()
 	name := metadata.GetName()
 
-	key := requests.ItemKey{
-		Resource:  resourceKey(obj),
+	key := types.ItemKey{
+		Resource:  groupResource.String(),
 		Namespace: namespace,
 		Name:      name,
 	}
@@ -188,11 +188,4 @@ func getFileForArchive(namespace, name, groupResource, versionPath string, itemB
 func resourceVersion(obj runtime.Unstructured) string {
 	gvk := obj.GetObjectKind().GroupVersionKind()
 	return gvk.Version
-}
-
-// resourceKey returns a string representing the object's GroupVersionKind (e.g.
-// apps/v1/Deployment).
-func resourceKey(obj runtime.Unstructured) string {
-	gvk := obj.GetObjectKind().GroupVersionKind()
-	return fmt.Sprintf("%s/%s", gvk.GroupVersion().String(), gvk.Kind)
 }

@@ -22,7 +22,6 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/mcs"
 	podcontrollers "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/pod"
-	_ "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/promote"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/pv"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/pvc"
 	nodeserver "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/node-server"

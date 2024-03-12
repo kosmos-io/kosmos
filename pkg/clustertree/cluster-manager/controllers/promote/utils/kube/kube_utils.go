@@ -21,14 +21,17 @@ import (
 	"fmt"
 	"time"
 
+	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/pkg/errors"
 	corev1api "k8s.io/api/core/v1"
 	apiextv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apiextv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/apimachinery/pkg/util/wait"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 )
@@ -101,6 +104,40 @@ func EnsureNamespaceExistsAndIsReady(namespace *corev1api.Namespace, client core
 	return true, nsCreated, nil
 }
 
+func resetStatus(obj *unstructured.Unstructured) {
+	unstructured.RemoveNestedField(obj.UnstructuredContent(), "status")
+}
+
+func ResetMetadataAndStatus(obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
+	_, err := resetMetadata(obj)
+	if err != nil {
+		return nil, err
+	}
+	resetStatus(obj)
+	return obj, nil
+}
+
+func resetMetadata(obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
+	res, ok := obj.Object["metadata"]
+	if !ok {
+		return nil, errors.New("metadata not found")
+	}
+	metadata, ok := res.(map[string]interface{})
+	if !ok {
+		return nil, errors.Errorf("metadata was of type %T, expected map[string]interface{}", res)
+	}
+
+	for k := range metadata {
+		switch k {
+		case "generateName", "selfLink", "uid", "resourceVersion", "generation", "creationTimestamp", "deletionTimestamp",
+			"deletionGracePeriodSeconds", "ownerReferences":
+			delete(metadata, k)
+		}
+	}
+
+	return obj, nil
+}
+
 // IsV1CRDReady checks a v1 CRD to see if it's ready, with both the Established and NamesAccepted conditions.
 func IsV1CRDReady(crd *apiextv1.CustomResourceDefinition) bool {
 	var isEstablished, namesAccepted bool
@@ -152,4 +189,28 @@ func IsCRDReady(crd *unstructured.Unstructured) (bool, error) {
 	default:
 		return false, fmt.Errorf("unable to handle CRD with version %s", ver)
 	}
+}
+
+func GeneratePatch(fromCluster, desired *unstructured.Unstructured) ([]byte, error) {
+	// If the objects are already equal, there's no need to generate a patch.
+	if equality.Semantic.DeepEqual(fromCluster, desired) {
+		return nil, nil
+	}
+
+	desiredBytes, err := json.Marshal(desired.Object)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to marshal desired object")
+	}
+
+	fromClusterBytes, err := json.Marshal(fromCluster.Object)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to marshal in-cluster object")
+	}
+
+	patchBytes, err := jsonpatch.CreateMergePatch(fromClusterBytes, desiredBytes)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to create merge patch")
+	}
+
+	return patchBytes, nil
 }

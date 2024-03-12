@@ -70,10 +70,16 @@ spec:
                   type: string
                 nullable: true
                 type: array
+              rollback:
+                description: Rollback set true, then rollback from the backup
+                nullable: true
+                type: string
             type: object
           status:
             description: PromotePolicyStatus defines the observed state of promotePolicy
             properties:
+              backedupFile:
+                type: string
               completionTimestamp:
                 description: CompletionTimestamp records the time a sync was completed.
                   Completion time is recorded even on failed sync. The server's time
