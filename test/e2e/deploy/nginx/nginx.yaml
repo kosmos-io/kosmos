@@ -23,6 +23,10 @@ spec:
           operator: "Equal"
           value: "true"
           effect: "NoSchedule"
+        - key: "test-node/e2e"
+          operator: "Equal"
+          value: "leafnode"
+          effect: "NoSchedule"
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:

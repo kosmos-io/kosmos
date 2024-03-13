@@ -9,7 +9,7 @@ concurrency:
 jobs:
   verify:
     name: verify
-    runs-on: self-hosted
+    runs-on: [self-hosted, ecs]
     if: ${{ always() }}
     env:
       #GOPATH: ${{ github.workspace }}
@@ -38,7 +38,7 @@ jobs:
   build:
     name: build
     needs: verify
-    runs-on: self-hosted
+    runs-on: [self-hosted, ecs]
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -54,7 +54,7 @@ jobs:
   test:
     name: Unit test
     needs: build
-    runs-on: self-hosted
+    runs-on: [self-hosted, ecs]
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -68,7 +68,14 @@ jobs:
     needs: build
     env:
       GOPROXY: "https://goproxy.cn,direct"
-    runs-on: self-hosted
+    runs-on: [self-hosted, ecs]
+    strategy:
+      fail-fast: false
+      matrix:
+        # Here support the latest three minor releases of Kubernetes, this can be considered to be roughly
+        # the same as the End of Life of the Kubernetes release: https://kubernetes.io/releases/
+        # Please remember to update the CI Schedule Workflow when we add a new version.
+        k8s: [ v1.27.2, v1.28.0, v1.29.0 ]
     steps:
       # Free up disk space on Ubuntu
       - name: Free Disk Space (Ubuntu)
@@ -92,12 +99,22 @@ jobs:
         with:
           go-version: '1.20'
       - name: Prepare e2e env
-        run: ./hack/prepare-e2e.sh
+        env:
+          KIND_IMAGE: kindest/node:${{ matrix.k8s }}
+        run:  hack/local-up-kosmos.sh
       - name: Run e2e test
-        run: ./hack/rune2e.sh
+        env:
+          ARTIFACTS_PATH: ${{ github.workspace }}/e2e-test/${{ matrix.k8s }}/
+        run: hack/rune2e.sh
       - name: Upload logs
         uses: actions/upload-artifact@v3
-        if: failure()
+        if: always()
         with:
-          name: kosmos-e2e-logs-${{ github.run_id }}
-          path: ${{ github.workspace }}/e2e-test/logs-*
+          name: kosmos-e2e-logs-${{ github.run_id }}_${{ matrix.k8s }}
+          path: ${{ github.workspace }}/e2e-test/${{ matrix.k8s }}/
+      - name: upload environments logs
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: kosmos_environments_log_${{ matrix.k8s }}
+          path: ${{ github.workspace }}/environments

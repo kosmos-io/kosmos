@@ -3,6 +3,7 @@ package install
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
@@ -44,14 +45,17 @@ var installExample = templates.Examples(i18n.T(`
 		kosmosctl install -m coredns`))
 
 type CommandInstallOptions struct {
-	Namespace            string
-	ImageRegistry        string
-	Version              string
-	Module               string
-	HostKubeConfig       string
-	HostContext          string
-	HostKubeConfigStream []byte
-	WaitTime             int
+	Namespace             string
+	ImageRegistry         string
+	Version               string
+	Module                string
+	HostKubeConfig        string
+	InnerKubeConfig       string
+	HostContext           string
+	HostKubeConfigStream  []byte
+	InnerKubeConfigStream []byte
+
+	WaitTime int
 
 	CNI            string
 	DefaultNICName string
@@ -92,6 +96,7 @@ func NewCmdInstall() *cobra.Command {
 	flags.StringVar(&o.Version, "version", "", "image version for pull images")
 	flags.StringVarP(&o.Module, "module", "m", utils.All, "Kosmos specify the module to install.")
 	flags.StringVar(&o.HostKubeConfig, "kubeconfig", "", "Absolute path to the special kubeconfig file.")
+	flags.StringVar(&o.InnerKubeConfig, "inner-kubeconfig", "", "Absolute path to the special inner kubeconfig file for cluster resource to use.")
 	flags.StringVar(&o.HostContext, "context", "", "The name of the kubeconfig context.")
 	flags.StringVar(&o.CNI, "cni", "", "The cluster is configured using cni and currently supports calico and flannel.")
 	flags.StringVar(&o.DefaultNICName, "default-nic", "", "Set default network interface card.")
@@ -107,6 +112,18 @@ func NewCmdInstall() *cobra.Command {
 }
 
 func (o *CommandInstallOptions) Complete() error {
+	// if innerKubeconfig is not null init the InnerKubeconfigStream
+	if o.InnerKubeConfig != "" && len(strings.TrimSpace(o.InnerKubeConfig)) != 0 {
+		innerRawConfig, err := utils.RawConfig(o.InnerKubeConfig, o.HostContext)
+		if err != nil {
+			return fmt.Errorf("kosmosctl install complete error, read inner kubeconfig failed: %s", err)
+		}
+		o.InnerKubeConfigStream, err = clientcmd.Write(innerRawConfig)
+		if err != nil {
+			return fmt.Errorf("kosmosctl install complete error, generate inner kubeconfig streams failed: %s", err)
+		}
+		klog.Infof("inner kubeconfig path %s, kubeconfig stream %s", o.InnerKubeConfig, string(o.InnerKubeConfigStream))
+	}
 	config, err := utils.RestConfig(o.HostKubeConfig, o.HostContext)
 	if err != nil {
 		return fmt.Errorf("kosmosctl install complete error, generate host config failed: %s", err)
@@ -407,7 +424,12 @@ func (o *CommandInstallOptions) runClustertree() error {
 			Namespace: o.Namespace,
 		},
 		Data: map[string]string{
-			"kubeconfig": string(o.HostKubeConfigStream),
+			"kubeconfig": string(func() []byte {
+				if len(o.InnerKubeConfigStream) != 0 {
+					return o.InnerKubeConfigStream
+				}
+				return o.HostKubeConfigStream
+			}()),
 		},
 	}
 	_, err = o.K8sClient.CoreV1().ConfigMaps(o.Namespace).Create(context.TODO(), clustertreeConfigMap, metav1.CreateOptions{})
@@ -504,7 +526,12 @@ func (o *CommandInstallOptions) createOperator() error {
 			Namespace: o.Namespace,
 		},
 		Data: map[string][]byte{
-			"kubeconfig": o.HostKubeConfigStream,
+			"kubeconfig": func() []byte {
+				if len(o.InnerKubeConfigStream) != 0 {
+					return o.InnerKubeConfigStream
+				}
+				return o.HostKubeConfigStream
+			}(),
 		},
 	}
 	_, err = o.K8sClient.CoreV1().Secrets(operatorSecret.Namespace).Create(context.TODO(), operatorSecret, metav1.CreateOptions{})
@@ -557,15 +584,16 @@ func (o *CommandInstallOptions) createControlCluster() error {
 	clusterArgs := []string{"cluster"}
 
 	joinOptions := join.CommandJoinOptions{
-		Name:                utils.DefaultClusterName,
-		Namespace:           o.Namespace,
-		ImageRegistry:       o.ImageRegistry,
-		KubeConfigStream:    o.HostKubeConfigStream,
-		WaitTime:            o.WaitTime,
-		KosmosClient:        o.KosmosClient,
-		K8sClient:           o.K8sClient,
-		K8sExtensionsClient: o.K8sExtensionsClient,
-		RootFlag:            true,
+		Name:                  utils.DefaultClusterName,
+		Namespace:             o.Namespace,
+		ImageRegistry:         o.ImageRegistry,
+		KubeConfigStream:      o.HostKubeConfigStream,
+		InnerKubeconfigStream: o.InnerKubeConfigStream,
+		WaitTime:              o.WaitTime,
+		KosmosClient:          o.KosmosClient,
+		K8sClient:             o.K8sClient,
+		K8sExtensionsClient:   o.K8sExtensionsClient,
+		RootFlag:              true,
 	}
 
 	switch o.Module {
