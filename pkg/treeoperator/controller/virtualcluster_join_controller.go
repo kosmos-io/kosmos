@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"sync"
 
 	corev1 "k8s.io/api/core/v1"
 	extensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
@@ -45,6 +46,9 @@ type VirtualClusterJoinController struct {
 	KubeconfigPath   string
 	KubeconfigStream []byte
 }
+
+var nodeOwnerMap map[string]string = make(map[string]string)
+var mu sync.Mutex
 
 func (c *VirtualClusterJoinController) RemoveClusterFinalizer(cluster *v1alpha1.Cluster, kosmosClient versioned.Interface) error {
 	for _, finalizer := range []string{utils.ClusterStartControllerFinalizer, clusterManager.ControllerFinalizerName} {
@@ -142,6 +146,11 @@ func (c *VirtualClusterJoinController) UninstallClusterTree(ctx context.Context,
 			return fmt.Errorf("get cluster %s failed when we try to del: %v", clusterName, err)
 		}
 	} else {
+		mu.Lock()
+		for _, nodeName := range old.Spec.ClusterTreeOptions.LeafModels {
+			nodeOwnerMap[nodeName.LeafNodeName] = ""
+		}
+		mu.Unlock()
 		err = c.RemoveClusterFinalizer(old, kosmosClient)
 		if err != nil {
 			return fmt.Errorf("removefinalizer %s failed: %v", clusterName, err)
@@ -211,6 +220,7 @@ func (c *VirtualClusterJoinController) DeployKosmos(ctx context.Context, request
 		imageRepository = utils.DefaultImageRepository
 	}
 
+	//TODO: hard coded,modify in future
 	imageVersion := "v0.3.0" //os.Getenv(constants.DefauleImageVersionEnv)
 	if len(imageVersion) == 0 {
 		imageVersion = fmt.Sprintf("v%s", version.GetReleaseVersion().PatchRelease())
@@ -251,6 +261,33 @@ func (c *VirtualClusterJoinController) CreateCluster(ctx context.Context, reques
 	if err != nil {
 		return fmt.Errorf("crd kubernetes client failed: %v", err)
 	}
+
+	serviceExport, err := util.GenerateCustomResourceDefinition(manifest.ServiceExport, nil)
+	if err != nil {
+		return err
+	}
+	_, err = k8sExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Create(context.Background(), serviceExport, metav1.CreateOptions{})
+	if err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return fmt.Errorf("Create CRD %s for virtualcluster %s/%s failed: %v.",
+				serviceExport.Name, request.Namespace, request.Name, err)
+		}
+	}
+	klog.Infof("Create CRD %s for virtualcluster %s/%s successful.", serviceExport.Name, request.Namespace, request.Name)
+
+	serviceImport, err := util.GenerateCustomResourceDefinition(manifest.ServiceImport, nil)
+	if err != nil {
+		return err
+	}
+	_, err = k8sExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Create(context.Background(), serviceImport, metav1.CreateOptions{})
+	if err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return fmt.Errorf("Create CRD %s for virtualcluster %s/%s failed: %v.",
+				serviceImport.Name, request.Namespace, request.Name, err)
+		}
+	}
+	klog.Info("Create CRD %s for virtualcluster %s/%s successful.", serviceImport.Name, request.Namespace, request.Name)
+
 	_, err = k8sExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Create(context.Background(), clustertreeCluster, metav1.CreateOptions{})
 	if err != nil {
 		if apierrors.IsAlreadyExists(err) {
@@ -287,11 +324,18 @@ func (c *VirtualClusterJoinController) CreateCluster(ctx context.Context, reques
 		return fmt.Errorf("crd kubernetes client failed: %v", err)
 	}
 	var leafModels []v1alpha1.LeafModel
+	mu.Lock()
 	for _, nodeName := range vc.Spec.PromoteResources.Nodes {
 		_, err := hostK8sClient.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
 		if err != nil {
 			klog.Errorf("node %s doesn't exits: %v", nodeName, err)
 			continue
+		}
+		if len(nodeOwnerMap) > 0 {
+			if nodeOwner, existed := nodeOwnerMap[nodeName]; existed && len(nodeOwner) > 0 &&
+				nodeOwner != clusterName {
+				continue
+			}
 		}
 		leafModel := v1alpha1.LeafModel{
 			LeafNodeName: nodeName,
@@ -306,8 +350,10 @@ func (c *VirtualClusterJoinController) CreateCluster(ctx context.Context, reques
 				NodeName: nodeName,
 			},
 		}
+		nodeOwnerMap[nodeName] = clusterName
 		leafModels = append(leafModels, leafModel)
 	}
+	mu.Unlock()
 	cluster.Spec.ClusterTreeOptions.LeafModels = leafModels
 
 	old, err := kosmosClient.KosmosV1alpha1().Clusters().Get(context.TODO(), clusterName, metav1.GetOptions{})
