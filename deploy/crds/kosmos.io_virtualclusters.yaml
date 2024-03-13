@@ -1,9 +1,10 @@
+
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.11.0
+    controller-gen.kubebuilder.io/version: v0.7.0
   creationTimestamp: null
   name: virtualclusters.kosmos.io
 spec:
@@ -43,11 +44,18 @@ spec:
                   to the kubernetes's control plane, the resources can be nodes or
                   just cpu,memory or gpu resources
                 properties:
-                  nodes:
-                    description: Nodes is the names of node to promote to the kubernetes's
-                      control plane
+                  nodeInfos:
+                    description: NodeInfos is the info of nodes to promote to the
+                      kubernetes's control plane
                     items:
-                      type: string
+                      properties:
+                        address:
+                          description: Address defines node ip
+                          type: string
+                        nodeName:
+                          description: NodeName defines node name
+                          type: string
+                      type: object
                     type: array
                   resources:
                     additionalProperties:
@@ -75,3 +83,9 @@ spec:
         type: object
     served: true
     storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
