@@ -11,6 +11,7 @@ import (
 type Options struct {
 	LeaderElection    componentbaseconfig.LeaderElectionConfiguration
 	KubernetesOptions KubernetesOptions
+	NodeReuse         bool
 }
 
 type KubernetesOptions struct {
@@ -43,4 +44,5 @@ func (o *Options) AddFlags(flags *pflag.FlagSet) {
 	flags.IntVar(&o.KubernetesOptions.Burst, "kube-burst", 60, "Burst to use while talking with kube-apiserver.")
 	flags.StringVar(&o.KubernetesOptions.KubeConfig, "kubeconfig", "", "Path for kubernetes kubeconfig file, if left blank, will use in cluster way.")
 	flags.StringVar(&o.KubernetesOptions.Master, "master", "", "Used to generate kubeconfig for downloading, if not specified, will use host in kubeconfig.")
+	flags.BoolVar(&o.NodeReuse, "node-reuse", false, "different virtual cluster can reuse same node.")
 }

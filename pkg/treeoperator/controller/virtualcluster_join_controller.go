@@ -45,6 +45,7 @@ type VirtualClusterJoinController struct {
 	EventRecorder    record.EventRecorder
 	KubeconfigPath   string
 	KubeconfigStream []byte
+	NodeReuse        bool
 }
 
 var nodeOwnerMap map[string]string = make(map[string]string)
@@ -146,11 +147,13 @@ func (c *VirtualClusterJoinController) UninstallClusterTree(ctx context.Context,
 			return fmt.Errorf("get cluster %s failed when we try to del: %v", clusterName, err)
 		}
 	} else {
-		mu.Lock()
-		for _, nodeName := range old.Spec.ClusterTreeOptions.LeafModels {
-			nodeOwnerMap[nodeName.LeafNodeName] = ""
+		if !c.NodeReuse {
+			mu.Lock()
+			for _, nodeName := range old.Spec.ClusterTreeOptions.LeafModels {
+				nodeOwnerMap[nodeName.LeafNodeName] = ""
+			}
+			mu.Unlock()
 		}
-		mu.Unlock()
 		err = c.RemoveClusterFinalizer(old, kosmosClient)
 		if err != nil {
 			return fmt.Errorf("removefinalizer %s failed: %v", clusterName, err)
@@ -331,7 +334,7 @@ func (c *VirtualClusterJoinController) CreateCluster(ctx context.Context, reques
 			klog.Errorf("node %s doesn't exits: %v", nodeName, err)
 			continue
 		}
-		if len(nodeOwnerMap) > 0 {
+		if !c.NodeReuse && len(nodeOwnerMap) > 0 {
 			if nodeOwner, existed := nodeOwnerMap[nodeName]; existed && len(nodeOwner) > 0 &&
 				nodeOwner != clusterName {
 				continue
@@ -350,7 +353,9 @@ func (c *VirtualClusterJoinController) CreateCluster(ctx context.Context, reques
 				NodeName: nodeName,
 			},
 		}
-		nodeOwnerMap[nodeName] = clusterName
+		if !c.NodeReuse {
+			nodeOwnerMap[nodeName] = clusterName
+		}
 		leafModels = append(leafModels, leafModel)
 	}
 	mu.Unlock()

@@ -86,6 +86,7 @@ func run(ctx context.Context, opts *options.Options) error {
 		Client:         mgr.GetClient(),
 		EventRecorder:  mgr.GetEventRecorderFor(constants.JoinControllerName),
 		KubeconfigPath: opts.KubernetesOptions.KubeConfig,
+		NodeReuse:      opts.NodeReuse,
 	}
 	if err = VirtualClusterJoinController.SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("error starting %s: %v", constants.JoinControllerName, err)
