@@ -75,6 +75,7 @@ func (p *PodAction) Revert(obj *unstructured.Unstructured, client client.Dynamic
 	if labels != nil {
 		if _, ok := labels["kosmos-io/pod"]; ok {
 			delete(labels, "kosmos-io/pod")
+			delete(labels, "kosmos-io/synced")
 			updatedPod.SetLabels(labels)
 			podMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&updatedPod)
 			if err != nil {

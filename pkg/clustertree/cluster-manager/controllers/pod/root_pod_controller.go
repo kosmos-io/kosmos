@@ -560,73 +560,122 @@ func (r *RootPodReconciler) changeToMasterCoreDNS(ctx context.Context, pod *core
 	}
 }
 
-// projectedHandler Process the project volume, creating and mounting secret, configmap, DownwardAPI,
+// createProjectedHandler Process the project volume, creating and mounting secret, configmap, DownwardAPI,
 // and ServiceAccountToken from the project volume in the member cluster to the pod of the host cluster
-func (r *RootPodReconciler) projectedHandler(ctx context.Context, lr *leafUtils.LeafResource, pod *corev1.Pod) {
+func (r *RootPodReconciler) createProjectedHandler(ctx context.Context, lr *leafUtils.LeafResource, pod *corev1.Pod) {
 	if pod.Spec.Volumes == nil {
 		return
 	}
 
 	for _, volume := range pod.Spec.Volumes {
 		if volume.Projected != nil {
-			falseValue := false
-			pod.Spec.AutomountServiceAccountToken = &falseValue
-
-			saName := pod.Spec.ServiceAccountName
-			var sources []corev1.VolumeProjection
-
-			for _, projectedVolumeSource := range volume.Projected.Sources {
-				// Process all resources for the rootpod
-				if projectedVolumeSource.ServiceAccountToken != nil {
-					tokenSecretName, err := r.createSATokenInLeafCluster(ctx, lr, saName, pod)
-					if err != nil {
-						klog.Errorf("[convertAuth] create sa secret failed, ns: %s, pod: %s, err: %s", pod.Namespace, pod.Name, err)
-						return
-					}
-					secretProjection := corev1.VolumeProjection{
-						Secret: &corev1.SecretProjection{
-							Items: []corev1.KeyToPath{
-								{
-									Key:  "token",
-									Path: projectedVolumeSource.ServiceAccountToken.Path,
-								},
-							},
-						},
-					}
-					secretProjection.Secret.Name = tokenSecretName
-					sources = append(sources, secretProjection)
-				}
-				if projectedVolumeSource.ConfigMap != nil {
-					cmName, err := r.createConfigMapInLeafCluster(ctx, lr, projectedVolumeSource.ConfigMap.Name, pod)
-					if err != nil {
-						klog.Errorf("[convertAuth] create configmap failed, ns: %s, cm: %s, err: %s", pod.Namespace, cmName, err)
-						return
-					}
-					cmDeepCopy := projectedVolumeSource.DeepCopy()
-					cmDeepCopy.ConfigMap.Name = cmName
-					sources = append(sources, *cmDeepCopy)
-				}
-				if projectedVolumeSource.Secret != nil {
-					Secret := projectedVolumeSource.Secret
-					seName, err := r.createSecretInLeafCluster(ctx, lr, Secret.Name, pod)
-					if err != nil {
-						klog.Errorf("[convertAuth] create secret failed, ns: %s, cm: %s, err: %s", pod.Namespace, seName, err)
-						return
-					}
-					secretDeepCopy := projectedVolumeSource.DeepCopy()
-					secretDeepCopy.Secret.Name = seName
-					sources = append(sources, *secretDeepCopy)
-				}
-				if projectedVolumeSource.DownwardAPI != nil {
-					DownwardAPIProjection := corev1.VolumeProjection{
-						DownwardAPI: projectedVolumeSource.DownwardAPI,
-					}
-					sources = append(sources, DownwardAPIProjection)
-				}
+			if sources := r.projectedHandler(ctx, lr, volume, pod); sources != nil {
+				volume.Projected.Sources = sources
 			}
-			volume.Projected.Sources = sources
 		}
 	}
+}
+
+// updateProjectedHandler update projected volume
+func (r *RootPodReconciler) updateProjectedHandler(ctx context.Context, lr *leafUtils.LeafResource, rootPod, podCopy *corev1.Pod) {
+	if rootPod.Spec.Volumes == nil {
+		return
+	}
+	var leafPodVolumes []corev1.Volume
+	if podCopy.Spec.Volumes == nil {
+		leafPodVolumes = nil
+	} else {
+		leafPodVolumes = podCopy.Spec.Volumes
+	}
+
+	var volumeCopy []corev1.Volume
+
+	for _, volume := range rootPod.Spec.Volumes {
+		if volume.Projected != nil {
+			if _, flag := findVolumeInClient(volume, leafPodVolumes); !flag {
+				if sources := r.projectedHandler(ctx, lr, volume, podCopy); sources != nil {
+					volume.Projected.Sources = sources
+				}
+			}
+		}
+		volumeCopy = append(volumeCopy, volume)
+	}
+	podCopy.Spec.Volumes = volumeCopy
+}
+
+func (r *RootPodReconciler) projectedHandler(ctx context.Context, lr *leafUtils.LeafResource, volume corev1.Volume, pod *corev1.Pod) []corev1.VolumeProjection {
+	falseValue := false
+	pod.Spec.AutomountServiceAccountToken = &falseValue
+
+	saName := pod.Spec.ServiceAccountName
+	var sources []corev1.VolumeProjection
+
+	for _, projectedVolumeSource := range volume.Projected.Sources {
+		// Process all resources for the rootpod
+		if projectedVolumeSource.ServiceAccountToken != nil {
+			tokenSecretName, err := r.createSATokenInLeafCluster(ctx, lr, saName, pod)
+			if err != nil {
+				klog.Errorf("[convertAuth] create sa secret failed, ns: %s, pod: %s, err: %s", pod.Namespace, pod.Name, err)
+				return nil
+			}
+			secretProjection := corev1.VolumeProjection{
+				Secret: &corev1.SecretProjection{
+					Items: []corev1.KeyToPath{
+						{
+							Key:  "token",
+							Path: projectedVolumeSource.ServiceAccountToken.Path,
+						},
+					},
+				},
+			}
+			secretProjection.Secret.Name = tokenSecretName
+			sources = append(sources, secretProjection)
+		}
+		if projectedVolumeSource.ConfigMap != nil {
+			cmName, err := r.createConfigMapInLeafCluster(ctx, lr, projectedVolumeSource.ConfigMap.Name, pod)
+			if err != nil {
+				klog.Errorf("[convertAuth] create configmap failed, ns: %s, cm: %s, err: %s", pod.Namespace, cmName, err)
+				return nil
+			}
+			cmDeepCopy := projectedVolumeSource.DeepCopy()
+			cmDeepCopy.ConfigMap.Name = cmName
+			sources = append(sources, *cmDeepCopy)
+		}
+		if projectedVolumeSource.Secret != nil {
+			Secret := projectedVolumeSource.Secret
+			seName, err := r.createSecretInLeafCluster(ctx, lr, Secret.Name, pod)
+			if err != nil {
+				klog.Errorf("[convertAuth] create secret failed, ns: %s, cm: %s, err: %s", pod.Namespace, seName, err)
+				return nil
+			}
+			secretDeepCopy := projectedVolumeSource.DeepCopy()
+			secretDeepCopy.Secret.Name = seName
+			sources = append(sources, *secretDeepCopy)
+		}
+		if projectedVolumeSource.DownwardAPI != nil {
+			DownwardAPIProjection := corev1.VolumeProjection{
+				DownwardAPI: projectedVolumeSource.DownwardAPI,
+			}
+			sources = append(sources, DownwardAPIProjection)
+		}
+	}
+	return sources
+}
+
+func findVolumeInClient(volumeInRoot corev1.Volume, volumes []corev1.Volume) (corev1.Volume, bool) {
+	if volumes == nil {
+		return corev1.Volume{}, false
+	}
+
+	for _, volume := range volumes {
+		if volume.Projected != nil && volume.Name == volumeInRoot.Name {
+			if reflect.DeepEqual(volume.Projected, volumeInRoot.Projected) {
+				return volume, true
+			}
+		}
+	}
+
+	return corev1.Volume{}, false
 }
 
 // createServiceAccountInLeafCluster Create an sa corresponding to token-secret in member cluster
@@ -882,7 +931,7 @@ func (r *RootPodReconciler) CreatePodInLeafCluster(ctx context.Context, lr *leaf
 		klog.V(4).Infof("Creating Volumes successed %+v", basicPod)
 	}
 
-	r.projectedHandler(ctx, lr, basicPod)
+	r.createProjectedHandler(ctx, lr, basicPod)
 
 	if !r.Options.MultiClusterService {
 		r.changeToMasterCoreDNS(ctx, basicPod, r.Options)
@@ -924,7 +973,7 @@ func (r *RootPodReconciler) UpdatePodInLeafCluster(ctx context.Context, lr *leaf
 		return nil
 	}
 
-	r.projectedHandler(ctx, lr, podCopy)
+	r.updateProjectedHandler(ctx, lr, rootPod, podCopy)
 
 	if !r.Options.MultiClusterService {
 		r.changeToMasterCoreDNS(ctx, podCopy, r.Options)
