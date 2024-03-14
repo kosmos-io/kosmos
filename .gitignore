@@ -25,3 +25,6 @@ environments/**
 e2e-logs
 
 _delete/
+
+ignore_dir
+kube-config
