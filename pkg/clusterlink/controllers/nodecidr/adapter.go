@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -16,6 +17,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
+	clusterlinkv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	clusterlister "github.com/kosmos.io/kosmos/pkg/generated/listers/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/utils"
 )
@@ -68,12 +70,14 @@ func (c *commonAdapter) start(stopCh <-chan struct{}) error {
 	informerFactory.WaitForCacheSync(stopCh)
 
 	c.sync = true
+	klog.Info("common informer started!")
 	return nil
 }
 
 func (c *commonAdapter) getCIDRByNodeName(nodeName string) ([]string, error) {
 	node, err := c.nodeLister.Get(nodeName)
 	if err != nil {
+		klog.Infof("get node %s error:%v", nodeName, err)
 		return nil, err
 	}
 
@@ -131,6 +135,7 @@ func NewCalicoAdapter(config *rest.Config,
 func (c *calicoAdapter) start(stopCh <-chan struct{}) error {
 	client, err := dynamic.NewForConfig(c.config)
 	if err != nil {
+		klog.Errorf("init dynamic client err: %v", err)
 		return err
 	}
 	gvr := schema.GroupVersionResource{
@@ -146,6 +151,7 @@ func (c *calicoAdapter) start(stopCh <-chan struct{}) error {
 			DeleteFunc: c.OnDelete,
 		})
 	if err != nil {
+		klog.Errorf("add event handler error: %v", err)
 		return err
 	}
 
@@ -154,12 +160,14 @@ func (c *calicoAdapter) start(stopCh <-chan struct{}) error {
 	informerFactory.WaitForCacheSync(stopCh)
 
 	c.sync = true
+	klog.Info("calico blockaffinities informer started!")
 	return nil
 }
 
 func (c *calicoAdapter) getCIDRByNodeName(nodeName string) ([]string, error) {
 	blockAffinities, err := c.blockLister.List(labels.Everything())
 	if err != nil {
+		klog.Errorf("list blockAffinities error: %v", err)
 		return nil, err
 	}
 	var podCIDRS []string
@@ -192,6 +200,7 @@ func (c *calicoAdapter) synced() bool {
 }
 
 func (c *calicoAdapter) OnAdd(obj interface{}) {
+	klog.V(7).Info("add event")
 	runtimeObj, ok := obj.(*unstructured.Unstructured)
 	if !ok {
 		return
@@ -203,11 +212,13 @@ func (c *calicoAdapter) OnAdd(obj interface{}) {
 	if !found {
 		return
 	}
+	klog.V(7).Info("add event Enqueue")
 	requeue(node, c.clusterNodeLister, c.processor)
 }
 
 // OnUpdate handles object update event and push the object to queue.
 func (c *calicoAdapter) OnUpdate(oldObj, newObj interface{}) {
+	klog.V(7).Info("update event")
 	runtimeObj, ok := newObj.(*unstructured.Unstructured)
 	if !ok {
 		return
@@ -219,6 +230,7 @@ func (c *calicoAdapter) OnUpdate(oldObj, newObj interface{}) {
 	if !found {
 		return
 	}
+	klog.V(7).Info("update event Enqueue")
 	requeue(node, c.clusterNodeLister, c.processor)
 }
 
@@ -241,18 +253,38 @@ func (c *calicoAdapter) OnDelete(obj interface{}) {
 func requeue(originNodeName string, clusterNodeLister clusterlister.ClusterNodeLister, processor utils.AsyncWorker) {
 	clusterNodes, err := clusterNodeLister.List(labels.Everything())
 	if err != nil {
+		klog.Errorf("list clusterNodes err: %v", err)
 		return
 	}
 
+	flag := false
 	for _, clusterNode := range clusterNodes {
 		if clusterNode.Spec.NodeName == originNodeName {
 			key, err := ClusterWideKeyFunc(clusterNode)
 			if err != nil {
+				klog.Errorf("make clusterNode as a reconsile key err: %v", err)
 				return
 			}
 
+			klog.V(7).Infof("key %s is enqueued!", originNodeName)
 			processor.Add(key)
+			flag = true
 			break
 		}
+	}
+	if !flag {
+		clusterNode := &clusterlinkv1alpha1.ClusterNode{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: originNodeName,
+			},
+		}
+		key, err := ClusterWideKeyFunc(clusterNode)
+		if err != nil {
+			klog.Errorf("make clusterNode as a reconsile key err: %v", err)
+			return
+		}
+
+		klog.V(7).Infof("can't find match clusternode %s", originNodeName)
+		processor.Add(key)
 	}
 }
