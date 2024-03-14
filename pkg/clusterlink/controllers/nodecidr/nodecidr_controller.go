@@ -9,12 +9,16 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	informer "k8s.io/client-go/informers"
+	"k8s.io/client-go/kubernetes"
+	lister "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 
 	clusterlinkv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
+	nodecontroller "github.com/kosmos.io/kosmos/pkg/clusterlink/controllers/node"
 	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/generated/informers/externalversions"
 	clusterinformer "github.com/kosmos.io/kosmos/pkg/generated/informers/externalversions/kosmos/v1alpha1"
@@ -35,6 +39,7 @@ type controller struct {
 	config      *rest.Config
 
 	clusterLinkClient versioned.Interface
+	nodeLister        lister.NodeLister
 
 	// RateLimiterOptions is the configuration for rate limiter which may significantly influence the performance of
 	// the controller.
@@ -97,14 +102,25 @@ func (c *controller) Start(ctx context.Context) error {
 		return err
 	}
 
+	client, err := kubernetes.NewForConfig(c.config)
+	if err != nil {
+		klog.Errorf("init kubernetes client err: %v", err)
+		return err
+	}
+
+	informerFactory := informer.NewSharedInformerFactory(client, 0)
+	c.nodeLister = informerFactory.Core().V1().Nodes().Lister()
+
 	stopCh := c.ctx.Done()
 	clusterInformerFactory.Start(stopCh)
 	clusterInformerFactory.WaitForCacheSync(stopCh)
 
 	// third step: init CNI Adapter
 	if cluster.Spec.ClusterLinkOptions.CNI == calicoCNI {
+		klog.Infof("cluster %s's cni is %s", c.clusterName, calicoCNI)
 		c.cniAdapter = NewCalicoAdapter(c.config, c.clusterNodeLister, c.processor)
 	} else {
+		klog.Infof("cluster %s's cni is %s", c.clusterName, cluster.Spec.ClusterLinkOptions.CNI)
 		c.cniAdapter = NewCommonAdapter(c.config, c.clusterNodeLister, c.processor)
 	}
 	err = c.cniAdapter.start(stopCh)
@@ -129,10 +145,43 @@ func (c *controller) Reconcile(key utils.QueueKey) error {
 	clusterNode, err := c.clusterNodeLister.Get(clusterWideKey.Name)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.Infof("Cluster Node %s has been removed.", clusterWideKey.NamespaceKey())
-			return nil
+			klog.Info("maybe clusterWideKey.Name is k8s node's name instead of clusternode's name,try to get node podCIDRs")
+			nodePodcidr, err := c.cniAdapter.getCIDRByNodeName(clusterWideKey.Name)
+			// get cluster node name by clustername and k8s node's name
+			clusterNodeName := nodecontroller.ClusterNodeName(c.clusterName, clusterWideKey.Name)
+			// if err is no nil, means get node error or list blockAffinities error
+			// do not reconsile
+			if err != nil {
+				klog.Errorf("get node %s's podCIDRs err: %v", clusterWideKey.Name, err)
+				return err
+			}
+			// we execute this Reconcile func due to some node cidr event, like blockaffinities is created
+			// so node podCIDRs should exist.If node podCIDRs is nil,maybe node is removed
+			if len(nodePodcidr) == 0 {
+				klog.Info("length of podCIDRs is 0 for node %s", clusterWideKey.Name)
+				_, err := c.nodeLister.Get(clusterWideKey.Name)
+				if err != nil {
+					if apierrors.IsNotFound(err) {
+						klog.Infof("k8s node %s is not found, might be removed.", clusterWideKey.Name)
+						return nil
+					}
+					klog.Errorf("get node %s error:%v", clusterWideKey.Name, err)
+					c.processor.AddAfter(key, requeueTime)
+					return err
+				}
+			}
+			// If k8s node exist, clusternode must exist
+			clusterNode, err = c.clusterNodeLister.Get(clusterNodeName)
+			if err != nil {
+				klog.Infof("get clusternode %s err: %v", clusterNodeName, err)
+				c.processor.AddAfter(key, requeueTime)
+				return err
+			}
+		} else {
+			klog.Errorf("get clusternode %s err : %v", clusterWideKey.Name, err)
+			c.processor.AddAfter(key, requeueTime)
+			return err
 		}
-		return err
 	}
 
 	originNodeName := clusterNode.Spec.NodeName
@@ -151,6 +200,7 @@ func (c *controller) Reconcile(key utils.QueueKey) error {
 
 	podCIDRs, err := c.cniAdapter.getCIDRByNodeName(originNodeName)
 	if err != nil {
+		klog.Errorf("get node %s's podCIDRs err: %v", originNodeName, err)
 		return err
 	}
 
@@ -160,8 +210,10 @@ func (c *controller) Reconcile(key utils.QueueKey) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
 		_, err = c.clusterLinkClient.KosmosV1alpha1().ClusterNodes().Update(context.TODO(), clusterNodeCopy, metav1.UpdateOptions{})
 		if err != nil {
+			klog.Errorf("update clusternode %s err: %v", clusterNodeCopy.Name, err)
 			return err
 		}
+		klog.Infof("update clusternode %s succcessfuly", clusterNodeCopy.Name)
 		return nil
 	})
 }
