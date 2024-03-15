@@ -3,6 +3,7 @@ module github.com/kosmos.io/kosmos
 go 1.20
 
 require (
+	github.com/bep/debounce v1.2.1
 	github.com/coreos/go-iptables v0.6.0
 	github.com/gogo/protobuf v1.3.2
 	github.com/olekukonko/tablewriter v0.0.4

@@ -46,6 +46,12 @@ spec:
           - mountPath: /etc/clusterlink/kubeconfig
             name: proxy-config
             readOnly: true
+          - mountPath: /run/xtables.lock
+            name: iptableslock
+            readOnly: false
+          - mountPath: /lib/modules
+            name: lib-modules
+            readOnly: true
       terminationGracePeriodSeconds: 30
       securityContext:
         privileged: true
@@ -55,3 +61,10 @@ spec:
         configMap:
           defaultMode: 420
           name: proxy-config
+      - hostPath:
+          path: /run/xtables.lock
+          type: FileOrCreate
+        name: iptableslock
+      - name: lib-modules
+        hostPath:
+          path: /lib/modules

@@ -6,6 +6,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/bep/debounce"
+
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/tools/clientcmd"
 	cliflag "k8s.io/component-base/cli/flag"
@@ -71,21 +73,6 @@ func NewAgentCommand(ctx context.Context) *cobra.Command {
 	return cmd
 }
 
-func Debounce(waits time.Duration) func(func()) {
-	var timer *time.Timer
-	return func(f func()) {
-		if timer != nil {
-			timer.Reset(time.Second * waits)
-		} else {
-			timer = time.NewTimer(time.Second * waits)
-		}
-		go func() {
-			<-timer.C
-			f()
-		}()
-	}
-}
-
 func run(ctx context.Context, opts *options.Options) error {
 	restConfig, err := clientcmd.BuildConfigFromFlags("", opts.KubeConfig)
 	if err != nil {
@@ -123,7 +110,7 @@ func run(ctx context.Context, opts *options.Options) error {
 		NodeName:         os.Getenv(utils.EnvNodeName),
 		ClusterName:      os.Getenv(utils.EnvClusterName),
 		NetworkManager:   agent.NetworkManager(),
-		DebounceFunc:     Debounce(5),
+		DebounceFunc:     debounce.New(5 * time.Second),
 	}
 	if err = clusterNodeController.SetupWithManager(mgr); err != nil {
 		klog.Fatalf("Unable to create cluster node controller: %v", err)
