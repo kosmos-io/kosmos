@@ -4,13 +4,11 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-HOST_CLUSTER_NAME="cluster-host"
 CURRENT="$(dirname "${BASH_SOURCE[0]}")"
 ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 # true: when cluster is exist, reuse exist one!
 REUSE=${REUSE:-false}
-#VERSION=${VERSION:-latest}
-VERSION="v0.2.0"
+VERSION=${VERSION:-latest}
 
 CN_ZONE=${CN_ZONE:-false}
 source "$(dirname "${BASH_SOURCE[0]}")/util.sh"
@@ -86,7 +84,6 @@ function create_cluster() {
   CLUSTER_DIR="${ROOT}/environments/${clustername}"
   mkdir -p "${CLUSTER_DIR}"
 
-  echo "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
   echo "$CLUSTER_DIR"
 
   ipFamily=ipv4
@@ -124,7 +121,7 @@ function create_cluster() {
   kind load docker-image calico/typha:v3.25.0 --name $clustername
   kind load docker-image quay.io/tigera/operator:v1.29.0 --name $clustername
 
-  kubectl taint nodes --all node-role.kubernetes.io/control-plane- || true
+  kubectl --kubeconfig $CLUSTER_DIR/kubeconfig taint nodes --all node-role.kubernetes.io/control-plane- || true
 
   # prepare external kubeconfig
   kind get kubeconfig --name "${clustername}" > "${CLUSTER_DIR}/kubeconfig"
@@ -139,9 +136,9 @@ function create_cluster() {
   echo "create cluster ${clustername} success"
   echo "wait all node ready"
   # N = nodeNum + 1
-  N=$(kubectl get nodes --no-headers | wc -l)
+  N=$(kubectl --kubeconfig $CLUSTER_DIR/kubeconfig get nodes --no-headers | wc -l)
   util::wait_for_condition "all nodes are ready" \
-    "kubectl get nodes | awk 'NR>1 {if (\$2 != \"Ready\") exit 1; }' && [ \$(kubectl get nodes --no-headers | wc -l) -eq ${N} ]" \
+    "kubectl --kubeconfig $CLUSTER_DIR/kubeconfig get nodes | awk 'NR>1 {if (\$2 != \"Ready\") exit 1; }' && [ \$(kubectl --kubeconfig $CLUSTER_DIR/kubeconfig get nodes --no-headers | wc -l) -eq ${N} ]" \
     300
   echo "all node ready"
 }
@@ -186,7 +183,7 @@ function join_cluster_by_ctl() {
   local member_cluster=$2
   local hostClusterDir=$3
   local memberClusterDir=$4
-  kosmosctl join cluster --name "$member_cluster" --host-kubeconfig "$hostClusterDir/kubeconfig" --kubeconfig "$memberClusterDir/kubeconfig" --inner-kubeconfig "$memberClusterDir/kubeconfig-nodeIp" --enable-all --version ${VERSION}
+  "${ROOT}"/_output/bin/"$os"/"$arch"/kosmosctl join cluster --name "$member_cluster" --host-kubeconfig "$hostClusterDir/kubeconfig" --kubeconfig "$memberClusterDir/kubeconfig" --inner-kubeconfig "$memberClusterDir/kubeconfig-nodeIp" --enable-all --version ${VERSION}
 }
 
 function addTaint() {
@@ -207,7 +204,7 @@ function deploy_cluster_by_ctl() {
   load_cluster_images "$clustername"
   CLUSTER_DIR="${ROOT}/environments/${clustername}"
 
-  kosmosctl install --version ${VERSION} --kubeconfig "${kubeconfig}" --inner-kubeconfig "${innerKubeconfig}"
+  "${ROOT}"/_output/bin/"$os"/"$arch"/kosmosctl install --version ${VERSION} --kubeconfig "${kubeconfig}" --inner-kubeconfig "${innerKubeconfig}"
 
   util::wait_for_condition "kosmos ${clustername} clustertree are ready" \
     "kubectl --kubeconfig $CLUSTER_DIR/kubeconfig -n kosmos-system get deploy clustertree-cluster-manager -o jsonpath='{.status.replicas}{\" \"}{.status.readyReplicas}{\"\n\"}' | awk '{if (\$1 == \$2 && \$1 > 0) exit 0; else exit 1}'" \
