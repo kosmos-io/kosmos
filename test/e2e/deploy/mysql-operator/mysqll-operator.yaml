@@ -20,6 +20,15 @@ spec:
         app.kubernetes.io/instance: mysql-operator
         app.kubernetes.io/name: mysql-operator
     spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values:
+                      - cluster-host-control-plane
       containers:
         - args:
             - --leader-election-namespace=mysql-operator

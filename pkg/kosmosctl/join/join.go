@@ -39,19 +39,21 @@ var joinExample = templates.Examples(i18n.T(`
 `))
 
 type CommandJoinOptions struct {
-	Name                 string
-	Namespace            string
-	ImageRegistry        string
-	Version              string
-	KubeConfig           string
-	Context              string
-	KubeConfigStream     []byte
-	HostKubeConfig       string
-	HostContext          string
-	HostKubeConfigStream []byte
-	WaitTime             int
-	RootFlag             bool
-	EnableAll            bool
+	Name                  string
+	Namespace             string
+	ImageRegistry         string
+	Version               string
+	KubeConfig            string
+	Context               string
+	KubeConfigStream      []byte
+	InnerKubeconfigStream []byte
+	HostKubeConfig        string
+	InnerKubeConfig       string
+	HostContext           string
+	HostKubeConfigStream  []byte
+	WaitTime              int
+	RootFlag              bool
+	EnableAll             bool
 
 	EnableLink     bool
 	CNI            string
@@ -93,6 +95,7 @@ func NewCmdJoin(f ctlutil.Factory) *cobra.Command {
 	flags.StringVar(&o.KubeConfig, "kubeconfig", "", "Absolute path to the cluster kubeconfig file.")
 	flags.StringVar(&o.Context, "context", "", "The name of the kubeconfig context.")
 	flags.StringVar(&o.HostKubeConfig, "host-kubeconfig", "", "Absolute path to the special host kubeconfig file.")
+	flags.StringVar(&o.InnerKubeConfig, "inner-kubeconfig", "", "Absolute path to the leaf cluster inner kubeconfig file.")
 	flags.StringVar(&o.HostContext, "host-context", "", "The name of the host-kubeconfig context.")
 	flags.StringVar(&o.ImageRegistry, "private-image-registry", utils.DefaultImageRepository, "Private image registry where pull images from. If set, all required images will be downloaded from it, it would be useful in offline installation scenarios.")
 	flags.StringVar(&o.Version, "version", "", "image version for pull images")
@@ -126,6 +129,17 @@ func (o *CommandJoinOptions) Complete(f ctlutil.Factory) error {
 		return fmt.Errorf("kosmosctl join complete error, generate Kosmos client failed: %v", err)
 	}
 
+	// init the inner kubeconfig stream
+	if len(o.InnerKubeConfig) > 0 {
+		innerRawConfig, err := utils.RawConfig(o.InnerKubeConfig, o.Context)
+		if err != nil {
+			return fmt.Errorf("kosmosctl join complete error, generate inner raw config failed: %s", err)
+		}
+		o.InnerKubeconfigStream, err = clientcmd.Write(innerRawConfig)
+		if err != nil {
+			return fmt.Errorf("kosmosctl join complete error, wite inner restconfig to streams failed: %s", err)
+		}
+	}
 	if len(o.KubeConfig) > 0 {
 		clusterConfig, err := utils.RestConfig(o.KubeConfig, o.Context)
 		if err != nil {
@@ -156,15 +170,15 @@ func (o *CommandJoinOptions) Complete(f ctlutil.Factory) error {
 		return fmt.Errorf("kosmosctl join complete error, arg ClusterKubeConfig is required")
 	}
 
-	//no enable-all,enable-tree,enable-link found, make 'EnableAll' with other config
+	// no enable-all,enable-tree,enable-link found, make 'EnableAll' with other config
 	if !o.EnableAll && !o.EnableTree && !o.EnableLink {
-		//due to NetworkType or IpFamily is not empty, make EnableLink true
+		// due to NetworkType or IpFamily is not empty, make EnableLink true
 		if o.NetworkType != "" || o.IpFamily != "" {
 			klog.Warning("due to NetworkType or IpFamily is not empty, make EnableLink ture.")
 			o.EnableLink = true
 		}
 
-		//due to LeafModel is not empty, make EnableTree true
+		// due to LeafModel is not empty, make EnableTree true
 		if o.LeafModel != "" {
 			klog.Warning("due to LeafModel is not empty, make EnableTree true.")
 			o.EnableTree = true
@@ -202,7 +216,7 @@ func (o *CommandJoinOptions) Validate(args []string) error {
 		return fmt.Errorf("kosmosctl join validate error, namespace is not valid")
 	}
 
-	//validate: at least one of [EnableAll,EnableTree,EnableLink] need true
+	// validate: at least one of [EnableAll,EnableTree,EnableLink] need true
 	if !o.EnableAll && !o.EnableTree && !o.EnableLink {
 		return fmt.Errorf("kosmosctl join validate error, need at least one of enable-all,enable-tree,enable-link")
 	}
@@ -270,7 +284,12 @@ func (o *CommandJoinOptions) runCluster() error {
 			Name: o.Name,
 		},
 		Spec: v1alpha1.ClusterSpec{
-			Kubeconfig:      o.KubeConfigStream,
+			Kubeconfig: func() []byte {
+				if len(o.InnerKubeconfigStream) != 0 {
+					return o.InnerKubeconfigStream
+				}
+				return o.KubeConfigStream
+			}(),
 			Namespace:       o.Namespace,
 			ImageRepository: o.ImageRegistry,
 			ClusterLinkOptions: &v1alpha1.ClusterLinkOptions{
@@ -435,7 +454,7 @@ func (o *CommandJoinOptions) runCluster() error {
 	}
 	klog.Info("ServiceAccount " + kosmosOperatorSA.Name + " has been created.")
 
-	//ToDo Wait for all services to be running
+	// ToDo Wait for all services to be running
 
 	klog.Info("Cluster [" + o.Name + "] registration successful.")
 

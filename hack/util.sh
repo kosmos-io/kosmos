@@ -517,7 +517,7 @@ function util::wait_for_crd() {
     for crd_name in "${crd_names[@]}"; do
       if kubectl get crd "$crd_name"; then
         echo "CRD $crd_name has been stored successfully."
-        # 从要等待的CRD列表中删除已经存储的CRD
+        # delete crd from waiting list
         count=$(($count+1))
       fi
     done
@@ -542,4 +542,57 @@ function util::go_clean_cache() {
     go clean -cache
 
     set +x
+}
+
+# get base64 from kubeconfig file
+function util::get_base64_kubeconfig() {
+    local os_type=$(uname)
+
+    if [ "$os_type" == "Linux" ]; then
+        # Linux
+        base64 -w 0 < "$1"
+    elif [ "$os_type" == "Darwin" ]; then
+        # macOS
+        base64 -b 0 < "$1"
+    else
+        echo "Unsupported operating system"
+        return 1
+    fi
+}
+
+# verify input ip is valid or not
+function util::verify_ip_address {
+  IPADDRESS=${1}
+  if [[ ! "${IPADDRESS}" =~ ^(([1-9]?[0-9]|1[0-9][0-9]|2([0-4][0-9]|5[0-5]))\.){3}([1-9]?[0-9]|1[0-9][0-9]|2([0-4][0-9]|5[0-5]))$ ]]; then
+    echo -e "\nError: invalid IP address"
+    exit 1
+  fi
+}
+
+# util::get_macos_ipaddress will get ip address on macos interactively, store to 'MAC_NIC_IPADDRESS' if available
+MAC_NIC_IPADDRESS=''
+function util::get_macos_ipaddress() {
+  if [[ $(go env GOOS) = "darwin" ]]; then
+    tmp_ip=$(ipconfig getifaddr en0 || true)
+    echo ""
+    echo " Detected that you are installing KOSMOS on macOS "
+    echo ""
+    echo "It needs a Macintosh IP address to bind Kind Api Server Address,"
+    echo "so you can access it from you macOS and the inner kubeconfig for cluster should use --inner-kubeconfig"
+    echo "the --inner-kubeconfig should use nodeIp so the host-cluster and member-cluster can be connected"
+    echo -n "input an available IP, "
+    if [[ -z ${tmp_ip} ]]; then
+      echo "you can use the command 'ifconfig' to look for one"
+      tips_msg="[Enter IP address]:"
+    else
+      echo "default IP will be en0 inet addr if exists"
+      tips_msg="[Enter for default ${tmp_ip}]:"
+    fi
+    read -r -p "${tips_msg}" MAC_NIC_IPADDRESS
+    MAC_NIC_IPADDRESS=${MAC_NIC_IPADDRESS:-$tmp_ip}
+    util::verify_ip_address "${MAC_NIC_IPADDRESS}"
+    echo "Using IP address: ${MAC_NIC_IPADDRESS}"
+  else # non-macOS
+    MAC_NIC_IPADDRESS=${MAC_NIC_IPADDRESS:-}
+  fi
 }

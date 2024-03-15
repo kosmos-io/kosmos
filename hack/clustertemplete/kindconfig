@@ -18,3 +18,4 @@ networking:
   disableDefaultCNI: true # disable kindnet
   podSubnet: __POD_CIDR__
   serviceSubnet: __SERVICE_CIDR__
+  apiServerAddress: __HOST_IPADDRESS__
