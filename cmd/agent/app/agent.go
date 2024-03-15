@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/bep/debounce"
-
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/tools/clientcmd"
 	cliflag "k8s.io/component-base/cli/flag"
