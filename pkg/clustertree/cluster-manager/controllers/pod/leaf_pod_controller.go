@@ -8,6 +8,7 @@ import (
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -87,9 +88,28 @@ func NewRootDeleteOption(pod *corev1.Pod) client.DeleteOption {
 }
 
 func NewLeafDeleteOption(pod *corev1.Pod) client.DeleteOption {
-	gracePeriodSeconds := new(int64)
-	if pod.DeletionGracePeriodSeconds != nil {
-		gracePeriodSeconds = pod.DeletionGracePeriodSeconds
+	var gracePeriodSeconds *int64
+	// Check if DeletionTimestamp is set and before the current time
+	current := metav1.NewTime(time.Now())
+	if pod.DeletionTimestamp != nil && pod.DeletionTimestamp.Before(&current) {
+		//force
+		gracePeriodSeconds = new(int64)
+	} else {
+		if pod.DeletionGracePeriodSeconds != nil {
+			//DeletionGracePeriodSeconds determines how long it will take before the pod status changes to Termination
+			//wait
+			gracePeriodSeconds = pod.DeletionGracePeriodSeconds
+		} else if pod.Spec.TerminationGracePeriodSeconds != nil {
+			//TerminationGracePeriodSeconds is how long to wait after the pod is marked as Termination state before the container process is forcibly deleted.
+			//wait
+			gracePeriodSeconds = pod.Spec.TerminationGracePeriodSeconds
+		}
+
+		if pod.DeletionGracePeriodSeconds != nil && pod.Spec.TerminationGracePeriodSeconds != nil {
+			//Sum both grace periods
+			totalGracePeriod := *pod.DeletionGracePeriodSeconds + *pod.Spec.TerminationGracePeriodSeconds
+			gracePeriodSeconds = &totalGracePeriod
+		}
 	}
 
 	return &rootDeleteOption{
@@ -165,8 +185,3 @@ func (r *LeafPodReconciler) SetupWithManager(mgr manager.Manager) error {
 		})).
 		Complete(r)
 }
-
-// func ShouldSkipStatusUpdate(pod *corev1.Pod) bool {
-// 	return pod.Status.Phase == corev1.PodSucceeded ||
-// 		pod.Status.Phase == corev1.PodFailed
-// }
