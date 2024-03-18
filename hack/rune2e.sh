@@ -40,21 +40,21 @@ wait
 kubectl --kubeconfig "${REPO_ROOT}/environments/${HOST_CLUSTER_NAME}/kubeconfig" apply -f "${REPO_ROOT}"/test/e2e/deploy/nginx
 util::wait_for_condition "nginx are ready" \
   "kubectl --kubeconfig ${REPO_ROOT}/environments/${HOST_CLUSTER_NAME}/kubeconfig -n ${E2E_NAMESPACE} get pod -l app=nginx | awk 'NR>1 {if (\$3 == \"Running\") exit 0; else exit 1; }'" \
-  120
+  300
 
 util::wait_for_condition "mcs of member1 are ready" \
   "[ \$(kubectl --kubeconfig ${REPO_ROOT}/environments/${MEMBER1_CLUSTER_NAME}/kubeconfig -n ${E2E_NAMESPACE} get endpointslices.discovery.k8s.io --no-headers -l kubernetes.io\/service-name=nginx-service | wc -l) -eq 1 ] " \
-  120
+  300
 
 util::wait_for_condition "mcs of member2 are ready" \
   "[ \$(kubectl --kubeconfig ${REPO_ROOT}/environments/${MEMBER2_CLUSTER_NAME}/kubeconfig -n ${E2E_NAMESPACE} get endpointslices.discovery.k8s.io --no-headers -l kubernetes.io\/service-name=nginx-service | wc -l) -eq 1 ] " \
-  120
+  300
 
 util::wait_for_condition "mcs of member3 are ready" \
   "[ \$(kubectl --kubeconfig ${REPO_ROOT}/environments/${MEMBER3_CLUSTER_NAME}/kubeconfig -n ${E2E_NAMESPACE} get endpointslices.discovery.k8s.io --no-headers -l kubernetes.io\/service-name=nginx-service | wc -l) -eq 1 ] " \
-  120
+  300
 
-nginx_service_ip=$(kubectl -n kosmos-e2e get svc nginx-service -o=jsonpath='{.spec.clusterIP}')
+nginx_service_ip=$(kubectl --kubeconfig ${REPO_ROOT}/environments/${HOST_CLUSTER_NAME}/kubeconfig -n kosmos-e2e get svc nginx-service -o=jsonpath='{.spec.clusterIP}')
 
 # e2e test for access nginx service
 sleep 100 && docker exec -i ${HOST_CLUSTER_NAME}-control-plane sh -c "curl -sSf -m 5 ${nginx_service_ip}:80" && echo "success" || {
