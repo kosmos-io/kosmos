@@ -18,8 +18,8 @@ source "$(dirname "${BASH_SOURCE[0]}")/cluster.sh"
 make images GOOS="linux" --directory="${ROOT}"
 
 #cluster cluster
-# create_cluster $HOST_CLUSTER_NAME $HOST_CLUSTER_POD_CIDR $HOST_CLUSTER_SERVICE_CIDR false
-# create_cluster $MEMBER1_CLUSTER_NAME $MEMBER1_CLUSTER_POD_CIDR $MEMBER1_CLUSTER_SERVICE_CIDR false
+create_cluster $HOST_CLUSTER_NAME $HOST_CLUSTER_POD_CIDR $HOST_CLUSTER_SERVICE_CIDR false
+create_cluster $MEMBER1_CLUSTER_NAME $MEMBER1_CLUSTER_POD_CIDR $MEMBER1_CLUSTER_SERVICE_CIDR true
 #deploy clusterlink
 deploy_clusterlink $HOST_CLUSTER_NAME
 load_clusterlink_images $MEMBER1_CLUSTER_NAME

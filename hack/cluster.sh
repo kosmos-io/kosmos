@@ -8,6 +8,7 @@ CURRENT="$(dirname "${BASH_SOURCE[0]}")"
 ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 DEFAULT_NAMESPACE="clusterlink-system"
 KIND_IMAGE="ghcr.io/kosmos-io/node:v1.25.3"
+# KIND_IMAGE="ghcr.io/kosmos-io/node:v0.1.0"
 # true: when cluster is exist, reuse exist one!
 REUSE=${REUSE:-false}
 VERSION=${VERSION:-latest}
@@ -69,6 +70,8 @@ function create_cluster() {
         docker pull docker.io/calico/kube-controllers:v3.25.0
         docker pull docker.io/calico/node:v3.25.0
         docker pull docker.io/calico/csi:v3.25.0
+        docker pull docker.io/calico/apiserver:v3.25.0
+        docker pull docker.io/calico/node-driver-registrar:v3.25.0
     else
         docker pull quay.m.daocloud.io/tigera/operator:v1.29.0
         docker pull docker.m.daocloud.io/calico/cni:v3.25.0
@@ -94,6 +97,8 @@ function create_cluster() {
     kind load docker-image -n "$clustername" docker.io/calico/kube-controllers:v3.25.0
     kind load docker-image -n "$clustername" docker.io/calico/node:v3.25.0
     kind load docker-image -n "$clustername" docker.io/calico/csi:v3.25.0
+    kind load docker-image -n "$clustername" docker.io/calico/apiserver:v3.25.0
+    kind load docker-image -n "$clustername" docker.io/calico/node-driver-registrar:v3.25.0
 
     kubectl --context="kind-${clustername}" create -f "$CURRENT/calicooperator/tigera-operator.yaml" || $("${REUSE}" -eq "true")
     kind export kubeconfig --name "$clustername"
