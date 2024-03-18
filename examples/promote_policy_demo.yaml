@@ -1,0 +1,21 @@
+apiVersion: kosmos.io/v1alpha1
+kind: PromotePolicy
+metadata:
+  name: promote-pilicy-sample
+spec:
+  includedNamespaces:
+    - test
+    - kube-system
+  excludedNamespaces:
+    - kube-system
+  includedNamespaceScopedResources:
+    - pods
+    - daemonsets.apps
+#    - serviceexports.multicluster.x-k8s.io
+    - nodeconfigs.kosmos.io
+  excludedNamespaceScopedResources:
+#    - pods
+#    - nodeconfigs.kosmos.io
+  clusterName:
+    cluster7
+

@@ -3,7 +3,6 @@ package pod
 import (
 	"context"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -147,12 +146,13 @@ func (r *LeafPodReconciler) SetupWithManager(mgr manager.Manager) error {
 				return skipFunc(createEvent.Object)
 			},
 			UpdateFunc: func(updateEvent event.UpdateEvent) bool {
-				pod1 := updateEvent.ObjectOld.(*corev1.Pod)
-				pod2 := updateEvent.ObjectNew.(*corev1.Pod)
-				if !skipFunc(updateEvent.ObjectNew) {
-					return false
-				}
-				return !cmp.Equal(pod1.Status, pod2.Status)
+				return skipFunc(updateEvent.ObjectNew)
+				//pod1 := updateEvent.ObjectOld.(*corev1.Pod)
+				//pod2 := updateEvent.ObjectNew.(*corev1.Pod)
+				//if !skipFunc(updateEvent.ObjectNew) {
+				//	return false
+				//}
+				//return !cmp.Equal(pod1.Status, pod2.Status)
 			},
 			DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
 				return skipFunc(deleteEvent.Object)

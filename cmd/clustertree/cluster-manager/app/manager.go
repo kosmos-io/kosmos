@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/util/uuid"
+	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
@@ -22,6 +23,7 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/mcs"
 	podcontrollers "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/pod"
+	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/promote"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/pv"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/pvc"
 	nodeserver "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/node-server"
@@ -161,6 +163,12 @@ func run(ctx context.Context, opts *options.Options) error {
 		return err
 	}
 
+	discoveryClient, err := discovery.NewDiscoveryClientForConfig(config)
+	if err != nil {
+		klog.Errorf("Unable to create discoveryClient: %v", err)
+		return err
+	}
+
 	// add cluster controller
 	clusterController := clusterManager.ClusterController{
 		Root:                mgr.GetClient(),
@@ -260,6 +268,18 @@ func run(ctx context.Context, opts *options.Options) error {
 		if err := onewayPVCController.SetupWithManager(mgr); err != nil {
 			return fmt.Errorf("error starting oneway pvc controller %v", err)
 		}
+	}
+
+	promotePolicyController := promote.PromotePolicyController{
+		RootClient:           mgr.GetClient(),
+		RootClientSet:        rootClient,
+		RootDynamicClient:    dynamicClient,
+		RootDiscoveryClient:  discoveryClient,
+		GlobalLeafManager:    globalleafManager,
+		PromotePolicyOptions: opts.PromotePolicyOptions,
+	}
+	if err = promotePolicyController.SetupWithManager(mgr); err != nil {
+		return fmt.Errorf("error starting %s: %v", promote.PromotePolicyControllerName, err)
 	}
 
 	// init commonController

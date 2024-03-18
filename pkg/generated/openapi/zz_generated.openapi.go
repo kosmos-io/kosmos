@@ -65,6 +65,11 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PodConvertPolicySpec":               schema_pkg_apis_kosmos_v1alpha1_PodConvertPolicySpec(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PolicyTerm":                         schema_pkg_apis_kosmos_v1alpha1_PolicyTerm(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PromoteResources":                   schema_pkg_apis_kosmos_v1alpha1_PromoteResources(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PromotePolicy":                      schema_pkg_apis_kosmos_v1alpha1_PromotePolicy(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PromotePolicyList":                  schema_pkg_apis_kosmos_v1alpha1_PromotePolicyList(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PromotePolicyProgress":              schema_pkg_apis_kosmos_v1alpha1_PromotePolicyProgress(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PromotePolicySpec":                  schema_pkg_apis_kosmos_v1alpha1_PromotePolicySpec(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PromotePolicyStatus":                schema_pkg_apis_kosmos_v1alpha1_PromotePolicyStatus(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Proxy":                              schema_pkg_apis_kosmos_v1alpha1_Proxy(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ResourceSelector":                   schema_pkg_apis_kosmos_v1alpha1_ResourceSelector(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Route":                              schema_pkg_apis_kosmos_v1alpha1_Route(ref),
@@ -2354,6 +2359,284 @@ func schema_pkg_apis_kosmos_v1alpha1_PromoteResources(ref common.ReferenceCallba
 		},
 		Dependencies: []string{
 			"k8s.io/apimachinery/pkg/api/resource.Quantity"},
+	}
+}
+
+func schema_pkg_apis_kosmos_v1alpha1_PromotePolicy(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "PromotePolicy is custom resource that represents the capture of sync leaf cluster",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PromotePolicySpec"),
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PromotePolicyStatus"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PromotePolicySpec", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PromotePolicyStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_pkg_apis_kosmos_v1alpha1_PromotePolicyList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "BackupList is a list of promotePolicys.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PromotePolicy"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PromotePolicy", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+	}
+}
+
+func schema_pkg_apis_kosmos_v1alpha1_PromotePolicyProgress(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "BackupProgress stores information about the progress of a Backup's execution.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"totalItems": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TotalItems is the total number of items to be backed up. This number may change throughout the execution of the backup due to plugins that return additional related items to back up, the velero.io/exclude-from-backup label, and various other filters that happen as items are processed.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"itemsBackedUp": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ItemsBackedUp is the number of items that have actually been written to the backup tarball so far.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_kosmos_v1alpha1_PromotePolicySpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "PromotePolicySpec defines the desired state of promotePolicy",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"clusterName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Cluster is a cluster that needs to be migrated",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"includedNamespaces": {
+						SchemaProps: spec.SchemaProps{
+							Description: "IncludedNamespaces is a slice of namespace names to include objects from. If empty, all namespaces are included.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"excludedNamespaces": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ExcludedNamespaces contains a list of namespaces that are not included in the backup.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"includedNamespaceScopedResources": {
+						SchemaProps: spec.SchemaProps{
+							Description: "IncludedNamespaceScopedResources is a slice of namespace-scoped resource type names to include in the backup. The default value is \"*\".",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"excludedNamespaceScopedResources": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ExcludedNamespaceScopedResources is a slice of namespace-scoped resource type names to exclude from the backup. If set to \"*\", all namespace-scoped resource types are excluded. The default value is empty.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"rollback": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Rollback set true, then rollback from the backup",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_kosmos_v1alpha1_PromotePolicyStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "PromotePolicyStatus defines the observed state of promotePolicy",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"phase": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Phase is the current state of the Backup.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"precheckErrors": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PrecheckErrors is a slice of all precheck errors (if applicable).",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"startTimestamp": {
+						SchemaProps: spec.SchemaProps{
+							Description: "StartTimestamp records the time a sync was started. The server's time is used for StartTimestamps",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"completionTimestamp": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CompletionTimestamp records the time a sync was completed. Completion time is recorded even on failed sync. The server's time is used for CompletionTimestamps",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"failureReason": {
+						SchemaProps: spec.SchemaProps{
+							Description: "FailureReason is an error that caused the entire sync to fail.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"progress": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Progress contains information about the sync's execution progress. Note that this information is best-effort only -- if fails to update it for any reason, it may be inaccurate/stale.",
+							Ref:         ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PromotePolicyProgress"),
+						},
+					},
+					"backedupFile": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PromotePolicyProgress", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }
 
