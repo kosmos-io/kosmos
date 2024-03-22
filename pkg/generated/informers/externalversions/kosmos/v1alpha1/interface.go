@@ -12,6 +12,8 @@ type Interface interface {
 	Clusters() ClusterInformer
 	// ClusterNodes returns a ClusterNodeInformer.
 	ClusterNodes() ClusterNodeInformer
+	// ClusterPodConvertPolicies returns a ClusterPodConvertPolicyInformer.
+	ClusterPodConvertPolicies() ClusterPodConvertPolicyInformer
 	// DaemonSets returns a DaemonSetInformer.
 	DaemonSets() DaemonSetInformer
 	// Knodes returns a KnodeInformer.
@@ -43,6 +45,11 @@ func (v *version) Clusters() ClusterInformer {
 // ClusterNodes returns a ClusterNodeInformer.
 func (v *version) ClusterNodes() ClusterNodeInformer {
 	return &clusterNodeInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
+}
+
+// ClusterPodConvertPolicies returns a ClusterPodConvertPolicyInformer.
+func (v *version) ClusterPodConvertPolicies() ClusterPodConvertPolicyInformer {
+	return &clusterPodConvertPolicyInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
 }
 
 // DaemonSets returns a DaemonSetInformer.
