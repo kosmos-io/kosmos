@@ -16,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -375,6 +376,7 @@ func (r *RootPodReconciler) createSATokenInLeafCluster(ctx context.Context, lr *
 	if err != nil && !errors.IsNotFound(err) {
 		return "", fmt.Errorf("could not check secret %s in member cluster: %v", csKey.Name, err)
 	}
+	klog.V(4).Infof("get secret %v from client", clientSecret)
 	if err == nil {
 		return clientSecret.Name, nil
 	}
@@ -385,6 +387,7 @@ func (r *RootPodReconciler) createSATokenInLeafCluster(ctx context.Context, lr *
 	go func() {
 		if err = wait.PollImmediate(500*time.Millisecond, 30*time.Second, func() (bool, error) {
 			if err := r.createStorageInLeafCluster(ctx, lr, utils.GVR_SECRET, []string{rootSecretName}, pod, clusterNodeInfo); err == nil {
+				klog.Info("create secret rootSecretName in leaf cluster success")
 				return true, nil
 			} else {
 				return false, err
@@ -711,7 +714,7 @@ func (r *RootPodReconciler) createServiceAccountInLeafCluster(ctx context.Contex
 				},
 			}
 			err := lr.Client.Create(ctx, sa)
-			klog.Errorf("create serviceAccount [%v] err: [%v]", sa, err)
+			klog.Infof("create serviceAccount [%v] err: [%v]", sa, err)
 			if err != nil {
 				if errors.IsAlreadyExists(err) {
 					return nil
@@ -746,18 +749,38 @@ func (r *RootPodReconciler) createServiceAccountInLeafCluster(ctx context.Contex
 
 	// the secret-token cannot be mounted to the default-sa of the leaf cluster
 	if accountName != utils.DefaultServiceAccountName {
-		sa.Secrets = []corev1.ObjectReference{{Name: secret.Name}}
-
-		err = lr.Client.Update(ctx, sa)
+		saCopy := sa.DeepCopy()
+		err := updateServiceAccountObjectReferenceRetry(ctx, saCopy, lr, secret.Name)
 		if err != nil {
-			klog.V(4).Infof(
-				"update serviceAccount [%v] err: [%v]]",
-				sa, err)
+			klog.Errorf("update serviceAccount [%v] err: [%v]]", saCopy, err)
 			return err
 		}
 	}
 
 	return nil
+}
+
+// nolint:dupl
+func updateServiceAccountObjectReferenceRetry(ctx context.Context, saCopy *corev1.ServiceAccount, lr *leafUtils.LeafResource, secretName string) error {
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		saCopy.Secrets = []corev1.ObjectReference{{Name: secretName}}
+		err := lr.Client.Update(ctx, saCopy)
+		if err == nil {
+			return nil
+		}
+
+		klog.Errorf("Failed to update ServiceAccountObjectReference %s/%s - secret %s: %v", saCopy.Namespace, saCopy.Name, secretName, err)
+		newServiceAccount := &corev1.ServiceAccount{}
+		err = lr.Client.Get(ctx, client.ObjectKey{Namespace: saCopy.Namespace, Name: saCopy.Name}, newServiceAccount)
+		if err == nil {
+			//Make a copy, so we don't mutate the shared cache
+			saCopy = newServiceAccount.DeepCopy()
+		} else {
+			klog.Errorf("Failed to get ServiceAccount %s/%s: %v", saCopy.Namespace, saCopy.Name, err)
+		}
+
+		return err
+	})
 }
 
 func (r *RootPodReconciler) createVolumes(ctx context.Context, lr *leafUtils.LeafResource, basicPod *corev1.Pod, clusterNodeInfo *leafUtils.ClusterNode) error {
