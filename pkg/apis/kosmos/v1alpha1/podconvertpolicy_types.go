@@ -6,15 +6,16 @@ import (
 )
 
 // +genclient
+// +kubebuilder:resource:scope="Namespaced"
 // +kubebuilder:subresource:status
-// +kubebuilder:resource:shortName=pc;pcs
+// +kubebuilder:resource:shortName=pcp
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 type PodConvertPolicy struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	// Spec is the specification for the behaviour of the podConversion.
+	// Spec is the specification for the behaviour of the PodConvertPolicy.
 	// +required
 	Spec PodConvertPolicySpec `json:"spec"`
 }
@@ -50,6 +51,8 @@ type Converters struct {
 	AffinityConverter *AffinityConverter `json:"affinityConverter,omitempty"`
 	// +optional
 	TopologySpreadConstraintsConverter *TopologySpreadConstraintsConverter `json:"topologySpreadConstraintsConverter,omitempty"`
+	// +optional
+	HostAliasesConverter *HostAliasesConverter `json:"hostAliasesConverter,omitempty"`
 }
 
 // ConvertType if the operation type when convert pod from root cluster to leaf cluster.
@@ -123,6 +126,17 @@ type TopologySpreadConstraintsConverter struct {
 	// All topologySpreadConstraints are ANDed.
 	// +optional
 	TopologySpreadConstraints []corev1.TopologySpreadConstraint `json:"topologySpreadConstraints,omitempty"`
+}
+
+// HostAliasesConverter is an optional list of hosts and IPs that will be injected into the pod's hosts file if specified.
+// This is only valid for non-hostNetwork pods.
+type HostAliasesConverter struct {
+	// +kubebuilder:validation:Enum=add;remove;replace
+	// +required
+	ConvertType ConvertType `json:"convertType"`
+
+	// +optional
+	HostAliases []corev1.HostAlias `json:"hostAliases,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

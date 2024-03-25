@@ -25,6 +25,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterNodeList":                    schema_pkg_apis_kosmos_v1alpha1_ClusterNodeList(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterNodeSpec":                    schema_pkg_apis_kosmos_v1alpha1_ClusterNodeSpec(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterNodeStatus":                  schema_pkg_apis_kosmos_v1alpha1_ClusterNodeStatus(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterPodConvertPolicy":            schema_pkg_apis_kosmos_v1alpha1_ClusterPodConvertPolicy(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterPodConvertPolicyList":        schema_pkg_apis_kosmos_v1alpha1_ClusterPodConvertPolicyList(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterPodConvertPolicySpec":        schema_pkg_apis_kosmos_v1alpha1_ClusterPodConvertPolicySpec(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterSpec":                        schema_pkg_apis_kosmos_v1alpha1_ClusterSpec(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterStatus":                      schema_pkg_apis_kosmos_v1alpha1_ClusterStatus(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterTreeOptions":                 schema_pkg_apis_kosmos_v1alpha1_ClusterTreeOptions(ref),
@@ -36,6 +39,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.DaemonSetStatus":                    schema_pkg_apis_kosmos_v1alpha1_DaemonSetStatus(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Device":                             schema_pkg_apis_kosmos_v1alpha1_Device(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Fdb":                                schema_pkg_apis_kosmos_v1alpha1_Fdb(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.HostAliasesConverter":               schema_pkg_apis_kosmos_v1alpha1_HostAliasesConverter(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Iptables":                           schema_pkg_apis_kosmos_v1alpha1_Iptables(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Knode":                              schema_pkg_apis_kosmos_v1alpha1_Knode(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.KnodeList":                          schema_pkg_apis_kosmos_v1alpha1_KnodeList(ref),
@@ -592,6 +596,130 @@ func schema_pkg_apis_kosmos_v1alpha1_ClusterNodeStatus(ref common.ReferenceCallb
 	}
 }
 
+func schema_pkg_apis_kosmos_v1alpha1_ClusterPodConvertPolicy(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Spec is the specification for the behaviour of the ClusterPodConvertPolicy.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterPodConvertPolicySpec"),
+						},
+					},
+				},
+				Required: []string{"spec"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterPodConvertPolicySpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_pkg_apis_kosmos_v1alpha1_ClusterPodConvertPolicyList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterPodConvertPolicy"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"metadata", "items"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterPodConvertPolicy", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+	}
+}
+
+func schema_pkg_apis_kosmos_v1alpha1_ClusterPodConvertPolicySpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"labelSelector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "A label query over a set of resources. If name is not empty, labelSelector will be ignored.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"),
+						},
+					},
+					"leafNodeSelector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "A label query over a set of resources. If name is not empty, LeafNodeSelector will be ignored.",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"),
+						},
+					},
+					"converters": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Converters are some converter for convert pod when pod synced from root cluster to leaf cluster pod will use these converters to scheduled in leaf cluster",
+							Ref:         ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Converters"),
+						},
+					},
+				},
+				Required: []string{"labelSelector"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Converters", "k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
+	}
+}
+
 func schema_pkg_apis_kosmos_v1alpha1_ClusterSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -763,11 +891,16 @@ func schema_pkg_apis_kosmos_v1alpha1_Converters(ref common.ReferenceCallback) co
 							Ref: ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.TopologySpreadConstraintsConverter"),
 						},
 					},
+					"hostAliasesConverter": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.HostAliasesConverter"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.AffinityConverter", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeNameConverter", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeSelectorConverter", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.SchedulerNameConverter", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.TolerationConverter", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.TopologySpreadConstraintsConverter"},
+			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.AffinityConverter", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.HostAliasesConverter", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeNameConverter", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeSelectorConverter", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.SchedulerNameConverter", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.TolerationConverter", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.TopologySpreadConstraintsConverter"},
 	}
 }
 
@@ -1118,6 +1251,42 @@ func schema_pkg_apis_kosmos_v1alpha1_Fdb(ref common.ReferenceCallback) common.Op
 				Required: []string{"ip", "mac", "dev"},
 			},
 		},
+	}
+}
+
+func schema_pkg_apis_kosmos_v1alpha1_HostAliasesConverter(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "HostAliasesConverter is an optional list of hosts and IPs that will be injected into the pod's hosts file if specified. This is only valid for non-hostNetwork pods.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"convertType": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"hostAliases": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/api/core/v1.HostAlias"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"convertType"},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/api/core/v1.HostAlias"},
 	}
 }
 
@@ -1761,7 +1930,7 @@ func schema_pkg_apis_kosmos_v1alpha1_PodConvertPolicy(ref common.ReferenceCallba
 					},
 					"spec": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Spec is the specification for the behaviour of the podConversion.",
+							Description: "Spec is the specification for the behaviour of the PodConvertPolicy.",
 							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PodConvertPolicySpec"),
 						},

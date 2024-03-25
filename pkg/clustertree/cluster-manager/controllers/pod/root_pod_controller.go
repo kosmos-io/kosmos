@@ -800,14 +800,21 @@ func (r *RootPodReconciler) createVolumes(ctx context.Context, lr *leafUtils.Lea
 func (r *RootPodReconciler) mutatePod(ctx context.Context, pod *corev1.Pod, nodeName string) error {
 	klog.V(4).Infof("Converting pod %v/%+v", pod.Namespace, pod.Name)
 
-	podConvertPolicyList := &kosmosv1alpha1.PodConvertPolicyList{}
-	err := r.Client.List(ctx, podConvertPolicyList, &client.ListOptions{
+	cpcpList := &kosmosv1alpha1.ClusterPodConvertPolicyList{}
+	err := r.Client.List(ctx, cpcpList, &client.ListOptions{})
+	if err != nil {
+		return fmt.Errorf("list cluster pod convert policy error: %v", err)
+	}
+
+	pcpList := &kosmosv1alpha1.PodConvertPolicyList{}
+	err = r.Client.List(ctx, pcpList, &client.ListOptions{
 		Namespace: pod.Namespace,
 	})
 	if err != nil {
-		return fmt.Errorf("list convert policy error: %v", err)
+		return fmt.Errorf("list pod convert policy error: %v", err)
 	}
-	if len(podConvertPolicyList.Items) <= 0 {
+
+	if len(cpcpList.Items) <= 0 && len(pcpList.Items) <= 0 {
 		// no matched policy, skip
 		return nil
 	}
@@ -818,11 +825,20 @@ func (r *RootPodReconciler) mutatePod(ctx context.Context, pod *corev1.Pod, node
 		return fmt.Errorf("get node error: %v, nodeName: %s", err, pod.Spec.NodeName)
 	}
 
-	matchedPolicy, err := convertpolicy.GetMatchPodConvertPolicy(*podConvertPolicyList, pod.Labels, rootNode.Labels)
-	if err != nil {
-		return fmt.Errorf("get convert policy error: %v", err)
+	if len(cpcpList.Items) > 0 {
+		matchedPolicy, err := convertpolicy.GetMatchClusterPodConvertPolicy(*cpcpList, pod.Labels, rootNode.Labels)
+		if err != nil {
+			return fmt.Errorf("get pod convert policy error: %v", err)
+		}
+		podutils.ConvertPod(pod, matchedPolicy, nil)
+	} else {
+		matchedPolicy, err := convertpolicy.GetMatchPodConvertPolicy(*pcpList, pod.Labels, rootNode.Labels)
+		if err != nil {
+			return fmt.Errorf("get pod convert policy error: %v", err)
+		}
+		podutils.ConvertPod(pod, nil, matchedPolicy)
 	}
-	podutils.ConvertPod(pod, matchedPolicy)
+
 	klog.V(4).Infof("Convert pod %v/%+v success", pod.Namespace, pod.Name)
 	return nil
 }

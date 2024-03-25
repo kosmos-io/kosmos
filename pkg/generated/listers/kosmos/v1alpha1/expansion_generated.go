@@ -10,6 +10,10 @@ type ClusterListerExpansion interface{}
 // ClusterNodeLister.
 type ClusterNodeListerExpansion interface{}
 
+// ClusterPodConvertPolicyListerExpansion allows custom methods to be added to
+// ClusterPodConvertPolicyLister.
+type ClusterPodConvertPolicyListerExpansion interface{}
+
 // DaemonSetListerExpansion allows custom methods to be added to
 // DaemonSetLister.
 type DaemonSetListerExpansion interface{}
