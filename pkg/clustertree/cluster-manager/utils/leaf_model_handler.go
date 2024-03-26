@@ -8,7 +8,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
@@ -138,9 +140,15 @@ func (h ClassificationHandler) UpdateRootNodeStatus(ctx context.Context, nodesIn
 			}
 
 			rootCopy := nodeInRoot.DeepCopy()
+			var nodeInLeafTaints []corev1.Taint
 
 			if h.leafMode == Node {
 				rootCopy.Status = *nodesInLeaf.Items[0].Status.DeepCopy()
+				nodeInLeafTaints = append(nodesInLeaf.Items[0].Spec.Taints, corev1.Taint{
+					Key:    utils.KosmosNodeTaintKey,
+					Value:  utils.KosmosNodeTaintValue,
+					Effect: utils.KosmosNodeTaintEffect,
+				})
 			} else {
 				rootCopy.Status.Conditions = utils.NodeConditions()
 
@@ -163,6 +171,14 @@ func (h ClassificationHandler) UpdateRootNodeStatus(ctx context.Context, nodesIn
 			if _, err = h.RootClientset.CoreV1().Nodes().UpdateStatus(ctx, rootCopy, metav1.UpdateOptions{}); err != nil {
 				return err
 			}
+
+			if h.leafMode == Node {
+				err := updateTaints(h.RootClientset, nodeInLeafTaints, rootCopy.Name)
+				if err != nil {
+					return fmt.Errorf("update taints failed: %v", err)
+				}
+			}
+
 			return nil
 		})
 		if err != nil {
@@ -170,6 +186,23 @@ func (h ClassificationHandler) UpdateRootNodeStatus(ctx context.Context, nodesIn
 		}
 	}
 	return utilerrors.NewAggregate(errors)
+}
+
+func updateTaints(client kubernetes.Interface, taints []corev1.Taint, nodeName string) error {
+	node := corev1.Node{
+		Spec: corev1.NodeSpec{
+			Taints: taints,
+		},
+	}
+	patchJson, err := json.Marshal(node)
+	if err != nil {
+		return err
+	}
+	_, err = client.CoreV1().Nodes().Patch(context.TODO(), nodeName, types.MergePatchType, patchJson, metav1.PatchOptions{})
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func createNode(ctx context.Context, clientset kubernetes.Interface, clusterName, nodeName, gitVersion string, listenPort int32) (*corev1.Node, error) {
