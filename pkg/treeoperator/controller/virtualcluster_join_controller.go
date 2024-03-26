@@ -427,7 +427,8 @@ func (c *VirtualClusterJoinController) CreateCluster(ctx context.Context, reques
 
 	// create crd cluster.kosmos.io
 	klog.Infof("Attempting to create kosmos-clustertree CRDs for virtualcluster %s/%s...", request.Namespace, request.Name)
-	for _, crdToCreate := range []string{manifest.ServiceImport, manifest.Cluster, manifest.ServiceExport} {
+	for _, crdToCreate := range []string{manifest.ServiceImport, manifest.Cluster,
+		manifest.ServiceExport, manifest.PodConversionCRD, manifest.PodConvertPolicyCRD} {
 		crdObject, err := kosmosctl.GenerateCustomResourceDefinition(crdToCreate, nil)
 		if err != nil {
 			return err
