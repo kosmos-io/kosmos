@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"sync"
 
 	corev1 "k8s.io/api/core/v1"
 	extensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
-	"k8s.io/apimachinery/pkg/api/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -31,7 +31,6 @@ import (
 	clusterManager "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager"
 	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/manifest"
-	"github.com/kosmos.io/kosmos/pkg/kosmosctl/util"
 	kosmosctl "github.com/kosmos.io/kosmos/pkg/kosmosctl/util"
 	"github.com/kosmos.io/kosmos/pkg/treeoperator/constants"
 	treemanifest "github.com/kosmos.io/kosmos/pkg/treeoperator/manifest"
@@ -41,10 +40,15 @@ import (
 
 type VirtualClusterJoinController struct {
 	client.Client
-	EventRecorder    record.EventRecorder
-	KubeconfigPath   string
-	KubeconfigStream []byte
+	EventRecorder              record.EventRecorder
+	KubeconfigPath             string
+	KubeconfigStream           []byte
+	AllowNodeOwnbyMulticluster bool
 }
+
+var nodeOwnerMap map[string]string = make(map[string]string)
+var mu sync.Mutex
+var once sync.Once
 
 func (c *VirtualClusterJoinController) RemoveClusterFinalizer(cluster *v1alpha1.Cluster, kosmosClient versioned.Interface) error {
 	for _, finalizer := range []string{utils.ClusterStartControllerFinalizer, clusterManager.ControllerFinalizerName} {
@@ -61,6 +65,57 @@ func (c *VirtualClusterJoinController) RemoveClusterFinalizer(cluster *v1alpha1.
 	}
 	klog.Infof("update cluster after remove finalizer for cluster %s", cluster.Name)
 	return nil
+}
+
+func (c *VirtualClusterJoinController) InitNodeOwnerMap() {
+	vcList := &v1alpha1.VirtualClusterList{}
+	err := c.List(context.Background(), vcList)
+	if err != nil {
+		klog.Errorf("list virtual cluster error: %v", err)
+		return
+	}
+	for _, vc := range vcList.Items {
+		if vc.Status.Phase == constants.VirtualClusterStatusCompleted {
+			kubeconfigStream, err := base64.StdEncoding.DecodeString(vc.Spec.Kubeconfig)
+			if err != nil {
+				klog.Errorf("virtualcluster %s decode target kubernetes kubeconfig %s err: %v", vc.Name, vc.Spec.Kubeconfig, err)
+				continue
+			}
+			kosmosClient, _, k8sExtensionsClient, err := c.InitTargetKubeclient(kubeconfigStream)
+			if err != nil {
+				klog.Errorf("virtualcluster %s crd kubernetes client failed: %v", vc.Name, err)
+				continue
+			}
+			_, err = k8sExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Get(context.Background(), "clusters.kosmos.io", metav1.GetOptions{})
+			if err != nil {
+				if !apierrors.IsNotFound(err) {
+					klog.Errorf("virtualcluster %s get crd clusters.kosmos.io err: %v", vc.Name, err)
+				}
+				klog.Infof("virtualcluster %s crd clusters.kosmos.io doesn't exist", vc.Name)
+				continue
+			}
+			clusters, err := kosmosClient.KosmosV1alpha1().Clusters().List(context.Background(), metav1.ListOptions{})
+			if err != nil {
+				if !apierrors.IsNotFound(err) {
+					klog.Infof("virtualcluster %s get clusters err: %v", vc.Name, err)
+				}
+				klog.Infof("virtualcluster %s cluster doesn't exist", vc.Name)
+				continue
+			}
+			mu.Lock()
+			for _, cluster := range clusters.Items {
+				for _, node := range cluster.Spec.ClusterTreeOptions.LeafModels {
+					if vcName, ok := nodeOwnerMap[node.LeafNodeName]; ok && len(vcName) > 0 {
+						klog.Warningf("node %s also belong to cluster %s", node.LeafNodeName, vcName)
+					}
+					nodeOwnerMap[node.LeafNodeName] = vc.Name
+				}
+			}
+			mu.Unlock()
+		}
+		klog.Infof("check virtualcluster %s, nodeOwnerMap is %v", vc.Name, nodeOwnerMap)
+	}
+	klog.Infof("Init nodeOwnerMap is %v", nodeOwnerMap)
 }
 
 func (c *VirtualClusterJoinController) UninstallClusterTree(ctx context.Context, request reconcile.Request, vc *v1alpha1.VirtualCluster) error {
@@ -130,7 +185,7 @@ func (c *VirtualClusterJoinController) UninstallClusterTree(ctx context.Context,
 	if err != nil {
 		return fmt.Errorf("decode target kubernetes kubeconfig %s err: %v", vc.Spec.Kubeconfig, err)
 	}
-	err, kosmosClient, _, _ := c.InitTargetKubeclient(kubeconfigStream)
+	kosmosClient, _, _, err := c.InitTargetKubeclient(kubeconfigStream)
 	if err != nil {
 		return fmt.Errorf("create kubernetes client failed: %v", err)
 	}
@@ -142,6 +197,13 @@ func (c *VirtualClusterJoinController) UninstallClusterTree(ctx context.Context,
 			return fmt.Errorf("get cluster %s failed when we try to del: %v", clusterName, err)
 		}
 	} else {
+		if !c.AllowNodeOwnbyMulticluster {
+			mu.Lock()
+			for _, nodeName := range old.Spec.ClusterTreeOptions.LeafModels {
+				nodeOwnerMap[nodeName.LeafNodeName] = ""
+			}
+			mu.Unlock()
+		}
 		err = c.RemoveClusterFinalizer(old, kosmosClient)
 		if err != nil {
 			return fmt.Errorf("removefinalizer %s failed: %v", clusterName, err)
@@ -158,30 +220,30 @@ func (c *VirtualClusterJoinController) UninstallClusterTree(ctx context.Context,
 	return nil
 }
 
-func (c *VirtualClusterJoinController) InitTargetKubeclient(kubeconfigStream []byte) (error, versioned.Interface, kubernetes.Interface, extensionsclient.Interface) {
+func (c *VirtualClusterJoinController) InitTargetKubeclient(kubeconfigStream []byte) (versioned.Interface, kubernetes.Interface, extensionsclient.Interface, error) {
 	//targetKubeconfig := path.Join(DefaultKubeconfigPath, "kubeconfig")
 	//config, err := utils.RestConfig(targetKubeconfig, "")
 	config, err := utils.NewConfigFromBytes(kubeconfigStream)
 	if err != nil {
-		return fmt.Errorf("generate kubernetes config failed: %s", err), nil, nil, nil
+		return nil, nil, nil, fmt.Errorf("generate kubernetes config failed: %s", err)
 	}
 
 	kosmosClient, err := versioned.NewForConfig(config)
 	if err != nil {
-		return fmt.Errorf("generate Kosmos client failed: %v", err), nil, nil, nil
+		return nil, nil, nil, fmt.Errorf("generate Kosmos client failed: %v", err)
 	}
 
 	k8sClient, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		return fmt.Errorf("generate K8s basic client failed: %v", err), nil, nil, nil
+		return nil, nil, nil, fmt.Errorf("generate K8s basic client failed: %v", err)
 	}
 
 	k8sExtensionsClient, err := extensionsclient.NewForConfig(config)
 	if err != nil {
-		return fmt.Errorf("generate K8s extensions client failed: %v", err), nil, nil, nil
+		return nil, nil, nil, fmt.Errorf("generate K8s extensions client failed: %v", err)
 	}
 
-	return nil, kosmosClient, k8sClient, k8sExtensionsClient
+	return kosmosClient, k8sClient, k8sExtensionsClient, nil
 }
 
 func (c *VirtualClusterJoinController) DeployKosmos(ctx context.Context, request reconcile.Request, vc *v1alpha1.VirtualCluster) error {
@@ -211,6 +273,7 @@ func (c *VirtualClusterJoinController) DeployKosmos(ctx context.Context, request
 		imageRepository = utils.DefaultImageRepository
 	}
 
+	//TODO: hard coded,modify in future
 	imageVersion := "v0.3.0" //os.Getenv(constants.DefauleImageVersionEnv)
 	if len(imageVersion) == 0 {
 		imageVersion = fmt.Sprintf("v%s", version.GetReleaseVersion().PatchRelease())
@@ -236,31 +299,153 @@ func (c *VirtualClusterJoinController) DeployKosmos(ctx context.Context, request
 	return nil
 }
 
-func (c *VirtualClusterJoinController) CreateCluster(ctx context.Context, request reconcile.Request, vc *v1alpha1.VirtualCluster) error {
-	klog.Infof("Attempting to create kosmos-clustertree CRDs for virtualcluster %s/%s...", request.Namespace, request.Name)
-	clustertreeCluster, err := util.GenerateCustomResourceDefinition(manifest.Cluster, nil)
-	if err != nil {
-		return err
+func (c *VirtualClusterJoinController) ClearSomeNodeOwner(nodeNames *[]string) {
+	if !c.AllowNodeOwnbyMulticluster {
+		mu.Lock()
+		for _, nodeName := range *nodeNames {
+			nodeOwnerMap[nodeName] = ""
+		}
+		mu.Unlock()
 	}
+}
 
+func (c *VirtualClusterJoinController) CreateClusterObject(ctx context.Context, request reconcile.Request,
+	vc *v1alpha1.VirtualCluster, hostK8sClient kubernetes.Interface, cluster *v1alpha1.Cluster) (*[]string, *map[string]struct{}, error) {
+	var leafModels []v1alpha1.LeafModel
+	// recored new nodes' name, if error happen before create or update, need clear newNodeNames
+	newNodeNames := []string{}
+	// record all nodes' name in a map, when update cr, may need to delete some old node
+	// compare all nodes in cluster cr to all node exits in virtual cluster,we can find which ndoe should be deleted
+	allNodeNamesMap := map[string]struct{}{}
+
+	for _, nodeName := range vc.Spec.PromoteResources.Nodes {
+		_, err := hostK8sClient.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				klog.Warningf("node %s doesn't exits: %v", nodeName, err)
+				continue
+			}
+			c.ClearSomeNodeOwner(&newNodeNames)
+			klog.Errorf("get node %s error: %v", nodeName, err)
+			return nil, nil, err
+		}
+		if !c.AllowNodeOwnbyMulticluster {
+			mu.Lock()
+			if len(nodeOwnerMap) > 0 {
+				if nodeOwner, existed := nodeOwnerMap[nodeName]; existed && len(nodeOwner) > 0 {
+					if nodeOwner != cluster.Name {
+						continue
+					}
+				} else {
+					newNodeNames = append(newNodeNames, nodeName)
+				}
+			} else {
+				newNodeNames = append(newNodeNames, nodeName)
+			}
+			allNodeNamesMap[nodeName] = struct{}{}
+			nodeOwnerMap[nodeName] = cluster.Name
+			mu.Unlock()
+		}
+		leafModel := v1alpha1.LeafModel{
+			LeafNodeName: nodeName,
+			Taints: []corev1.Taint{
+				{
+					Effect: utils.KosmosNodeTaintEffect,
+					Key:    utils.KosmosNodeTaintKey,
+					Value:  utils.KosmosNodeValue,
+				},
+			},
+			NodeSelector: v1alpha1.NodeSelector{
+				NodeName: nodeName,
+			},
+		}
+		leafModels = append(leafModels, leafModel)
+	}
+	klog.V(7).Infof("all new node in cluster %s: %v", cluster.Name, newNodeNames)
+	klog.V(7).Infof("all node in cluster %s: %v", cluster.Name, allNodeNamesMap)
+	cluster.Spec.ClusterTreeOptions.LeafModels = leafModels
+
+	return &newNodeNames, &allNodeNamesMap, nil
+}
+
+func (c *VirtualClusterJoinController) CreateOrUpdateCluster(ctx context.Context, request reconcile.Request,
+	kosmosClient versioned.Interface, k8sClient kubernetes.Interface, newNodeNames *[]string,
+	allNodeNamesMap *map[string]struct{}, cluster *v1alpha1.Cluster) error {
+	old, err := kosmosClient.KosmosV1alpha1().Clusters().Get(context.TODO(), cluster.Name, metav1.GetOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			_, err = kosmosClient.KosmosV1alpha1().Clusters().Create(context.TODO(), cluster, metav1.CreateOptions{})
+			if err != nil {
+				c.ClearSomeNodeOwner(newNodeNames)
+				return fmt.Errorf("create cluster %s failed: %v", cluster.Name, err)
+			}
+		} else {
+			c.ClearSomeNodeOwner(newNodeNames)
+			return fmt.Errorf("create cluster %s failed when get it first: %v", cluster.Name, err)
+		}
+		klog.Infof("Cluster %s for %s/%s has been created.", cluster.Name, request.Namespace, request.Name)
+	} else {
+		cluster.ResourceVersion = old.GetResourceVersion()
+		_, err = kosmosClient.KosmosV1alpha1().Clusters().Update(context.TODO(), cluster, metav1.UpdateOptions{})
+		if err != nil {
+			c.ClearSomeNodeOwner(newNodeNames)
+			return fmt.Errorf("update cluster %s failed: %v", cluster.Name, err)
+		}
+
+		k8sNodesList, err := k8sClient.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+		if err != nil {
+			return fmt.Errorf("list %s's k8s nodes error: %v", cluster.Name, err)
+		}
+		// clear node, delete some node not in new VirtualCluster.spec.PromoteResources.Nodes
+		for _, node := range k8sNodesList.Items {
+			if _, ok := (*allNodeNamesMap)[node.Name]; !ok {
+				// if existed node not in map, it should be deleted
+				err := k8sClient.CoreV1().Nodes().Delete(context.TODO(), node.Name, metav1.DeleteOptions{})
+				if err != nil && !apierrors.IsNotFound(err) {
+					return fmt.Errorf("delete %s's k8s nodes error: %v", cluster.Name, err)
+				}
+				// clear ndoe's owner
+				mu.Lock()
+				nodeOwnerMap[node.Name] = ""
+				mu.Unlock()
+			}
+		}
+		klog.Infof("Cluster %s for %s/%s has been updated.", cluster.Name, request.Namespace, request.Name)
+	}
+	return nil
+}
+
+func (c *VirtualClusterJoinController) CreateCluster(ctx context.Context, request reconcile.Request, vc *v1alpha1.VirtualCluster) error {
 	kubeconfigStream, err := base64.StdEncoding.DecodeString(vc.Spec.Kubeconfig)
 	if err != nil {
 		return fmt.Errorf("decode target kubernetes kubeconfig %s err: %v", vc.Spec.Kubeconfig, err)
 	}
-	err, kosmosClient, _, k8sExtensionsClient := c.InitTargetKubeclient(kubeconfigStream)
+	kosmosClient, k8sClient, k8sExtensionsClient, err := c.InitTargetKubeclient(kubeconfigStream)
 	if err != nil {
 		return fmt.Errorf("crd kubernetes client failed: %v", err)
 	}
-	_, err = k8sExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Create(context.Background(), clustertreeCluster, metav1.CreateOptions{})
-	if err != nil {
-		if apierrors.IsAlreadyExists(err) {
-			klog.Warningf("CRD %s is existed, creation process will skip", clustertreeCluster.Name)
+
+	// create crd cluster.kosmos.io
+	klog.Infof("Attempting to create kosmos-clustertree CRDs for virtualcluster %s/%s...", request.Namespace, request.Name)
+	for _, crdToCreate := range []string{manifest.ServiceImport, manifest.Cluster,
+		manifest.ServiceExport, manifest.PodConversionCRD, manifest.PodConvertPolicyCRD} {
+		crdObject, err := kosmosctl.GenerateCustomResourceDefinition(crdToCreate, nil)
+		if err != nil {
+			return err
+		}
+		_, err = k8sExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Create(context.Background(), crdObject, metav1.CreateOptions{})
+		if err != nil {
+			if !apierrors.IsAlreadyExists(err) {
+				return fmt.Errorf("create CRD %s for virtualcluster %s/%s failed: %v",
+					crdObject.Name, request.Namespace, request.Name, err)
+			}
+			klog.Warningf("CRD %s is existed, creation process will skip", crdObject.Name)
 		} else {
-			return fmt.Errorf("CRD create failed for virtualcluster %s/%s: %v", request.Namespace, request.Name, err)
+			klog.Infof("Create CRD %s for virtualcluster %s/%s successful.", crdObject.Name, request.Namespace, request.Name)
 		}
 	}
-	klog.Infof("Create CRD %s for virtualcluster %s/%s successful.", clustertreeCluster.Name, request.Namespace, request.Name)
 
+	// construct cluster.kosmos.io cr
 	clusterName := fmt.Sprintf("virtualcluster-%s-%s", request.Namespace, request.Name)
 	klog.Infof("Attempting to create cluster %s for %s/%s ...", clusterName, request.Namespace, request.Name)
 
@@ -286,53 +471,18 @@ func (c *VirtualClusterJoinController) CreateCluster(ctx context.Context, reques
 	if err != nil {
 		return fmt.Errorf("crd kubernetes client failed: %v", err)
 	}
-	var leafModels []v1alpha1.LeafModel
-	for _, nodeName := range vc.Spec.PromoteResources.Nodes {
-		_, err := hostK8sClient.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
-		if err != nil {
-			klog.Errorf("node %s doesn't exits: %v", nodeName, err)
-			continue
-		}
-		leafModel := v1alpha1.LeafModel{
-			LeafNodeName: nodeName,
-			Taints: []corev1.Taint{
-				{
-					Effect: utils.KosmosNodeTaintEffect,
-					Key:    utils.KosmosNodeTaintKey,
-					Value:  utils.KosmosNodeValue,
-				},
-			},
-			NodeSelector: v1alpha1.NodeSelector{
-				NodeName: nodeName,
-			},
-		}
-		leafModels = append(leafModels, leafModel)
-	}
-	cluster.Spec.ClusterTreeOptions.LeafModels = leafModels
 
-	old, err := kosmosClient.KosmosV1alpha1().Clusters().Get(context.TODO(), clusterName, metav1.GetOptions{})
+	newNodeNames, allNodeNamesMap, nil := c.CreateClusterObject(ctx, request, vc, hostK8sClient, &cluster)
 	if err != nil {
-		if apierrors.IsNotFound(err) {
-			_, err = kosmosClient.KosmosV1alpha1().Clusters().Create(context.TODO(), &cluster, metav1.CreateOptions{})
-			if err != nil {
-				return fmt.Errorf("create cluster %s failed: %v", clusterName, err)
-			}
-		} else {
-			return fmt.Errorf("create cluster %s failed when get it first: %v", clusterName, err)
-		}
-	} else {
-		cluster.ResourceVersion = old.GetResourceVersion()
-		update, err := kosmosClient.KosmosV1alpha1().Clusters().Update(context.TODO(), &cluster, metav1.UpdateOptions{})
-		if err != nil {
-			return fmt.Errorf("update cluster %s failed: %v", clusterName, err)
-		} else {
-			klog.Infof("Cluster %s hase been updated.", clusterName)
-		}
-		if !update.DeletionTimestamp.IsZero() {
-			return fmt.Errorf("cluster %s is deleteting, need requeue", clusterName)
-		}
+		return err
 	}
-	klog.Infof("Cluster %s for %s/%s has been created.", clusterName, request.Namespace, request.Name)
+
+	// use client-go to create or update cluster.kosmos.io cr
+	err = c.CreateOrUpdateCluster(ctx, request, kosmosClient, k8sClient, newNodeNames, allNodeNamesMap, &cluster)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -379,10 +529,13 @@ func (c *VirtualClusterJoinController) InstallClusterTree(ctx context.Context, r
 func (c *VirtualClusterJoinController) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
 	klog.V(4).Infof("============ %s starts to reconcile %s ============", constants.JoinControllerName, request.Name)
 	defer klog.V(4).Infof("============ %s reconcile finish %s ============", constants.JoinControllerName, request.Name)
+	if !c.AllowNodeOwnbyMulticluster {
+		once.Do(c.InitNodeOwnerMap)
+	}
 	var vc v1alpha1.VirtualCluster
 
 	if err := c.Get(ctx, request.NamespacedName, &vc); err != nil {
-		if errors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			return reconcile.Result{}, nil
 		}
 		klog.Errorf("get %s error: %v", request.NamespacedName, err)
