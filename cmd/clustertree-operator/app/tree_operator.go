@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"github.com/kosmos.io/kosmos/pkg/treeoperator/controller"
 
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/tools/clientcmd"
@@ -13,7 +14,6 @@ import (
 	"github.com/kosmos.io/kosmos/cmd/clusterlink/network-manager/app/options"
 	"github.com/kosmos.io/kosmos/pkg/scheme"
 	"github.com/kosmos.io/kosmos/pkg/sharedcli/klogflag"
-	"github.com/kosmos.io/kosmos/pkg/treeoperator"
 )
 
 func NewVirtualClusterOperatorCommand(ctx context.Context) *cobra.Command {
@@ -55,30 +55,31 @@ func run(ctx context.Context, opts *options.Options) error {
 	config.QPS, config.Burst = opts.KubernetesOptions.QPS, opts.KubernetesOptions.Burst
 
 	mgr, err := controllerruntime.NewManager(config, controllerruntime.Options{
-		Logger:                  klog.Background(),
-		Scheme:                  scheme.NewSchema(),
-		LeaderElection:          opts.LeaderElection.LeaderElect,
-		LeaderElectionID:        opts.LeaderElection.ResourceName,
-		LeaderElectionNamespace: opts.LeaderElection.ResourceNamespace,
+		Logger: klog.Background(),
+		Scheme: scheme.NewSchema(),
+		/*	LeaderElection:          opts.LeaderElection.LeaderElect,
+			LeaderElectionID:        opts.LeaderElection.ResourceName,
+			LeaderElectionNamespace: opts.LeaderElection.ResourceNamespace,*/
 	})
 	if err != nil {
 		return fmt.Errorf("failed to build controller manager: %v", err)
 	}
 
-	VirtualClusterInitController := treeoperator.VirtualClusterInitController{
+	VirtualClusterInitController := controller.VirtualClusterInitController{
 		Client:        mgr.GetClient(),
-		EventRecorder: mgr.GetEventRecorderFor(treeoperator.InitControllerName),
+		Config:        mgr.GetConfig(),
+		EventRecorder: mgr.GetEventRecorderFor(controller.InitControllerName),
 	}
 	if err = VirtualClusterInitController.SetupWithManager(mgr); err != nil {
-		return fmt.Errorf("error starting %s: %v", treeoperator.InitControllerName, err)
+		return fmt.Errorf("error starting %s: %v", controller.InitControllerName, err)
 	}
 
-	VirtualClusterJoinController := treeoperator.VirtualClusterJoinController{
+	VirtualClusterJoinController := controller.VirtualClusterJoinController{
 		Client:        mgr.GetClient(),
-		EventRecorder: mgr.GetEventRecorderFor(treeoperator.JoinControllerName),
+		EventRecorder: mgr.GetEventRecorderFor(controller.JoinControllerName),
 	}
 	if err = VirtualClusterJoinController.SetupWithManager(mgr); err != nil {
-		return fmt.Errorf("error starting %s: %v", treeoperator.JoinControllerName, err)
+		return fmt.Errorf("error starting %s: %v", controller.JoinControllerName, err)
 	}
 
 	if err := mgr.Start(ctx); err != nil {

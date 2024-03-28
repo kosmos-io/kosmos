@@ -17,8 +17,7 @@ const (
 )
 
 // +genclient
-// +genclient:nonNamespaced
-// +kubebuilder:resource:scope="Cluster"
+// +kubebuilder:resource:scope=Namespaced
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 type VirtualCluster struct {

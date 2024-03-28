@@ -1,4 +1,4 @@
-package treeoperator
+package controller
 
 import (
 	"k8s.io/client-go/tools/record"
@@ -7,14 +7,14 @@ import (
 )
 
 const (
-	InitControllerName = "virtual-cluster-init-controller"
+	JoinControllerName = "virtual-cluster-join-controller"
 )
 
-type VirtualClusterInitController struct {
+type VirtualClusterJoinController struct {
 	client.Client
 	EventRecorder record.EventRecorder
 }
 
-func (c *VirtualClusterInitController) SetupWithManager(mgr manager.Manager) error {
+func (c *VirtualClusterJoinController) SetupWithManager(mgr manager.Manager) error {
 	return nil
 }
