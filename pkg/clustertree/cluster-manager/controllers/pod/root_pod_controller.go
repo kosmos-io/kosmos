@@ -825,17 +825,17 @@ func (r *RootPodReconciler) mutatePod(ctx context.Context, pod *corev1.Pod, node
 	klog.V(4).Infof("Converting pod %v/%+v", pod.Namespace, pod.Name)
 
 	cpcpList := &kosmosv1alpha1.ClusterPodConvertPolicyList{}
-	err := r.Client.List(ctx, cpcpList, &client.ListOptions{})
-	if err != nil {
-		return fmt.Errorf("list cluster pod convert policy error: %v", err)
-	}
-
 	pcpList := &kosmosv1alpha1.PodConvertPolicyList{}
-	err = r.Client.List(ctx, pcpList, &client.ListOptions{
-		Namespace: pod.Namespace,
-	})
-	if err != nil {
-		return fmt.Errorf("list pod convert policy error: %v", err)
+	err := r.Client.List(ctx, cpcpList, &client.ListOptions{})
+	if err != nil && !errors.IsNotFound(err) {
+		klog.Infof("list cluster pod convert policy error: %v", err)
+	} else {
+		err = r.Client.List(ctx, pcpList, &client.ListOptions{
+			Namespace: pod.Namespace,
+		})
+		if err != nil && !errors.IsNotFound(err) {
+			klog.Infof("list pod convert policy error: %v", err)
+		}
 	}
 
 	if len(cpcpList.Items) <= 0 && len(pcpList.Items) <= 0 {
