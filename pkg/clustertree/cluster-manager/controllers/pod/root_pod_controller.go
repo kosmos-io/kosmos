@@ -565,15 +565,15 @@ func (r *RootPodReconciler) changeToMasterCoreDNS(ctx context.Context, pod *core
 // projectedHandler Process the project volume, creating and mounting secret, configmap, DownwardAPI,
 // and ServiceAccountToken from the project volume in the member cluster to the pod of the host cluster
 func (r *RootPodReconciler) projectedHandler(ctx context.Context, lr *leafUtils.LeafResource, pod *corev1.Pod) {
-	if pod.Spec.Volumes == nil {
+	falseValue := false
+	pod.Spec.AutomountServiceAccountToken = &falseValue
+
+	if len(pod.Spec.Volumes) == 0 {
 		return
 	}
 
 	for _, volume := range pod.Spec.Volumes {
 		if volume.Projected != nil {
-			falseValue := false
-			pod.Spec.AutomountServiceAccountToken = &falseValue
-
 			saName := pod.Spec.ServiceAccountName
 			var sources []corev1.VolumeProjection
 
