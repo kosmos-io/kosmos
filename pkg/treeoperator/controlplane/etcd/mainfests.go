@@ -1,0 +1,140 @@
+package etcd
+
+const (
+	// EtcdStatefulSet is  etcd StatefulSet manifest
+	EtcdStatefulSet = `
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    virtualCluster-app: etcd
+    app.kubernetes.io/managed-by: virtual-cluster-controller
+  namespace: {{ .Namespace }}
+  name: {{ .StatefulSetName }}
+spec:
+  replicas: {{ .Replicas }}
+  serviceName: {{ .StatefulSetName }}
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels:
+      virtualCluster-app: etcd
+  template:
+    metadata:
+      labels:
+        virtualCluster-app: etcd
+    tolerations:
+    - operator: Exists
+    spec:
+      automountServiceAccountToken: false
+      containers:
+      - name: etcd
+        image:  {{ .ImageRepository }}/etcd:{{ .Version }}
+        imagePullPolicy: IfNotPresent
+        command:
+        - /usr/local/bin/etcd
+        - --name=$(VIRTUAL_ETCD_NAME)
+        - --listen-client-urls= https://0.0.0.0:{{ .EtcdListenClientPort }}
+        - --listen-peer-urls=http://0.0.0.0:{{ .EtcdListenPeerPort }}
+        - --advertise-client-urls=https://{{ .EtcdClientService }}.{{ .Namespace }}.svc.cluster.local:{{ .EtcdListenClientPort }}
+        - --initial-cluster={{ .InitialCluster }}
+        - --initial-cluster-state=new
+        - --client-cert-auth=true
+        - --trusted-ca-file=/etc/virtualcluster/pki/etcd/etcd-ca.crt
+        - --cert-file=/etc/virtualcluster/pki/etcd/etcd-server.crt
+        - --key-file=/etc/virtualcluster/pki/etcd/etcd-server.key
+        - --data-dir=/var/lib/etcd
+        - --snapshot-count=10000
+        - --log-level=debug
+        - --cipher-suites={{ .EtcdCipherSuites }}
+        env:
+        - name: VIRTUAL_ETCD_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.name
+        livenessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -ec
+            - etcdctl get /registry --prefix --keys-only --endpoints https://127.0.0.1:{{ .EtcdListenClientPort }} --cacert=/etc/virtualcluster/pki/etcd/etcd-ca.crt --cert=/etc/virtualcluster/pki/etcd/etcd-server.crt --key=/etc/virtualcluster/pki/etcd/etcd-server.key
+          failureThreshold: 3
+          initialDelaySeconds: 600
+          periodSeconds: 60
+          successThreshold: 1
+          timeoutSeconds: 10
+        ports:
+        - containerPort: {{ .EtcdListenClientPort }}
+          name: client
+          protocol: TCP
+        - containerPort: {{ .EtcdListenPeerPort }}
+          name: server
+          protocol: TCP
+        volumeMounts:
+        - mountPath: /var/lib/etcd
+          name: {{ .EtcdDataVolumeName }}
+        - mountPath: /etc/virtualcluster/pki/etcd
+          name: etcd-cert
+      volumes:
+      - name: etcd-cert
+        secret:
+          secretName: {{ .CertsSecretName }}
+  volumeClaimTemplates:
+  - metadata:
+      name: etcd-data
+    spec:
+      accessModes:
+        - ReadWriteOnce
+      resources:
+        requests:
+          storage: 1Gi
+      storageClassName: openebs-hostpath
+`
+
+	// EtcdClientService is etcd client service manifest
+	EtcdClientService = `
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    virtualCluster-app: etcd
+    app.kubernetes.io/managed-by: virtual-cluster-controller
+  name: {{ .ServiceName }}
+  namespace: {{ .Namespace }}
+spec:
+  ports:
+  - name: client
+    port: {{ .EtcdListenClientPort }}
+    protocol: TCP
+    targetPort: {{ .EtcdListenClientPort }}
+  selector:
+    virtualCluster-app: etcd
+  type: ClusterIP
+ `
+
+	// EtcdPeerService is etcd peer Service manifest
+	EtcdPeerService = `
+ apiVersion: v1
+ kind: Service
+ metadata:
+   labels:
+     virtualCluster-app: etcd
+     app.kubernetes.io/managed-by: virtual-cluster-controller
+   name: {{ .ServiceName }}
+   namespace: {{ .Namespace }}
+ spec:
+   clusterIP: None
+   ports:
+   - name: client
+     port: {{ .EtcdListenClientPort }}
+     protocol: TCP
+     targetPort: {{ .EtcdListenClientPort }}
+   - name: server
+     port: {{ .EtcdListenPeerPort }}
+     protocol: TCP
+     targetPort: {{ .EtcdListenPeerPort }}
+   selector:
+     virtualCluster-app: etcd
+   type: ClusterIP
+  `
+)
