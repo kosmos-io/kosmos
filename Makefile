@@ -1,6 +1,6 @@
 GOOS ?= $(shell go env GOOS)
 GOARCH ?= $(shell go env GOARCH)
-VERSION ?= '$(shell hack/version.sh)'
+VERSION ?= '$(shell hack/version.sh)'-k8s-1.21.6
 
 # Images management
 REGISTRY?="ghcr.io/kosmos-io"
