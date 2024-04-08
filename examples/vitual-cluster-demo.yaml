@@ -5,9 +5,13 @@ metadata:
   name: test
 spec:
   promoteResources:
-    nodes:
-      - node1
-      - node2
+    nodeInfos:
+      - nodeName: nodeName1
+        address: 127.0.0.1
+      - nodeName: nodeName2
+        address: 127.0.0.2
     resources:
-      cpu: 1
+      cpu: 2
       memory: "1Gi"
+status:
+  phase: Completed

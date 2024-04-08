@@ -22,6 +22,7 @@ CLUSTERLINK_TARGET_SOURCE=(
   clusterlink-network-manager=cmd/clusterlink/network-manager
   clusterlink-controller-manager=cmd/clusterlink/controller-manager
   clustertree-cluster-manager=cmd/clustertree/cluster-manager
+  virtual-cluster-operator=cmd/kubenest/operator
   kosmosctl=cmd/kosmosctl
 )
 

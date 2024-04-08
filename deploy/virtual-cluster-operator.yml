@@ -1,0 +1,77 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: virtual-cluster-operator
+  namespace: kosmos-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: virtual-cluster-operator
+rules:
+  - apiGroups: ['*']
+    resources: ['*']
+    verbs: ["*"]
+  - nonResourceURLs: ['*']
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: virtual-cluster-operator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: virtual-cluster-operator
+subjects:
+  - kind: ServiceAccount
+    name: virtual-cluster-operator
+    namespace: kosmos-system
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: virtual-cluster-operator
+  namespace: kosmos-system
+type: Opaque
+data:
+  kubeconfig: __kubeconfig__
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: virtual-cluster-operator
+  namespace: kosmos-system
+  labels:
+    app: virtual-cluster-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: virtual-cluster-operator
+  template:
+    metadata:
+      labels:
+        app: virtual-cluster-operator
+    spec:
+      serviceAccountName: virtual-cluster-operator
+      containers:
+        - name: virtual-cluster-operator
+          image: repo1-cn-beijing.cr.volces.com/virtualcluster/virtualcluter/virtual-cluster-operator:ee1bcd33-dirty
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: IMAGE_REPOSITIRY
+              value: repo1-cn-beijing.cr.volces.com/virtualcluster/virtualcluter
+          volumeMounts:
+            - name: credentials
+              mountPath: /etc/virtual-cluster-operator
+              readOnly: true
+          command:
+            - virtual-cluster-operator
+            - --kubeconfig=/etc/virtual-cluster-operator/kubeconfig
+            - --v=4
+      volumes:
+        - name: credentials
+          secret:
+            secretName: virtual-cluster-operator
