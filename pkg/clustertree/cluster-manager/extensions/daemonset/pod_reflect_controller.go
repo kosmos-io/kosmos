@@ -25,9 +25,8 @@ import (
 	kosmosv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	kosmosinformer "github.com/kosmos.io/kosmos/pkg/generated/informers/externalversions/kosmos/v1alpha1"
 	kosmoslister "github.com/kosmos.io/kosmos/pkg/generated/listers/kosmos/v1alpha1"
-	"github.com/kosmos.io/kosmos/pkg/utils"
-	"github.com/kosmos.io/kosmos/pkg/utils/flags"
 	"github.com/kosmos.io/kosmos/pkg/utils/keys"
+	"github.com/kosmos.io/kosmos/pkg/utils/lifted"
 )
 
 var KosmosDaemonSetKind = kosmosv1alpha1.SchemeGroupVersion.WithKind("DaemonSet")
@@ -56,11 +55,11 @@ type PodReflectorController struct {
 
 	podSynced cache.InformerSynced
 
-	clusterProcessor utils.AsyncWorker
+	clusterProcessor lifted.AsyncWorker
 
-	podProcessor utils.AsyncWorker
+	podProcessor lifted.AsyncWorker
 
-	rateLimiterOptions flags.Options
+	rateLimiterOptions lifted.RateLimitOptions
 
 	lock sync.RWMutex
 }
@@ -70,7 +69,7 @@ func NewPodReflectorController(kubeClient clientset.Interface,
 	kdsInformer kosmosinformer.DaemonSetInformer,
 	clusterInformer kosmosinformer.ClusterInformer,
 	podInformer corev1informers.PodInformer,
-	rateLimiterOptions flags.Options,
+	rateLimiterOptions lifted.RateLimitOptions,
 ) *PodReflectorController {
 	pc := &PodReflectorController{
 		kubeClient:         kubeClient,
@@ -114,19 +113,19 @@ func (pc *PodReflectorController) Run(ctx context.Context, workers int) {
 	klog.Infof("Starting pod reflector controller")
 	defer klog.Infof("Shutting down pod reflector controller")
 
-	clusterOpt := utils.Options{
+	clusterOpt := lifted.WorkerOptions{
 		Name: "pod reflector controller: cluster",
-		KeyFunc: func(obj interface{}) (utils.QueueKey, error) {
+		KeyFunc: func(obj interface{}) (lifted.QueueKey, error) {
 			return keys.ClusterWideKeyFunc(obj)
 		},
 		ReconcileFunc:      pc.syncCluster,
 		RateLimiterOptions: pc.rateLimiterOptions,
 	}
-	pc.clusterProcessor = utils.NewAsyncWorker(clusterOpt)
+	pc.clusterProcessor = lifted.NewAsyncWorker(clusterOpt)
 
-	podOpt := utils.Options{
+	podOpt := lifted.WorkerOptions{
 		Name: "pod reflector controller: pod",
-		KeyFunc: func(obj interface{}) (utils.QueueKey, error) {
+		KeyFunc: func(obj interface{}) (lifted.QueueKey, error) {
 			pod := obj.(*corev1.Pod)
 			cluster := getCluster(pod)
 			if len(cluster) == 0 {
@@ -137,7 +136,7 @@ func (pc *PodReflectorController) Run(ctx context.Context, workers int) {
 		ReconcileFunc:      pc.syncPod,
 		RateLimiterOptions: pc.rateLimiterOptions,
 	}
-	pc.podProcessor = utils.NewAsyncWorker(podOpt)
+	pc.podProcessor = lifted.NewAsyncWorker(podOpt)
 	if !cache.WaitForNamedCacheSync("pod_reflector_controller", ctx.Done(), pc.daemonsetSynced, pc.kdaemonsetSynced, pc.podSynced, pc.clusterSynced) {
 		klog.Errorf("Timed out waiting for caches to sync")
 		return
@@ -150,7 +149,7 @@ func getCluster(pod *corev1.Pod) string {
 	return pod.Annotations[ClusterAnnotationKey]
 }
 
-func (pc *PodReflectorController) syncCluster(key utils.QueueKey) error {
+func (pc *PodReflectorController) syncCluster(key lifted.QueueKey) error {
 	pc.lock.Lock()
 	defer pc.lock.Unlock()
 	clusterWideKey, exist := key.(keys.ClusterWideKey)
@@ -212,7 +211,7 @@ func (pc *PodReflectorController) syncCluster(key utils.QueueKey) error {
 	return nil
 }
 
-func (pc *PodReflectorController) syncPod(key utils.QueueKey) error {
+func (pc *PodReflectorController) syncPod(key lifted.QueueKey) error {
 	pc.lock.RLock()
 	defer pc.lock.RUnlock()
 	fedKey, ok := key.(keys.FederatedKey)
