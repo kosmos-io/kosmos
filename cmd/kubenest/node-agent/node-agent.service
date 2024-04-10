@@ -1,0 +1,20 @@
+[Unit]
+Description=Web Command Service
+After=network.target
+
+[Service]
+User=root
+Group=root
+WorkingDirectory=/srv/node-agent
+Environment="WEB_USER=admin"
+Environment="WEB_PASS=bich_oosh2zoh6Oh"
+#./app: error while loading shared libraries: libz.so.1: failed to map segment from shared object
+Environment="TMPDIR=/srv/node-agent"
+#ExecStartPre=-/usr/bin/pip3 install -r /srv/node-agent/requirements.txt
+#ExecStart=/usr/bin/env python3 /srv/node-agent/app.py
+ExecStart=/srv/node-agent/app --user admin --password 'bich_oosh2zoh6Oh'
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
