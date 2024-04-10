@@ -19,7 +19,7 @@ import (
 
 	clusterlinkv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	clusterlister "github.com/kosmos.io/kosmos/pkg/generated/listers/kosmos/v1alpha1"
-	"github.com/kosmos.io/kosmos/pkg/utils"
+	"github.com/kosmos.io/kosmos/pkg/utils/lifted"
 )
 
 type cniAdapter interface {
@@ -35,12 +35,12 @@ type commonAdapter struct {
 	config            *rest.Config
 	nodeLister        lister.NodeLister
 	clusterNodeLister clusterlister.ClusterNodeLister
-	processor         utils.AsyncWorker
+	processor         lifted.AsyncWorker
 }
 
 func NewCommonAdapter(config *rest.Config,
 	clusterNodeLister clusterlister.ClusterNodeLister,
-	processor utils.AsyncWorker) *commonAdapter {
+	processor lifted.AsyncWorker) *commonAdapter {
 	return &commonAdapter{
 		config:            config,
 		clusterNodeLister: clusterNodeLister,
@@ -119,12 +119,12 @@ type calicoAdapter struct {
 	config            *rest.Config
 	blockLister       cache.GenericLister
 	clusterNodeLister clusterlister.ClusterNodeLister
-	processor         utils.AsyncWorker
+	processor         lifted.AsyncWorker
 }
 
 func NewCalicoAdapter(config *rest.Config,
 	clusterNodeLister clusterlister.ClusterNodeLister,
-	processor utils.AsyncWorker) *calicoAdapter {
+	processor lifted.AsyncWorker) *calicoAdapter {
 	return &calicoAdapter{
 		config:            config,
 		clusterNodeLister: clusterNodeLister,
@@ -250,7 +250,7 @@ func (c *calicoAdapter) OnDelete(obj interface{}) {
 	requeue(node, c.clusterNodeLister, c.processor)
 }
 
-func requeue(originNodeName string, clusterNodeLister clusterlister.ClusterNodeLister, processor utils.AsyncWorker) {
+func requeue(originNodeName string, clusterNodeLister clusterlister.ClusterNodeLister, processor lifted.AsyncWorker) {
 	clusterNodes, err := clusterNodeLister.List(labels.Everything())
 	if err != nil {
 		klog.Errorf("list clusterNodes err: %v", err)

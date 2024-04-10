@@ -33,6 +33,7 @@ import (
 	leafUtils "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/utils"
 	"github.com/kosmos.io/kosmos/pkg/utils"
 	"github.com/kosmos.io/kosmos/pkg/utils/convertpolicy"
+	"github.com/kosmos.io/kosmos/pkg/utils/lifted"
 	"github.com/kosmos.io/kosmos/pkg/utils/podutils"
 )
 
@@ -852,7 +853,7 @@ func (r *RootPodReconciler) mutatePod(ctx context.Context, pod *corev1.Pod, node
 }
 
 func (r *RootPodReconciler) CreatePodInLeafCluster(ctx context.Context, lr *leafUtils.LeafResource, pod *corev1.Pod, nodeSelector kosmosv1alpha1.NodeSelector) error {
-	if err := podutils.PopulateEnvironmentVariables(ctx, pod, r.envResourceManager); err != nil {
+	if err := lifted.PopulateEnvironmentVariables(ctx, pod, r.envResourceManager); err != nil {
 		// span.SetStatus(err)
 		return err
 	}

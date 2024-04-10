@@ -10,6 +10,7 @@ import (
 	componentbaseconfigv1alpha1 "k8s.io/component-base/config/v1alpha1"
 
 	"github.com/kosmos.io/kosmos/pkg/utils/flags"
+	"github.com/kosmos.io/kosmos/pkg/utils/lifted"
 )
 
 const (
@@ -45,7 +46,7 @@ type Options struct {
 	// ReservedNamespaces are the protected namespaces to prevent Kosmos for deleting system resources
 	ReservedNamespaces []string
 
-	RateLimiterOpts flags.Options
+	RateLimiterOpts lifted.RateLimitOptions
 
 	BackoffOpts flags.BackoffOptions
 

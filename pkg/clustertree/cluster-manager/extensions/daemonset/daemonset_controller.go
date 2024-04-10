@@ -21,9 +21,8 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	kosmosinformer "github.com/kosmos.io/kosmos/pkg/generated/informers/externalversions/kosmos/v1alpha1"
 	kosmoslister "github.com/kosmos.io/kosmos/pkg/generated/listers/kosmos/v1alpha1"
-	"github.com/kosmos.io/kosmos/pkg/utils"
-	"github.com/kosmos.io/kosmos/pkg/utils/flags"
 	"github.com/kosmos.io/kosmos/pkg/utils/keys"
+	"github.com/kosmos.io/kosmos/pkg/utils/lifted"
 )
 
 var ControllerKind = kosmosv1alpha1.SchemeGroupVersion.WithKind("DaemonSet")
@@ -50,9 +49,9 @@ type DaemonSetsController struct {
 
 	clusterSynced cache.InformerSynced
 
-	processor utils.AsyncWorker
+	processor lifted.AsyncWorker
 
-	rateLimiterOptions flags.Options
+	rateLimiterOptions lifted.RateLimitOptions
 }
 
 // NewDaemonSetsController returns a new DaemonSetsController
@@ -62,7 +61,7 @@ func NewDaemonSetsController(
 	clusterInformer kosmosinformer.ClusterInformer,
 	kubeClient clientset.Interface,
 	kosmosClient versioned.Interface,
-	rateLimiterOptions flags.Options,
+	rateLimiterOptions lifted.RateLimitOptions,
 ) *DaemonSetsController {
 	err := kosmosv1alpha1.Install(scheme.Scheme)
 	if err != nil {
@@ -125,15 +124,15 @@ func (dsc *DaemonSetsController) Run(ctx context.Context, workers int) {
 	klog.Infof("Starting daemon set controller")
 	defer klog.Infof("Shutting down daemon set controller")
 
-	opt := utils.Options{
+	opt := lifted.WorkerOptions{
 		Name: "daemon set controller",
-		KeyFunc: func(obj interface{}) (utils.QueueKey, error) {
+		KeyFunc: func(obj interface{}) (lifted.QueueKey, error) {
 			return keys.ClusterWideKeyFunc(obj)
 		},
 		ReconcileFunc:      dsc.syncDaemonSet,
 		RateLimiterOptions: dsc.rateLimiterOptions,
 	}
-	dsc.processor = utils.NewAsyncWorker(opt)
+	dsc.processor = lifted.NewAsyncWorker(opt)
 
 	if !cache.WaitForNamedCacheSync("kosmos_daemonset_controller", ctx.Done(), dsc.daemonSetSynced, dsc.shadowDaemonSetSynced, dsc.clusterSynced) {
 		klog.Errorf("Timed out waiting for caches to sync")
@@ -217,7 +216,7 @@ func (dsc *DaemonSetsController) deleteKNode(obj interface{}) {
 	dsc.processCluster(cluster)
 }
 
-func (dsc *DaemonSetsController) syncDaemonSet(key utils.QueueKey) error {
+func (dsc *DaemonSetsController) syncDaemonSet(key lifted.QueueKey) error {
 	clusterWideKey, ok := key.(keys.ClusterWideKey)
 	if !ok {
 		klog.Errorf("invalid key type %T", key)

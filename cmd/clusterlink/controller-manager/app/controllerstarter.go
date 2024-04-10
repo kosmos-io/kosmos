@@ -19,10 +19,11 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/generated/listers/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/utils"
 	"github.com/kosmos.io/kosmos/pkg/utils/keys"
+	"github.com/kosmos.io/kosmos/pkg/utils/lifted"
 )
 
 type Controller struct {
-	processor         utils.AsyncWorker
+	processor         lifted.AsyncWorker
 	clusterLinkClient versioned.Interface
 	clusterLister     v1alpha1.ClusterLister
 	mgr               ctrl.Manager
@@ -44,15 +45,15 @@ func NewController(clusterLinkClient *versioned.Clientset, mgr ctrl.Manager, opt
 func (c *Controller) Start(ctx context.Context) error {
 	stopCh := ctx.Done()
 	c.ctx = ctx
-	opt := utils.Options{
+	opt := lifted.WorkerOptions{
 		Name: "cluster Controller",
-		KeyFunc: func(obj interface{}) (utils.QueueKey, error) {
+		KeyFunc: func(obj interface{}) (lifted.QueueKey, error) {
 			return keys.ClusterWideKeyFunc(obj)
 		},
 		ReconcileFunc:      c.Reconcile,
 		RateLimiterOptions: c.opts.RateLimiterOpts,
 	}
-	c.processor = utils.NewAsyncWorker(opt)
+	c.processor = lifted.NewAsyncWorker(opt)
 
 	clusterInformerFactory := externalversions.NewSharedInformerFactory(c.clusterLinkClient, 0)
 	clusterInformer := clusterInformerFactory.Kosmos().V1alpha1().Clusters().Informer()
@@ -110,7 +111,7 @@ func (c *Controller) OnDelete(obj interface{}) {
 	c.OnAdd(obj)
 }
 
-func (c *Controller) Reconcile(key utils.QueueKey) error {
+func (c *Controller) Reconcile(key lifted.QueueKey) error {
 	cluster, err := c.clusterLister.Get(c.opts.ClusterName)
 	if err != nil {
 		return err

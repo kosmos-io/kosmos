@@ -9,13 +9,13 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 
 	"github.com/kosmos.io/kosmos/pkg/utils"
-	"github.com/kosmos.io/kosmos/pkg/utils/flags"
+	"github.com/kosmos.io/kosmos/pkg/utils/lifted"
 )
 
 type ControllerManagerOptions struct {
 	Controllers []string
 
-	RateLimiterOpts flags.Options
+	RateLimiterOpts lifted.RateLimitOptions
 
 	ControlPanelConfig string
 

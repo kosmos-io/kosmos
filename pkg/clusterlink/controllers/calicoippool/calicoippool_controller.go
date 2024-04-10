@@ -28,8 +28,8 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/generated/informers/externalversions"
 	"github.com/kosmos.io/kosmos/pkg/generated/listers/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/utils"
-	"github.com/kosmos.io/kosmos/pkg/utils/flags"
 	"github.com/kosmos.io/kosmos/pkg/utils/keys"
+	"github.com/kosmos.io/kosmos/pkg/utils/lifted"
 	"github.com/kosmos.io/kosmos/pkg/utils/net"
 )
 
@@ -249,9 +249,9 @@ func (e *EtcdBackend) ListIPPools() ([]*ExternalClusterIPPool, []IPPool, error) 
 
 type Controller struct {
 	globalExtIPPoolSet ExternalIPPoolSet
-	RateLimiterOptions flags.Options
+	RateLimiterOptions lifted.RateLimitOptions
 	clusterName        string
-	processor          utils.AsyncWorker
+	processor          lifted.AsyncWorker
 	clusterLinkClient  *versioned.Clientset
 	clusterLister      v1alpha1.ClusterLister
 	kubeClient         *kubernetes.Clientset
@@ -292,15 +292,15 @@ func (c *Controller) OnDelete(obj interface{}) {
 func (c *Controller) Start(ctx context.Context) error {
 	klog.Infof("Starting CalicoIPPool Controller.")
 	c.stopCh = ctx.Done()
-	opt := utils.Options{
+	opt := lifted.WorkerOptions{
 		Name: "cluster Controller",
-		KeyFunc: func(obj interface{}) (utils.QueueKey, error) {
+		KeyFunc: func(obj interface{}) (lifted.QueueKey, error) {
 			return keys.ClusterWideKeyFunc(obj)
 		},
 		ReconcileFunc:      c.Reconcile,
 		RateLimiterOptions: c.RateLimiterOptions,
 	}
-	c.processor = utils.NewAsyncWorker(opt)
+	c.processor = lifted.NewAsyncWorker(opt)
 
 	factory := externalversions.NewSharedInformerFactory(c.clusterLinkClient, 0)
 	informer := factory.Kosmos().V1alpha1().Clusters().Informer()
@@ -322,7 +322,7 @@ func (c *Controller) Start(ctx context.Context) error {
 	return nil
 }
 
-func (c *Controller) Reconcile(key utils.QueueKey) error {
+func (c *Controller) Reconcile(key lifted.QueueKey) error {
 	clusterWideKey, ok := key.(keys.ClusterWideKey)
 	if !ok {
 		klog.Error("invalid key")

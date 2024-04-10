@@ -15,7 +15,7 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/extensions/daemonset"
 	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/generated/informers/externalversions"
-	"github.com/kosmos.io/kosmos/pkg/utils/flags"
+	"github.com/kosmos.io/kosmos/pkg/utils/lifted"
 )
 
 // StartHostDaemonSetsController starts a new HostDaemonSetsController.
@@ -67,7 +67,7 @@ func StartDistributeController(ctx context.Context, opts *options.Options, workN
 	}
 
 	kosmosFactory := externalversions.NewSharedInformerFactory(kosmosClient, 0)
-	option := flags.Options{}
+	option := lifted.RateLimitOptions{}
 	controller := daemonset.NewDistributeController(
 		kosmosClient,
 		kosmosFactory.Kosmos().V1alpha1().ShadowDaemonSets(),
@@ -98,7 +98,7 @@ func StartDaemonSetsController(ctx context.Context, opts *options.Options, workN
 	}
 
 	kosmosFactory := externalversions.NewSharedInformerFactory(kosmosClient, 0)
-	option := flags.Options{}
+	option := lifted.RateLimitOptions{}
 	controller := daemonset.NewDaemonSetsController(
 		kosmosFactory.Kosmos().V1alpha1().ShadowDaemonSets(),
 		kosmosFactory.Kosmos().V1alpha1().DaemonSets(),
@@ -131,7 +131,7 @@ func StartDaemonSetsMirrorController(ctx context.Context, opts *options.Options,
 	}
 	kosmosFactory := externalversions.NewSharedInformerFactory(kosmosClient, 0)
 	kubeFactory := informers.NewSharedInformerFactory(kubeClient, 0)
-	option := flags.Options{}
+	option := lifted.RateLimitOptions{}
 	controller := daemonset.NewDaemonSetsMirrorController(
 		kosmosClient,
 		kubeClient,
@@ -162,7 +162,7 @@ func StartPodReflectController(ctx context.Context, opts *options.Options, workN
 	}
 	kosmosFactory := externalversions.NewSharedInformerFactory(kosmosClient, 0)
 	kubeFactory := informers.NewSharedInformerFactory(kubeClient, 0)
-	option := flags.Options{}
+	option := lifted.RateLimitOptions{}
 	controller := daemonset.NewPodReflectorController(
 		kubeClient,
 		kubeFactory.Apps().V1().DaemonSets(),

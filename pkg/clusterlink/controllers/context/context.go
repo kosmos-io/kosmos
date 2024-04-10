@@ -10,7 +10,7 @@ import (
 
 	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/generated/informers/externalversions"
-	"github.com/kosmos.io/kosmos/pkg/utils/flags"
+	"github.com/kosmos.io/kosmos/pkg/utils/lifted"
 )
 
 type Options struct {
@@ -18,7 +18,7 @@ type Options struct {
 	Controllers        []string
 	ControlPanelConfig *rest.Config
 	ClusterName        string
-	RateLimiterOpts    flags.Options
+	RateLimiterOpts    lifted.RateLimitOptions
 }
 
 // Context defines the context object for controller.

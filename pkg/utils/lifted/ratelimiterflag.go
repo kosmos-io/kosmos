@@ -1,4 +1,4 @@
-package flags
+package lifted
 
 import (
 	"time"
@@ -12,8 +12,8 @@ import (
 // For reference:
 // https://github.com/karmada-io/karmada/blob/release-1.5/pkg/sharedcli/ratelimiterflag/ratelimiterflag.go
 
-// Options are options for rate limiter.
-type Options struct {
+// RateLimitOptions are options for rate limiter.
+type RateLimitOptions struct {
 	// RateLimiterBaseDelay is the base delay for ItemExponentialFailureRateLimiter.
 	RateLimiterBaseDelay time.Duration
 
@@ -28,7 +28,7 @@ type Options struct {
 }
 
 // AddFlags adds flags to the specified FlagSet.
-func (o *Options) AddFlags(fs *pflag.FlagSet) {
+func (o *RateLimitOptions) AddFlags(fs *pflag.FlagSet) {
 	fs.DurationVar(&o.RateLimiterBaseDelay, "rate-limiter-base-delay", 5*time.Millisecond, "The base delay for rate limiter.")
 	fs.DurationVar(&o.RateLimiterMaxDelay, "rate-limiter-max-delay", 1000*time.Second, "The max delay for rate limiter.")
 	fs.IntVar(&o.RateLimiterQPS, "rate-limiter-qps", 10, "The QPS for rate limier.")
@@ -36,7 +36,7 @@ func (o *Options) AddFlags(fs *pflag.FlagSet) {
 }
 
 // DefaultControllerRateLimiter provide a default rate limiter for controller, and users can tune it by corresponding flags.
-func DefaultControllerRateLimiter(opts Options) workqueue.RateLimiter {
+func DefaultControllerRateLimiter(opts RateLimitOptions) workqueue.RateLimiter {
 	// set defaults
 	if opts.RateLimiterBaseDelay <= 0 {
 		opts.RateLimiterBaseDelay = 5 * time.Millisecond

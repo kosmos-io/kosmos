@@ -2,7 +2,7 @@
 // For reference:
 // https://github.com/virtual-kubelet/virtual-kubelet/blob/master/internal/podutils/env.go
 
-package podutils
+package lifted
 
 import (
 	"context"
