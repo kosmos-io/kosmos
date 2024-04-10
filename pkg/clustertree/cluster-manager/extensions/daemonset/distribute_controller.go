@@ -27,9 +27,8 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	kosmosinformer "github.com/kosmos.io/kosmos/pkg/generated/informers/externalversions/kosmos/v1alpha1"
 	kosmoslister "github.com/kosmos.io/kosmos/pkg/generated/listers/kosmos/v1alpha1"
-	"github.com/kosmos.io/kosmos/pkg/utils"
-	"github.com/kosmos.io/kosmos/pkg/utils/flags"
 	"github.com/kosmos.io/kosmos/pkg/utils/keys"
+	"github.com/kosmos.io/kosmos/pkg/utils/lifted"
 )
 
 // DistributeController is responsible for propagating the shadow daemon set to the member cluster
@@ -44,13 +43,13 @@ type DistributeController struct {
 
 	clusterSynced cache.InformerSynced
 
-	clusterProcessor utils.AsyncWorker
+	clusterProcessor lifted.AsyncWorker
 
-	shadowDaemonSetProcessor utils.AsyncWorker
+	shadowDaemonSetProcessor lifted.AsyncWorker
 
 	clusterDaemonSetManagerMap map[string]*clusterDaemonSetManager
 
-	rateLimiterOptions flags.Options
+	rateLimiterOptions lifted.RateLimitOptions
 
 	lock sync.RWMutex
 }
@@ -59,7 +58,7 @@ func NewDistributeController(
 	kosmosClient versioned.Interface,
 	sdsInformer kosmosinformer.ShadowDaemonSetInformer,
 	clusterInformer kosmosinformer.ClusterInformer,
-	rateLimiterOptions flags.Options,
+	rateLimiterOptions lifted.RateLimitOptions,
 ) *DistributeController {
 	dc := &DistributeController{
 		kosmosClient:               kosmosClient,
@@ -98,25 +97,25 @@ func (dc *DistributeController) Run(ctx context.Context, workers int) {
 	klog.Infof("Starting distribute controller")
 	defer klog.Infof("Shutting down distribute controller")
 
-	clusterOpt := utils.Options{
+	clusterOpt := lifted.WorkerOptions{
 		Name: "distribute controller: cluster",
-		KeyFunc: func(obj interface{}) (utils.QueueKey, error) {
+		KeyFunc: func(obj interface{}) (lifted.QueueKey, error) {
 			return keys.ClusterWideKeyFunc(obj)
 		},
 		ReconcileFunc:      dc.syncCluster,
 		RateLimiterOptions: dc.rateLimiterOptions,
 	}
-	dc.clusterProcessor = utils.NewAsyncWorker(clusterOpt)
+	dc.clusterProcessor = lifted.NewAsyncWorker(clusterOpt)
 
-	sdsOpt := utils.Options{
+	sdsOpt := lifted.WorkerOptions{
 		Name: "distribute controller: ShadowDaemonSet",
-		KeyFunc: func(obj interface{}) (utils.QueueKey, error) {
+		KeyFunc: func(obj interface{}) (lifted.QueueKey, error) {
 			return keys.ClusterWideKeyFunc(obj)
 		},
 		ReconcileFunc:      dc.syncShadowDaemonSet,
 		RateLimiterOptions: dc.rateLimiterOptions,
 	}
-	dc.shadowDaemonSetProcessor = utils.NewAsyncWorker(sdsOpt)
+	dc.shadowDaemonSetProcessor = lifted.NewAsyncWorker(sdsOpt)
 
 	if !cache.WaitForNamedCacheSync("host_daemon_controller", ctx.Done(), dc.shadowDaemonSetSynced, dc.clusterSynced) {
 		klog.V(2).Infof("Timed out waiting for caches to sync")
@@ -127,7 +126,7 @@ func (dc *DistributeController) Run(ctx context.Context, workers int) {
 	dc.shadowDaemonSetProcessor.Run(workers, ctx.Done())
 }
 
-func (dc *DistributeController) syncCluster(key utils.QueueKey) error {
+func (dc *DistributeController) syncCluster(key lifted.QueueKey) error {
 	dc.lock.Lock()
 	defer dc.lock.Unlock()
 	clusterWideKey, ok := key.(keys.ClusterWideKey)
@@ -218,7 +217,7 @@ func (dc *DistributeController) syncCluster(key utils.QueueKey) error {
 	return dc.ensureClusterFinalizer(cluster)
 }
 
-func (dc *DistributeController) syncShadowDaemonSet(key utils.QueueKey) error {
+func (dc *DistributeController) syncShadowDaemonSet(key lifted.QueueKey) error {
 	dc.lock.RLock()
 	defer dc.lock.RUnlock()
 	clusterWideKey, ok := key.(keys.ClusterWideKey)

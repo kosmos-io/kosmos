@@ -30,6 +30,7 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/utils"
 	"github.com/kosmos.io/kosmos/pkg/utils/flags"
 	"github.com/kosmos.io/kosmos/pkg/utils/helper"
+	"github.com/kosmos.io/kosmos/pkg/utils/lifted"
 )
 
 const ServiceExportControllerName = "service-export-controller"
@@ -41,7 +42,7 @@ type ServiceExportController struct {
 	Logger        logr.Logger
 	// ReservedNamespaces are the protected namespaces to prevent Kosmos for deleting system resources
 	ReservedNamespaces []string
-	RateLimiterOptions flags.Options
+	RateLimiterOptions lifted.RateLimitOptions
 	BackoffOptions     flags.BackoffOptions
 }
 
@@ -115,7 +116,7 @@ func (c *ServiceExportController) SetupWithManager(mgr manager.Manager) error {
 			endpointSlicePredicate,
 		).
 		WithOptions(controller.Options{
-			RateLimiter:             flags.DefaultControllerRateLimiter(c.RateLimiterOptions),
+			RateLimiter:             lifted.DefaultControllerRateLimiter(c.RateLimiterOptions),
 			MaxConcurrentReconciles: 2,
 		}).
 		Complete(c)

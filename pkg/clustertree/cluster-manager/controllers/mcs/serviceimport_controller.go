@@ -32,6 +32,7 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/utils/flags"
 	"github.com/kosmos.io/kosmos/pkg/utils/helper"
 	"github.com/kosmos.io/kosmos/pkg/utils/keys"
+	"github.com/kosmos.io/kosmos/pkg/utils/lifted"
 )
 
 const LeafServiceImportControllerName = "leaf-service-import-controller"
@@ -44,7 +45,7 @@ type ServiceImportController struct {
 	IPFamilyType        kosmosv1alpha1.IPFamilyType
 	EventRecorder       record.EventRecorder
 	Logger              logr.Logger
-	processor           utils.AsyncWorker
+	processor           lifted.AsyncWorker
 	RootResourceManager *utils.ResourceManager
 	// ReservedNamespaces are the protected namespaces to prevent Kosmos for deleting system resources
 	ReservedNamespaces  []string
@@ -64,15 +65,15 @@ func (c *ServiceImportController) Start(ctx context.Context) error {
 	klog.Infof("Starting %s", LeafServiceImportControllerName)
 	defer klog.Infof("Stop %s as process done.", LeafServiceImportControllerName)
 
-	opt := utils.Options{
+	opt := lifted.WorkerOptions{
 		Name: LeafServiceImportControllerName,
-		KeyFunc: func(obj interface{}) (utils.QueueKey, error) {
+		KeyFunc: func(obj interface{}) (lifted.QueueKey, error) {
 			// Don't care about the GVK in the queue
 			return keys.NamespaceWideKeyFunc(obj)
 		},
 		ReconcileFunc: c.Reconcile,
 	}
-	c.processor = utils.NewAsyncWorker(opt)
+	c.processor = lifted.NewAsyncWorker(opt)
 
 	serviceImportInformerFactory := externalversions.NewSharedInformerFactory(c.LeafKosmosClient, c.SyncPeriod)
 	serviceImportInformer := serviceImportInformerFactory.Multicluster().V1alpha1().ServiceImports()
@@ -105,7 +106,7 @@ func (c *ServiceImportController) Start(ctx context.Context) error {
 	return nil
 }
 
-func (c *ServiceImportController) Reconcile(key utils.QueueKey) error {
+func (c *ServiceImportController) Reconcile(key lifted.QueueKey) error {
 	clusterWideKey, ok := key.(keys.ClusterWideKey)
 	if !ok {
 		klog.Error("invalid key")

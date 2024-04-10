@@ -3,7 +3,7 @@
 //
 //This is to eliminate a direct dependency on kubernetes/kubernetes.
 
-package podutils
+package lifted
 
 import (
 	"bytes"

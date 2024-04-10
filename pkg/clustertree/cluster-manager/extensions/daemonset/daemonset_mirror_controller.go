@@ -21,9 +21,8 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	kosmosinformer "github.com/kosmos.io/kosmos/pkg/generated/informers/externalversions/kosmos/v1alpha1"
 	kosmoslister "github.com/kosmos.io/kosmos/pkg/generated/listers/kosmos/v1alpha1"
-	"github.com/kosmos.io/kosmos/pkg/utils"
-	"github.com/kosmos.io/kosmos/pkg/utils/flags"
 	"github.com/kosmos.io/kosmos/pkg/utils/keys"
+	"github.com/kosmos.io/kosmos/pkg/utils/lifted"
 )
 
 type DaemonSetsMirrorController struct {
@@ -43,9 +42,9 @@ type DaemonSetsMirrorController struct {
 
 	kosmosDaemonSetSynced cache.InformerSynced
 
-	processor utils.AsyncWorker
+	processor lifted.AsyncWorker
 
-	rateLimiterOptions flags.Options
+	rateLimiterOptions lifted.RateLimitOptions
 }
 
 func NewDaemonSetsMirrorController(
@@ -53,7 +52,7 @@ func NewDaemonSetsMirrorController(
 	kubeClient clientset.Interface,
 	kdsInformer kosmosinformer.DaemonSetInformer,
 	dsInformer appsinformers.DaemonSetInformer,
-	rateLimiterOptions flags.Options,
+	rateLimiterOptions lifted.RateLimitOptions,
 ) *DaemonSetsMirrorController {
 	err := kosmosv1alpha1.Install(scheme.Scheme)
 	if err != nil {
@@ -107,15 +106,15 @@ func (dmc *DaemonSetsMirrorController) Run(ctx context.Context, workers int) {
 	klog.Infof("starting daemon set mirror controller")
 	defer klog.Infof("shutting down daemon set mirror controller")
 
-	opt := utils.Options{
+	opt := lifted.WorkerOptions{
 		Name: "distribute controller: KNode",
-		KeyFunc: func(obj interface{}) (utils.QueueKey, error) {
+		KeyFunc: func(obj interface{}) (lifted.QueueKey, error) {
 			return keys.ClusterWideKeyFunc(obj)
 		},
 		ReconcileFunc:      dmc.syncDaemonSet,
 		RateLimiterOptions: dmc.rateLimiterOptions,
 	}
-	dmc.processor = utils.NewAsyncWorker(opt)
+	dmc.processor = lifted.NewAsyncWorker(opt)
 
 	if !cache.WaitForNamedCacheSync("daemon set mirror controller", ctx.Done(),
 		dmc.daemonSetSynced, dmc.kosmosDaemonSetSynced) {
@@ -125,7 +124,7 @@ func (dmc *DaemonSetsMirrorController) Run(ctx context.Context, workers int) {
 	dmc.processor.Run(workers, ctx.Done())
 }
 
-func (dmc *DaemonSetsMirrorController) syncDaemonSet(key utils.QueueKey) error {
+func (dmc *DaemonSetsMirrorController) syncDaemonSet(key lifted.QueueKey) error {
 	clusterWideKey, ok := key.(keys.ClusterWideKey)
 	if !ok {
 		klog.Errorf("invalid key type %T", key)

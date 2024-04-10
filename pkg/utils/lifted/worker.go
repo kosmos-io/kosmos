@@ -1,4 +1,4 @@
-package utils
+package lifted
 
 import (
 	"time"
@@ -8,8 +8,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
-
-	"github.com/kosmos.io/kosmos/pkg/utils/flags"
 )
 
 // This code is directly lifted from the karmada
@@ -69,21 +67,21 @@ type asyncWorker struct {
 }
 
 // Options are the arguments for creating a new AsyncWorker.
-type Options struct {
+type WorkerOptions struct {
 	// Name is the queue's name that will be used to emit metrics.
 	// Defaults to "", which means disable metrics.
 	Name               string
 	KeyFunc            KeyFunc
 	ReconcileFunc      ReconcileFunc
-	RateLimiterOptions flags.Options
+	RateLimiterOptions RateLimitOptions
 }
 
 // NewAsyncWorker returns a asyncWorker which can process resource periodic.
-func NewAsyncWorker(opt Options) AsyncWorker {
+func NewAsyncWorker(opt WorkerOptions) AsyncWorker {
 	return &asyncWorker{
 		keyFunc:       opt.KeyFunc,
 		reconcileFunc: opt.ReconcileFunc,
-		queue:         workqueue.NewNamedRateLimitingQueue(flags.DefaultControllerRateLimiter(opt.RateLimiterOptions), opt.Name),
+		queue:         workqueue.NewNamedRateLimitingQueue(DefaultControllerRateLimiter(opt.RateLimiterOptions), opt.Name),
 	}
 }
 

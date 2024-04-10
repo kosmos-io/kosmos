@@ -23,9 +23,8 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/generated/informers/externalversions"
 	clusterinformer "github.com/kosmos.io/kosmos/pkg/generated/informers/externalversions/kosmos/v1alpha1"
 	clusterlister "github.com/kosmos.io/kosmos/pkg/generated/listers/kosmos/v1alpha1"
-	"github.com/kosmos.io/kosmos/pkg/utils"
-	"github.com/kosmos.io/kosmos/pkg/utils/flags"
 	"github.com/kosmos.io/kosmos/pkg/utils/keys"
+	"github.com/kosmos.io/kosmos/pkg/utils/lifted"
 )
 
 const (
@@ -34,7 +33,7 @@ const (
 	calicoCNI   = "calico"
 )
 
-type controller struct {
+type Controller struct {
 	clusterName string
 	config      *rest.Config
 
@@ -42,9 +41,9 @@ type controller struct {
 	nodeLister        lister.NodeLister
 
 	// RateLimiterOptions is the configuration for rate limiter which may significantly influence the performance of
-	// the controller.
-	RateLimiterOptions  flags.Options
-	processor           utils.AsyncWorker
+	// the Controller.
+	RateLimiterOptions  lifted.RateLimitOptions
+	processor           lifted.AsyncWorker
 	clusterNodeInformer clusterinformer.ClusterNodeInformer
 	clusterNodeLister   clusterlister.ClusterNodeLister
 
@@ -53,8 +52,8 @@ type controller struct {
 	ctx context.Context
 }
 
-func NewNodeCIDRController(config *rest.Config, clusterName string, clusterLinkClient versioned.Interface, RateLimiterOptions flags.Options, context context.Context) *controller {
-	return &controller{
+func NewNodeCIDRController(config *rest.Config, clusterName string, clusterLinkClient versioned.Interface, RateLimiterOptions lifted.RateLimitOptions, context context.Context) *Controller {
+	return &Controller{
 		clusterLinkClient:  clusterLinkClient,
 		config:             config,
 		RateLimiterOptions: RateLimiterOptions,
@@ -63,16 +62,16 @@ func NewNodeCIDRController(config *rest.Config, clusterName string, clusterLinkC
 	}
 }
 
-func (c *controller) Start(ctx context.Context) error {
-	klog.Infof("Starting node cidr controller.")
+func (c *Controller) Start(ctx context.Context) error {
+	klog.Infof("Starting node cidr Controller.")
 
-	opt := utils.Options{
-		Name:               "node cidr controller",
+	opt := lifted.WorkerOptions{
+		Name:               "node cidr Controller",
 		KeyFunc:            ClusterWideKeyFunc,
 		ReconcileFunc:      c.Reconcile,
 		RateLimiterOptions: c.RateLimiterOptions,
 	}
-	c.processor = utils.NewAsyncWorker(opt)
+	c.processor = lifted.NewAsyncWorker(opt)
 
 	clusterInformerFactory := externalversions.NewSharedInformerFactory(c.clusterLinkClient, 0)
 
@@ -131,11 +130,11 @@ func (c *controller) Start(ctx context.Context) error {
 	// last step : start processor and waiting for close chan
 	c.processor.Run(workNum, stopCh)
 	<-stopCh
-	klog.Infof("Stop node cidr controller as process done.")
+	klog.Infof("Stop node cidr Controller as process done.")
 	return nil
 }
 
-func (c *controller) Reconcile(key utils.QueueKey) error {
+func (c *Controller) Reconcile(key lifted.QueueKey) error {
 	clusterWideKey, ok := key.(keys.ClusterWideKey)
 	if !ok {
 		klog.Error("invalid key")
@@ -219,12 +218,12 @@ func (c *controller) Reconcile(key utils.QueueKey) error {
 }
 
 // ClusterWideKeyFunc generates a ClusterWideKey for object.
-func ClusterWideKeyFunc(obj interface{}) (utils.QueueKey, error) {
+func ClusterWideKeyFunc(obj interface{}) (lifted.QueueKey, error) {
 	return keys.ClusterWideKeyFunc(obj)
 }
 
 // OnAdd handles object add event and push the object to queue.
-func (c *controller) OnAdd(obj interface{}) {
+func (c *Controller) OnAdd(obj interface{}) {
 	runtimeObj, ok := obj.(runtime.Object)
 	if !ok {
 		return
@@ -233,16 +232,16 @@ func (c *controller) OnAdd(obj interface{}) {
 }
 
 // OnUpdate handles object update event and push the object to queue.
-func (c *controller) OnUpdate(oldObj, newObj interface{}) {
+func (c *Controller) OnUpdate(oldObj, newObj interface{}) {
 	c.OnAdd(newObj)
 }
 
 // OnDelete handles object delete event and push the object to queue.
-func (c *controller) OnDelete(obj interface{}) {
+func (c *Controller) OnDelete(obj interface{}) {
 	c.OnAdd(obj)
 }
 
-func (c *controller) EventFilter(obj interface{}) bool {
+func (c *Controller) EventFilter(obj interface{}) bool {
 	//todo
 	return true
 }

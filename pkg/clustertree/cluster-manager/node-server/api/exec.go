@@ -19,6 +19,8 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/node-server/api/remotecommand"
 )
 
+// todo move this file to pkg/utils/lifted
+
 type execIO struct {
 	tty      bool
 	stdin    io.Reader
