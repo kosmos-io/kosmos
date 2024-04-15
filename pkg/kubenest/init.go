@@ -6,6 +6,7 @@ import (
 
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	utilversion "k8s.io/apimachinery/pkg/util/version"
+	"k8s.io/client-go/dynamic"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
@@ -30,6 +31,7 @@ type initData struct {
 	clusterIps            []string
 	remoteClient          clientset.Interface
 	kosmosClient          versioned.Interface
+	dynamicClient         *dynamic.DynamicClient
 	virtualClusterDataDir string
 	privateRegistry       string
 	externalIP            string
@@ -57,7 +59,9 @@ func NewInitPhase(opts *InitOptions, hostPortManager *vcnodecontroller.HostPortM
 	initPhase.AppendTask(tasks.NewCheckApiserverHealthTask())
 	initPhase.AppendTask(tasks.NewComponentTask())
 	initPhase.AppendTask(tasks.NewCheckControlPlaneTask())
-	initPhase.AppendTask(tasks.NewComponentsFromManifestsTask())
+	// create core-dns
+	initPhase.AppendTask(tasks.NewCoreDNSTask())
+	initPhase.AppendTask(tasks.NewComponentsFromManifestsTask()) // add server
 
 	initPhase.SetDataInitializer(func() (workflow.RunData, error) {
 		return newRunData(opts, hostPortManager)
@@ -110,6 +114,11 @@ func newRunData(opt *InitOptions, hostPortManager *vcnodecontroller.HostPortMana
 	}
 	var remoteClient clientset.Interface = localClusterClient
 
+	dynamicClient, err := dynamic.NewForConfig(opt.Kubeconfig)
+	if err != nil {
+		return nil, err
+	}
+
 	kosmosClient, err := versioned.NewForConfig(opt.Kubeconfig)
 	if err != nil {
 		return nil, fmt.Errorf("error when creating  kosmosClient client, err: %w", err)
@@ -138,6 +147,7 @@ func newRunData(opt *InitOptions, hostPortManager *vcnodecontroller.HostPortMana
 		controlplaneAddr:      address,
 		clusterIps:            clusterIps,
 		remoteClient:          remoteClient,
+		dynamicClient:         dynamicClient,
 		kosmosClient:          kosmosClient,
 		virtualClusterDataDir: opt.virtualClusterDataDir,
 		privateRegistry:       utils.DefaultImageRepository,
@@ -205,4 +215,8 @@ func (i initData) VirtualClusterVersion() string {
 
 func (i initData) ExternalIP() string {
 	return i.externalIP
+}
+
+func (i initData) DynamicClient() *dynamic.DynamicClient {
+	return i.dynamicClient
 }

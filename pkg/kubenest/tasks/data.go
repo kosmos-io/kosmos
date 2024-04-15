@@ -1,6 +1,7 @@
 package tasks
 
 import (
+	"k8s.io/client-go/dynamic"
 	clientset "k8s.io/client-go/kubernetes"
 
 	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
@@ -20,4 +21,5 @@ type InitData interface {
 	DataDir() string
 	VirtualClusterVersion() string
 	ExternalIP() string
+	DynamicClient() *dynamic.DynamicClient
 }

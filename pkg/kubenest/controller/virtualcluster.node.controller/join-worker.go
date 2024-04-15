@@ -29,6 +29,15 @@ func getJoinCmdStr(log string) (string, error) {
 	return fmt.Sprintf("kubeadm join %s", strs[1]), nil
 }
 
+func isNodeReady(conditions []v1.NodeCondition) bool {
+	for _, condition := range conditions {
+		if condition.Type == v1.NodeReady && condition.Status == v1.ConditionTrue {
+			return true
+		}
+	}
+	return false
+}
+
 func (r *NodeController) WaitNodeReady(ctx context.Context, nodeInfo vcrnodepoolcontroller.NodeItem, k8sClient kubernetes.Interface) error {
 	waitCtx, cancel := context.WithTimeout(ctx, 60*time.Second) // total waiting time
 	defer cancel()
@@ -38,7 +47,7 @@ func (r *NodeController) WaitNodeReady(ctx context.Context, nodeInfo vcrnodepool
 	wait.UntilWithContext(waitCtx, func(ctx context.Context) {
 		node, err := k8sClient.CoreV1().Nodes().Get(waitCtx, nodeInfo.Name, metav1.GetOptions{})
 		if err == nil {
-			if node.Status.Phase == v1.NodeRunning {
+			if isNodeReady(node.Status.Conditions) {
 				klog.V(4).Infof("node %s is ready", nodeInfo.Name)
 				isReady = true
 				cancel()

@@ -11,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -38,7 +39,7 @@ func (r *NodeController) SetupWithManager(mgr manager.Manager) error {
 		r.Client = mgr.GetClient()
 	}
 
-	skipEvent := func(obj client.Object) bool {
+	skipEvent := func(_ client.Object) bool {
 		return true
 	}
 
@@ -150,15 +151,27 @@ func (r *NodeController) GetNodePool(ctx context.Context) (map[string]vcrnodepoo
 }
 
 func (r *NodeController) UpdateVirtualClusterStatus(ctx context.Context, virtualCluster v1alpha1.VirtualCluster, status v1alpha1.Phase, reason string) error {
-	updateVirtualCluster := virtualCluster.DeepCopy()
-	updateVirtualCluster.Status.Phase = status
-	updateVirtualCluster.Status.Reason = reason
-	timestamp := metav1.Now()
-	updateVirtualCluster.Status.TimeStamp = &timestamp
+	retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		targetObj := v1alpha1.VirtualCluster{}
+		if err := r.Get(ctx, types.NamespacedName{Name: virtualCluster.Name, Namespace: virtualCluster.Namespace}, &targetObj); err != nil {
+			return err
+		}
+		updateVirtualCluster := targetObj.DeepCopy()
+		updateVirtualCluster.Status.Phase = status
+		updateVirtualCluster.Status.Reason = reason
+		updateTime := metav1.Now()
+		updateVirtualCluster.Status.UpdateTime = &updateTime
 
-	if err := r.Update(ctx, updateVirtualCluster); err != nil {
-		return fmt.Errorf("update virtualcluster %s status failed: %s", virtualCluster.Name, err)
+		if err := r.Update(ctx, updateVirtualCluster); err != nil {
+			return err
+		}
+		return nil
+	})
+
+	if retryErr != nil {
+		return fmt.Errorf("update virtualcluster %s status failed: %s", virtualCluster.Name, retryErr)
 	}
+
 	return nil
 }
 
@@ -235,7 +248,7 @@ func (r *NodeController) Reconcile(ctx context.Context, request reconcile.Reques
 		return reconcile.Result{}, nil
 	}
 
-	if virtualCluster.Status.Phase != v1alpha1.Initialized {
+	if virtualCluster.Status.Phase == v1alpha1.Preparing {
 		klog.V(4).Infof("virtualcluster wait cluster ready, cluster name: %s", virtualCluster.Name)
 		return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
 	}

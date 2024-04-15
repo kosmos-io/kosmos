@@ -2,7 +2,6 @@ package vcnodecontroller
 
 import (
 	"context"
-	"fmt"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -16,7 +15,7 @@ func (r *NodeController) UpdateNodePoolState(ctx context.Context, nodeName strin
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		nodePool := v1.ConfigMap{}
 		if err := r.Client.Get(ctx, types.NamespacedName{Name: NodePoolCMName, Namespace: NodePoolCMNS}, &nodePool); err != nil {
-			return fmt.Errorf("get node-pool failed: %v", err)
+			return err
 		}
 
 		updateNodePool := nodePool.DeepCopy()

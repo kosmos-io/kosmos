@@ -86,6 +86,12 @@ const (
 	NodeFreeState               = "free"
 
 	WaitAllPodsRunningTimeoutSeconds = 1800
+
+	// core-dns
+	KubeDNSSVCName = "kube-dns"
+	// nolint
+	HostCoreDnsComponents    = "host-core-dns-components"
+	VirtualCoreDnsComponents = "virtual-core-dns-components"
 )
 
 type Action string
