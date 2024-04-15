@@ -15,6 +15,7 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/controller"
 	kosmos "github.com/kosmos.io/kosmos/pkg/kubenest/controller/kosmos"
+	vcnodecontroller "github.com/kosmos.io/kosmos/pkg/kubenest/controller/virtualcluster.node.controller"
 	"github.com/kosmos.io/kosmos/pkg/scheme"
 	"github.com/kosmos.io/kosmos/pkg/sharedcli/klogflag"
 )
@@ -81,6 +82,15 @@ func run(ctx context.Context, opts *options.Options) error {
 	}
 	if err = VirtualClusterInitController.SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("error starting %s: %v", constants.InitControllerName, err)
+	}
+
+	VirtualClusterNodeController := vcnodecontroller.NodeController{
+		Client:        mgr.GetClient(),
+		EventRecorder: mgr.GetEventRecorderFor(constants.NodeControllerName),
+	}
+
+	if err = VirtualClusterNodeController.SetupWithManager(mgr); err != nil {
+		return fmt.Errorf("error starting %s: %v", constants.NodeControllerName, err)
 	}
 
 	if opts.KosmosJoinController {

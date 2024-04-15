@@ -41,7 +41,7 @@ function build_images() {
   if [[ "${target}" == "clusterlink-floater" ]]; then
     dockerfile="floater.Dockerfile"
   fi
-
+  
   # Preferentially use `docker build`. If we are building multi platform,
   # or cross building, change to `docker buildx build`
   cross=$(isCross "${platforms}")

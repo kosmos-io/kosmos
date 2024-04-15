@@ -4,11 +4,13 @@ import "time"
 
 const (
 	InitControllerName            = "virtual-cluster-init-controller"
+	NodeControllerName            = "virtual-cluster-node-controller"
 	KosmosJoinControllerName      = "kosmos-join-controller"
 	SystemNs                      = "kube-system"
 	DefauleImageRepositoryEnv     = "IMAGE_REPOSITIRY"
 	DefauleImageVersionEnv        = "IMAGE_VERSION"
 	VirtualClusterStatusCompleted = "Completed"
+	VirtualClusterStatusUpdating  = "Updating"
 	VirtualClusterFinalizerName   = "kosmos.io/virtual-cluster-finalizer"
 	ServiceType                   = "NodePort"
 	EtcdServiceType               = "ClusterIP"
