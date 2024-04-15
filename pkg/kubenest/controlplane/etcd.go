@@ -1,18 +1,14 @@
 package controlplane
 
 import (
-	"context"
 	"fmt"
 	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kuberuntime "k8s.io/apimachinery/pkg/runtime"
 	clientset "k8s.io/client-go/kubernetes"
 	clientsetscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/component-base/cli/flag"
-	"k8s.io/klog/v2"
 
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/manifest/controlplane/etcd"
@@ -71,32 +67,9 @@ func installEtcd(client clientset.Interface, name, namespace string) error {
 		return fmt.Errorf("error when decoding Etcd StatefulSet: %w", err)
 	}
 
-	if err := createOrUpdateStatefulSet(client, etcdStatefulSet); err != nil {
+	if err := util.CreateOrUpdateStatefulSet(client, etcdStatefulSet); err != nil {
 		return fmt.Errorf("error when creating Etcd statefulset, err: %w", err)
 	}
 
-	return nil
-}
-
-func createOrUpdateStatefulSet(client clientset.Interface, statefulSet *appsv1.StatefulSet) error {
-	_, err := client.AppsV1().StatefulSets(statefulSet.GetNamespace()).Create(context.TODO(), statefulSet, metav1.CreateOptions{})
-	if err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			return err
-		}
-
-		older, err := client.AppsV1().StatefulSets(statefulSet.GetNamespace()).Get(context.TODO(), statefulSet.GetName(), metav1.GetOptions{})
-		if err != nil {
-			return err
-		}
-
-		statefulSet.ResourceVersion = older.ResourceVersion
-		_, err = client.AppsV1().StatefulSets(statefulSet.GetNamespace()).Update(context.TODO(), statefulSet, metav1.UpdateOptions{})
-		if err != nil {
-			return err
-		}
-	}
-
-	klog.V(5).InfoS("Successfully created or updated statefulset", "statefulset", statefulSet.GetName)
 	return nil
 }
