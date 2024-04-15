@@ -48,6 +48,7 @@ const (
 	DefaultNamespace           = "kosmos-system"
 	DefaultClusterName         = "kosmos-control-cluster"
 	DefaultImageRepository     = "ghcr.io/kosmos-io"
+	DefaultImageVersion        = "v1.21.5-eki.0"
 	DefaultWaitTime            = 120
 	RootClusterAnnotationKey   = "kosmos.io/cluster-role"
 	RootClusterAnnotationValue = "root"
