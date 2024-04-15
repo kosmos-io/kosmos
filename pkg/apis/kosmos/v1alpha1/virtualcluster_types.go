@@ -45,13 +45,22 @@ type VirtualClusterSpec struct {
 }
 
 type PromoteResources struct {
-	// Nodes is the names of node to promote to the kubernetes's control plane
+	// NodeInfos is the info of nodes to promote to the kubernetes's control plane
 	// +optional
-	Nodes []string `json:"nodes,omitempty"`
+	NodeInfos []NodeInfo `json:"nodeInfos,omitempty"`
 
 	// Resources is the resources to promote to the kubernetes's control plane
 	// +optional
 	Resources corev1.ResourceList `json:"resources,omitempty"`
+}
+
+type NodeInfo struct {
+	//NodeName defines node name
+	//+optional
+	NodeName string `json:"nodeName,omitempty"`
+	//Address defines node ip
+	//+optional
+	Address string `json:"address,omitempty"`
 }
 
 type VirtualClusterStatus struct {
