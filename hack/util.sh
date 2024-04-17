@@ -13,7 +13,7 @@ KOSMOS_GO_PACKAGE="github.com/kosmos.io/kosmos"
 MIN_Go_VERSION=go1.19.0
 
 CLUSTERLINK_TARGET_SOURCE=(
-  scheduler=cmd/scheduler
+  scheduler=cmd/clustertree/scheduler
   clusterlink-proxy=cmd/clusterlink/proxy
   clusterlink-operator=cmd/clusterlink/clusterlink-operator
   clusterlink-elector=cmd/clusterlink/elector

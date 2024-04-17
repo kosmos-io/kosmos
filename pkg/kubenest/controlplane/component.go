@@ -1,13 +1,10 @@
 package controlplane
 
 import (
-	"context"
 	"fmt"
 
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kuberuntime "k8s.io/apimachinery/pkg/runtime"
 	clientset "k8s.io/client-go/kubernetes"
 	clientsetscheme "k8s.io/client-go/kubernetes/scheme"
@@ -30,7 +27,7 @@ func EnsureControlPlaneComponent(component, name, namespace string, client clien
 		return nil
 	}
 
-	if err := createOrUpdateConfigMap(client, configMap); err != nil {
+	if err := util.CreateOrUpdateConfigMap(client, configMap); err != nil {
 		return fmt.Errorf("failed to create configMap resource for component %s, err: %w", component, err)
 	}
 
@@ -45,7 +42,7 @@ func EnsureControlPlaneComponent(component, name, namespace string, client clien
 		return nil
 	}
 
-	if err := createOrUpdateDeployment(client, deployment); err != nil {
+	if err := util.CreateOrUpdateDeployment(client, deployment); err != nil {
 		return fmt.Errorf("failed to create deployment resource for component %s, err: %w", component, err)
 	}
 
@@ -154,38 +151,4 @@ func getVirtualClusterSchedulerManifest(name, namespace string) (*appsv1.Deploym
 	}
 
 	return scheduler, nil
-}
-
-func createOrUpdateDeployment(client clientset.Interface, deployment *appsv1.Deployment) error {
-	_, err := client.AppsV1().Deployments(deployment.GetNamespace()).Create(context.TODO(), deployment, metav1.CreateOptions{})
-	if err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			return err
-		}
-
-		_, err := client.AppsV1().Deployments(deployment.GetNamespace()).Update(context.TODO(), deployment, metav1.UpdateOptions{})
-		if err != nil {
-			return err
-		}
-	}
-
-	klog.V(5).InfoS("Successfully created or updated deployment", "deployment", deployment.GetName())
-	return nil
-}
-
-func createOrUpdateConfigMap(client clientset.Interface, configMap *v1.ConfigMap) error {
-	_, err := client.CoreV1().ConfigMaps(configMap.GetNamespace()).Create(context.TODO(), configMap, metav1.CreateOptions{})
-	if err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			return err
-		}
-
-		_, err := client.CoreV1().ConfigMaps(configMap.GetNamespace()).Update(context.TODO(), configMap, metav1.UpdateOptions{})
-		if err != nil {
-			return err
-		}
-	}
-
-	klog.V(5).InfoS("Successfully created or updated configMap", "configMap", configMap.GetName())
-	return nil
 }
