@@ -57,6 +57,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeConfigList":                     schema_pkg_apis_kosmos_v1alpha1_NodeConfigList(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeConfigSpec":                     schema_pkg_apis_kosmos_v1alpha1_NodeConfigSpec(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeConfigStatus":                   schema_pkg_apis_kosmos_v1alpha1_NodeConfigStatus(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeInfo":                           schema_pkg_apis_kosmos_v1alpha1_NodeInfo(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeNameConverter":                  schema_pkg_apis_kosmos_v1alpha1_NodeNameConverter(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeSelector":                       schema_pkg_apis_kosmos_v1alpha1_NodeSelector(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeSelectorConverter":              schema_pkg_apis_kosmos_v1alpha1_NodeSelectorConverter(ref),
@@ -64,6 +65,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PodConvertPolicyList":               schema_pkg_apis_kosmos_v1alpha1_PodConvertPolicyList(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PodConvertPolicySpec":               schema_pkg_apis_kosmos_v1alpha1_PodConvertPolicySpec(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PolicyTerm":                         schema_pkg_apis_kosmos_v1alpha1_PolicyTerm(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PromotePolicy":                      schema_pkg_apis_kosmos_v1alpha1_PromotePolicy(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PromoteResources":                   schema_pkg_apis_kosmos_v1alpha1_PromoteResources(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Proxy":                              schema_pkg_apis_kosmos_v1alpha1_Proxy(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ResourceSelector":                   schema_pkg_apis_kosmos_v1alpha1_ResourceSelector(ref),
@@ -2063,6 +2065,32 @@ func schema_pkg_apis_kosmos_v1alpha1_NodeConfigStatus(ref common.ReferenceCallba
 	}
 }
 
+func schema_pkg_apis_kosmos_v1alpha1_NodeInfo(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"nodeName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "NodeName defines node name",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"address": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Address defines node ip",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 func schema_pkg_apis_kosmos_v1alpha1_NodeNameConverter(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -2313,22 +2341,49 @@ func schema_pkg_apis_kosmos_v1alpha1_PolicyTerm(ref common.ReferenceCallback) co
 	}
 }
 
+func schema_pkg_apis_kosmos_v1alpha1_PromotePolicy(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"labelSelector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LabelSelector is used to select nodes that are eligible for promotion to the kubernetes's control plane.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"),
+						},
+					},
+					"nodeCount": {
+						SchemaProps: spec.SchemaProps{
+							Description: "NodeCount is the number of nodes to promote to the kubernetes's control plane",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
+	}
+}
+
 func schema_pkg_apis_kosmos_v1alpha1_PromoteResources(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Type: []string{"object"},
 				Properties: map[string]spec.Schema{
-					"nodes": {
+					"nodeInfos": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Nodes is the names of node to promote to the kubernetes's control plane",
+							Description: "NodeInfos is the info of nodes to promote to the kubernetes's control plane",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: "",
-										Type:    []string{"string"},
-										Format:  "",
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeInfo"),
 									},
 								},
 							},
@@ -2353,7 +2408,7 @@ func schema_pkg_apis_kosmos_v1alpha1_PromoteResources(ref common.ReferenceCallba
 			},
 		},
 		Dependencies: []string{
-			"k8s.io/apimachinery/pkg/api/resource.Quantity"},
+			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeInfo", "k8s.io/apimachinery/pkg/api/resource.Quantity"},
 	}
 }
 
@@ -2770,6 +2825,27 @@ func schema_pkg_apis_kosmos_v1alpha1_VirtualClusterSpec(ref common.ReferenceCall
 							Format:      "",
 						},
 					},
+					"externalIP": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ExternalIP is the external ip of the virtual kubernetes's control plane",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"PromotePolicies": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PromotePolicies definites the policies for promote to the kubernetes's control plane",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PromotePolicy"),
+									},
+								},
+							},
+						},
+					},
 					"promoteResources": {
 						SchemaProps: spec.SchemaProps{
 							Description: "PromoteResources definites the resources for promote to the kubernetes's control plane, the resources can be nodes or just cpu,memory or gpu resources",
@@ -2778,11 +2854,10 @@ func schema_pkg_apis_kosmos_v1alpha1_VirtualClusterSpec(ref common.ReferenceCall
 						},
 					},
 				},
-				Required: []string{"promoteResources"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PromoteResources"},
+			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PromotePolicy", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PromoteResources"},
 	}
 }
 

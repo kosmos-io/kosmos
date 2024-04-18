@@ -17,6 +17,7 @@ import (
 // FakeVirtualClusters implements VirtualClusterInterface
 type FakeVirtualClusters struct {
 	Fake *FakeKosmosV1alpha1
+	ns   string
 }
 
 var virtualclustersResource = schema.GroupVersionResource{Group: "kosmos.io", Version: "v1alpha1", Resource: "virtualclusters"}
@@ -26,7 +27,8 @@ var virtualclustersKind = schema.GroupVersionKind{Group: "kosmos.io", Version: "
 // Get takes name of the virtualCluster, and returns the corresponding virtualCluster object, and an error if there is any.
 func (c *FakeVirtualClusters) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.VirtualCluster, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootGetAction(virtualclustersResource, name), &v1alpha1.VirtualCluster{})
+		Invokes(testing.NewGetAction(virtualclustersResource, c.ns, name), &v1alpha1.VirtualCluster{})
+
 	if obj == nil {
 		return nil, err
 	}
@@ -36,7 +38,8 @@ func (c *FakeVirtualClusters) Get(ctx context.Context, name string, options v1.G
 // List takes label and field selectors, and returns the list of VirtualClusters that match those selectors.
 func (c *FakeVirtualClusters) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.VirtualClusterList, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootListAction(virtualclustersResource, virtualclustersKind, opts), &v1alpha1.VirtualClusterList{})
+		Invokes(testing.NewListAction(virtualclustersResource, virtualclustersKind, c.ns, opts), &v1alpha1.VirtualClusterList{})
+
 	if obj == nil {
 		return nil, err
 	}
@@ -57,13 +60,15 @@ func (c *FakeVirtualClusters) List(ctx context.Context, opts v1.ListOptions) (re
 // Watch returns a watch.Interface that watches the requested virtualClusters.
 func (c *FakeVirtualClusters) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewRootWatchAction(virtualclustersResource, opts))
+		InvokesWatch(testing.NewWatchAction(virtualclustersResource, c.ns, opts))
+
 }
 
 // Create takes the representation of a virtualCluster and creates it.  Returns the server's representation of the virtualCluster, and an error, if there is any.
 func (c *FakeVirtualClusters) Create(ctx context.Context, virtualCluster *v1alpha1.VirtualCluster, opts v1.CreateOptions) (result *v1alpha1.VirtualCluster, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootCreateAction(virtualclustersResource, virtualCluster), &v1alpha1.VirtualCluster{})
+		Invokes(testing.NewCreateAction(virtualclustersResource, c.ns, virtualCluster), &v1alpha1.VirtualCluster{})
+
 	if obj == nil {
 		return nil, err
 	}
@@ -73,7 +78,8 @@ func (c *FakeVirtualClusters) Create(ctx context.Context, virtualCluster *v1alph
 // Update takes the representation of a virtualCluster and updates it. Returns the server's representation of the virtualCluster, and an error, if there is any.
 func (c *FakeVirtualClusters) Update(ctx context.Context, virtualCluster *v1alpha1.VirtualCluster, opts v1.UpdateOptions) (result *v1alpha1.VirtualCluster, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateAction(virtualclustersResource, virtualCluster), &v1alpha1.VirtualCluster{})
+		Invokes(testing.NewUpdateAction(virtualclustersResource, c.ns, virtualCluster), &v1alpha1.VirtualCluster{})
+
 	if obj == nil {
 		return nil, err
 	}
@@ -84,7 +90,8 @@ func (c *FakeVirtualClusters) Update(ctx context.Context, virtualCluster *v1alph
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
 func (c *FakeVirtualClusters) UpdateStatus(ctx context.Context, virtualCluster *v1alpha1.VirtualCluster, opts v1.UpdateOptions) (*v1alpha1.VirtualCluster, error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateSubresourceAction(virtualclustersResource, "status", virtualCluster), &v1alpha1.VirtualCluster{})
+		Invokes(testing.NewUpdateSubresourceAction(virtualclustersResource, "status", c.ns, virtualCluster), &v1alpha1.VirtualCluster{})
+
 	if obj == nil {
 		return nil, err
 	}
@@ -94,13 +101,14 @@ func (c *FakeVirtualClusters) UpdateStatus(ctx context.Context, virtualCluster *
 // Delete takes name of the virtualCluster and deletes it. Returns an error if one occurs.
 func (c *FakeVirtualClusters) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewRootDeleteActionWithOptions(virtualclustersResource, name, opts), &v1alpha1.VirtualCluster{})
+		Invokes(testing.NewDeleteActionWithOptions(virtualclustersResource, c.ns, name, opts), &v1alpha1.VirtualCluster{})
+
 	return err
 }
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeVirtualClusters) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewRootDeleteCollectionAction(virtualclustersResource, listOpts)
+	action := testing.NewDeleteCollectionAction(virtualclustersResource, c.ns, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1alpha1.VirtualClusterList{})
 	return err
@@ -109,7 +117,8 @@ func (c *FakeVirtualClusters) DeleteCollection(ctx context.Context, opts v1.Dele
 // Patch applies the patch and returns the patched virtualCluster.
 func (c *FakeVirtualClusters) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.VirtualCluster, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootPatchSubresourceAction(virtualclustersResource, name, pt, data, subresources...), &v1alpha1.VirtualCluster{})
+		Invokes(testing.NewPatchSubresourceAction(virtualclustersResource, c.ns, name, pt, data, subresources...), &v1alpha1.VirtualCluster{})
+
 	if obj == nil {
 		return nil, err
 	}

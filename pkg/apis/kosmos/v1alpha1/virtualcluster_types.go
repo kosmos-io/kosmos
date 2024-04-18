@@ -38,10 +38,28 @@ type VirtualClusterSpec struct {
 	// +optional
 	Kubeconfig string `json:"kubeconfig,omitempty"`
 
+	// ExternalIP is the external ip of the virtual kubernetes's control plane
+	// +optional
+	ExternalIP string `json:"externalIP,omitempty"`
+
+	// PromotePolicies definites the policies for promote to the kubernetes's control plane
+	// +optional
+	PromotePolicies []PromotePolicy `json:"PromotePolicies,omitempty"`
+
 	// PromoteResources definites the resources for promote to the kubernetes's control plane,
 	// the resources can be nodes or just cpu,memory or gpu resources
-	// +required
-	PromoteResources PromoteResources `json:"promoteResources"`
+	// +optional
+	PromoteResources PromoteResources `json:"promoteResources,omitempty"`
+}
+
+type PromotePolicy struct {
+	// LabelSelector is used to select nodes that are eligible for promotion to the kubernetes's control plane.
+	// +optional
+	LabelSelector metav1.LabelSelector `json:"labelSelector,omitempty"`
+
+	// NodeCount is the number of nodes to promote to the kubernetes's control plane
+	// +optional
+	NodeCount int16 `json:"nodeCount,omitempty"`
 }
 
 type PromoteResources struct {

@@ -95,5 +95,5 @@ func (v *version) ShadowDaemonSets() ShadowDaemonSetInformer {
 
 // VirtualClusters returns a VirtualClusterInformer.
 func (v *version) VirtualClusters() VirtualClusterInformer {
-	return &virtualClusterInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
+	return &virtualClusterInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
