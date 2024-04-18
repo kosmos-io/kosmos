@@ -61,3 +61,7 @@ type ShadowDaemonSetNamespaceListerExpansion interface{}
 // VirtualClusterListerExpansion allows custom methods to be added to
 // VirtualClusterLister.
 type VirtualClusterListerExpansion interface{}
+
+// VirtualClusterNamespaceListerExpansion allows custom methods to be added to
+// VirtualClusterNamespaceLister.
+type VirtualClusterNamespaceListerExpansion interface{}

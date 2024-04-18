@@ -17,7 +17,7 @@ import (
 // VirtualClustersGetter has a method to return a VirtualClusterInterface.
 // A group's client should implement this interface.
 type VirtualClustersGetter interface {
-	VirtualClusters() VirtualClusterInterface
+	VirtualClusters(namespace string) VirtualClusterInterface
 }
 
 // VirtualClusterInterface has methods to work with VirtualCluster resources.
@@ -37,12 +37,14 @@ type VirtualClusterInterface interface {
 // virtualClusters implements VirtualClusterInterface
 type virtualClusters struct {
 	client rest.Interface
+	ns     string
 }
 
 // newVirtualClusters returns a VirtualClusters
-func newVirtualClusters(c *KosmosV1alpha1Client) *virtualClusters {
+func newVirtualClusters(c *KosmosV1alpha1Client, namespace string) *virtualClusters {
 	return &virtualClusters{
 		client: c.RESTClient(),
+		ns:     namespace,
 	}
 }
 
@@ -50,6 +52,7 @@ func newVirtualClusters(c *KosmosV1alpha1Client) *virtualClusters {
 func (c *virtualClusters) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.VirtualCluster, err error) {
 	result = &v1alpha1.VirtualCluster{}
 	err = c.client.Get().
+		Namespace(c.ns).
 		Resource("virtualclusters").
 		Name(name).
 		VersionedParams(&options, scheme.ParameterCodec).
@@ -66,6 +69,7 @@ func (c *virtualClusters) List(ctx context.Context, opts v1.ListOptions) (result
 	}
 	result = &v1alpha1.VirtualClusterList{}
 	err = c.client.Get().
+		Namespace(c.ns).
 		Resource("virtualclusters").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
@@ -82,6 +86,7 @@ func (c *virtualClusters) Watch(ctx context.Context, opts v1.ListOptions) (watch
 	}
 	opts.Watch = true
 	return c.client.Get().
+		Namespace(c.ns).
 		Resource("virtualclusters").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
@@ -92,6 +97,7 @@ func (c *virtualClusters) Watch(ctx context.Context, opts v1.ListOptions) (watch
 func (c *virtualClusters) Create(ctx context.Context, virtualCluster *v1alpha1.VirtualCluster, opts v1.CreateOptions) (result *v1alpha1.VirtualCluster, err error) {
 	result = &v1alpha1.VirtualCluster{}
 	err = c.client.Post().
+		Namespace(c.ns).
 		Resource("virtualclusters").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(virtualCluster).
@@ -104,6 +110,7 @@ func (c *virtualClusters) Create(ctx context.Context, virtualCluster *v1alpha1.V
 func (c *virtualClusters) Update(ctx context.Context, virtualCluster *v1alpha1.VirtualCluster, opts v1.UpdateOptions) (result *v1alpha1.VirtualCluster, err error) {
 	result = &v1alpha1.VirtualCluster{}
 	err = c.client.Put().
+		Namespace(c.ns).
 		Resource("virtualclusters").
 		Name(virtualCluster.Name).
 		VersionedParams(&opts, scheme.ParameterCodec).
@@ -118,6 +125,7 @@ func (c *virtualClusters) Update(ctx context.Context, virtualCluster *v1alpha1.V
 func (c *virtualClusters) UpdateStatus(ctx context.Context, virtualCluster *v1alpha1.VirtualCluster, opts v1.UpdateOptions) (result *v1alpha1.VirtualCluster, err error) {
 	result = &v1alpha1.VirtualCluster{}
 	err = c.client.Put().
+		Namespace(c.ns).
 		Resource("virtualclusters").
 		Name(virtualCluster.Name).
 		SubResource("status").
@@ -131,6 +139,7 @@ func (c *virtualClusters) UpdateStatus(ctx context.Context, virtualCluster *v1al
 // Delete takes name of the virtualCluster and deletes it. Returns an error if one occurs.
 func (c *virtualClusters) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	return c.client.Delete().
+		Namespace(c.ns).
 		Resource("virtualclusters").
 		Name(name).
 		Body(&opts).
@@ -145,6 +154,7 @@ func (c *virtualClusters) DeleteCollection(ctx context.Context, opts v1.DeleteOp
 		timeout = time.Duration(*listOpts.TimeoutSeconds) * time.Second
 	}
 	return c.client.Delete().
+		Namespace(c.ns).
 		Resource("virtualclusters").
 		VersionedParams(&listOpts, scheme.ParameterCodec).
 		Timeout(timeout).
@@ -157,6 +167,7 @@ func (c *virtualClusters) DeleteCollection(ctx context.Context, opts v1.DeleteOp
 func (c *virtualClusters) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.VirtualCluster, err error) {
 	result = &v1alpha1.VirtualCluster{}
 	err = c.client.Patch(pt).
+		Namespace(c.ns).
 		Resource("virtualclusters").
 		Name(name).
 		SubResource(subresources...).

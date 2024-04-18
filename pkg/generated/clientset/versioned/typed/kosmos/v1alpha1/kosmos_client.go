@@ -70,8 +70,8 @@ func (c *KosmosV1alpha1Client) ShadowDaemonSets(namespace string) ShadowDaemonSe
 	return newShadowDaemonSets(c, namespace)
 }
 
-func (c *KosmosV1alpha1Client) VirtualClusters() VirtualClusterInterface {
-	return newVirtualClusters(c)
+func (c *KosmosV1alpha1Client) VirtualClusters(namespace string) VirtualClusterInterface {
+	return newVirtualClusters(c, namespace)
 }
 
 // NewForConfig creates a new KosmosV1alpha1Client for the given config.
