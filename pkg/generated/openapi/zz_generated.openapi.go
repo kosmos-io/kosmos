@@ -2078,13 +2078,6 @@ func schema_pkg_apis_kosmos_v1alpha1_NodeInfo(ref common.ReferenceCallback) comm
 							Format:      "",
 						},
 					},
-					"address": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Address defines node ip",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
 				},
 			},
 		},
@@ -2350,7 +2343,6 @@ func schema_pkg_apis_kosmos_v1alpha1_PromotePolicy(ref common.ReferenceCallback)
 					"labelSelector": {
 						SchemaProps: spec.SchemaProps{
 							Description: "LabelSelector is used to select nodes that are eligible for promotion to the kubernetes's control plane.",
-							Default:     map[string]interface{}{},
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"),
 						},
 					},
@@ -2832,7 +2824,7 @@ func schema_pkg_apis_kosmos_v1alpha1_VirtualClusterSpec(ref common.ReferenceCall
 							Format:      "",
 						},
 					},
-					"PromotePolicies": {
+					"promotePolicies": {
 						SchemaProps: spec.SchemaProps{
 							Description: "PromotePolicies definites the policies for promote to the kubernetes's control plane",
 							Type:        []string{"array"},

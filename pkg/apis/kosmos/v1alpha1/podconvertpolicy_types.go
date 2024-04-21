@@ -27,7 +27,7 @@ type PodConvertPolicySpec struct {
 
 	// A label query over a set of resources.
 	// If name is not empty, LeafNodeSelector will be ignored.
-	// +option
+	// +optional
 	LeafNodeSelector *metav1.LabelSelector `json:"leafNodeSelector,omitempty"`
 
 	// Converters are some converter for convert pod when pod synced from root cluster to leaf cluster
