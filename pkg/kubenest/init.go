@@ -31,7 +31,7 @@ type initData struct {
 	kosmosClient          versioned.Interface
 	virtualClusterDataDir string
 	privateRegistry       string
-	dummyIP               string
+	externalIP            string
 }
 
 type InitOptions struct {
@@ -139,7 +139,7 @@ func newRunData(opt *InitOptions) (*initData, error) {
 		virtualClusterDataDir: opt.virtualClusterDataDir,
 		privateRegistry:       utils.DefaultImageRepository,
 		CertStore:             cert.NewCertStore(),
-		dummyIP:               opt.virtualCluster.Spec.ExternalIP,
+		externalIP:            opt.virtualCluster.Spec.ExternalIP,
 	}, nil
 }
 
@@ -195,6 +195,6 @@ func (i initData) VirtualClusterVersion() string {
 	return i.virtualClusterVersion.String()
 }
 
-func (i initData) DummyIP() string {
-	return i.dummyIP
+func (i initData) ExternalIP() string {
+	return i.externalIP
 }

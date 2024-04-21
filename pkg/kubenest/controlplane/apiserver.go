@@ -25,7 +25,8 @@ func EnsureVirtualClusterAPIServer(client clientset.Interface, name, namespace s
 
 func installAPIServer(client clientset.Interface, name, namespace string) error {
 	imageRepository, imageVersion := util.GetImageMessage()
-	err, clusterIps := util.GetEtcdServiceClusterIp(namespace, client)
+	suffix := "-etcd-client"
+	clusterIp, err := util.GetEtcdServiceClusterIp(namespace, name+suffix, client)
 	if err != nil {
 		return nil
 	}
@@ -40,7 +41,7 @@ func installAPIServer(client clientset.Interface, name, namespace string) error 
 		Namespace:                 namespace,
 		ImageRepository:           imageRepository,
 		Version:                   imageVersion,
-		EtcdClientService:         clusterIps[1],
+		EtcdClientService:         clusterIp,
 		ServiceSubnet:             constants.ApiServerServiceSubnet,
 		VirtualClusterCertsSecret: fmt.Sprintf("%s-%s", name, "cert"),
 		EtcdCertsSecret:           fmt.Sprintf("%s-%s", name, "etcd-cert"),
