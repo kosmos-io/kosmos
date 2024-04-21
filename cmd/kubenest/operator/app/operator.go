@@ -74,6 +74,15 @@ func run(ctx context.Context, opts *options.Options) error {
 		return fmt.Errorf("failed to build controller manager: %v", err)
 	}
 
+	VirtualClusterNodePoolController := controller.VirtualClusterNodePoolController{
+		Client:        mgr.GetClient(),
+		Config:        mgr.GetConfig(),
+		EventRecorder: mgr.GetEventRecorderFor(constants.NodePoolControllerName),
+	}
+	if err = VirtualClusterNodePoolController.SetupWithManager(mgr); err != nil {
+		return fmt.Errorf("error starting %s: %v", constants.NodePoolControllerName, err)
+	}
+
 	VirtualClusterInitController := controller.VirtualClusterInitController{
 		Client:        mgr.GetClient(),
 		Config:        mgr.GetConfig(),

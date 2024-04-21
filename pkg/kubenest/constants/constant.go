@@ -5,6 +5,7 @@ import "time"
 const (
 	InitControllerName            = "virtual-cluster-init-controller"
 	KosmosJoinControllerName      = "kosmos-join-controller"
+	NodePoolControllerName        = "virtualcluster_nodepool_controller"
 	SystemNs                      = "kube-system"
 	DefauleImageRepositoryEnv     = "IMAGE_REPOSITIRY"
 	DefauleImageVersionEnv        = "IMAGE_VERSION"
