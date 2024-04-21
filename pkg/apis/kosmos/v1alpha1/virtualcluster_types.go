@@ -12,8 +12,14 @@ const (
 	Preparing Phase = "Preparing"
 	// Initialized means kubernetes control plane is ready,and kubeconfig is ready for use
 	Initialized Phase = "Initialized"
-	// Completed means kubernetes control plane is ready,kosmos is joined, and resource is promoted
+	// Completed means everything is ready,kosmos is joined, and resource is promoted
 	Completed Phase = "Completed"
+	// ControllerPlaneCompleted means kubernetes control plane is ready,kosmos is joined, and resource is promoted
+	ControllerPlaneCompleted Phase = "ControllerPlaneCompleted"
+	// AllNodeReady means all nodes have joined the virtual control plane and are in the running state
+	AllNodeReady Phase = "AllNodeReady"
+	// Updating means that some changes are happening
+	Updating Phase = "Updating"
 )
 
 // +genclient
@@ -82,6 +88,8 @@ type VirtualClusterStatus struct {
 	// Phase is the phase of kosmos-operator handling the VirtualCluster
 	// +optional
 	Phase Phase `json:"phase,omitempty"`
+	// +optional
+	Reason string `json:"reason,omitempty" protobuf:"bytes,4,opt,name=reason"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

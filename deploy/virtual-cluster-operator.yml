@@ -38,6 +38,188 @@ data:
   kubeconfig: __kubeconfig__
 
 ---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: virtual-cluster-operator
+  namespace: kosmos-system
+data:
+  kubelet_node_helper.sh: |
+    #!/usr/bin/env bash
+
+    SCRIPT_VERSION=0.0.1
+    PATH_KUBEADM=/apps/bin/kubeadm
+    # save tmp file
+    PATH_FILE_TMP=/apps/conf/kosmos/tmp
+    PATH_KUBERNETES=/apps/conf/kubernetes
+    PATH_KUBERNETES_PKI="$PATH_KUBERNETES/pki"
+    # args
+    DNS_ADDRESS=${2:-10.237.0.10}
+    LOG_NAME=${2:-kubelet}
+
+    function unjoin() {
+        # before unjoin, you need delete node by kubectl
+        echo "exec(1/1): kubeadm reset...."
+        echo "y" | . ${PATH_KUBEADM}
+        if [ $? -ne 0 ]; then
+            exit 1
+        fi
+    }
+
+
+    # before join, you need upload ca.crt and kubeconfig to tmp dir!!!
+    function join() {
+        echo "exec(1/6): stop containerd...."
+        systemctl stop containerd
+        if [ $? -ne 0 ]; then
+            exit 1
+        fi
+        echo "exec(2/6): copy ca.crt...."
+        cp "$PATH_FILE_TMP/ca.crt" "$PATH_KUBERNETES_PKI/ca.crt"
+        if [ $? -ne 0 ]; then
+            exit 1
+        fi
+        echo "exec(3/6): copy kubeconfig...."
+        cp "$PATH_FILE_TMP/kubeconfig" "$PATH_KUBERNETES/kubeconfig"
+        if [ $? -ne 0 ]; then
+            exit 1
+        fi
+        echo "exec(4/6): set core dns address...."
+        sed -e "s|__DNS_ADDRESS__|$DNS_ADDRESS|g" -e "w ${PATH_KUBERNETES}/kubelet-config.yaml" "$PATH_FILE_TMP"/kubelet-config.yaml
+        if [ $? -ne 0 ]; then
+            exit 1
+        fi
+        echo "exec(5/6): start containerd"
+        systemctl start containerd
+        if [ $? -ne 0 ]; then
+            exit 1
+        fi
+        echo "exec(6/6): start kubelet...."
+        systemctl start kubelet
+        if [ $? -ne 0 ]; then
+            exit 1
+        fi
+    }
+
+    function health() {
+        result=`systemctl is-active containerd`
+        if [[ $result != "active" ]]; then
+            echo "health(1/2): containerd is inactive"
+            exit 1
+        else
+            echo "health(1/2): containerd is active"
+        fi
+
+        result=`systemctl is-active kubelet`
+        if [[ $result != "active" ]]; then
+            echo "health(2/2): kubelet is inactive"
+            exit 1
+        else
+            echo "health(2/2): containerd is active"
+        fi
+    }
+
+    function log() {
+        systemctl status $LOG_NAME
+    }
+
+    # check the environments
+    function check() {
+        if [ ! -d "$PATH_FILE_TMP" ]; then
+            echo "try to create $PATH_FILE_TMP"
+            mkdir -p "$PATH_FILE_TMP"
+            if [ $? -ne 0 ]; then
+                exit 1
+            fi
+        fi
+        echo "environments is ok"
+    }
+
+    function version() {
+        echo "$SCRIPT_VERSION"
+    }
+
+    # See how we were called.
+    case "$1" in
+      unjoin)
+        unjoin
+        ;;
+      join)
+        join
+        ;;
+      health)
+        health
+        ;;
+      check)
+        check
+        ;;
+      log)
+        log
+        ;;
+      version)
+        version
+        ;;
+      *)
+        echo $"usage: $0 unjoin|join|health|log|check|version"
+        exit 1
+    esac
+  config.yaml: |
+    apiVersion: kubelet.config.k8s.io/v1beta1
+    authentication:
+      anonymous:
+        enabled: false
+      webhook:
+        cacheTTL: 0s
+        enabled: true
+      x509:
+        clientCAFile: /etc/kubernetes/pki/ca.crt
+    authorization:
+      mode: Webhook
+      webhook:
+        cacheAuthorizedTTL: 0s
+        cacheUnauthorizedTTL: 0s
+    cgroupDriver: cgroupfs
+    clusterDNS:
+    - __DNS_ADDRESS__
+    clusterDomain: cluster.local
+    cpuManagerReconcilePeriod: 0s
+    evictionHard:
+      imagefs.available: 15%
+      memory.available: 100Mi
+      nodefs.available: 10%
+      nodefs.inodesFree: 5%
+    evictionPressureTransitionPeriod: 5m0s
+    fileCheckFrequency: 0s
+    healthzBindAddress: 127.0.0.1
+    healthzPort: 10248
+    httpCheckFrequency: 0s
+    imageMinimumGCAge: 0s
+    kind: KubeletConfiguration
+    kubeAPIBurst: 100
+    kubeAPIQPS: 100
+    kubeReserved:
+      cpu: 140m
+      memory: 1.80G
+    logging:
+      flushFrequency: 0
+      options:
+        json:
+          infoBufferSize: "0"
+      verbosity: 0
+    memorySwap: {}
+    nodeStatusReportFrequency: 0s
+    nodeStatusUpdateFrequency: 0s
+    rotateCertificates: true
+    runtimeRequestTimeout: 0s
+    shutdownGracePeriod: 0s
+    shutdownGracePeriodCriticalPods: 0s
+    staticPodPath: /etc/kubernetes/manifests
+    streamingConnectionIdleTimeout: 0s
+    syncFrequency: 0s
+    volumeStatsAggPeriod: 0s
+
+
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -57,21 +239,30 @@ spec:
     spec:
       serviceAccountName: virtual-cluster-operator
       containers:
-        - name: virtual-cluster-operator
-          image: repo1-cn-beijing.cr.volces.com/virtualcluster/virtualcluter/virtual-cluster-operator:ee1bcd33-dirty
-          imagePullPolicy: IfNotPresent
-          env:
-            - name: IMAGE_REPOSITIRY
-              value: repo1-cn-beijing.cr.volces.com/virtualcluster/virtualcluter
-          volumeMounts:
-            - name: credentials
-              mountPath: /etc/virtual-cluster-operator
-              readOnly: true
-          command:
-            - virtual-cluster-operator
-            - --kubeconfig=/etc/virtual-cluster-operator/kubeconfig
-            - --v=4
-      volumes:
+      - name: virtual-cluster-operator
+        image: cis-hub-huabei-3.cmecloud.cn/vc-develop/virtual-cluster-operator:0.0.1
+        imagePullPolicy: IfNotPresent
+        env:
+          - name: IMAGE_REPOSITIRY
+            value: repo1-cn-beijing.cr.volces.com/virtualcluster/virtualcluter
+        volumeMounts:
         - name: credentials
-          secret:
-            secretName: virtual-cluster-operator
+          mountPath: /etc/virtual-cluster-operator
+          readOnly: true
+        - name: shellscript
+          mountPath: /bin/kubelet_node_helper.sh
+          subPath: kubelet_node_helper.sh
+        - name: shellscript
+          mountPath: /bin/config.yaml
+          subPath: config.yaml
+        command:
+        - virtual-cluster-operator
+        - --kubeconfig=/etc/virtual-cluster-operator/kubeconfig
+        - --v=4
+      volumes:
+      - name: credentials
+        secret:
+          secretName: virtual-cluster-operator
+      - name: shellscript
+        configMap:
+          name: virtual-cluster-operator
