@@ -6,11 +6,10 @@ const (
 	InitControllerName            = "virtual-cluster-init-controller"
 	NodeControllerName            = "virtual-cluster-node-controller"
 	KosmosJoinControllerName      = "kosmos-join-controller"
+	KosmosNs                      = "kosmos-system"
 	SystemNs                      = "kube-system"
 	DefauleImageRepositoryEnv     = "IMAGE_REPOSITIRY"
 	DefauleImageVersionEnv        = "IMAGE_VERSION"
-	VirtualClusterStatusCompleted = "Completed"
-	VirtualClusterStatusUpdating  = "Updating"
 	VirtualClusterFinalizerName   = "kosmos.io/virtual-cluster-finalizer"
 	ServiceType                   = "NodePort"
 	EtcdServiceType               = "ClusterIP"
@@ -18,7 +17,7 @@ const (
 	ControllerFinalizerName       = "operator.virtualcluster.io/finalizer"
 	DefaultKubeconfigPath         = "/etc/cluster-tree/cert"
 	Label                         = "virtualCluster-app"
-	ComponentBeReadyTimeout       = 120 * time.Second
+	ComponentBeReadyTimeout       = 300 * time.Second
 
 	// CertificateBlockType is a possible value for pem.Block.Type.
 	CertificateBlockType           = "CERTIFICATE"
@@ -61,11 +60,13 @@ const (
 	VirtualClusterSchedulerReplicas           = 1
 	VirtualClusterSchedulerComponent          = "VirtualClusterScheduler"
 	VirtualClusterSchedulerComponentConfigMap = "scheduler-config"
-	VirtualClusterScheduler                   = "virtualCluster-scheduler"
+	VirtualClusterScheduler                   = "scheduler"
+	VirtualClusterKubeProxyComponent          = "kube-proxy"
 
 	//controlplane auth
-	AdminConfig = "admin-config"
-	KubeConfig  = "kubeconfig"
+	AdminConfig        = "admin-config"
+	KubeConfig         = "kubeconfig"
+	KubeProxyConfigmap = "kube-proxy"
 
 	//controlplane upload
 	VirtualClusterLabelKeyName = "app.kubernetes.io/managed-by"
@@ -77,6 +78,14 @@ const (
 	InitAction Action = "init"
 	// DeInitAction represents delete virtual cluster instance
 	DeInitAction Action = "deInit"
+
+	ManifestComponentsConfigmap = "components-manifest-cm"
+	NodePoolConfigmap           = "node-pool"
+	NodeShareState              = "share"
+	NodeVirtualclusterState     = "virtualcluster"
+	NodeFreeState               = "free"
+
+	WaitAllPodsRunningTimeoutSeconds = 1800
 )
 
 type Action string

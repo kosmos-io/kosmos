@@ -14,12 +14,11 @@ const (
 	Initialized Phase = "Initialized"
 	// Completed means everything is ready,kosmos is joined, and resource is promoted
 	Completed Phase = "Completed"
-	// ControllerPlaneCompleted means kubernetes control plane is ready,kosmos is joined, and resource is promoted
-	ControllerPlaneCompleted Phase = "ControllerPlaneCompleted"
 	// AllNodeReady means all nodes have joined the virtual control plane and are in the running state
 	AllNodeReady Phase = "AllNodeReady"
 	// Updating means that some changes are happening
 	Updating Phase = "Updating"
+	Pending  Phase = "Pending"
 )
 
 // +genclient

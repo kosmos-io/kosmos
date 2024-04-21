@@ -226,7 +226,7 @@ func (r *NodeController) Reconcile(ctx context.Context, request reconcile.Reques
 		return reconcile.Result{}, nil
 	}
 
-	if virtualCluster.Status.Phase != v1alpha1.ControllerPlaneCompleted {
+	if virtualCluster.Status.Phase != v1alpha1.Initialized {
 		klog.V(4).Infof("virtualcluster wait cluster ready, cluster name: %s", virtualCluster.Name)
 		return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
 	}

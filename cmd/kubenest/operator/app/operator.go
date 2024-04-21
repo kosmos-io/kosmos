@@ -91,6 +91,7 @@ func run(ctx context.Context, opts *options.Options) error {
 		Config:          mgr.GetConfig(),
 		EventRecorder:   mgr.GetEventRecorderFor(constants.InitControllerName),
 		HostPortManager: hostPortManager,
+		RootClientSet:   hostKubeClient,
 	}
 	if err = VirtualClusterInitController.SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("error starting %s: %v", constants.InitControllerName, err)
