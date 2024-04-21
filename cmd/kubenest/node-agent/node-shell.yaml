@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    run: nsenter-v0l86q
+  name: nsenter-v0l86q
+  namespace: default
+spec:
+  containers:
+    - command:
+        - nsenter
+        - --target
+        - "1"
+        - --mount
+        - --uts
+        - --ipc
+        - --net
+        - --pid
+        - --
+        - bash
+        - -l
+      image: ubuntu:latest
+      imagePullPolicy: Always
+      name: nsenter
+      securityContext:
+        privileged: true
+      stdin: true
+      stdinOnce: true
+      tty: true
+  hostNetwork: true
+  hostPID: true
+  restartPolicy: Never
+  tolerations:
+    - key: CriticalAddonsOnly
+      operator: Exists
+    - effect: NoExecute
+      operator: Exists
