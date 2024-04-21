@@ -13,6 +13,7 @@ require (
 	github.com/gogo/protobuf v1.3.2
 	github.com/google/go-cmp v0.5.9
 	github.com/gorilla/mux v1.8.1
+	github.com/gorilla/websocket v1.4.2
 	github.com/olekukonko/tablewriter v0.0.4
 	github.com/onsi/ginkgo/v2 v2.9.2
 	github.com/onsi/gomega v1.27.4
@@ -43,7 +44,6 @@ require (
 	k8s.io/kube-scheduler v0.0.0
 	k8s.io/kubectl v0.26.3
 	k8s.io/kubernetes v1.13.0
-	k8s.io/metrics v0.26.3
 	k8s.io/utils v0.0.0-20221128185143-99ec85e7a448
 	sigs.k8s.io/controller-runtime v0.14.5
 	sigs.k8s.io/mcs-api v0.1.0
