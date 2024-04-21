@@ -10,13 +10,19 @@ import (
 	clientsetscheme "k8s.io/client-go/kubernetes/scheme"
 
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
+	vcnodecontroller "github.com/kosmos.io/kosmos/pkg/kubenest/controller/virtualcluster.node.controller"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/manifest/controlplane/apiserver"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/util"
 )
 
 var errAllocated = errors.New("provided port is already allocated")
 
-func EnsureVirtualClusterAPIServer(client clientset.Interface, name, namespace string) error {
+func EnsureVirtualClusterAPIServer(client clientset.Interface, name, namespace string, manager *vcnodecontroller.HostPortManager) error {
+	_, err := manager.AllocateHostIP(name)
+	if err != nil {
+		return fmt.Errorf("failed to allocate host ip for virtual cluster apiserver, err: %w", err)
+	}
+
 	if err := installAPIServer(client, name, namespace); err != nil {
 		return fmt.Errorf("failed to install virtual cluster apiserver, err: %w", err)
 	}

@@ -14,17 +14,18 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/kubenest"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
+	vcnodecontroller "github.com/kosmos.io/kosmos/pkg/kubenest/controller/virtualcluster.node.controller"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/workflow"
 )
 
-type Executer struct {
+type Executor struct {
 	client.Client
 	virtualCluster *v1alpha1.VirtualCluster
 	phase          *workflow.Phase
 	config         *rest.Config
 }
 
-func NewExecuter(virtualCluster *v1alpha1.VirtualCluster, c client.Client, config *rest.Config) (*Executer, error) {
+func NewExecutor(virtualCluster *v1alpha1.VirtualCluster, c client.Client, config *rest.Config, hostPortManager *vcnodecontroller.HostPortManager) (*Executor, error) {
 	var phase *workflow.Phase
 
 	action := recognizeActionFor(virtualCluster)
@@ -35,14 +36,14 @@ func NewExecuter(virtualCluster *v1alpha1.VirtualCluster, c client.Client, confi
 			kubenest.NewInitOptWithKubeconfig(config),
 		}
 		options := kubenest.NewPhaseInitOptions(opts...)
-		phase = kubenest.NewInitPhase(options)
+		phase = kubenest.NewInitPhase(options, hostPortManager)
 	case constants.DeInitAction:
 		//TODO deinit
 	default:
 		return nil, fmt.Errorf("failed to recognize action for virtual cluster %s", virtualCluster.Name)
 	}
 
-	return &Executer{
+	return &Executor{
 		virtualCluster: virtualCluster,
 		Client:         c,
 		phase:          phase,
@@ -50,7 +51,7 @@ func NewExecuter(virtualCluster *v1alpha1.VirtualCluster, c client.Client, confi
 	}, nil
 }
 
-func (e *Executer) Execute() error {
+func (e *Executor) Execute() error {
 	klog.InfoS("Start execute the workflow", "workflow", "virtual cluster", klog.KObj(e.virtualCluster))
 
 	if err := e.phase.Run(); err != nil {
@@ -64,7 +65,7 @@ func (e *Executer) Execute() error {
 	return nil
 }
 
-func (e *Executer) afterRunPhase() error {
+func (e *Executor) afterRunPhase() error {
 	localClusterClient, err := clientset.NewForConfig(e.config)
 	if err != nil {
 		return fmt.Errorf("error when creating local cluster client, err: %w", err)

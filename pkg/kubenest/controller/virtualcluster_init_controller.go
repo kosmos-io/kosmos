@@ -19,12 +19,14 @@ import (
 
 	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
+	vcnodecontroller "github.com/kosmos.io/kosmos/pkg/kubenest/controller/virtualcluster.node.controller"
 )
 
 type VirtualClusterInitController struct {
 	client.Client
-	Config        *rest.Config
-	EventRecorder record.EventRecorder
+	Config          *rest.Config
+	EventRecorder   record.EventRecorder
+	HostPortManager *vcnodecontroller.HostPortManager
 }
 
 func (c *VirtualClusterInitController) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
@@ -74,7 +76,7 @@ func (c *VirtualClusterInitController) SetupWithManager(mgr manager.Manager) err
 
 func (c *VirtualClusterInitController) syncVirtualCluster(virtualCluster *v1alpha1.VirtualCluster) error {
 	klog.V(2).Infof("Reconciling virtual cluster", "name", virtualCluster.Name)
-	executer, err := NewExecuter(virtualCluster, c.Client, c.Config)
+	executer, err := NewExecutor(virtualCluster, c.Client, c.Config, c.HostPortManager)
 	if err != nil {
 		return err
 	}
