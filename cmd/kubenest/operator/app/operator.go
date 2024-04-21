@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	cliflag "k8s.io/component-base/cli/flag"
 	"k8s.io/klog/v2"
@@ -75,10 +76,21 @@ func run(ctx context.Context, opts *options.Options) error {
 		return fmt.Errorf("failed to build controller manager: %v", err)
 	}
 
+	hostKubeClient, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return fmt.Errorf("could not create clientset: %v", err)
+	}
+
+	hostPortManager, err := vcnodecontroller.NewHostPortManager(hostKubeClient)
+	if err != nil {
+		return fmt.Errorf("failed to create host port manager: %v", err)
+	}
+
 	VirtualClusterInitController := controller.VirtualClusterInitController{
-		Client:        mgr.GetClient(),
-		Config:        mgr.GetConfig(),
-		EventRecorder: mgr.GetEventRecorderFor(constants.InitControllerName),
+		Client:          mgr.GetClient(),
+		Config:          mgr.GetConfig(),
+		EventRecorder:   mgr.GetEventRecorderFor(constants.InitControllerName),
+		HostPortManager: hostPortManager,
 	}
 	if err = VirtualClusterInitController.SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("error starting %s: %v", constants.InitControllerName, err)
