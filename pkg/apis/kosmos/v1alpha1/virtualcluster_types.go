@@ -44,7 +44,7 @@ type VirtualClusterSpec struct {
 
 	// PromotePolicies definites the policies for promote to the kubernetes's control plane
 	// +optional
-	PromotePolicies []PromotePolicy `json:"PromotePolicies,omitempty"`
+	PromotePolicies []PromotePolicy `json:"promotePolicies,omitempty"`
 
 	// PromoteResources definites the resources for promote to the kubernetes's control plane,
 	// the resources can be nodes or just cpu,memory or gpu resources
@@ -55,11 +55,11 @@ type VirtualClusterSpec struct {
 type PromotePolicy struct {
 	// LabelSelector is used to select nodes that are eligible for promotion to the kubernetes's control plane.
 	// +optional
-	LabelSelector metav1.LabelSelector `json:"labelSelector,omitempty"`
+	LabelSelector *metav1.LabelSelector `json:"labelSelector,omitempty"`
 
 	// NodeCount is the number of nodes to promote to the kubernetes's control plane
 	// +optional
-	NodeCount int16 `json:"nodeCount,omitempty"`
+	NodeCount *int32 `json:"nodeCount,omitempty"`
 }
 
 type PromoteResources struct {
@@ -76,9 +76,6 @@ type NodeInfo struct {
 	//NodeName defines node name
 	//+optional
 	NodeName string `json:"nodeName,omitempty"`
-	//Address defines node ip
-	//+optional
-	Address string `json:"address,omitempty"`
 }
 
 type VirtualClusterStatus struct {
