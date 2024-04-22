@@ -32,6 +32,7 @@ type initData struct {
 	virtualClusterDataDir string
 	privateRegistry       string
 	externalIP            string
+	hostPortManager       *vcnodecontroller.HostPortManager
 }
 
 type InitOptions struct {
@@ -43,7 +44,7 @@ type InitOptions struct {
 	virtualCluster        *v1alpha1.VirtualCluster
 }
 
-func NewInitPhase(opts *InitOptions) *workflow.Phase {
+func NewInitPhase(opts *InitOptions, hostPortManager *vcnodecontroller.HostPortManager) *workflow.Phase {
 	initPhase := workflow.NewPhase()
 
 	initPhase.AppendTask(tasks.NewVirtualClusterServiceTask())
@@ -57,7 +58,7 @@ func NewInitPhase(opts *InitOptions) *workflow.Phase {
 	initPhase.AppendTask(tasks.NewCheckControlPlaneTask())
 
 	initPhase.SetDataInitializer(func() (workflow.RunData, error) {
-		return newRunData(opts)
+		return newRunData(opts, hostPortManager)
 	})
 	return initPhase
 }
@@ -96,7 +97,7 @@ func NewInitOptWithKubeconfig(config *rest.Config) InitOpt {
 	}
 }
 
-func newRunData(opt *InitOptions) (*initData, error) {
+func newRunData(opt *InitOptions, hostPortManager *vcnodecontroller.HostPortManager) (*initData, error) {
 	if err := opt.Validate(); err != nil {
 		return nil, err
 	}
@@ -140,6 +141,7 @@ func newRunData(opt *InitOptions) (*initData, error) {
 		privateRegistry:       utils.DefaultImageRepository,
 		CertStore:             cert.NewCertStore(),
 		externalIP:            opt.virtualCluster.Spec.ExternalIP,
+		hostPortManager:       hostPortManager,
 	}, nil
 }
 
@@ -165,6 +167,10 @@ func (i initData) GetName() string {
 
 func (i initData) GetNamespace() string {
 	return i.namespace
+}
+
+func (i initData) GetHostPortManager() *vcnodecontroller.HostPortManager {
+	return i.hostPortManager
 }
 
 func (i initData) ControlplaneAddress() string {
