@@ -75,7 +75,7 @@ func (c *KosmosJoinController) InitNodeOwnerMap() {
 		return
 	}
 	for _, vc := range vcList.Items {
-		if vc.Status.Phase == constants.VirtualClusterStatusCompleted {
+		if vc.Status.Phase == v1alpha1.Completed {
 			kubeconfigStream, err := base64.StdEncoding.DecodeString(vc.Spec.Kubeconfig)
 			if err != nil {
 				klog.Errorf("virtualcluster %s decode target kubernetes kubeconfig %s err: %v", vc.Name, vc.Spec.Kubeconfig, err)
@@ -542,7 +542,7 @@ func (c *KosmosJoinController) Reconcile(ctx context.Context, request reconcile.
 		return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
 	}
 	if vc.DeletionTimestamp.IsZero() {
-		if vc.Status.Phase != constants.VirtualClusterStatusCompleted {
+		if vc.Status.Phase != v1alpha1.Completed {
 			klog.Infof("cluster's status is %s, skip", vc.Status.Phase)
 			return reconcile.Result{}, nil
 		}

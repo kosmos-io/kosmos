@@ -56,6 +56,7 @@ func NewInitPhase(opts *InitOptions, hostPortManager *vcnodecontroller.HostPortM
 	initPhase.AppendTask(tasks.NewCheckApiserverHealthTask())
 	initPhase.AppendTask(tasks.NewComponentTask())
 	initPhase.AppendTask(tasks.NewCheckControlPlaneTask())
+	initPhase.AppendTask(tasks.NewComponentsFromManifestsTask())
 
 	initPhase.SetDataInitializer(func() (workflow.RunData, error) {
 		return newRunData(opts, hostPortManager)
