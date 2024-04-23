@@ -19,4 +19,5 @@ type InitData interface {
 	KosmosClient() versioned.Interface
 	DataDir() string
 	VirtualClusterVersion() string
+	ExternalIP() string
 }

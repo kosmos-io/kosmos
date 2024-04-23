@@ -134,6 +134,7 @@ func mutateCertConfig(data InitData, cc *cert.CertConfig) error {
 			Namespace:        data.GetNamespace(),
 			ControlplaneAddr: data.ControlplaneAddress(),
 			ClusterIps:       data.ServiceClusterIp(),
+			ExternalIP:       data.ExternalIP(),
 		}, cc)
 		if err != nil {
 			return err
