@@ -1,25 +1,25 @@
 package vcrnodepoolcontroller
 
 import (
-	"encoding/json"
+	"gopkg.in/yaml.v3"
 )
 
 type NodePoolMapItem struct {
-	Address string            `json:"address"`
-	Labels  map[string]string `json:"labels"`
-	Cluster string            `json:"cluster"`
-	State   string            `json:"state"`
+	Address string            `yaml:"address"`
+	Labels  map[string]string `yaml:"labels"`
+	Cluster string            `yaml:"cluster"`
+	State   string            `yaml:"state"`
 }
 
 type NodeItem struct {
 	NodePoolMapItem
-	Name string `json:"-"`
+	Name string `yaml:"-"`
 }
 
-func ConvertJsonToNodeItem(jsonStr string) (map[string]NodeItem, error) {
+func ConvertYamlToNodeItem(yamlStr string) (map[string]NodeItem, error) {
 	nodepoolMap := map[string]NodeItem{}
 
-	nodepoolItem, err := ConvertJsonToNodePoolItem(jsonStr)
+	nodepoolItem, err := ConvertYamlToNodePoolItem(yamlStr)
 	if err != nil {
 		return nil, err
 	}
@@ -34,21 +34,21 @@ func ConvertJsonToNodeItem(jsonStr string) (map[string]NodeItem, error) {
 	return nodepoolMap, nil
 }
 
-func ConvertJsonToNodePoolItem(jsonStr string) (map[string]NodePoolMapItem, error) {
+func ConvertYamlToNodePoolItem(yamlStr string) (map[string]NodePoolMapItem, error) {
 	nodepoolItem := map[string]NodePoolMapItem{}
-	err := json.Unmarshal([]byte(jsonStr), &nodepoolItem)
+	err := yaml.Unmarshal([]byte(yamlStr), &nodepoolItem)
 	if err != nil {
 		return nil, err
 	}
 	return nodepoolItem, nil
 }
 
-func ConvertNodePoolItemToJson(nodepoolItem map[string]NodePoolMapItem) ([]byte, error) {
-	jsonStr, err := json.Marshal(nodepoolItem)
+func ConvertNodePoolItemToYaml(nodepoolItem map[string]NodePoolMapItem) ([]byte, error) {
+	yamlStr, err := yaml.Marshal(nodepoolItem)
 	if err != nil {
 		return nil, err
 	}
-	return jsonStr, nil
+	return yamlStr, nil
 }
 
 // controller task

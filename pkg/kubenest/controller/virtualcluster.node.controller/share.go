@@ -21,8 +21,8 @@ func (r *NodeController) UpdateNodePoolState(ctx context.Context, nodeName strin
 
 		updateNodePool := nodePool.DeepCopy()
 
-		jsonStr := updateNodePool.Data[NodePoolCMKeyName]
-		nodePoolItem, err := vcrnodepoolcontroller.ConvertJsonToNodePoolItem(jsonStr)
+		yamlStr := updateNodePool.Data[NodePoolCMKeyName]
+		nodePoolItem, err := vcrnodepoolcontroller.ConvertYamlToNodePoolItem(yamlStr)
 		if err != nil {
 			return err
 		}
@@ -32,7 +32,7 @@ func (r *NodeController) UpdateNodePoolState(ctx context.Context, nodeName strin
 
 		nodePoolItem[nodeName] = targetNodePoolItem
 
-		nodePoolBytes, err := vcrnodepoolcontroller.ConvertNodePoolItemToJson(nodePoolItem)
+		nodePoolBytes, err := vcrnodepoolcontroller.ConvertNodePoolItemToYaml(nodePoolItem)
 		if err != nil {
 			return err
 		}

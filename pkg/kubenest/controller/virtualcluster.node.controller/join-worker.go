@@ -96,7 +96,7 @@ func (r *NodeController) joinNode(ctx context.Context, nodeInfos []vcrnodepoolco
 		// step(2/5) scp ca of virtualcluster
 		nn := types.NamespacedName{
 			Namespace: virtualCluster.Namespace,
-			Name:      fmt.Sprintf("%s-cert", virtualCluster.Namespace),
+			Name:      fmt.Sprintf("%s-cert", virtualCluster.Name),
 		}
 		targetCert := &v1.Secret{}
 		if err := r.Get(ctx, nn, targetCert); err != nil {

@@ -15,7 +15,11 @@ spec:
     singular: virtualcluster
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .status.phase
+      name: STATUS
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         properties:
@@ -133,9 +137,15 @@ spec:
               phase:
                 description: Phase is the phase of kosmos-operator handling the VirtualCluster
                 type: string
+              reason:
+                type: string
+              timeStamp:
+                format: date-time
+                type: string
             type: object
         required:
         - spec
         type: object
     served: true
     storage: true
+    subresources: {}
