@@ -51,6 +51,7 @@ const (
 	EtcdDataVolumeName   = "etcd-data"
 	EtcdListenClientPort = 2379
 	EtcdListenPeerPort   = 2380
+	EtcdSuffix           = "-etcd-client"
 
 	//controlplane kube-controller
 	KubeControllerReplicas         = 2
@@ -79,6 +80,10 @@ const (
 	InitAction Action = "init"
 	// DeInitAction represents delete virtual cluster instance
 	DeInitAction Action = "deInit"
+
+	//host_port_manager
+	HostPortsCMName     = "kosmos-hostports"
+	HostPortsCMDataName = "config.yaml"
 
 	ManifestComponentsConfigmap = "components-manifest-cm"
 	NodePoolConfigmap           = "node-pool"

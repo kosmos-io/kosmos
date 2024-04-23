@@ -8,6 +8,8 @@ import (
 	"gopkg.in/yaml.v3"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+
+	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
 )
 
 /**
@@ -46,13 +48,11 @@ type ClusterPort struct {
 }
 
 func NewHostPortManager(client kubernetes.Interface) (*HostPortManager, error) {
-	//todo magic Value
-	hostPorts, err := client.CoreV1().ConfigMaps("kosmos-system").Get(context.TODO(), "kosmos-hostports", metav1.GetOptions{})
+	hostPorts, err := client.CoreV1().ConfigMaps(constants.KosmosNs).Get(context.TODO(), constants.HostPortsCMName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
-	//todo magic Value
-	yamlData, exist := hostPorts.Data["config.yaml"]
+	yamlData, exist := hostPorts.Data[constants.HostPortsCMDataName]
 	if !exist {
 		return nil, fmt.Errorf("hostports not found in configmap")
 	}
@@ -68,33 +68,70 @@ func NewHostPortManager(client kubernetes.Interface) (*HostPortManager, error) {
 	return manager, nil
 }
 
-func (m *HostPortManager) AllocateHostIP(clusterName string) (int32, error) {
+func (m *HostPortManager) AllocateHostPort(clusterName string) (int32, error) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
+
+	//使用临时变量存储原来的cm
+	oldHostPool := m.HostPortPool
+
 	for _, port := range m.HostPortPool.PortsPool {
 		if !m.isPortAllocated(port) {
 			m.HostPortPool.ClusterPorts = append(m.HostPortPool.ClusterPorts, ClusterPort{Port: port, Cluster: clusterName})
-			m.HostPortPool.ClusterPorts = append(m.HostPortPool.ClusterPorts, ClusterPort{Port: port, Cluster: clusterName})
-			return port, nil
+			err := updateConfigMapAndRollback(m, oldHostPool)
+			if err != nil {
+				return 0, err
+			}
+			return port, err
 		}
 	}
-	// todo 更新 cm
 	return 0, fmt.Errorf("no available ports to allocate")
 }
 
-func (m *HostPortManager) ReleaseHostIP(clusterName string) error {
+func (m *HostPortManager) ReleaseHostPort(clusterName string) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
+
+	oldHostPool := m.HostPortPool
 
 	for i, cp := range m.HostPortPool.ClusterPorts {
 		if cp.Cluster == clusterName {
 			// Remove the entry from the slice
 			m.HostPortPool.ClusterPorts = append(m.HostPortPool.ClusterPorts[:i], m.HostPortPool.ClusterPorts[i+1:]...)
+			err := updateConfigMapAndRollback(m, oldHostPool)
+			if err != nil {
+				return err
+			}
 			return nil
 		}
 	}
-	// todo 更新 cm
 	return fmt.Errorf("no port found for cluster %s", clusterName)
+}
+
+func updateConfigMapAndRollback(m *HostPortManager, oldHostPool *HostPortPool) error {
+	data, err := yaml.Marshal(m.HostPortPool)
+	if err != nil {
+		m.HostPortPool = oldHostPool
+		return err
+	}
+
+	configMap, err := m.kubeClient.CoreV1().ConfigMaps(constants.KosmosNs).Get(context.TODO(), constants.HostPortsCMName, metav1.GetOptions{})
+	if err != nil {
+		m.HostPortPool = oldHostPool
+		return err
+	}
+
+	configMap.Data[constants.HostPortsCMDataName] = string(data)
+
+	_, updateErr := m.kubeClient.CoreV1().ConfigMaps(constants.KosmosNs).Update(context.TODO(), configMap, metav1.UpdateOptions{})
+
+	if updateErr != nil {
+		// 回滚 HostPortPool
+		m.HostPortPool = oldHostPool
+		return updateErr
+	}
+
+	return nil
 }
 
 func (m *HostPortManager) isPortAllocated(port int32) bool {
