@@ -29,6 +29,19 @@ func CreateOrUpdateDeployment(client clientset.Interface, deployment *appsv1.Dep
 	return nil
 }
 
+func DeleteDeployment(client clientset.Interface, deployment string, namespace string) error {
+	err := client.AppsV1().Deployments(namespace).Delete(context.TODO(), deployment, metav1.DeleteOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			klog.V(2).Infof("Deployment %s/%s not found, skip delete", deployment, namespace)
+			return nil
+		}
+		return err
+	}
+	klog.V(2).Infof("Delete deployment %s/%s success", deployment, namespace)
+	return nil
+}
+
 func CreateOrUpdateConfigMap(client clientset.Interface, configMap *v1.ConfigMap) error {
 	_, err := client.CoreV1().ConfigMaps(configMap.GetNamespace()).Create(context.TODO(), configMap, metav1.CreateOptions{})
 	if err != nil {
@@ -43,6 +56,19 @@ func CreateOrUpdateConfigMap(client clientset.Interface, configMap *v1.ConfigMap
 	}
 
 	klog.V(5).InfoS("Successfully created or updated configMap", "configMap", configMap.GetName())
+	return nil
+}
+
+func DeleteConfigmap(client clientset.Interface, cm string, namespace string) error {
+	err := client.CoreV1().ConfigMaps(namespace).Delete(context.TODO(), cm, metav1.DeleteOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			klog.V(2).Infof("Configmap %s/%s not found, skip delete", cm, namespace)
+			return nil
+		}
+		return err
+	}
+	klog.V(2).Infof("Delete configmap %s/%s success", cm, namespace)
 	return nil
 }
 
@@ -66,6 +92,19 @@ func CreateOrUpdateStatefulSet(client clientset.Interface, statefulSet *appsv1.S
 	}
 
 	klog.V(5).InfoS("Successfully created or updated statefulset", "statefulset", statefulSet.GetName)
+	return nil
+}
+
+func DeleteStatefulSet(client clientset.Interface, sts string, namespace string) error {
+	err := client.AppsV1().StatefulSets(namespace).Delete(context.TODO(), sts, metav1.DeleteOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			klog.V(2).Infof("Statefulset %s/%s not found, skip delete", sts, namespace)
+			return nil
+		}
+		return err
+	}
+	klog.V(2).Infof("Delete statefulset %s/%s success", sts, namespace)
 	return nil
 }
 

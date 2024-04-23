@@ -9,7 +9,6 @@ import (
 
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
-	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -22,6 +21,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -38,9 +38,8 @@ type VirtualClusterInitController struct {
 	EventRecorder   record.EventRecorder
 	HostPortManager *vcnodecontroller.HostPortManager
 	RootClientSet   kubernetes.Interface
+	lock            sync.Mutex
 }
-
-var lock sync.Mutex
 
 type NodePool struct {
 	Address string            `json:"address" yaml:"address"`
@@ -48,6 +47,11 @@ type NodePool struct {
 	Cluster string            `json:"cluster" yaml:"cluster"`
 	State   string            `json:"state" yaml:"state"`
 }
+
+const (
+	VirtualClusterControllerFinalizer = "kosmos.io/virtualcluster-controller"
+	RequeueTime                       = 10 * time.Second
+)
 
 func (c *VirtualClusterInitController) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
 	startTime := time.Now()
@@ -62,44 +66,63 @@ func (c *VirtualClusterInitController) Reconcile(ctx context.Context, request re
 			klog.V(2).InfoS("Virtual Cluster has been deleted", "Virtual Cluster", request)
 			return reconcile.Result{}, nil
 		}
-		return reconcile.Result{}, nil
+		return reconcile.Result{RequeueAfter: RequeueTime}, nil
 	}
 	updatedCluster := originalCluster.DeepCopy()
+	updatedCluster.Status.Reason = ""
 
 	//The object is being deleted
 	if !originalCluster.DeletionTimestamp.IsZero() {
-		//TODO
-		return reconcile.Result{}, nil
+		err := c.destroyVirtualCluster(updatedCluster)
+		if err != nil {
+			klog.Errorf("Destroy virtual cluter %s failed. err: %s", updatedCluster.Name, err.Error())
+			return reconcile.Result{}, errors.Wrapf(err, "Destroy virtual cluter %s failed. err: %s", updatedCluster.Name, err.Error())
+		}
+		return c.removeFinalizer(updatedCluster)
 	}
 
-	if originalCluster.Status.Phase == "" { //create request
+	switch originalCluster.Status.Phase {
+	case "":
+		//create request
 		updatedCluster.Status.Phase = v1alpha1.Preparing
-		err := c.Client.Patch(context.TODO(), updatedCluster, client.MergeFrom(originalCluster))
+		err := c.Update(originalCluster, updatedCluster)
 		if err != nil {
-			return reconcile.Result{}, errors.Wrapf(err, "Error update virtualcluster %s status", updatedCluster.Name)
+			return reconcile.Result{RequeueAfter: RequeueTime}, errors.Wrapf(err, "Error update virtualcluster %s status", updatedCluster.Name)
 		}
 
-		err = c.syncVirtualCluster(updatedCluster)
+		err = c.createVirtualCluster(updatedCluster)
 		if err != nil {
-			return reconcile.Result{}, errors.Wrap(err, "Error syncVirtualCluster")
+			klog.Errorf("Failed to create virtualcluster %s. err: %s", updatedCluster.Name, err.Error())
+			updatedCluster.Status.Reason = err.Error()
+			updatedCluster.Status.Phase = v1alpha1.Pending
+			err := c.Update(originalCluster, updatedCluster)
+			if err != nil {
+				klog.Errorf("Error update virtualcluster %s. err: %s", updatedCluster.Name, err.Error())
+				return reconcile.Result{}, errors.Wrapf(err, "Error update virtualcluster %s status", updatedCluster.Name)
+			}
+			return reconcile.Result{}, errors.Wrap(err, "Error createVirtualCluster")
 		}
 		updatedCluster.Status.Phase = v1alpha1.Initialized
-		err = c.Client.Patch(context.TODO(), updatedCluster, client.MergeFrom(originalCluster))
+		err = c.Update(originalCluster, updatedCluster)
 		if err != nil {
+			klog.Errorf("Error update virtualcluster %s status to %s", updatedCluster.Name, updatedCluster.Status.Phase)
 			return reconcile.Result{}, errors.Wrapf(err, "Error update virtualcluster %s status", updatedCluster.Name)
 		}
-	} else if originalCluster.Status.Phase == v1alpha1.AllNodeReady {
+	case v1alpha1.AllNodeReady:
 		err := c.ensureAllPodsRunning(updatedCluster, constants.WaitAllPodsRunningTimeoutSeconds*time.Second)
 		if err != nil {
+			klog.Errorf("Check all pods running err: %s", err.Error())
+			updatedCluster.Status.Reason = err.Error()
 			updatedCluster.Status.Phase = v1alpha1.Pending
 		} else {
 			updatedCluster.Status.Phase = v1alpha1.Completed
 		}
-		err = c.Client.Patch(context.TODO(), updatedCluster, client.MergeFrom(originalCluster))
+		err = c.Update(originalCluster, updatedCluster)
 		if err != nil {
+			klog.Errorf("Error update virtualcluster %s status to %s", updatedCluster.Name, updatedCluster.Status.Phase)
 			return reconcile.Result{}, errors.Wrapf(err, "Error update virtualcluster %s status", updatedCluster.Name)
 		}
-	} else if originalCluster.Status.Phase == v1alpha1.Completed {
+	case v1alpha1.Completed:
 		//update request, check if promotepolicy nodes increase or decrease.
 		assigned, err := c.assignWorkNodes(updatedCluster)
 		if err != nil {
@@ -107,13 +130,16 @@ func (c *VirtualClusterInitController) Reconcile(ctx context.Context, request re
 		}
 		if assigned { // indicate nodes change request
 			updatedCluster.Status.Phase = v1alpha1.Updating
-			err = c.Client.Patch(context.TODO(), updatedCluster, client.MergeFrom(originalCluster))
+			err = c.Update(originalCluster, updatedCluster)
 			if err != nil {
+				klog.Errorf("Error update virtualcluster %s status to %s", updatedCluster.Name, updatedCluster.Status.Phase)
 				return reconcile.Result{}, errors.Wrapf(err, "Error update virtualcluster %s status", updatedCluster.Name)
 			}
 		}
+	default:
+		klog.Warningf("Skip virtualcluster %s reconcile status: %s", originalCluster.Name, originalCluster.Status.Phase)
 	}
-	return reconcile.Result{}, nil
+	return c.ensureFinalizer(updatedCluster)
 }
 
 func (c *VirtualClusterInitController) SetupWithManager(mgr manager.Manager) error {
@@ -132,8 +158,42 @@ func (c *VirtualClusterInitController) SetupWithManager(mgr manager.Manager) err
 		Complete(c)
 }
 
-// syncVirtualCluster assign work nodes, create control plane and create compoennts from manifests
-func (c *VirtualClusterInitController) syncVirtualCluster(virtualCluster *v1alpha1.VirtualCluster) error {
+func (c *VirtualClusterInitController) Update(original, updated *v1alpha1.VirtualCluster) error {
+	now := metav1.Now()
+	updated.Status.TimeStamp = &now
+	return c.Client.Patch(context.TODO(), updated, client.MergeFrom(original))
+}
+
+func (c *VirtualClusterInitController) ensureFinalizer(virtualCluster *v1alpha1.VirtualCluster) (reconcile.Result, error) {
+	if controllerutil.ContainsFinalizer(virtualCluster, VirtualClusterControllerFinalizer) {
+		return reconcile.Result{}, nil
+	}
+
+	controllerutil.AddFinalizer(virtualCluster, VirtualClusterControllerFinalizer)
+	err := c.Client.Update(context.TODO(), virtualCluster)
+	if err != nil {
+		return reconcile.Result{Requeue: true}, err
+	}
+
+	return reconcile.Result{}, nil
+}
+
+func (r *VirtualClusterInitController) removeFinalizer(virtualCluster *v1alpha1.VirtualCluster) (reconcile.Result, error) {
+	if !controllerutil.ContainsFinalizer(virtualCluster, VirtualClusterControllerFinalizer) {
+		return reconcile.Result{}, nil
+	}
+
+	controllerutil.RemoveFinalizer(virtualCluster, VirtualClusterControllerFinalizer)
+	err := r.Client.Update(context.TODO(), virtualCluster)
+	if err != nil {
+		return reconcile.Result{Requeue: true}, err
+	}
+
+	return reconcile.Result{}, nil
+}
+
+// createVirtualCluster assign work nodes, create control plane and create compoennts from manifests
+func (c *VirtualClusterInitController) createVirtualCluster(virtualCluster *v1alpha1.VirtualCluster) error {
 	klog.V(2).Infof("Reconciling virtual cluster", "name", virtualCluster.Name)
 
 	executer, err := NewExecutor(virtualCluster, c.Client, c.Config, c.HostPortManager)
@@ -160,14 +220,23 @@ func (c *VirtualClusterInitController) syncVirtualCluster(virtualCluster *v1alph
 	return nil
 }
 
+func (c *VirtualClusterInitController) destroyVirtualCluster(virtualCluster *v1alpha1.VirtualCluster) error {
+	klog.V(2).Infof("Destroying virtual cluster %s", virtualCluster.Name)
+	execute, err := NewExecutor(virtualCluster, c.Client, c.Config, c.HostPortManager)
+	if err != nil {
+		return err
+	}
+	return execute.Execute()
+}
+
 // assignWorkNodes assign nodes for virtualcluster when creating or updating. return true if successfully assigned
 func (c *VirtualClusterInitController) assignWorkNodes(virtualCluster *v1alpha1.VirtualCluster) (bool, error) {
 	promotepolicies := virtualCluster.Spec.PromotePolicies
 	if len(promotepolicies) == 0 {
 		return false, errors.New("PromotePolicies parameter undefined")
 	}
-	lock.Lock()
-	defer lock.Unlock()
+	c.lock.Lock()
+	defer c.lock.Unlock()
 	nodePool, err := c.getNodePool()
 	klog.V(2).Infof("Get node pool %v", nodePool)
 	if err != nil {
@@ -317,20 +386,44 @@ func (c *VirtualClusterInitController) ensureAllPodsRunning(virtualCluster *v1al
 		if startTime > endTime {
 			return errors.New("Timeout waiting for all pods running")
 		}
+		klog.V(2).Infof("Check if all pods ready in namespace %s", namespace.Name)
 		err := wait.PollWithContext(context.TODO(), 5*time.Second, time.Duration(endTime-startTime)*time.Second, func(ctx context.Context) (done bool, err error) {
-			podList, err := clientset.CoreV1().Pods(namespace.Name).List(ctx, metav1.ListOptions{})
-			if apierrors.IsNotFound(err) {
-				return true, nil
-			}
+			klog.V(2).Infof("Check if all deployments ready in namespace %s", namespace.Name)
+			deployList, err := clientset.AppsV1().Deployments(namespace.Name).List(ctx, metav1.ListOptions{})
 			if err != nil {
-				return true, errors.Wrap(err, "List pods error")
+				return false, errors.Wrapf(err, "Get deployment list in namespace %s error", namespace.Name)
 			}
-
-			for _, pod := range podList.Items {
-				if pod.Status.Phase != v1.PodRunning {
+			for _, deploy := range deployList.Items {
+				if deploy.Status.AvailableReplicas != deploy.Status.Replicas {
+					klog.V(2).Infof("Deployment %s/%s is not ready yet. Available replicas: %d, Desired: %d. Waiting...", deploy.Name, namespace.Name, deploy.Status.AvailableReplicas, deploy.Status.Replicas)
 					return false, nil
 				}
 			}
+
+			klog.V(2).Infof("Check if all statefulset ready in namespace %s", namespace.Name)
+			stsList, err := clientset.AppsV1().StatefulSets(namespace.Name).List(ctx, metav1.ListOptions{})
+			if err != nil {
+				return false, errors.Wrapf(err, "Get statefulset list in namespace %s error", namespace.Name)
+			}
+			for _, sts := range stsList.Items {
+				if sts.Status.AvailableReplicas != sts.Status.Replicas {
+					klog.V(2).Infof("Statefulset %s/%s is not ready yet. Available replicas: %d, Desired: %d. Waiting...", sts.Name, namespace.Name, sts.Status.AvailableReplicas, sts.Status.Replicas)
+					return false, nil
+				}
+			}
+
+			klog.V(2).Infof("Check if all daemonset ready in namespace %s", namespace.Name)
+			damonsetList, err := clientset.AppsV1().DaemonSets(namespace.Name).List(ctx, metav1.ListOptions{})
+			if err != nil {
+				return false, errors.Wrapf(err, "Get daemonset list in namespace %s error", namespace.Name)
+			}
+			for _, daemonset := range damonsetList.Items {
+				if daemonset.Status.CurrentNumberScheduled != daemonset.Status.NumberReady {
+					klog.V(2).Infof("Daemonset %s/%s is not ready yet. Scheduled replicas: %d, Ready: %d. Waiting...", daemonset.Name, namespace.Name, daemonset.Status.CurrentNumberScheduled, daemonset.Status.NumberReady)
+					return false, nil
+				}
+			}
+
 			return true, nil
 		})
 		if err != nil {

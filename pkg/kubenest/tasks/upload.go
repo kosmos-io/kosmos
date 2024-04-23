@@ -2,9 +2,9 @@ package tasks
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
+	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -237,4 +237,53 @@ func buildKubeConfigFromSpec(data InitData, serverURL string) (*clientcmdapi.Con
 		client.KeyData(),
 		client.CertData(),
 	), nil
+}
+
+func UninstallCertsAndKubeconfigTask() workflow.Task {
+	return workflow.Task{
+		Name:        "Uninstall-Certs",
+		Run:         runUninstallCerts,
+		RunSubTasks: true,
+		Tasks: []workflow.Task{
+			{
+				Name: "Uninstall-Certs",
+				Run:  deleteSecrets,
+			},
+		},
+	}
+}
+
+func runUninstallCerts(r workflow.RunData) error {
+	data, ok := r.(InitData)
+	if !ok {
+		return errors.New("Uninstall-Certs task invoked with an invalid data struct")
+	}
+
+	klog.V(4).InfoS("[uninstall-Certs] Running task", "virtual cluster", klog.KObj(data))
+	return nil
+}
+
+func deleteSecrets(r workflow.RunData) error {
+	data, ok := r.(InitData)
+	if !ok {
+		return errors.New("upload-VirtualClusterCert task invoked with an invalid data struct")
+	}
+
+	secrets := []string{
+		fmt.Sprintf("%s-%s", data.GetName(), "cert"),
+		fmt.Sprintf("%s-%s", data.GetName(), "etcd-cert"),
+		fmt.Sprintf("%s-%s", data.GetName(), "admin-config"),
+	}
+	for _, secret := range secrets {
+		err := data.RemoteClient().CoreV1().Secrets(data.GetNamespace()).Delete(context.TODO(), secret, metav1.DeleteOptions{})
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				klog.V(2).Infof("Secret %s/%s not found, skip delete", secret, data.GetNamespace())
+				continue
+			}
+			return errors.Wrapf(err, "Failed to delete secret %s/%s", secret, data.GetNamespace())
+		}
+	}
+	klog.V(2).Infof("Successfully uninstalled virtual cluster %s secrets", data.GetName())
+	return nil
 }

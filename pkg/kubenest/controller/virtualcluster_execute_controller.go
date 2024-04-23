@@ -25,17 +25,17 @@ type Executor struct {
 func NewExecutor(virtualCluster *v1alpha1.VirtualCluster, c client.Client, config *rest.Config, hostPortManager *vcnodecontroller.HostPortManager) (*Executor, error) {
 	var phase *workflow.Phase
 
+	opts := []kubenest.InitOpt{
+		kubenest.NewInitOptWithVirtualCluster(virtualCluster),
+		kubenest.NewInitOptWithKubeconfig(config),
+	}
+	options := kubenest.NewPhaseInitOptions(opts...)
 	action := recognizeActionFor(virtualCluster)
 	switch action {
 	case constants.InitAction:
-		opts := []kubenest.InitOpt{
-			kubenest.NewInitOptWithVirtualCluster(virtualCluster),
-			kubenest.NewInitOptWithKubeconfig(config),
-		}
-		options := kubenest.NewPhaseInitOptions(opts...)
 		phase = kubenest.NewInitPhase(options, hostPortManager)
 	case constants.DeInitAction:
-		//TODO deinit
+		phase = kubenest.UninstallPhase(options, hostPortManager)
 	default:
 		return nil, fmt.Errorf("failed to recognize action for virtual cluster %s", virtualCluster.Name)
 	}
