@@ -24,6 +24,7 @@ const (
 // +genclient
 // +kubebuilder:resource:scope=Namespaced
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:printcolumn:name="STATUS",type=string,JSONPath=`.status.phase`
 
 type VirtualCluster struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -89,6 +90,8 @@ type VirtualClusterStatus struct {
 	Phase Phase `json:"phase,omitempty"`
 	// +optional
 	Reason string `json:"reason,omitempty" protobuf:"bytes,4,opt,name=reason"`
+	// +optional
+	TimeStamp *metav1.Time `json:"timeStamp,omitempty" protobuf:"bytes,7,opt,name=timeStamp"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

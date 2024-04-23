@@ -127,6 +127,7 @@ func compareAndTranformNodes(targetNodes []v1alpha1.NodeInfo, actualNodes []v1.N
 			if !ok {
 				return nil, nil, fmt.Errorf("node %s not found in node pool", actualNode.Name)
 			}
+
 			unjoinNodes = append(unjoinNodes, nodePool)
 		}
 	}
@@ -140,7 +141,7 @@ func (r *NodeController) GetNodePool(ctx context.Context) (map[string]vcrnodepoo
 		return nil, fmt.Errorf("get node-pool failed: %v", err)
 	}
 
-	nodePools, err := vcrnodepoolcontroller.ConvertJsonToNodeItem(nodePool.Data[NodePoolCMKeyName])
+	nodePools, err := vcrnodepoolcontroller.ConvertYamlToNodeItem(nodePool.Data[NodePoolCMKeyName])
 	if err != nil {
 		return nil, fmt.Errorf("convert node-pool failed: %v", err)
 	}
@@ -152,6 +153,8 @@ func (r *NodeController) UpdateVirtualClusterStatus(ctx context.Context, virtual
 	updateVirtualCluster := virtualCluster.DeepCopy()
 	updateVirtualCluster.Status.Phase = status
 	updateVirtualCluster.Status.Reason = reason
+	timestamp := metav1.Now()
+	updateVirtualCluster.Status.TimeStamp = &timestamp
 
 	if err := r.Update(ctx, updateVirtualCluster); err != nil {
 		return fmt.Errorf("update virtualcluster %s status failed: %s", virtualCluster.Name, err)
@@ -182,8 +185,14 @@ func (r *NodeController) DoNodeTask(ctx context.Context, virtualCluster v1alpha1
 	}
 
 	if len(unjoinNodes) > 0 || len(joinNodes) > 0 {
-		if err := r.UpdateVirtualClusterStatus(ctx, virtualCluster, v1alpha1.Updating, "node task"); err != nil {
-			return err
+		if virtualCluster.Status.Phase == v1alpha1.Initialized {
+			if err := r.UpdateVirtualClusterStatus(ctx, virtualCluster, v1alpha1.Initialized, "node init"); err != nil {
+				return err
+			}
+		} else {
+			if err := r.UpdateVirtualClusterStatus(ctx, virtualCluster, v1alpha1.Updating, "node task"); err != nil {
+				return err
+			}
 		}
 	}
 	if len(unjoinNodes) > 0 {
