@@ -41,6 +41,7 @@ type AltNamesMutatorConfig struct {
 	Namespace        string
 	ControlplaneAddr string
 	ClusterIps       []string
+	ExternalIP       string
 }
 
 func (config *CertConfig) defaultPublicKeyAlgorithm() {
@@ -211,6 +212,9 @@ func apiServerAltNamesMutator(cfg *AltNamesMutatorConfig) (*certutil.AltNames, e
 	}
 	if len(cfg.ControlplaneAddr) > 0 {
 		appendSANsToAltNames(altNames, []string{cfg.ControlplaneAddr})
+	}
+	if len(cfg.ExternalIP) > 0 {
+		appendSANsToAltNames(altNames, []string{cfg.ExternalIP})
 	}
 	if len(cfg.ClusterIps) > 0 {
 		for _, clusterIp := range cfg.ClusterIps {

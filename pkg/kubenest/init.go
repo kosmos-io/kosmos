@@ -32,6 +32,7 @@ type initData struct {
 	kosmosClient          versioned.Interface
 	virtualClusterDataDir string
 	privateRegistry       string
+	externalIP            string
 	hostPortManager       *vcnodecontroller.HostPortManager
 }
 
@@ -141,6 +142,7 @@ func newRunData(opt *InitOptions, hostPortManager *vcnodecontroller.HostPortMana
 		virtualClusterDataDir: opt.virtualClusterDataDir,
 		privateRegistry:       utils.DefaultImageRepository,
 		CertStore:             cert.NewCertStore(),
+		externalIP:            opt.virtualCluster.Spec.ExternalIP,
 		hostPortManager:       hostPortManager,
 	}, nil
 }
@@ -199,4 +201,8 @@ func (i initData) DataDir() string {
 
 func (i initData) VirtualClusterVersion() string {
 	return i.virtualClusterVersion.String()
+}
+
+func (i initData) ExternalIP() string {
+	return i.externalIP
 }
