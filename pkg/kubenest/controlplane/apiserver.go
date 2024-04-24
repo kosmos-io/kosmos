@@ -16,12 +16,12 @@ import (
 )
 
 func EnsureVirtualClusterAPIServer(client clientset.Interface, name, namespace string, manager *vcnodecontroller.HostPortManager) error {
-	_, err := manager.AllocateHostIP(name)
+	port, err := manager.AllocateHostPort(name)
 	if err != nil {
 		return fmt.Errorf("failed to allocate host ip for virtual cluster apiserver, err: %w", err)
 	}
 
-	if err := installAPIServer(client, name, namespace); err != nil {
+	if err := installAPIServer(client, name, namespace, port); err != nil {
 		return fmt.Errorf("failed to install virtual cluster apiserver, err: %w", err)
 	}
 	return nil
@@ -35,9 +35,9 @@ func DeleteVirtualClusterAPIServer(client clientset.Interface, name, namespace s
 	return nil
 }
 
-func installAPIServer(client clientset.Interface, name, namespace string) error {
+func installAPIServer(client clientset.Interface, name, namespace string, port int32) error {
 	imageRepository, imageVersion := util.GetImageMessage()
-	err, clusterIps := util.GetEtcdServiceClusterIp(namespace, client)
+	clusterIp, err := util.GetEtcdServiceClusterIp(namespace, name+constants.EtcdSuffix, client)
 	if err != nil {
 		return nil
 	}
@@ -47,17 +47,19 @@ func installAPIServer(client clientset.Interface, name, namespace string) error 
 		ServiceSubnet, VirtualClusterCertsSecret, EtcdCertsSecret              string
 		Replicas                                                               int32
 		EtcdListenClientPort                                                   int32
+		ClusterPort                                                            int32
 	}{
 		DeploymentName:            fmt.Sprintf("%s-%s", name, "apiserver"),
 		Namespace:                 namespace,
 		ImageRepository:           imageRepository,
 		Version:                   imageVersion,
-		EtcdClientService:         clusterIps[1],
+		EtcdClientService:         clusterIp,
 		ServiceSubnet:             constants.ApiServerServiceSubnet,
 		VirtualClusterCertsSecret: fmt.Sprintf("%s-%s", name, "cert"),
 		EtcdCertsSecret:           fmt.Sprintf("%s-%s", name, "etcd-cert"),
 		Replicas:                  constants.ApiServerReplicas,
 		EtcdListenClientPort:      constants.ApiServerEtcdListenClientPort,
+		ClusterPort:               port,
 	})
 	if err != nil {
 		return fmt.Errorf("error when parsing virtual cluster apiserver deployment template: %w", err)

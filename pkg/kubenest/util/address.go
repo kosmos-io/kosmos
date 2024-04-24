@@ -67,18 +67,16 @@ func GetServiceClusterIp(namespace string, client clientset.Interface) (error, [
 	return nil, clusterIps
 }
 
-func GetEtcdServiceClusterIp(namespace string, client clientset.Interface) (error, []string) {
-	serviceLists, err := client.CoreV1().Services(namespace).List(context.TODO(), metav1.ListOptions{})
+func GetEtcdServiceClusterIp(namespace string, serviceName string, client clientset.Interface) (string, error) {
+	service, err := client.CoreV1().Services(namespace).Get(context.TODO(), serviceName, metav1.GetOptions{})
 	if err != nil {
-		return err, nil
+		return "", err
 	}
-	var clusterIps []string
-	if serviceLists != nil {
-		for _, service := range serviceLists.Items {
-			if service.Spec.Type == constants.EtcdServiceType && service.Spec.ClusterIP != "" {
-				clusterIps = append(clusterIps, service.Spec.ClusterIP)
-			}
-		}
+
+	// 检查服务是否是期望的类型并且具有有效的 ClusterIP
+	if service.Spec.Type == constants.EtcdServiceType && service.Spec.ClusterIP != "" {
+		return service.Spec.ClusterIP, nil
 	}
-	return nil, clusterIps
+
+	return "", fmt.Errorf("Service %s not found or does not have a valid ClusterIP for Etcd", serviceName)
 }

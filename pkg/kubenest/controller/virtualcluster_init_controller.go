@@ -160,7 +160,7 @@ func (c *VirtualClusterInitController) SetupWithManager(mgr manager.Manager) err
 
 func (c *VirtualClusterInitController) Update(original, updated *v1alpha1.VirtualCluster) error {
 	now := metav1.Now()
-	updated.Status.TimeStamp = &now
+	updated.Status.UpdateTime = &now
 	return c.Client.Patch(context.TODO(), updated, client.MergeFrom(original))
 }
 

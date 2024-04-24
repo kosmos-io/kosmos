@@ -42,7 +42,7 @@ spec:
         - --kubelet-client-certificate=/etc/virtualcluster/pki/virtualCluster.crt
         - --kubelet-client-key=/etc/virtualcluster/pki/virtualCluster.key
         - --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname
-        - --secure-port=5443
+        - --secure-port={{ .ClusterPort }}
         - --service-account-issuer=https://kubernetes.default.svc.cluster.local
         - --service-account-key-file=/etc/virtualcluster/pki/virtualCluster.key
         - --service-account-signing-key-file=/etc/virtualcluster/pki/virtualCluster.key
@@ -64,7 +64,7 @@ spec:
           failureThreshold: 8
           httpGet:
             path: /livez
-            port: 5443
+            port: {{ .ClusterPort }}
             scheme: HTTPS
           initialDelaySeconds: 10
           periodSeconds: 10
@@ -74,7 +74,7 @@ spec:
           failureThreshold: 3
           httpGet:
             path: /readyz
-            port: 5443
+            port: {{ .ClusterPort }}
             scheme: HTTPS
           initialDelaySeconds: 10
           periodSeconds: 10
@@ -91,7 +91,7 @@ spec:
                 - apiserver
               topologyKey: kubernetes.io/hostname
         ports:
-        - containerPort: 5443
+        - containerPort: {{ .ClusterPort }}
           name: http
           protocol: TCP
         volumeMounts:
