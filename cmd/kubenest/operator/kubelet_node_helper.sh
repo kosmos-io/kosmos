@@ -24,13 +24,17 @@ LOG_NAME=${2:-kubelet}
 
 function unjoin() {
     # before unjoin, you need delete node by kubectl
-    echo "exec(1/1): kubeadm reset...."
+    echo "exec(1/2): kubeadm reset...."
     echo "y" | ${PATH_KUBEADM} reset
     if [ $? -ne 0 ]; then
         exit 1
     fi
+    echo "exec(2/2): reset kubeadm-flags.env...."
+    cp "$PATH_FILE_TMP/kubeadm-flags.env.back" "$PATH_KUBELET_LIB/kubeadm-flags.env"
+    if [ $? -ne 0 ]; then
+        exit 1
+    fi
 }
-
 
 # before join, you need upload ca.crt and kubeconfig to tmp dir!!!
 function join() {
@@ -96,13 +100,21 @@ function log() {
 # check the environments
 function check() {
     if [ ! -d "$PATH_FILE_TMP" ]; then
-        echo "check(1/2): try to create $PATH_FILE_TMP"
+        echo "check(1/3): try to create $PATH_FILE_TMP"
         mkdir -p "$PATH_FILE_TMP"
         if [ $? -ne 0 ]; then
             exit 1
         fi
-        echo "check(2/2): copy  kubeadm-flags.env  to create $PATH_FILE_TMP and remove args[cloud-provider] "
+        echo "check(2/3): copy  kubeadm-flags.env  to create $PATH_FILE_TMP and remove args[cloud-provider] "
         sed -e "s| --cloud-provider=external | |g" -e "w ${PATH_FILE_TMP}/kubeadm-flags.env" "$PATH_KUBELET_LIB/kubeadm-flags.env"
+        if [ $? -ne 0 ]; then
+            exit 1
+        fi
+        echo "check(3/3):  backup kubeadm-flags.env"
+        cp "$PATH_KUBELET_LIB/kubeadm-flags.env" "$PATH_FILE_TMP/kubeadm-flags.env.back"
+        if [ $? -ne 0 ]; then
+            exit 1
+        fi
     fi
     echo "environments is ok"
 }

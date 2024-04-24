@@ -92,14 +92,16 @@ spec:
                     - key: node-role.kubernetes.io/control-plane
                       operator: Exists
           podAntiAffinity:
-            requiredDuringSchedulingIgnoredDuringExecution:
-            - labelSelector:
-              matchExpressions:
-              - key: virtualCluster-app
-                operator: In
-                values:
-                - apiserver
-              topologyKey: kubernetes.io/hostname
+            preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                  - key: virtualCluster-app
+                    operator: In
+                    values:
+                    - apiserver
+                topologyKey: kubernetes.io/hostname
         ports:
         - containerPort: {{ .ClusterPort }}
           name: http

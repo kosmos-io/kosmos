@@ -32,16 +32,19 @@ spec:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
-              - matchExpressions:
-                  - key: node-role.kubernetes.io/control-plane
-                    operator: Exists
+            - matchExpressions:
+              - key: node-role.kubernetes.io/control-plane
+                operator: Exists
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
-            - labelSelector:
-              matchExpressions:
-              - key: virtualCluster-app
-                operator: In
-                values: ["etcd"]
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: virtualCluster-app
+                  operator: In
+                  values:
+                  - etcd
               topologyKey: kubernetes.io/hostname
       containers:
       - name: etcd

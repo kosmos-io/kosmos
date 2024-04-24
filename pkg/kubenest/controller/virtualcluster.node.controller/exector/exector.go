@@ -8,12 +8,13 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
 	"k8s.io/klog/v2"
+
+	env "github.com/kosmos.io/kosmos/pkg/kubenest/controller/virtualcluster.node.controller/env"
 )
 
 type Status int
@@ -61,20 +62,15 @@ type WebSocketOption struct {
 
 func (h *ExectorHelper) DoExector(stopCh <-chan struct{}, exector Exector) *ExectorReturn {
 	ret := h.DoExectorReal(stopCh, exector)
-	// TODO:
-	if strings.Contains(ret.LastLog, "No such file or directory") {
+	// TODO: No such file or directory
+	if strings.Contains(ret.LastLog, "exit status 127") {
 		// try to update shell script
-		shellPath := os.Getenv("EXECTOR_SHELL_PATH")
-		if len(shellPath) == 0 {
-			shellPath = "."
-		}
-		srcFile := fmt.Sprintf("%s/kubelet_node_helper.sh", shellPath)
-
+		srcFile := env.GetExectorShellPath()
 		klog.V(4).Infof("exector: src file path %s", srcFile)
 
 		scpExector := &SCPExector{
 			DstFilePath: ".",
-			DstFileName: "kubelet_node_helper.sh",
+			DstFileName: env.GetExectorShellName(),
 			SrcFile:     srcFile,
 		}
 
@@ -151,24 +147,12 @@ func (h *ExectorHelper) DoExectorReal(stopCh <-chan struct{}, exector Exector) *
 func NewExectorHelper(addr string, port string) *ExectorHelper {
 	var exectorPort string
 	if len(port) == 0 {
-		exectorPort = os.Getenv("EXECTOR_SERVER_PORT")
-		if len(exectorPort) == 0 {
-			exectorPort = "5678"
-		}
+		exectorPort = env.GetExectorPort()
 	} else {
 		exectorPort = port
 	}
 
-	token := os.Getenv("EXECTOR_SHELL_TOKEN")
-	if len(token) == 0 {
-		// token example
-		// const username = "xxxxxxxx"
-		// const password = "xxxxxxxx"
-		// token = base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", username, password)))
-		// nolint
-		token = "YWRtaW46YmljaF9vb3NoMnpvaDZPaA=="
-	}
-
+	token := env.GetExectorToken()
 	return &ExectorHelper{
 		Token: token,
 		Addr:  fmt.Sprintf("%s:%s", addr, exectorPort),
