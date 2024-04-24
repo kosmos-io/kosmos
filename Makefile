@@ -107,7 +107,7 @@ upload-images: images
 	docker push ${REGISTRY}/clusterlink-floater:${VERSION}
 	docker push ${REGISTRY}/clusterlink-elector:${VERSION}
 	docker push ${REGISTRY}/clustertree-knode-manager:${VERSION}
-    docker push ${REGISTRY}/scheduler:${VERSION}
+	docker push ${REGISTRY}/scheduler:${VERSION}
 
 .PHONY: release
 release:
