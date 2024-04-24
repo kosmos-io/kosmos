@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
 	kuberuntime "k8s.io/apimachinery/pkg/runtime"
 	clientset "k8s.io/client-go/kubernetes"
@@ -18,6 +19,14 @@ import (
 func EnsureVirtualClusterEtcd(client clientset.Interface, name, namespace string) error {
 	if err := installEtcd(client, name, namespace); err != nil {
 		return err
+	}
+	return nil
+}
+
+func DeleteVirtualClusterEtcd(client clientset.Interface, name, namespace string) error {
+	sts := fmt.Sprintf("%s-%s", name, "etcd")
+	if err := util.DeleteStatefulSet(client, sts, namespace); err != nil {
+		return errors.Wrapf(err, "Failed to delete statefulset %s/%s", sts, namespace)
 	}
 	return nil
 }

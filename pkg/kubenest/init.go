@@ -65,6 +65,22 @@ func NewInitPhase(opts *InitOptions, hostPortManager *vcnodecontroller.HostPortM
 	return initPhase
 }
 
+func UninstallPhase(opts *InitOptions, hostPortManager *vcnodecontroller.HostPortManager) *workflow.Phase {
+	destroyPhase := workflow.NewPhase()
+
+	destroyPhase.AppendTask(tasks.UninstallComponentTask())
+	destroyPhase.AppendTask(tasks.UninstallVirtualClusterApiserverTask())
+	destroyPhase.AppendTask(tasks.UninstallEtcdTask())
+	destroyPhase.AppendTask(tasks.UninstallVirtualClusterServiceTask())
+	destroyPhase.AppendTask(tasks.UninstallCertsAndKubeconfigTask())
+	destroyPhase.AppendTask(tasks.DeleteEtcdPvcTask())
+
+	destroyPhase.SetDataInitializer(func() (workflow.RunData, error) {
+		return newRunData(opts, hostPortManager)
+	})
+	return destroyPhase
+}
+
 type InitOpt func(o *InitOptions)
 
 func NewPhaseInitOptions(opts ...InitOpt) *InitOptions {

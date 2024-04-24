@@ -1,20 +1,15 @@
 package tasks
 
 import (
-	"errors"
 	"fmt"
 
-	"k8s.io/apimachinery/pkg/labels"
+	"github.com/pkg/errors"
 	"k8s.io/klog/v2"
 
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/controlplane"
 	apiclient "github.com/kosmos.io/kosmos/pkg/kubenest/util/api-client"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/workflow"
-)
-
-var (
-	virtualClusterApiserverLabels = labels.Set{constants.Label: constants.ApiServer}
 )
 
 func NewVirtualClusterApiserverTask() workflow.Task {
@@ -79,5 +74,38 @@ func runCheckVirtualClusterAPIServer(r workflow.RunData) error {
 	}
 
 	klog.V(2).InfoS("[check-VirtualClusterAPIServer] the virtual cluster apiserver is ready", "virtual cluster", klog.KObj(data))
+	return nil
+}
+
+func UninstallVirtualClusterApiserverTask() workflow.Task {
+	return workflow.Task{
+		Name:        "apiserver",
+		Run:         runApiserver,
+		RunSubTasks: true,
+		Tasks: []workflow.Task{
+			{
+				Name: constants.ApiServer,
+				Run:  uninstallVirtualClusterAPIServer,
+			},
+		},
+	}
+}
+
+func uninstallVirtualClusterAPIServer(r workflow.RunData) error {
+	data, ok := r.(InitData)
+	if !ok {
+		return errors.New("Virtual cluster apiserver task invoked with an invalid data struct")
+	}
+
+	err := controlplane.DeleteVirtualClusterAPIServer(
+		data.RemoteClient(),
+		data.GetName(),
+		data.GetNamespace(),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to install virtual cluster apiserver component, err: %w", err)
+	}
+
+	klog.V(2).InfoS("[VirtualClusterApiserver] Successfully uninstalled virtual cluster apiserver component", "virtual cluster", klog.KObj(data))
 	return nil
 }

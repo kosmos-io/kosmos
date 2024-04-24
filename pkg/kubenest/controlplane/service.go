@@ -3,8 +3,8 @@ package controlplane
 import (
 	"context"
 	"fmt"
-	"strings"
 
+	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,6 +23,27 @@ func EnsureVirtualClusterService(client clientset.Interface, name, namespace str
 	if err := createServerService(client, name, namespace); err != nil {
 		return fmt.Errorf("failed to create virtual cluster apiserver-service, err: %w", err)
 	}
+	return nil
+}
+
+func DeleteVirtualClusterService(client clientset.Interface, name, namespace string) error {
+	services := []string{
+		fmt.Sprintf("%s-%s", name, "apiserver"),
+		fmt.Sprintf("%s-%s", name, "etcd"),
+		fmt.Sprintf("%s-%s", name, "etcd-client"),
+	}
+	for _, service := range services {
+		err := client.CoreV1().Services(namespace).Delete(context.TODO(), service, metav1.DeleteOptions{})
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				klog.V(2).Infof("Service %s/%s not found, skip delete", service, namespace)
+				continue
+			}
+			return errors.Wrapf(err, "Failed to delete service %s/%s", service, namespace)
+		}
+	}
+
+	klog.V(2).Infof("Successfully uninstalled service for virtualcluster %s", name)
 	return nil
 }
 
@@ -96,11 +117,7 @@ func createOrUpdateService(client clientset.Interface, service *corev1.Service) 
 	_, err := client.CoreV1().Services(service.GetNamespace()).Create(context.TODO(), service, metav1.CreateOptions{})
 	if err != nil {
 		if !apierrors.IsAlreadyExists(err) {
-			if apierrors.IsInvalid(err) && strings.Contains(err.Error(), errAllocated.Error()) {
-				klog.V(2).ErrorS(err, "failed to create or update service", "service", klog.KObj(service))
-				return nil
-			}
-			return fmt.Errorf("unable to create Service: %v", err)
+			return errors.Wrapf(err, "Failed to create service %s/%s", service.GetName(), service.GetNamespace())
 		}
 
 		older, err := client.CoreV1().Services(service.GetNamespace()).Get(context.TODO(), service.GetName(), metav1.GetOptions{})

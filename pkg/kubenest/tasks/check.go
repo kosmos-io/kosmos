@@ -13,8 +13,10 @@ import (
 )
 
 var (
-	kubeControllerManagerLabels = labels.Set{"virtualCluster-app": constants.KubeControllerManager}
-	virtualClusterManagerLabels = labels.Set{"virtualCluster-app": constants.VirtualClusterScheduler}
+	kubeControllerManagerLabels   = labels.Set{"virtualCluster-app": constants.KubeControllerManager}
+	virtualClusterManagerLabels   = labels.Set{"virtualCluster-app": constants.VirtualClusterScheduler}
+	virtualClusterApiserverLabels = labels.Set{"virtualCluster-app": constants.ApiServer}
+	virtualClusterEtcdLabels      = labels.Set{"virtualCluster-app": constants.Etcd}
 )
 
 func NewCheckApiserverHealthTask() workflow.Task {
@@ -77,7 +79,7 @@ func runCheckControlPlaneSubTask(component string, ls labels.Set) func(r workflo
 		}
 
 		checker := apiclient.NewVirtualClusterChecker(data.RemoteClient(), constants.ComponentBeReadyTimeout)
-		if err := checker.WaitForSomePods(ls.String(), data.GetNamespace(), 1); err != nil {
+		if err := checker.WaitForSomePods(ls.String(), data.GetNamespace(), 2); err != nil {
 			return fmt.Errorf("checking for %s to ready timeout, err: %w", component, err)
 		}
 

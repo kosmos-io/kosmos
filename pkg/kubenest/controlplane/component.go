@@ -3,6 +3,7 @@ package controlplane
 import (
 	"fmt"
 
+	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	kuberuntime "k8s.io/apimachinery/pkg/runtime"
@@ -49,6 +50,29 @@ func EnsureControlPlaneComponent(component, name, namespace string, client clien
 	return nil
 }
 
+func DeleteControlPlaneComponent(component, virtualclusterName, namespace string, client clientset.Interface) error {
+	var deployName string
+	if component == constants.KubeControllerManagerComponent {
+		deployName = fmt.Sprintf("%s-%s", virtualclusterName, "kube-controller-manager")
+	} else if component == constants.VirtualClusterSchedulerComponent {
+		deployName = fmt.Sprintf("%s-%s", virtualclusterName, "virtualcluster-scheduler")
+	} else {
+		return errors.Errorf("Unknow deployment %s ", component)
+	}
+
+	if err := util.DeleteDeployment(client, deployName, namespace); err != nil {
+		return errors.Wrapf(err, "Failed to delete deployment %s/%s", deployName, namespace)
+	}
+
+	configmaps := getComponentConfigmaps(component)
+	for _, configmap := range configmaps {
+		if err := util.DeleteConfigmap(client, configmap, namespace); err != nil {
+			return errors.Wrapf(err, "Failed to delete configmap %s/%s", configmap, namespace)
+		}
+	}
+	return nil
+}
+
 func getComponentManifests(name, namespace string) (map[string]*appsv1.Deployment, error) {
 	kubeControllerManager, err := getKubeControllerManagerManifest(name, namespace)
 	if err != nil {
@@ -78,6 +102,14 @@ func getComponentConfigMapManifests(name, namespace string) (map[string]*v1.Conf
 	}
 
 	return manifest, nil
+}
+
+// getComponentConfigmaps return component configmaps names
+func getComponentConfigmaps(component string) []string {
+	if component == constants.VirtualClusterSchedulerComponent {
+		return []string{constants.VirtualClusterSchedulerComponentConfigMap}
+	}
+	return nil
 }
 
 func getKubeControllerManagerManifest(name, namespace string) (*appsv1.Deployment, error) {

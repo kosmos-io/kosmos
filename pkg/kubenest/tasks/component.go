@@ -61,3 +61,43 @@ func runComponentSubTask(component string) func(r workflow.RunData) error {
 		return nil
 	}
 }
+
+func UninstallComponentTask() workflow.Task {
+	return workflow.Task{
+		Name:        "components",
+		Run:         runComponents,
+		RunSubTasks: true,
+		Tasks: []workflow.Task{
+			{
+				Name: constants.KubeControllerManagerComponent,
+				Run:  uninstallComponentSubTask(constants.KubeControllerManagerComponent),
+			},
+			{
+				Name: constants.VirtualClusterSchedulerComponent,
+				Run:  uninstallComponentSubTask(constants.VirtualClusterSchedulerComponent),
+			},
+		},
+	}
+}
+
+func uninstallComponentSubTask(component string) func(r workflow.RunData) error {
+	return func(r workflow.RunData) error {
+		data, ok := r.(InitData)
+		if !ok {
+			return errors.New("components task invoked with an invalid data struct")
+		}
+
+		err := controlplane.DeleteControlPlaneComponent(
+			component,
+			data.GetName(),
+			data.GetNamespace(),
+			data.RemoteClient(),
+		)
+		if err != nil {
+			return fmt.Errorf("failed to uninstall component %s, err: %w", component, err)
+		}
+
+		klog.V(2).InfoS("[components] Successfully uninstalled component", "component", component, "virtual cluster", klog.KObj(data))
+		return nil
+	}
+}

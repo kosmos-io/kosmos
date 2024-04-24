@@ -18,6 +18,7 @@ const (
 	DefaultKubeconfigPath         = "/etc/cluster-tree/cert"
 	Label                         = "virtualCluster-app"
 	ComponentBeReadyTimeout       = 300 * time.Second
+	ComponentBeDeletedTimeout     = 300 * time.Second
 
 	// CertificateBlockType is a possible value for pem.Block.Type.
 	CertificateBlockType           = "CERTIFICATE"
@@ -37,7 +38,7 @@ const (
 
 	//controlplane apiserver
 	ApiServer                     = "apiserver"
-	ApiServerReplicas             = 1
+	ApiServerReplicas             = 2
 	ApiServerServiceSubnet        = "10.237.6.18/29"
 	ApiServerEtcdListenClientPort = 2379
 	ApiServerServiceType          = "NodePort"
@@ -52,12 +53,12 @@ const (
 	EtcdListenPeerPort   = 2380
 
 	//controlplane kube-controller
-	KubeControllerReplicas         = 1
+	KubeControllerReplicas         = 2
 	KubeControllerManagerComponent = "KubeControllerManager"
 	KubeControllerManager          = "kube-controller-manager"
 
 	//controlplane scheduler
-	VirtualClusterSchedulerReplicas           = 1
+	VirtualClusterSchedulerReplicas           = 2
 	VirtualClusterSchedulerComponent          = "VirtualClusterScheduler"
 	VirtualClusterSchedulerComponentConfigMap = "scheduler-config"
 	VirtualClusterScheduler                   = "scheduler"

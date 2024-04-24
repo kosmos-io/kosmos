@@ -1,0 +1,19 @@
+apiVersion: v1
+data:
+  components: |
+    [
+      {"name": "kube-proxy", "path": "/kosmos/manifest/kube-proxy/*.yaml"},
+      {"name": "calico", "path": "/kosmos/manifest/calico/*.yaml"},
+    ]
+  host-core-dns-components: |
+    [
+      {"name": "core-dns-host", "path": "/kosmos/manifest/core-dns/host/*.yaml"},
+    ]
+  virtual-core-dns-components: |
+    [
+      {"name": "core-dns-virtual", "path": "/kosmos/manifest/core-dns/virtualcluster/*.yaml"},
+    ]
+kind: ConfigMap
+metadata:
+  name: components-manifest-cm
+  namespace: kosmos-system

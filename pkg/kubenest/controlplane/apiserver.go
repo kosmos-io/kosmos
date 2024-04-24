@@ -1,9 +1,9 @@
 package controlplane
 
 import (
-	"errors"
 	"fmt"
 
+	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
 	kuberuntime "k8s.io/apimachinery/pkg/runtime"
 	clientset "k8s.io/client-go/kubernetes"
@@ -15,8 +15,6 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/kubenest/util"
 )
 
-var errAllocated = errors.New("provided port is already allocated")
-
 func EnsureVirtualClusterAPIServer(client clientset.Interface, name, namespace string, manager *vcnodecontroller.HostPortManager) error {
 	_, err := manager.AllocateHostIP(name)
 	if err != nil {
@@ -25,6 +23,14 @@ func EnsureVirtualClusterAPIServer(client clientset.Interface, name, namespace s
 
 	if err := installAPIServer(client, name, namespace); err != nil {
 		return fmt.Errorf("failed to install virtual cluster apiserver, err: %w", err)
+	}
+	return nil
+}
+
+func DeleteVirtualClusterAPIServer(client clientset.Interface, name, namespace string) error {
+	deployName := fmt.Sprintf("%s-%s", name, "apiserver")
+	if err := util.DeleteDeployment(client, deployName, namespace); err != nil {
+		return errors.Wrapf(err, "Failed to delete deployment %s/%s", deployName, namespace)
 	}
 	return nil
 }
