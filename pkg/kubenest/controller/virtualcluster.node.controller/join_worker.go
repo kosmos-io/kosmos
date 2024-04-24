@@ -17,7 +17,6 @@ import (
 
 	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/controller/virtualcluster.node.controller/exector"
-	vcrnodepoolcontroller "github.com/kosmos.io/kosmos/pkg/kubenest/controller/virtualcluster.nodepool.controller"
 )
 
 // kubeadm join
@@ -38,24 +37,24 @@ func isNodeReady(conditions []v1.NodeCondition) bool {
 	return false
 }
 
-func (r *NodeController) WaitNodeReady(ctx context.Context, nodeInfo vcrnodepoolcontroller.NodeItem, k8sClient kubernetes.Interface) error {
+func (r *NodeController) WaitNodeReady(ctx context.Context, globalNode v1alpha1.GlobalNode, k8sClient kubernetes.Interface) error {
 	waitCtx, cancel := context.WithTimeout(ctx, 60*time.Second) // total waiting time
 	defer cancel()
 
 	isReady := false
 
 	wait.UntilWithContext(waitCtx, func(ctx context.Context) {
-		node, err := k8sClient.CoreV1().Nodes().Get(waitCtx, nodeInfo.Name, metav1.GetOptions{})
+		node, err := k8sClient.CoreV1().Nodes().Get(waitCtx, globalNode.Name, metav1.GetOptions{})
 		if err == nil {
 			if isNodeReady(node.Status.Conditions) {
-				klog.V(4).Infof("node %s is ready", nodeInfo.Name)
+				klog.V(4).Infof("node %s is ready", globalNode.Name)
 				isReady = true
 				cancel()
 			} else {
-				klog.V(4).Infof("node %s is not ready, status: %s", nodeInfo.Name, node.Status.Phase)
+				klog.V(4).Infof("node %s is not ready, status: %s", globalNode.Name, node.Status.Phase)
 			}
 		} else {
-			klog.V(4).Infof("get node %s failed: %s", nodeInfo.Name, err)
+			klog.V(4).Infof("get node %s failed: %s", globalNode.Name, err)
 		}
 	}, 10*time.Second) // Interval time
 
@@ -63,11 +62,11 @@ func (r *NodeController) WaitNodeReady(ctx context.Context, nodeInfo vcrnodepool
 		return nil
 	}
 
-	return fmt.Errorf("node %s is not ready", nodeInfo.Name)
+	return fmt.Errorf("node %s is not ready", globalNode.Name)
 }
 
-func (r *NodeController) joinNode(ctx context.Context, nodeInfos []vcrnodepoolcontroller.NodeItem, virtualCluster v1alpha1.VirtualCluster, k8sClient kubernetes.Interface) error {
-	if len(nodeInfos) == 0 {
+func (r *NodeController) joinNode(ctx context.Context, globalNodes []v1alpha1.GlobalNode, virtualCluster v1alpha1.VirtualCluster, k8sClient kubernetes.Interface) error {
+	if len(globalNodes) == 0 {
 		return nil
 	}
 
@@ -81,9 +80,9 @@ func (r *NodeController) joinNode(ctx context.Context, nodeInfos []vcrnodepoolco
 		clusterDNS = dnssvc.Spec.ClusterIP
 	}
 
-	for _, nodeInfo := range nodeInfos {
+	for _, globalNode := range globalNodes {
 		// add node to new cluster
-		exectHelper := exector.NewExectorHelper(nodeInfo.Address, "")
+		exectHelper := exector.NewExectorHelper(globalNode.Spec.NodeIP, "")
 
 		// check
 		checkCmd := &exector.CMDExector{
@@ -91,7 +90,7 @@ func (r *NodeController) joinNode(ctx context.Context, nodeInfos []vcrnodepoolco
 		}
 		ret := exectHelper.DoExector(ctx.Done(), checkCmd)
 		if ret.Status != exector.SUCCESS {
-			return fmt.Errorf("check node %s failed: %s", nodeInfo.Name, ret.String())
+			return fmt.Errorf("check node %s failed: %s", globalNode.Name, ret.String())
 		}
 
 		// step(1/5) reset node
@@ -100,7 +99,7 @@ func (r *NodeController) joinNode(ctx context.Context, nodeInfos []vcrnodepoolco
 		}
 		ret = exectHelper.DoExector(ctx.Done(), resetCmd)
 		if ret.Status != exector.SUCCESS {
-			return fmt.Errorf("reset node %s failed: %s", nodeInfo.Name, ret.String())
+			return fmt.Errorf("reset node %s failed: %s", globalNode.Name, ret.String())
 		}
 		// step(2/5) scp ca of virtualcluster
 		nn := types.NamespacedName{
@@ -120,7 +119,7 @@ func (r *NodeController) joinNode(ctx context.Context, nodeInfos []vcrnodepoolco
 		}
 		ret = exectHelper.DoExector(ctx.Done(), scpCrtCmd)
 		if ret.Status != exector.SUCCESS {
-			return fmt.Errorf("scp ca.crt to node %s failed: %s", nodeInfo.Name, ret.String())
+			return fmt.Errorf("scp ca.crt to node %s failed: %s", globalNode.Name, ret.String())
 		}
 
 		// step(3/5) scp kubeconfig of virtualcluster
@@ -136,7 +135,7 @@ func (r *NodeController) joinNode(ctx context.Context, nodeInfos []vcrnodepoolco
 		}
 		ret = exectHelper.DoExector(ctx.Done(), scpKCCmd)
 		if ret.Status != exector.SUCCESS {
-			return fmt.Errorf("scp kubeconfig to node %s failed: %s", nodeInfo.Name, ret.String())
+			return fmt.Errorf("scp kubeconfig to node %s failed: %s", globalNode.Name, ret.String())
 		}
 
 		// step(4/5) scp kubelet config
@@ -152,7 +151,7 @@ func (r *NodeController) joinNode(ctx context.Context, nodeInfos []vcrnodepoolco
 
 		ret = exectHelper.DoExector(ctx.Done(), scpKubeletConfigCmd)
 		if ret.Status != exector.SUCCESS {
-			return fmt.Errorf("scp kubelet config to node %s failed: %s", nodeInfo.Name, ret.String())
+			return fmt.Errorf("scp kubelet config to node %s failed: %s", globalNode.Name, ret.String())
 		}
 
 		// step(5/5) join node
@@ -161,31 +160,35 @@ func (r *NodeController) joinNode(ctx context.Context, nodeInfos []vcrnodepoolco
 		}
 		ret = exectHelper.DoExector(ctx.Done(), joinCmd)
 		if ret.Status != exector.SUCCESS {
-			return fmt.Errorf("join node %s failed: %s", nodeInfo.Name, ret.String())
+			return fmt.Errorf("join node %s failed: %s", globalNode.Name, ret.String())
 		}
 
 		// wait node ready
-		if err := r.WaitNodeReady(ctx, nodeInfo, k8sClient); err != nil {
+		if err := r.WaitNodeReady(ctx, globalNode, k8sClient); err != nil {
+			klog.Errorf("wait node %s ready failed: %s", globalNode.Name, err)
 			return err
 		}
 
 		// TODO: maybe change kubeadm-flags.env
 		// add label
-		node, err := k8sClient.CoreV1().Nodes().Get(ctx, nodeInfo.Name, metav1.GetOptions{})
+		node, err := k8sClient.CoreV1().Nodes().Get(ctx, globalNode.Name, metav1.GetOptions{})
 		if err != nil {
-			return fmt.Errorf("get node %s failed: %s", nodeInfo.Name, err)
+			return fmt.Errorf("get node %s failed: %s", globalNode.Name, err)
 		}
 
 		updateNode := node.DeepCopy()
-		for k, v := range nodeInfo.Labels {
+		for k, v := range globalNode.Spec.Labels {
 			node.Labels[k] = v
 		}
 
 		if _, err := k8sClient.CoreV1().Nodes().Update(ctx, updateNode, metav1.UpdateOptions{}); err != nil {
-			return fmt.Errorf("add label to node %s failed: %s", nodeInfo.Name, err)
+			return fmt.Errorf("add label to node %s failed: %s", globalNode.Name, err)
 		}
-		// update nodepool status
-		if err := r.UpdateNodePoolState(ctx, nodeInfo.Name, NodePoolStateVirtualCluster); err != nil {
+
+		updateGlobalNode := globalNode.DeepCopy()
+		updateGlobalNode.Spec.State = v1alpha1.NodeInUse
+		if err := r.Client.Update(context.TODO(), updateGlobalNode); err != nil {
+			klog.Errorf("update global node %s state failed: %s", globalNode.Name, err)
 			return err
 		}
 	}

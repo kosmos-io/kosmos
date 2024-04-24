@@ -36,6 +36,10 @@ func (c *FakeKosmosV1alpha1) DistributionPolicies(namespace string) v1alpha1.Dis
 	return &FakeDistributionPolicies{c, namespace}
 }
 
+func (c *FakeKosmosV1alpha1) GlobalNodes() v1alpha1.GlobalNodeInterface {
+	return &FakeGlobalNodes{c}
+}
+
 func (c *FakeKosmosV1alpha1) Knodes() v1alpha1.KnodeInterface {
 	return &FakeKnodes{c}
 }

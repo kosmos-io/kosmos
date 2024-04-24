@@ -54,6 +54,8 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&DaemonSetList{},
 		&DistributionPolicy{},
 		&DistributionPolicyList{},
+		&GlobalNode{},
+		&GlobalNodeList{},
 		&Knode{},
 		&KnodeList{},
 		&NodeConfig{},
