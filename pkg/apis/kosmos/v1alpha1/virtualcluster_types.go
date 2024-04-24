@@ -25,6 +25,7 @@ const (
 // +kubebuilder:resource:scope=Namespaced
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:printcolumn:name="STATUS",type=string,JSONPath=`.status.phase`
+// +kubebuilder:printcolumn:name="UPDATE-TIME",type=string,JSONPath=`.status.updateTime`
 
 type VirtualCluster struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -91,7 +92,7 @@ type VirtualClusterStatus struct {
 	// +optional
 	Reason string `json:"reason,omitempty" protobuf:"bytes,4,opt,name=reason"`
 	// +optional
-	TimeStamp *metav1.Time `json:"timeStamp,omitempty" protobuf:"bytes,7,opt,name=timeStamp"`
+	UpdateTime *metav1.Time `json:"updateTime,omitempty" protobuf:"bytes,7,opt,name=updateTime"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

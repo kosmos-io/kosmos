@@ -69,6 +69,8 @@ func (r *NodeController) unjoinNode(ctx context.Context, nodeInfos []vcrnodepool
 		}
 		klog.V(4).Infof("remove node from cluster successed, node name: %s", nodeInfo.Name)
 
+		// TODO: reset kubeadm-flags.env
+
 		// TODO： move to node pool controller，  add node to host cluster
 		if err := r.joinNodeToHost(ctx, nodeInfo); err != nil {
 			klog.Errorf("join node %s to host cluster failed: %s", nodeInfo.Name, err)

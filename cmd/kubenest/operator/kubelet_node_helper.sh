@@ -101,8 +101,8 @@ function check() {
         if [ $? -ne 0 ]; then
             exit 1
         fi
-        echo "check(2/2): copy  kubeadm-flags.env  to create $PATH_FILE_TMP"
-        echo "y" | cp "$PATH_KUBELET_LIB/kubeadm-flags.env" "$PATH_FILE_TMP/"
+        echo "check(2/2): copy  kubeadm-flags.env  to create $PATH_FILE_TMP and remove args[cloud-provider] "
+        sed -e "s| --cloud-provider=external | |g" -e "w ${PATH_FILE_TMP}/kubeadm-flags.env" "$PATH_KUBELET_LIB/kubeadm-flags.env"
     fi
     echo "environments is ok"
 }

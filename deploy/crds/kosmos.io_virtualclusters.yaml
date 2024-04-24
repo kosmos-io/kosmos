@@ -19,6 +19,9 @@ spec:
     - jsonPath: .status.phase
       name: STATUS
       type: string
+    - jsonPath: .status.updateTime
+      name: UPDATE-TIME
+      type: string
     name: v1alpha1
     schema:
       openAPIV3Schema:
@@ -139,7 +142,7 @@ spec:
                 type: string
               reason:
                 type: string
-              timeStamp:
+              updateTime:
                 format: date-time
                 type: string
             type: object
