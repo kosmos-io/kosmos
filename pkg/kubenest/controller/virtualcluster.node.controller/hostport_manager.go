@@ -75,6 +75,13 @@ func (m *HostPortManager) AllocateHostPort(clusterName string) (int32, error) {
 	//使用临时变量存储原来的cm
 	oldHostPool := m.HostPortPool
 
+	//查询该clusterName是否已经被分配了端口，如果分配了，返回之前分配的端口
+	for _, cluster := range m.HostPortPool.ClusterPorts {
+		if cluster.Cluster == clusterName {
+			return cluster.Port, nil
+		}
+	}
+
 	for _, port := range m.HostPortPool.PortsPool {
 		if !m.isPortAllocated(port) {
 			m.HostPortPool.ClusterPorts = append(m.HostPortPool.ClusterPorts, ClusterPort{Port: port, Cluster: clusterName})

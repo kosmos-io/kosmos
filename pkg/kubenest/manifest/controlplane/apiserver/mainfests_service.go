@@ -13,9 +13,9 @@ metadata:
 spec:
   ports:
   - name: client
-    port: 443
+    port: {{ .ServicePort }}
     protocol: TCP
-    targetPort: 5443
+    targetPort: {{ .ServicePort }}
   selector:
     virtualCluster-app: apiserver
   type: {{ .ServiceType }}
