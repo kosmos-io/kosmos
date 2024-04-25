@@ -78,13 +78,13 @@ func applyComponentsManifests(r workflow.RunData) error {
 		return err
 	}
 
+	templatedMapping := make(map[string]interface{}, 2)
+	templatedMapping["KUBE_PROXY_KUBECONFIG"] = string(secret.Data[constants.KubeConfig])
+	imageRepository, _ := util.GetImageMessage()
+	templatedMapping["ImageRepository"] = imageRepository
+
 	for _, component := range components {
 		klog.V(2).Infof("Deploy component %s", component.Name)
-
-		templatedMapping := make(map[string]interface{}, 2)
-		if component.Name == constants.VirtualClusterKubeProxyComponent {
-			templatedMapping["KUBE_PROXY_KUBECONFIG"] = string(secret.Data[constants.KubeConfig])
-		}
 		err = applyTemplatedManifests(dynamicClient, component.Path, templatedMapping)
 		if err != nil {
 			return err

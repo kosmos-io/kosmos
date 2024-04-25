@@ -21,9 +21,25 @@ spec:
         virtualCluster-app:  scheduler
     spec:
       automountServiceAccountToken: false
-      tolerations:    
-        - key: node-role.kubernetes.io/master
-          operator: Exists
+      tolerations:
+      - key: "node-role.kubernetes.io/control-plane"
+        operator: "Exists"
+        effect: "NoSchedule"
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: node-role.kubernetes.io/control-plane
+                    operator: Exists
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+              matchExpressions:
+              - key: virtualCluster-app
+                operator: In
+                values: ["scheduler"]
+              topologyKey: kubernetes.io/hostname
       containers:     
       - name: scheduler
         image: {{ .ImageRepository }}/scheduler:{{ .Version }}

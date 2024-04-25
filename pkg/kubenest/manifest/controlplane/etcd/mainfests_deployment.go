@@ -22,10 +22,27 @@ spec:
     metadata:
       labels:
         virtualCluster-app: etcd
-    tolerations:
-    - operator: Exists
     spec:
       automountServiceAccountToken: false
+      tolerations:
+      - key: "node-role.kubernetes.io/control-plane"
+        operator: "Exists"
+        effect: "NoSchedule"
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: node-role.kubernetes.io/control-plane
+                    operator: Exists
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+              matchExpressions:
+              - key: virtualCluster-app
+                operator: In
+                values: ["etcd"]
+              topologyKey: kubernetes.io/hostname
       containers:
       - name: etcd
         image:  {{ .ImageRepository }}/etcd:{{ .Version }}

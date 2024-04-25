@@ -22,6 +22,10 @@ spec:
     spec:
       automountServiceAccountToken: false
       hostNetwork: true
+      tolerations:
+      - key: "node-role.kubernetes.io/control-plane"
+        operator: "Exists"
+        effect: "NoSchedule"
       containers:
       - name: kube-apiserver
         image:  {{ .ImageRepository }}/kube-apiserver:{{ .Version }}
@@ -81,6 +85,12 @@ spec:
           successThreshold: 1
           timeoutSeconds: 15
         affinity:
+          nodeAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              nodeSelectorTerms:
+                - matchExpressions:
+                    - key: node-role.kubernetes.io/control-plane
+                      operator: Exists
           podAntiAffinity:
             requiredDuringSchedulingIgnoredDuringExecution:
             - labelSelector:
