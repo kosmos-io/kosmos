@@ -14,13 +14,19 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
+	vcnodecontroller "github.com/kosmos.io/kosmos/pkg/kubenest/controller/virtualcluster.node.controller"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/manifest/controlplane/apiserver"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/manifest/controlplane/etcd"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/util"
 )
 
-func EnsureVirtualClusterService(client clientset.Interface, name, namespace string) error {
-	if err := createServerService(client, name, namespace); err != nil {
+func EnsureVirtualClusterService(client clientset.Interface, name, namespace string, manager *vcnodecontroller.HostPortManager) error {
+	port, err := manager.AllocateHostPort(name)
+	if err != nil {
+		return fmt.Errorf("failed to allocate host ip for virtual cluster apiserver, err: %w", err)
+	}
+
+	if err := createServerService(client, name, namespace, port); err != nil {
 		return fmt.Errorf("failed to create virtual cluster apiserver-service, err: %w", err)
 	}
 	return nil
@@ -47,13 +53,15 @@ func DeleteVirtualClusterService(client clientset.Interface, name, namespace str
 	return nil
 }
 
-func createServerService(client clientset.Interface, name, namespace string) error {
+func createServerService(client clientset.Interface, name, namespace string, port int32) error {
 	apiserverServiceBytes, err := util.ParseTemplate(apiserver.ApiserverService, struct {
 		ServiceName, Namespace, ServiceType string
+		ServicePort                         int32
 	}{
 		ServiceName: fmt.Sprintf("%s-%s", name, "apiserver"),
 		Namespace:   namespace,
 		ServiceType: constants.ApiServerServiceType,
+		ServicePort: port,
 	})
 	if err != nil {
 		return fmt.Errorf("error when parsing virtualClusterApiserver serive template: %w", err)
