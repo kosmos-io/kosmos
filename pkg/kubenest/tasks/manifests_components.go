@@ -133,7 +133,11 @@ func applyTemplatedManifests(dynamicClient dynamic.Interface, manifestGlob strin
 		if err != nil {
 			return errors.Wrapf(err, "Read file %s error", manifest)
 		}
-		err = yaml.Unmarshal(bytesData, &obj)
+		templateData, err := util.ParseTemplate(string(bytesData), templateMapping)
+		if err != nil {
+			panic(err)
+		}
+		err = yaml.Unmarshal(templateData, &obj)
 		if err != nil {
 			return errors.Wrapf(err, "Unmarshal manifest bytes data error")
 		}
@@ -151,17 +155,7 @@ func applyTemplatedManifests(dynamicClient dynamic.Interface, manifestGlob strin
 				return errors.Wrapf(err, "Convert configmap %s to unstructured obj error", obj.GetName())
 			}
 			obj = unstructured.Unstructured{Object: res}
-		} else {
-			templatedBytes, err := util.ParseTemplate(string(bytesData), templateMapping)
-			if err != nil {
-				return errors.Wrapf(err, "Parse template data %s", string(bytesData))
-			}
-			err = yaml.Unmarshal(templatedBytes, &obj)
-			if err != nil {
-				return errors.Wrapf(err, "Unmarshal templatedBytes error")
-			}
 		}
-
 		err = createObject(dynamicClient, obj.GetNamespace(), obj.GetName(), &obj)
 		if err != nil {
 			return errors.Wrapf(err, "Create object error")
