@@ -225,7 +225,6 @@ func (c *VirtualClusterInitController) createVirtualCluster(virtualCluster *v1al
 		return err
 	}
 	virtualCluster.Spec.Kubeconfig = base64.StdEncoding.EncodeToString(secret.Data[constants.KubeConfig])
-	virtualCluster.Status.Phase = v1alpha1.Completed
 	return nil
 }
 
