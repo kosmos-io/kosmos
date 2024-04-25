@@ -32,7 +32,7 @@ func EnsureVirtualClusterService(client clientset.Interface, name, namespace str
 	return nil
 }
 
-func DeleteVirtualClusterService(client clientset.Interface, name, namespace string) error {
+func DeleteVirtualClusterService(client clientset.Interface, name, namespace string, manager *vcnodecontroller.HostPortManager) error {
 	services := []string{
 		fmt.Sprintf("%s-%s", name, "apiserver"),
 		fmt.Sprintf("%s-%s", name, "etcd"),
@@ -47,6 +47,11 @@ func DeleteVirtualClusterService(client clientset.Interface, name, namespace str
 			}
 			return errors.Wrapf(err, "Failed to delete service %s/%s", service, namespace)
 		}
+	}
+
+	err := manager.ReleaseHostPort(name)
+	if err != nil {
+		klog.Errorf("Error releasing host port for cluster %s: %v", name, err)
 	}
 
 	klog.V(2).Infof("Successfully uninstalled service for virtualcluster %s", name)
