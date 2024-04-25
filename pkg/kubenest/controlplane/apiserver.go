@@ -8,6 +8,7 @@ import (
 	kuberuntime "k8s.io/apimachinery/pkg/runtime"
 	clientset "k8s.io/client-go/kubernetes"
 	clientsetscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/klog/v2"
 
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
 	vcnodecontroller "github.com/kosmos.io/kosmos/pkg/kubenest/controller/virtualcluster.node.controller"
@@ -27,10 +28,14 @@ func EnsureVirtualClusterAPIServer(client clientset.Interface, name, namespace s
 	return nil
 }
 
-func DeleteVirtualClusterAPIServer(client clientset.Interface, name, namespace string) error {
+func DeleteVirtualClusterAPIServer(client clientset.Interface, name, namespace string, manager *vcnodecontroller.HostPortManager) error {
 	deployName := fmt.Sprintf("%s-%s", name, "apiserver")
 	if err := util.DeleteDeployment(client, deployName, namespace); err != nil {
 		return errors.Wrapf(err, "Failed to delete deployment %s/%s", deployName, namespace)
+	}
+	err := manager.ReleaseHostPort(name)
+	if err != nil {
+		klog.Errorf("Error releasing host port for cluster %s: %v", name, err)
 	}
 	return nil
 }

@@ -320,7 +320,6 @@ func (c *VirtualClusterInitController) assignNodesByPolicy(virtualCluster *v1alp
 				return nil, errors.Wrapf(err, "Failed to update globalNode %s to InUse", updated.Name)
 			}
 		}
-
 	} else { // nodes needs to decrease
 		klog.V(2).Infof("Try decrease nodes %d for policy %s", -requestNodesChanged, policy.LabelSelector.String())
 		decrease := int(-requestNodesChanged)
