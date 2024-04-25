@@ -9,7 +9,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -19,6 +18,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -27,20 +27,41 @@ var (
 	keyFile  = flag.String("key", "key.pem", "SSL key file")
 	user     = flag.String("user", "", "Username for authentication")
 	password = flag.String("password", "", "Password for authentication")
+	log      = logrus.New()
 )
 
 var upgrader = websocket.Upgrader{} // use default options
 
+func init() {
+	log.Out = os.Stdout
+
+	file, err := os.OpenFile("app.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err == nil {
+		log.Out = file
+	} else {
+		log.Info("Failed to log to file, using default stderr")
+	}
+	log.SetLevel(logrus.InfoLevel)
+}
 func main() {
 	flag.Parse()
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
-	if len(*user) == 0 || len(*password) == 0 {
-		*user = os.Getenv("WEB_USER")
-		*password = os.Getenv("WEB_PASS")
-		if len(*user) == 0 || len(*password) == 0 {
-			flag.Usage()
-			log.Fatal("-user and -password are required")
+	if *user == "" {
+		_user := os.Getenv("WEB_USER")
+		if _user != "" {
+			*user = _user
 		}
+	}
+
+	if *password == "" {
+		_password := os.Getenv("WEB_PASS")
+		if _password != "" {
+			*password = _password
+		}
+	}
+	if len(*user) == 0 || len(*password) == 0 {
+		flag.Usage()
+		log.Errorf("-user and -password are required %s %s", *user, *password)
+		return
 	}
 	start(*addr, *certFile, *keyFile, *user, *password)
 }
@@ -77,14 +98,14 @@ func start(addr, certFile, keyFile, user, password string) {
 
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
-			log.Print("upgrade:", err)
+			log.Errorf("http upgrade to websocket failed : %v", err)
 			return
 		}
 		defer conn.Close()
 
 		u, err := url.Parse(r.RequestURI)
 		if err != nil {
-			log.Print("parse uri:", err)
+			log.Errorf("parse uri: %s, %v", r.RequestURI, err)
 			return
 		}
 		queryParams := u.Query()
@@ -103,7 +124,7 @@ func start(addr, certFile, keyFile, user, password string) {
 		}
 	})
 
-	log.Printf("Starting server on %s", addr)
+	log.Infof("Starting server on %s", addr)
 	tlsConfig := &tls.Config{
 		MinVersion: tls.VersionTLS12,
 	}
@@ -115,31 +136,31 @@ func start(addr, certFile, keyFile, user, password string) {
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
-	log.Fatal(server.ListenAndServeTLS("", ""))
+	log.Errorf("failed to start server %v", server.ListenAndServeTLS("", ""))
 }
 
 func handleUpload(conn *websocket.Conn, params url.Values) {
 	fileName := params.Get("file_name")
 	filePath := params.Get("file_path")
-	log.Printf("Uploading file name %s, file path %s", fileName, filePath)
+	log.Infof("Uploading file name %s, file path %s", fileName, filePath)
 	defer conn.Close()
 	if len(fileName) != 0 && len(filePath) != 0 {
 		// mkdir
 		err := os.MkdirAll(filePath, 0775)
 		if err != nil {
-			log.Print("mkdir:", err)
+			log.Errorf("mkdir: %s %v", filePath, err)
 			_ = conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseInternalServerErr, fmt.Sprintf("failed to make directory: %v", err)))
 			return
 		}
 		file := filepath.Join(filePath, fileName)
 		// check if the file already exists
 		if _, err := os.Stat(file); err == nil {
-			log.Printf("File %s already exists", file)
+			log.Infof("File %s already exists", file)
 			timestamp := time.Now().Format("2006-01-02-150405000")
 			bakFilePath := fmt.Sprintf("%s_%s_bak", file, timestamp)
 			err = os.Rename(file, bakFilePath)
 			if err != nil {
-				log.Printf("failed to rename file: %v", err)
+				log.Errorf("failed to rename file: %v", err)
 				_ = conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseInternalServerErr, fmt.Sprintf("failed to rename file: %v", err)))
 				return
 			}
@@ -147,7 +168,7 @@ func handleUpload(conn *websocket.Conn, params url.Values) {
 		// create file with append
 		fp, err := os.OpenFile(file, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
-			log.Printf("failed to open file: %v", err)
+			log.Errorf("failed to open file: %v", err)
 			_ = conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseInternalServerErr, fmt.Sprintf("failed to open file: %v", err)))
 			return
 		}
@@ -156,20 +177,20 @@ func handleUpload(conn *websocket.Conn, params url.Values) {
 		for {
 			_, data, err := conn.ReadMessage()
 			if err != nil {
-				log.Printf("failed to read message : %s", err)
+				log.Errorf("failed to read message : %s", err)
 				_ = conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseInternalServerErr, fmt.Sprintf("failed to read message: %v", err)))
 				return
 			}
 			// check if the file end
 			if string(data) == "EOF" {
-				log.Printf("finish file data transfer %s", file)
-				_ = conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, fmt.Sprintf("finish file data transfer: %v", "EOF")))
+				log.Infof("finish file data transfer %s", file)
+				_ = conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, fmt.Sprintf("%d", 0)))
 				return
 			}
 			// data to file
 			_, err = fp.Write(data)
 			if err != nil {
-				log.Printf("failed to write data to file : %s", err)
+				log.Errorf("failed to write data to file : %s", err)
 				_ = conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseInternalServerErr, fmt.Sprintf("failed write data to file: %v", err)))
 				return
 			}
@@ -181,7 +202,7 @@ func handleUpload(conn *websocket.Conn, params url.Values) {
 func handleCmd(conn *websocket.Conn, params url.Values) {
 	command := params.Get("command")
 	if command == "" {
-		log.Printf("No command specified %v", params)
+		log.Warnf("No command specified %v", params)
 		_ = conn.WriteMessage(websocket.TextMessage, []byte("No command specified"))
 		return
 	}
@@ -189,14 +210,14 @@ func handleCmd(conn *websocket.Conn, params url.Values) {
 	cmd := exec.Command("sh", "-c", command)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		log.Printf("failed to execute command : %v", err)
+		log.Warnf("failed to execute command : %v", err)
 		_ = conn.WriteMessage(websocket.TextMessage, []byte(err.Error()))
 	} else {
 		_ = conn.WriteMessage(websocket.TextMessage, out)
 	}
 	exitCode := cmd.ProcessState.ExitCode()
-	log.Printf("Command finished with exit code %d", exitCode)
-	_ = conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, fmt.Sprintf("Exit Code: %d", exitCode)))
+	log.Infof("Command finished with exit code %d", exitCode)
+	_ = conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, fmt.Sprintf("%d", exitCode)))
 }
 
 func handleScript(conn *websocket.Conn, params url.Values, command []string) {
@@ -208,30 +229,30 @@ func handleScript(conn *websocket.Conn, params url.Values, command []string) {
 	// Write data to a temporary file
 	tempFile, err := os.CreateTemp("", "script_*")
 	if err != nil {
-		log.Printf("Error creating temporary file: %v", err)
+		log.Errorf("Error creating temporary file: %v", err)
 		return
 	}
 	defer os.Remove(tempFile.Name()) // Clean up temporary file
 	defer tempFile.Close()
 	tempFilefp, err := os.OpenFile(tempFile.Name(), os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
-		log.Printf("Error opening temporary file: %v", err)
+		log.Errorf("Error opening temporary file: %v", err)
 	}
 	for {
 		// Read message from WebSocket client
 		_, data, err := conn.ReadMessage()
 		if err != nil {
-			log.Printf("failed to read message : %s", err)
+			log.Errorf("failed to read message : %s", err)
 			break
 		}
 		if string(data) == "EOF" {
-			log.Printf("finish file data transfer %s", tempFile.Name())
+			log.Infof("finish file data transfer %s", tempFile.Name())
 			break
 		}
 
 		// Write received data to the temporary file
 		if _, err := tempFilefp.Write(data); err != nil {
-			log.Printf("Error writing data to temporary file: %v", err)
+			log.Errorf("Error writing data to temporary file: %v", err)
 			continue
 		}
 	}
@@ -243,12 +264,12 @@ func handleScript(conn *websocket.Conn, params url.Values, command []string) {
 	cmd := exec.Command(executeCmd[0], executeCmd[1:]...)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		log.Printf("Error obtaining command output pipe: %v", err)
+		log.Warnf("Error obtaining command output pipe: %v", err)
 	}
 	defer stdout.Close()
 
 	if err := cmd.Start(); err != nil {
-		log.Printf("Error starting command: %v", err)
+		log.Warnf("Error starting command: %v", err)
 	}
 
 	// processOutput
@@ -256,7 +277,7 @@ func handleScript(conn *websocket.Conn, params url.Values, command []string) {
 		scanner := bufio.NewScanner(stdout)
 		for scanner.Scan() {
 			data := scanner.Bytes()
-			log.Printf("%s", data)
+			log.Warnf("%s", data)
 			_ = conn.WriteMessage(websocket.TextMessage, data)
 		}
 	}()
@@ -265,9 +286,9 @@ func handleScript(conn *websocket.Conn, params url.Values, command []string) {
 	if err := cmd.Wait(); err != nil {
 		var exitError *exec.ExitError
 		if errors.As(err, &exitError) {
-			log.Printf("Command exited with non-zero status: %v", exitError)
+			log.Warnf("Command exited with non-zero status: %v", exitError)
 		}
 	}
 	exitCode := cmd.ProcessState.ExitCode()
-	_ = conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, fmt.Sprintf("Exit Code: %d", exitCode)))
+	_ = conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, fmt.Sprintf("%d", exitCode)))
 }

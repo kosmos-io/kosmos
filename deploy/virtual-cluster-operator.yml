@@ -295,3 +295,71 @@ spec:
           path: /home/vc-operator/manifest
           type: DirectoryOrCreate
         name: components-manifest
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: node-agent
+spec:
+  selector:
+    matchLabels:
+      app: node-agent-service
+  template:
+    metadata:
+      labels:
+        app: node-agent-service
+    spec:
+      hostPID: true # access host pid
+      hostIPC: true # access host ipc
+      hostNetwork: true # access host network
+      tolerations:
+        - operator: Exists # run on all nodes
+      initContainers:
+        - name: init-agent
+          image: cis-hub-huabei-3.cmecloud.cn/node-agent/node-agent:latest
+          securityContext:
+            privileged: true
+          env:
+            - name: WEB_USER
+              value: {{update when you deploy}}
+            - name: WEB_PASS
+              value: {{update when you deploy}}
+          command: ["/bin/bash"]
+          args:
+            - "-c"
+            - "sed -i 's/^WEB_USER=.*/WEB_USER=$(WEB_USER)/' /app/agent.env && sed -i 's/^WEB_PASS=.*/WEB_PASS=$(WEB_PASS)/' /app/agent.env && rsync -avz /app/ /host-path/ && cp /app/node-agent.service /host-systemd/node-agent.service "
+          volumeMounts:
+            - mountPath: /host-path
+              name: node-agent
+              readOnly: false
+            - mountPath: /host-systemd
+              name: systemd-path
+              readOnly: false
+      containers:
+        - name: install-agent
+          image: cis-hub-huabei-3.cmecloud.cn/node-agent/node-agent:latest
+          securityContext:
+            privileged: true # container privileged
+          command:
+            - nsenter
+            - --target
+            - "1"
+            - --mount
+            - --uts
+            - --ipc
+            - --net
+            - --pid
+            - --
+            - bash
+            - -l
+            - -c
+            - "/srv/node-agent/start.sh && sleep infinity"
+      volumes:
+        - name: node-agent
+          hostPath:
+            path: /srv/node-agent
+            type: DirectoryOrCreate
+        - name: systemd-path
+          hostPath:
+            path: /etc/systemd/system
+            type: DirectoryOrCreate
