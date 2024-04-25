@@ -105,6 +105,8 @@ spec:
                         the kubernetes's control plane
                       format: int32
                       type: integer
+                  required:
+                  - nodeCount
                   type: object
                 type: array
               promoteResources:

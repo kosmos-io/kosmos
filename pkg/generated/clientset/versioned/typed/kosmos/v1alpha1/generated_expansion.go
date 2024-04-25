@@ -14,6 +14,8 @@ type DaemonSetExpansion interface{}
 
 type DistributionPolicyExpansion interface{}
 
+type GlobalNodeExpansion interface{}
+
 type KnodeExpansion interface{}
 
 type NodeConfigExpansion interface{}

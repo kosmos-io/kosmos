@@ -34,6 +34,10 @@ type DistributionPolicyListerExpansion interface{}
 // DistributionPolicyNamespaceLister.
 type DistributionPolicyNamespaceListerExpansion interface{}
 
+// GlobalNodeListerExpansion allows custom methods to be added to
+// GlobalNodeLister.
+type GlobalNodeListerExpansion interface{}
+
 // KnodeListerExpansion allows custom methods to be added to
 // KnodeLister.
 type KnodeListerExpansion interface{}

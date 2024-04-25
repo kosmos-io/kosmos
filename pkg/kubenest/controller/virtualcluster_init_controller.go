@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"gopkg.in/yaml.v3"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -30,6 +29,7 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
 	vcnodecontroller "github.com/kosmos.io/kosmos/pkg/kubenest/controller/virtualcluster.node.controller"
+	"github.com/kosmos.io/kosmos/pkg/kubenest/util"
 )
 
 type VirtualClusterInitController struct {
@@ -124,17 +124,15 @@ func (c *VirtualClusterInitController) Reconcile(ctx context.Context, request re
 		}
 	case v1alpha1.Completed:
 		//update request, check if promotepolicy nodes increase or decrease.
-		assigned, err := c.assignWorkNodes(updatedCluster)
+		err := c.assignWorkNodes(updatedCluster)
 		if err != nil {
 			return reconcile.Result{}, errors.Wrapf(err, "Error update virtualcluster %s", updatedCluster.Name)
 		}
-		if assigned { // indicate nodes change request
-			updatedCluster.Status.Phase = v1alpha1.Updating
-			err = c.Update(originalCluster, updatedCluster)
-			if err != nil {
-				klog.Errorf("Error update virtualcluster %s status to %s", updatedCluster.Name, updatedCluster.Status.Phase)
-				return reconcile.Result{}, errors.Wrapf(err, "Error update virtualcluster %s status", updatedCluster.Name)
-			}
+		updatedCluster.Status.Phase = v1alpha1.Updating
+		err = c.Update(originalCluster, updatedCluster)
+		if err != nil {
+			klog.Errorf("Error update virtualcluster %s status to %s", updatedCluster.Name, updatedCluster.Status.Phase)
+			return reconcile.Result{}, errors.Wrapf(err, "Error update virtualcluster %s status", updatedCluster.Name)
 		}
 	default:
 		klog.Warningf("Skip virtualcluster %s reconcile status: %s", originalCluster.Name, originalCluster.Status.Phase)
@@ -178,13 +176,13 @@ func (c *VirtualClusterInitController) ensureFinalizer(virtualCluster *v1alpha1.
 	return reconcile.Result{}, nil
 }
 
-func (r *VirtualClusterInitController) removeFinalizer(virtualCluster *v1alpha1.VirtualCluster) (reconcile.Result, error) {
+func (c *VirtualClusterInitController) removeFinalizer(virtualCluster *v1alpha1.VirtualCluster) (reconcile.Result, error) {
 	if !controllerutil.ContainsFinalizer(virtualCluster, VirtualClusterControllerFinalizer) {
 		return reconcile.Result{}, nil
 	}
 
 	controllerutil.RemoveFinalizer(virtualCluster, VirtualClusterControllerFinalizer)
-	err := r.Client.Update(context.TODO(), virtualCluster)
+	err := c.Client.Update(context.TODO(), virtualCluster)
 	if err != nil {
 		return reconcile.Result{Requeue: true}, err
 	}
@@ -200,7 +198,7 @@ func (c *VirtualClusterInitController) createVirtualCluster(virtualCluster *v1al
 	if err != nil {
 		return err
 	}
-	_, err = c.assignWorkNodes(virtualCluster)
+	err = c.assignWorkNodes(virtualCluster)
 	if err != nil {
 		return errors.Wrap(err, "Error in assign work nodes")
 	}
@@ -229,94 +227,37 @@ func (c *VirtualClusterInitController) destroyVirtualCluster(virtualCluster *v1a
 	return execute.Execute()
 }
 
-// assignWorkNodes assign nodes for virtualcluster when creating or updating. return true if successfully assigned
-func (c *VirtualClusterInitController) assignWorkNodes(virtualCluster *v1alpha1.VirtualCluster) (bool, error) {
-	promotepolicies := virtualCluster.Spec.PromotePolicies
-	if len(promotepolicies) == 0 {
-		return false, errors.New("PromotePolicies parameter undefined")
-	}
+func (c *VirtualClusterInitController) assignWorkNodes(virtualCluster *v1alpha1.VirtualCluster) error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
-	nodePool, err := c.getNodePool()
-	klog.V(2).Infof("Get node pool %v", nodePool)
-	if err != nil {
-		return false, errors.Wrap(err, "Get node pool error.")
+	globalNodeList := &v1alpha1.GlobalNodeList{}
+	if err := c.Client.List(context.TODO(), globalNodeList); err != nil {
+		return fmt.Errorf("list global nodes: %w", err)
 	}
-	klog.V(2).Infof("Total %d nodes in pool", len(nodePool))
-	assigned := false
-	for _, policy := range promotepolicies {
-		assignedByPolicy, nodeInfos, err := c.assignNodesByPolicy(virtualCluster, policy, nodePool)
+	allNodeInfos := make([]v1alpha1.NodeInfo, 0)
+	globalNodes := globalNodeList.Items
+	for _, policy := range virtualCluster.Spec.PromotePolicies {
+		nodeInfos, err := c.assignNodesByPolicy(virtualCluster, policy, globalNodes)
 		if err != nil {
-			return false, errors.Wrap(err, "Reassign nodes error")
+			return fmt.Errorf("assign nodes by policy: %w", err)
 		}
-		if !assignedByPolicy {
-			continue
-		} else {
-			assigned = true
-			virtualCluster.Spec.PromoteResources.NodeInfos = nodeInfos
-		}
-	}
-	if assigned {
-		err := c.updateNodePool(nodePool)
-		if err != nil {
-			return false, errors.Wrap(err, "Update node pool error.")
-		}
-	}
-	return assigned, nil
-}
-
-// getNodePool get node pool configmap
-func (c *VirtualClusterInitController) getNodePool() (map[string]NodePool, error) {
-	nodesPoolCm, err := c.RootClientSet.CoreV1().ConfigMaps(constants.KosmosNs).Get(context.TODO(), constants.NodePoolConfigmap, metav1.GetOptions{})
-	if err != nil {
-		return nil, err
-	}
-	var nodesPool map[string]NodePool
-	data, ok := nodesPoolCm.Data["nodes"]
-	if !ok {
-		return nil, errors.New("Error parse nodes pool data")
-	}
-	err = yaml.Unmarshal([]byte(data), &nodesPool)
-	if err != nil {
-		return nil, errors.Wrap(err, "Unmarshal nodes pool data error")
-	}
-	return nodesPool, nil
-}
-
-// updateNodePool update node pool configmap
-func (c *VirtualClusterInitController) updateNodePool(nodePool map[string]NodePool) error {
-	klog.V(2).Infof("Update node pool %v", nodePool)
-	nodePoolYAML, err := yaml.Marshal(nodePool)
-	if err != nil {
-		return errors.Wrap(err, "Serialized node pool data error")
+		allNodeInfos = append(allNodeInfos, nodeInfos...)
 	}
 
-	originalCm, err := c.RootClientSet.CoreV1().ConfigMaps(constants.KosmosNs).Get(context.TODO(), constants.NodePoolConfigmap, metav1.GetOptions{})
-	if err != nil {
-		return err
-	}
-	originalCm.Data = map[string]string{
-		"nodes": string(nodePoolYAML),
-	}
-
-	_, err = c.RootClientSet.CoreV1().ConfigMaps(constants.KosmosNs).Update(context.TODO(), originalCm, metav1.UpdateOptions{})
-	if err != nil {
-		return errors.Wrap(err, "Update node pool configmap data error")
-	}
-	klog.V(2).Info("Update node pool Success")
+	virtualCluster.Spec.PromoteResources.NodeInfos = allNodeInfos
 	return nil
 }
 
 // nodesChangeCalculate calculate nodes changed when update virtualcluster.
-func (c *VirtualClusterInitController) assignNodesByPolicy(virtualCluster *v1alpha1.VirtualCluster, policy v1alpha1.PromotePolicy, nodesPool map[string]NodePool) (bool, []v1alpha1.NodeInfo, error) {
+func (c *VirtualClusterInitController) assignNodesByPolicy(virtualCluster *v1alpha1.VirtualCluster, policy v1alpha1.PromotePolicy, globalNodes []v1alpha1.GlobalNode) ([]v1alpha1.NodeInfo, error) {
 	var matched int32 = 0
 	var nodesAssignedMatchedPolicy []v1alpha1.NodeInfo
 	var nodesAssignedUnMatched []v1alpha1.NodeInfo
 	nodesAssigned := virtualCluster.Spec.PromoteResources.NodeInfos
 	for _, nodeInfo := range nodesAssigned {
-		node, ok := nodesPool[nodeInfo.NodeName]
+		node, ok := util.FindGlobalNode(nodeInfo.NodeName, globalNodes)
 		if !ok {
-			return false, nodesAssigned, errors.Errorf("Node %s doesn't find in nodes pool", nodeInfo.NodeName)
+			return nodesAssigned, errors.Errorf("Node %s doesn't find in nodes pool", nodeInfo.NodeName)
 		}
 		if mapContains(node.Labels, policy.LabelSelector.MatchLabels) {
 			nodesAssignedMatchedPolicy = append(nodesAssignedMatchedPolicy, nodeInfo)
@@ -325,21 +266,24 @@ func (c *VirtualClusterInitController) assignNodesByPolicy(virtualCluster *v1alp
 			nodesAssignedUnMatched = append(nodesAssignedUnMatched, nodeInfo)
 		}
 	}
-	requestNodesChanged := *policy.NodeCount - matched
+	requestNodesChanged := policy.NodeCount - matched
 	if requestNodesChanged == 0 {
 		klog.V(2).Infof("Nothing to do for policy %s", policy.LabelSelector.String())
-		return false, nodesAssigned, nil
+		return nodesAssigned, nil
 	} else if requestNodesChanged > 0 { // nodes needs to be increased
 		klog.V(2).Infof("Try allocate %d nodes for policy %s", requestNodesChanged, policy.LabelSelector.String())
 		var cnt int32 = 0
-		for name, nodeInfo := range nodesPool {
-			if nodeInfo.State == constants.NodeFreeState && mapContains(nodeInfo.Labels, policy.LabelSelector.MatchLabels) {
-				nodeInfo.State = constants.NodeVirtualclusterState
-				nodeInfo.Cluster = virtualCluster.Name
-				nodesPool[name] = nodeInfo
+		for _, globalNode := range globalNodes {
+			if globalNode.Spec.State == v1alpha1.NodeFreeState && mapContains(globalNode.Spec.Labels, policy.LabelSelector.MatchLabels) {
 				nodesAssigned = append(nodesAssigned, v1alpha1.NodeInfo{
-					NodeName: name,
+					NodeName: globalNode.Name,
 				})
+				// 更新globalNode的状态为占用状态
+				updated := globalNode.DeepCopy()
+				updated.Spec.State = v1alpha1.NodeInUse
+				if err := c.Client.Update(context.TODO(), updated); err != nil {
+					return nodesAssigned, errors.Wrapf(err, "Failed to update globalNode %s to InUse", globalNode.Name)
+				}
 				cnt++
 			}
 			if cnt == requestNodesChanged {
@@ -347,18 +291,18 @@ func (c *VirtualClusterInitController) assignNodesByPolicy(virtualCluster *v1alp
 			}
 		}
 		if cnt < requestNodesChanged {
-			return false, nodesAssigned, errors.Errorf("There is not enough work nodes for promotepolicy %s. Desired %d, matched %d", policy.LabelSelector.String(), requestNodesChanged, matched)
+			return nodesAssigned, errors.Errorf("There is not enough work nodes for promotepolicy %s. Desired %d, matched %d", policy.LabelSelector.String(), requestNodesChanged, matched)
 		}
 	} else { // nodes needs to decrease
 		klog.V(2).Infof("Try decrease nodes %d for policy %s", -requestNodesChanged, policy.LabelSelector.String())
 		decrease := int(-requestNodesChanged)
 		if len(nodesAssignedMatchedPolicy) < decrease {
-			return false, nodesAssigned, errors.Errorf("Illegal work nodes decrease operation for promotepolicy %s. Desired %d, matched %d", policy.LabelSelector.String(), decrease, len(nodesAssignedMatchedPolicy))
+			return nodesAssigned, errors.Errorf("Illegal work nodes decrease operation for promotepolicy %s. Desired %d, matched %d", policy.LabelSelector.String(), decrease, len(nodesAssignedMatchedPolicy))
 		}
 		nodesAssigned = append(nodesAssignedUnMatched, nodesAssignedMatchedPolicy[:(len(nodesAssignedMatchedPolicy)-decrease)]...)
 		// note: node pool will not be modified here. NodeController will modify it when node delete success
 	}
-	return true, nodesAssigned, nil
+	return nodesAssigned, nil
 }
 
 func (c *VirtualClusterInitController) ensureAllPodsRunning(virtualCluster *v1alpha1.VirtualCluster, timeout time.Duration) error {

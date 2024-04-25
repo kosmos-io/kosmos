@@ -50,7 +50,7 @@ type VirtualClusterSpec struct {
 	ExternalIP string `json:"externalIP,omitempty"`
 
 	// PromotePolicies definites the policies for promote to the kubernetes's control plane
-	// +optional
+	// +required
 	PromotePolicies []PromotePolicy `json:"promotePolicies,omitempty"`
 
 	// PromoteResources definites the resources for promote to the kubernetes's control plane,
@@ -65,8 +65,8 @@ type PromotePolicy struct {
 	LabelSelector *metav1.LabelSelector `json:"labelSelector,omitempty"`
 
 	// NodeCount is the number of nodes to promote to the kubernetes's control plane
-	// +optional
-	NodeCount *int32 `json:"nodeCount,omitempty"`
+	// +required
+	NodeCount int32 `json:"nodeCount"`
 }
 
 type PromoteResources struct {

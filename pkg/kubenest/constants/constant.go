@@ -87,7 +87,6 @@ const (
 
 	ManifestComponentsConfigmap = "components-manifest-cm"
 	NodePoolConfigmap           = "node-pool"
-	NodeShareState              = "share"
 	NodeVirtualclusterState     = "virtualcluster"
 	NodeFreeState               = "free"
 

@@ -24,7 +24,7 @@ import (
 
 	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
-	vcrnodepoolcontroller "github.com/kosmos.io/kosmos/pkg/kubenest/controller/virtualcluster.nodepool.controller"
+	"github.com/kosmos.io/kosmos/pkg/kubenest/util"
 	"github.com/kosmos.io/kosmos/pkg/utils"
 )
 
@@ -63,7 +63,7 @@ func (r *NodeController) SetupWithManager(mgr manager.Manager) error {
 		Complete(r)
 }
 
-func (c *NodeController) GenerateKubeclient(virtualCluster *v1alpha1.VirtualCluster) (kubernetes.Interface, error) {
+func (r *NodeController) GenerateKubeclient(virtualCluster *v1alpha1.VirtualCluster) (kubernetes.Interface, error) {
 	if len(virtualCluster.Spec.Kubeconfig) == 0 {
 		return nil, fmt.Errorf("virtualcluster %s kubeconfig is empty", virtualCluster.Name)
 	}
@@ -89,9 +89,14 @@ func hasItemInArray(name string, f func(string) bool) bool {
 	return f(name)
 }
 
-func compareAndTranformNodes(targetNodes []v1alpha1.NodeInfo, actualNodes []v1.Node, nodePools map[string]vcrnodepoolcontroller.NodeItem) ([]vcrnodepoolcontroller.NodeItem, []vcrnodepoolcontroller.NodeItem, error) {
-	unjoinNodes := []vcrnodepoolcontroller.NodeItem{}
-	joinNodes := []vcrnodepoolcontroller.NodeItem{}
+func (r *NodeController) compareAndTranformNodes(targetNodes []v1alpha1.NodeInfo, actualNodes []v1.Node) ([]v1alpha1.GlobalNode, []v1alpha1.GlobalNode, error) {
+	unjoinNodes := make([]v1alpha1.GlobalNode, 0)
+	joinNodes := make([]v1alpha1.GlobalNode, 0)
+
+	globalNodes := &v1alpha1.GlobalNodeList{}
+	if err := r.Client.List(context.TODO(), globalNodes); err != nil {
+		return nil, nil, fmt.Errorf("failed to list global nodes: %v", err)
+	}
 
 	// cacheMap := map[string]string{}
 	for _, targetNode := range targetNodes {
@@ -105,11 +110,11 @@ func compareAndTranformNodes(targetNodes []v1alpha1.NodeInfo, actualNodes []v1.N
 		})
 
 		if !has {
-			nodePool, ok := nodePools[targetNode.NodeName]
+			globalNode, ok := util.FindGlobalNode(targetNode.NodeName, globalNodes.Items)
 			if !ok {
-				return nil, nil, fmt.Errorf("node %s not found in node pool", targetNode.NodeName)
+				return nil, nil, fmt.Errorf("global node %s not found", targetNode.NodeName)
 			}
-			joinNodes = append(joinNodes, nodePool)
+			joinNodes = append(joinNodes, *globalNode)
 		}
 	}
 
@@ -124,30 +129,15 @@ func compareAndTranformNodes(targetNodes []v1alpha1.NodeInfo, actualNodes []v1.N
 		})
 
 		if !has {
-			nodePool, ok := nodePools[actualNode.Name]
+			globalNode, ok := util.FindGlobalNode(actualNode.Name, globalNodes.Items)
 			if !ok {
-				return nil, nil, fmt.Errorf("node %s not found in node pool", actualNode.Name)
+				return nil, nil, fmt.Errorf("global node %s not found", actualNode.Name)
 			}
-
-			unjoinNodes = append(unjoinNodes, nodePool)
+			unjoinNodes = append(unjoinNodes, *globalNode)
 		}
 	}
 
 	return unjoinNodes, joinNodes, nil
-}
-
-func (r *NodeController) GetNodePool(ctx context.Context) (map[string]vcrnodepoolcontroller.NodeItem, error) {
-	nodePool := v1.ConfigMap{}
-	if err := r.Client.Get(ctx, types.NamespacedName{Name: NodePoolCMName, Namespace: NodePoolCMNS}, &nodePool); err != nil {
-		return nil, fmt.Errorf("get node-pool failed: %v", err)
-	}
-
-	nodePools, err := vcrnodepoolcontroller.ConvertYamlToNodeItem(nodePool.Data[NodePoolCMKeyName])
-	if err != nil {
-		return nil, fmt.Errorf("convert node-pool failed: %v", err)
-	}
-
-	return nodePools, nil
 }
 
 func (r *NodeController) UpdateVirtualClusterStatus(ctx context.Context, virtualCluster v1alpha1.VirtualCluster, status v1alpha1.Phase, reason string) error {
@@ -186,13 +176,8 @@ func (r *NodeController) DoNodeTask(ctx context.Context, virtualCluster v1alpha1
 		return fmt.Errorf("virtualcluster %s get virtual-cluster nodes list failed: %v", virtualCluster.Name, err)
 	}
 
-	nodePools, err := r.GetNodePool(ctx)
-	if err != nil {
-		return err
-	}
-
 	// compare cr and actual nodes in k8s
-	unjoinNodes, joinNodes, err := compareAndTranformNodes(virtualCluster.Spec.PromoteResources.NodeInfos, nodes.Items, nodePools)
+	unjoinNodes, joinNodes, err := r.compareAndTranformNodes(virtualCluster.Spec.PromoteResources.NodeInfos, nodes.Items)
 	if err != nil {
 		return fmt.Errorf("compare cr and actual nodes failed, virtual-cluster-name: %v, err: %s", virtualCluster.Name, err)
 	}

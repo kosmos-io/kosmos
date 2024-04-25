@@ -18,6 +18,7 @@ type KosmosV1alpha1Interface interface {
 	ClusterPodConvertPoliciesGetter
 	DaemonSetsGetter
 	DistributionPoliciesGetter
+	GlobalNodesGetter
 	KnodesGetter
 	NodeConfigsGetter
 	PodConvertPoliciesGetter
@@ -52,6 +53,10 @@ func (c *KosmosV1alpha1Client) DaemonSets(namespace string) DaemonSetInterface {
 
 func (c *KosmosV1alpha1Client) DistributionPolicies(namespace string) DistributionPolicyInterface {
 	return newDistributionPolicies(c, namespace)
+}
+
+func (c *KosmosV1alpha1Client) GlobalNodes() GlobalNodeInterface {
+	return newGlobalNodes(c)
 }
 
 func (c *KosmosV1alpha1Client) Knodes() KnodeInterface {

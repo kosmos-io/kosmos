@@ -20,6 +20,8 @@ type Interface interface {
 	DaemonSets() DaemonSetInformer
 	// DistributionPolicies returns a DistributionPolicyInformer.
 	DistributionPolicies() DistributionPolicyInformer
+	// GlobalNodes returns a GlobalNodeInformer.
+	GlobalNodes() GlobalNodeInformer
 	// Knodes returns a KnodeInformer.
 	Knodes() KnodeInformer
 	// NodeConfigs returns a NodeConfigInformer.
@@ -71,6 +73,11 @@ func (v *version) DaemonSets() DaemonSetInformer {
 // DistributionPolicies returns a DistributionPolicyInformer.
 func (v *version) DistributionPolicies() DistributionPolicyInformer {
 	return &distributionPolicyInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// GlobalNodes returns a GlobalNodeInformer.
+func (v *version) GlobalNodes() GlobalNodeInformer {
+	return &globalNodeInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
 }
 
 // Knodes returns a KnodeInformer.
