@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"encoding/base64"
 	"fmt"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -33,8 +32,8 @@ func init() {
 	_, filename, _, _ := runtime.Caller(0)
 	currentDir = filepath.Dir(filename)
 	parentDir = filepath.Dir(currentDir)
-	_ = os.Setenv("WEB_USER", "admin")
-	_ = os.Setenv("WEB_PASS", "eiqu&ahr3sohW5ee")
+	_ = os.Setenv("WEB_USER", "")
+	_ = os.Setenv("WEB_PASS", "")
 	username = os.Getenv("WEB_USER")
 	pass = os.Getenv("WEB_PASS")
 	testAddr = "127.0.0.1:5678"
