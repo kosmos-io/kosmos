@@ -15,7 +15,14 @@ spec:
     singular: globalnode
   scope: Cluster
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .spec.nodeIP
+      name: NODE_IP
+      type: string
+    - jsonPath: .spec.state
+      name: STATE
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         properties:

@@ -16,6 +16,10 @@ const (
 	Completed Phase = "Completed"
 	// AllNodeReady means all nodes have joined the virtual control plane and are in the running state
 	AllNodeReady Phase = "AllNodeReady"
+	// AllNodeDeleted means all nodes have been deleted
+	AllNodeDeleted Phase = "AllNodeDeleted"
+	// Deleting means virtualcluster is being deleted
+	Deleting Phase = "Deleting"
 	// Updating means that some changes are happening
 	Updating Phase = "Updating"
 	Pending  Phase = "Pending"

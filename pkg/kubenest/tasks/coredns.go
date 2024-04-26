@@ -116,12 +116,15 @@ func runCoreDnsHostTask(r workflow.RunData) error {
 		return err
 	}
 
+	imageRepository, _ := util.GetImageMessage()
+
 	for _, component := range components {
 		klog.V(2).Infof("Deploy component %s", component.Name)
 
 		templatedMapping := map[string]interface{}{
-			"Namespace": data.GetNamespace(),
-			"Name":      data.GetName(),
+			"Namespace":       data.GetNamespace(),
+			"Name":            data.GetName(),
+			"ImageRepository": imageRepository,
 		}
 		err = ApplyYMLTemplate(dynamicClient, component.Path, templatedMapping)
 		if err != nil {

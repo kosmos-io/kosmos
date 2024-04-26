@@ -35,12 +35,15 @@ spec:
                   - key: node-role.kubernetes.io/control-plane
                     operator: Exists
         podAntiAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            - labelSelector:
-              matchExpressions:
-              - key: virtualCluster-app
-                operator: In
-                values: ["kube-controller-manager"]
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: virtualCluster-app
+                  operator: In
+                  values:
+                  - kube-controller-manager
               topologyKey: kubernetes.io/hostname
       containers:
       - name: kube-controller-manager

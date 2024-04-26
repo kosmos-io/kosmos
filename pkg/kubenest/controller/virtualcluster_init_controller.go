@@ -73,12 +73,27 @@ func (c *VirtualClusterInitController) Reconcile(ctx context.Context, request re
 
 	//The object is being deleted
 	if !originalCluster.DeletionTimestamp.IsZero() {
-		err := c.destroyVirtualCluster(updatedCluster)
-		if err != nil {
-			klog.Errorf("Destroy virtual cluter %s failed. err: %s", updatedCluster.Name, err.Error())
-			return reconcile.Result{}, errors.Wrapf(err, "Destroy virtual cluter %s failed. err: %s", updatedCluster.Name, err.Error())
+		if len(updatedCluster.Spec.PromoteResources.NodeInfos) > 0 {
+			updatedCluster.Spec.PromoteResources.NodeInfos = nil
+			updatedCluster.Status.Phase = v1alpha1.Deleting
+			err := c.Update(originalCluster, updatedCluster)
+			if err != nil {
+				klog.Errorf("Error update virtualcluster %s status to %s", updatedCluster.Name, updatedCluster.Status.Phase)
+				return reconcile.Result{}, errors.Wrapf(err, "Error update virtualcluster %s status", updatedCluster.Name)
+			}
+			return reconcile.Result{}, nil
 		}
-		return c.removeFinalizer(updatedCluster)
+		if updatedCluster.Status.Phase == v1alpha1.AllNodeDeleted {
+			err := c.destroyVirtualCluster(updatedCluster)
+			if err != nil {
+				klog.Errorf("Destroy virtual cluter %s failed. err: %s", updatedCluster.Name, err.Error())
+				return reconcile.Result{}, errors.Wrapf(err, "Destroy virtual cluter %s failed. err: %s", updatedCluster.Name, err.Error())
+			}
+			return c.removeFinalizer(updatedCluster)
+		} else {
+			klog.V(2).InfoS("Virtual Cluster is deleting, wait for event 'AllNodeDeleted'", "Virtual Cluster", request)
+			return reconcile.Result{}, nil
+		}
 	}
 
 	switch originalCluster.Status.Phase {
@@ -338,7 +353,7 @@ func getAssignedNodesByPolicy(virtualCluster *v1alpha1.VirtualCluster, policy v1
 		if !ok {
 			return nil, errors.Errorf("Node %s doesn't find in nodes pool", nodeInfo.NodeName)
 		}
-		if mapContains(node.Labels, policy.LabelSelector.MatchLabels) {
+		if mapContains(node.Spec.Labels, policy.LabelSelector.MatchLabels) {
 			nodesAssignedMatchedPolicy = append(nodesAssignedMatchedPolicy, nodeInfo)
 		}
 	}
