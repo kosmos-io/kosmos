@@ -40,6 +40,8 @@ function build_images() {
   local dockerfile="Dockerfile"
   if [[ "${target}" == "clusterlink-floater" ]]; then
     dockerfile="floater.Dockerfile"
+  elif [[ "${target}" == "node-agent" ]]; then
+    dockerfile="agent.Dockerfile"
   fi
   
   # Preferentially use `docker build`. If we are building multi platform,

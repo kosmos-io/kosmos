@@ -1,2 +1,0 @@
-websockets>=9.1
-pyOpenSSL>=23.2.0

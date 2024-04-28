@@ -125,6 +125,16 @@ func handleMessages(ws *websocket.Conn) {
 }
 
 func sendFile(ws *websocket.Conn, filePath string) {
+	//if file not exists, close connection
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		log.Printf("File not exists: %v", err)
+		err := ws.WriteMessage(websocket.BinaryMessage, []byte("EOF"))
+		if err != nil {
+			log.Printf("Write message error: %v", err)
+		}
+		return
+	}
+
 	file, err := os.Open(filePath)
 	if err != nil {
 		log.Printf("File open error: %v", err)

@@ -16,6 +16,7 @@ MACOS_TARGETS := clusterlink-controller-manager \
 				 clusterlink-proxy \
 				 clustertree-cluster-manager \
 				 virtual-cluster-operator \
+				 node-agent \
 				 scheduler \
 
 # clusterlink-agent and clusterlink-floater only support linux platform
@@ -28,6 +29,7 @@ TARGETS :=  clusterlink-controller-manager \
 			clusterlink-proxy \
 			clustertree-cluster-manager \
 			virtual-cluster-operator \
+			node-agent \
 			scheduler \
 
 # If GOOS is macOS, assign the value of MACOS_TARGETS to TARGETS
@@ -125,7 +127,8 @@ upload-images: images
 	docker push ${REGISTRY}/clusterlink-floater:${VERSION}
 	docker push ${REGISTRY}/clusterlink-elector:${VERSION}
 	docker push ${REGISTRY}/clustertree-cluster-manager:${VERSION}
-    docker push ${REGISTRY}/virtual-cluster-operator:${VERSION}
+	docker push ${REGISTRY}/virtual-cluster-operator:${VERSION}
+	docker push ${REGISTRY}/node-agent:${VERSION}
 	docker push ${REGISTRY}/scheduler:${VERSION}
 
 .PHONY: release
