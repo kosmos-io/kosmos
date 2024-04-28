@@ -1,4 +1,4 @@
-package workflow
+package task
 
 import (
 	"context"
@@ -7,6 +7,7 @@ import (
 	"time"
 
 	v1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -53,6 +54,30 @@ func NewKubeadmResetTask() Task {
 			if ret.Status != exector.SUCCESS {
 				return nil, fmt.Errorf("reset node %s failed: %s", to.NodeInfo.Name, ret.String())
 			}
+			return nil, nil
+		},
+	}
+}
+
+func NewCleanHostClusterNodeTask() Task {
+	return Task{
+		Name:  "clean host cluster node",
+		Retry: true,
+		Run: func(ctx context.Context, to TaskOpt, _ interface{}) (interface{}, error) {
+			targetNode := &v1.Node{}
+			if err := to.HostK8sClient.Get(ctx, types.NamespacedName{
+				Name: to.NodeInfo.Name,
+			}, targetNode); err != nil {
+				if apierrors.IsNotFound(err) {
+					return nil, nil
+				}
+				return nil, fmt.Errorf("get target node %s failed: %s", to.NodeInfo.Name, err)
+			}
+
+			if err := to.HostK8sClient.Delete(ctx, targetNode); err != nil {
+				return nil, err
+			}
+
 			return nil, nil
 		},
 	}
@@ -227,12 +252,16 @@ func NewUpdateNodePoolItemStatusTask(nodeState v1alpha1.NodeState, isClean bool)
 				updateGlobalNode := targetGlobalNode.DeepCopy()
 
 				updateGlobalNode.Spec.State = nodeState
+				if err := to.HostK8sClient.Update(ctx, updateGlobalNode); err != nil {
+					klog.Errorf("update global node %s spec.state failed: %s", updateGlobalNode.Name, err)
+					return err
+				}
 				if isClean {
 					updateGlobalNode.Status.VirtualCluster = ""
-				}
-				if err := to.HostK8sClient.Update(context.TODO(), updateGlobalNode); err != nil {
-					klog.Errorf("update global node %s state failed: %s", updateGlobalNode.Name, err)
-					return err
+					if err := to.HostK8sClient.Status().Update(ctx, updateGlobalNode); err != nil {
+						klog.Errorf("update global node %s status failed: %s", updateGlobalNode.Name, err)
+						return err
+					}
 				}
 				return nil
 			})

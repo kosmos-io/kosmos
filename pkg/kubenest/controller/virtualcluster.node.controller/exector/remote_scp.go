@@ -51,8 +51,7 @@ func (e *SCPExector) SendHandler(conn *websocket.Conn, done <-chan struct{}, int
 		}
 		defer file.Close()
 
-		// 指定每次读取的数据块大小
-		bufferSize := 1024 // 例如每次读取 1024 字节
+		bufferSize := 1024
 		buffer := make([]byte, bufferSize)
 
 		reader := bufio.NewReader(file)

@@ -25,6 +25,7 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/controller/virtualcluster.node.controller/workflow"
+	"github.com/kosmos.io/kosmos/pkg/kubenest/controller/virtualcluster.node.controller/workflow/task"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/util"
 	"github.com/kosmos.io/kosmos/pkg/utils"
 )
@@ -234,6 +235,14 @@ func (r *NodeController) Reconcile(ctx context.Context, request reconcile.Reques
 		return reconcile.Result{}, nil
 	}
 
+	if !virtualCluster.GetDeletionTimestamp().IsZero() && len(virtualCluster.Spec.Kubeconfig) == 0 {
+		if err := r.DoNodeClean(ctx, virtualCluster); err != nil {
+			klog.Errorf("virtualcluster %s do node clean failed: %v", virtualCluster.Name, err)
+			return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
+		}
+		return reconcile.Result{}, nil
+	}
+
 	if virtualCluster.Status.Phase == v1alpha1.Preparing {
 		klog.V(4).Infof("virtualcluster wait cluster ready, cluster name: %s", virtualCluster.Name)
 		return reconcile.Result{}, nil
@@ -245,6 +254,45 @@ func (r *NodeController) Reconcile(ctx context.Context, request reconcile.Reques
 	}
 
 	return reconcile.Result{}, nil
+}
+
+func (r *NodeController) DoNodeClean(ctx context.Context, virtualCluster v1alpha1.VirtualCluster) error {
+	targetNodes := virtualCluster.Spec.PromoteResources.NodeInfos
+	globalNodes := &v1alpha1.GlobalNodeList{}
+
+	if err := r.Client.List(ctx, globalNodes); err != nil {
+		return fmt.Errorf("failed to list global nodes: %v", err)
+	}
+
+	cleanNodeInfos := []v1alpha1.GlobalNode{}
+
+	for _, targetNode := range targetNodes {
+		globalNode, ok := util.FindGlobalNode(targetNode.NodeName, globalNodes.Items)
+		if !ok {
+			return fmt.Errorf("global node %s not found", targetNode.NodeName)
+		}
+		cleanNodeInfos = append(cleanNodeInfos, *globalNode)
+	}
+
+	if err := r.cleanGlobalNode(ctx, cleanNodeInfos, virtualCluster, nil); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *NodeController) cleanGlobalNode(ctx context.Context, nodeInfos []v1alpha1.GlobalNode, virtualCluster v1alpha1.VirtualCluster, _ kubernetes.Interface) error {
+	for _, nodeInfo := range nodeInfos {
+		if err := workflow.NewCleanNodeWorkFlow().RunTask(ctx, task.TaskOpt{
+			NodeInfo:       nodeInfo,
+			VirtualCluster: virtualCluster,
+			HostK8sClient:  r.Client,
+			// VirtualK8sClient: _,
+		}); err != nil {
+			return fmt.Errorf("unjoin node %s failed: %s", nodeInfo.Name, err)
+		}
+	}
+
+	return nil
 }
 
 func (r *NodeController) joinNode(ctx context.Context, nodeInfos []v1alpha1.GlobalNode, virtualCluster v1alpha1.VirtualCluster, k8sClient kubernetes.Interface) error {
@@ -261,7 +309,7 @@ func (r *NodeController) joinNode(ctx context.Context, nodeInfos []v1alpha1.Glob
 	}
 
 	for _, nodeInfo := range nodeInfos {
-		if err := workflow.NewJoinWorkerFlow().RunTask(ctx, workflow.TaskOpt{
+		if err := workflow.NewJoinWorkFlow().RunTask(ctx, task.TaskOpt{
 			NodeInfo:         nodeInfo,
 			VirtualCluster:   virtualCluster,
 			KubeDNSAddress:   clusterDNS,
@@ -276,7 +324,7 @@ func (r *NodeController) joinNode(ctx context.Context, nodeInfos []v1alpha1.Glob
 
 func (r *NodeController) unjoinNode(ctx context.Context, nodeInfos []v1alpha1.GlobalNode, virtualCluster v1alpha1.VirtualCluster, k8sClient kubernetes.Interface) error {
 	for _, nodeInfo := range nodeInfos {
-		if err := workflow.NewUnjoinworkerFlow().RunTask(ctx, workflow.TaskOpt{
+		if err := workflow.NewUnjoinWorkFlow().RunTask(ctx, task.TaskOpt{
 			NodeInfo:         nodeInfo,
 			VirtualCluster:   virtualCluster,
 			HostK8sClient:    r.Client,
