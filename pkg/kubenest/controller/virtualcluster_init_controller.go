@@ -229,18 +229,21 @@ func (c *VirtualClusterInitController) createVirtualCluster(virtualCluster *v1al
 		return errors.Wrap(err, "Error in assign work nodes")
 	}
 	klog.V(2).Infof("Successfully assigned work node for virtual cluster %s", virtualCluster.Name)
+	getKubeconfig := func() (string, error) {
+		secretName := fmt.Sprintf("%s-%s", virtualCluster.GetName(), constants.AdminConfig)
+		secret, err := c.RootClientSet.CoreV1().Secrets(virtualCluster.GetNamespace()).Get(context.TODO(), secretName, metav1.GetOptions{})
+		if err != nil {
+			return "", errors.Wrapf(err, "Failed to get secret %s for virtual cluster %s", secretName, virtualCluster.GetName())
+		}
+		return base64.StdEncoding.EncodeToString(secret.Data[constants.KubeConfig]), nil
+	}
 	err = executer.Execute()
 	if err != nil {
+		virtualCluster.Spec.Kubeconfig, _ = getKubeconfig()
 		return err
 	}
-
-	secret, err := c.RootClientSet.CoreV1().Secrets(virtualCluster.GetNamespace()).Get(context.TODO(),
-		fmt.Sprintf("%s-%s", virtualCluster.GetName(), constants.AdminConfig), metav1.GetOptions{})
-	if err != nil {
-		return err
-	}
-	virtualCluster.Spec.Kubeconfig = base64.StdEncoding.EncodeToString(secret.Data[constants.KubeConfig])
-	return nil
+	virtualCluster.Spec.Kubeconfig, err = getKubeconfig()
+	return err
 }
 
 func (c *VirtualClusterInitController) destroyVirtualCluster(virtualCluster *v1alpha1.VirtualCluster) error {
@@ -304,35 +307,32 @@ func (c *VirtualClusterInitController) assignNodesByPolicy(virtualCluster *v1alp
 		return nodesAssigned, nil
 	} else if requestNodesChanged > 0 { // nodes needs to be increased
 		klog.V(2).Infof("Try allocate %d nodes for policy %s", requestNodesChanged, policy.LabelSelector.String())
-		var cnt int32 = 0
-		var updatedGlobalNodes []*v1alpha1.GlobalNode
+		var newAssignNodes []int
 		for i, globalNode := range globalNodes {
 			if globalNode.Spec.State == v1alpha1.NodeFreeState && mapContains(globalNode.Spec.Labels, policy.LabelSelector.MatchLabels) {
-				nodesAssigned = append(nodesAssigned, v1alpha1.NodeInfo{
-					NodeName: globalNode.Name,
-				})
-				// 更新globalNode的状态为占用状态
-				updated := globalNode.DeepCopy()
-				updated.Spec.State = v1alpha1.NodeInUse
-				updated.Status = v1alpha1.GlobalNodeStatus{
-					VirtualCluster: virtualCluster.Name,
-				}
-				globalNodes[i] = *updated
-				updatedGlobalNodes = append(updatedGlobalNodes, updated)
-				cnt++
+				newAssignNodes = append(newAssignNodes, i)
 			}
-			if cnt == requestNodesChanged {
+			if int32(len(newAssignNodes)) == requestNodesChanged {
 				break
 			}
 		}
-		if cnt < requestNodesChanged {
-			return nodesAssigned, errors.Errorf("There is not enough work nodes for promotepolicy %s. Desired %d, matched %d", policy.LabelSelector.String(), requestNodesChanged, cnt)
+		if int32(len(newAssignNodes)) < requestNodesChanged {
+			return nodesAssigned, errors.Errorf("There is not enough work nodes for promotepolicy %s. Desired %d, matched %d", policy.LabelSelector.String(), requestNodesChanged, len(newAssignNodes))
 		}
-		for _, updated := range updatedGlobalNodes {
+		for _, index := range newAssignNodes {
+			updated := globalNodes[index].DeepCopy()
+			updated.Spec.State = v1alpha1.NodeInUse
+			updated.Status = v1alpha1.GlobalNodeStatus{
+				VirtualCluster: virtualCluster.Name,
+			}
 			klog.V(2).Infof("Assign node %s for virtualcluster %s policy %s", updated.Name, virtualCluster.GetName(), policy.LabelSelector.String())
-			if err := c.Client.Update(context.TODO(), updated); err != nil {
+			if err := c.Client.Patch(context.TODO(), updated, client.MergeFrom(&globalNodes[index])); err != nil {
 				return nil, errors.Wrapf(err, "Failed to update globalNode %s to InUse", updated.Name)
 			}
+			globalNodes[index] = *updated
+			nodesAssigned = append(nodesAssigned, v1alpha1.NodeInfo{
+				NodeName: updated.Name,
+			})
 		}
 	} else { // nodes needs to decrease
 		klog.V(2).Infof("Try decrease nodes %d for policy %s", -requestNodesChanged, policy.LabelSelector.String())
