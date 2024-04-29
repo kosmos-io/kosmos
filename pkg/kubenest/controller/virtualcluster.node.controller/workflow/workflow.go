@@ -33,6 +33,10 @@ func RunWithRetry(ctx context.Context, task task.Task, opt task.TaskOpt, preArgs
 		}
 	}
 	if err != nil {
+		if task.ErrorIgnore {
+			klog.V(4).Infof("work flow ignore err, task name: %s, err: %s", task.Name, err)
+			return nil, nil
+		}
 		klog.V(4).Infof("work flow interrupt, task name: %s, err: %s", task.Name, err)
 		return nil, err
 	}
@@ -66,6 +70,7 @@ func (w WorkflowData) RunTask(ctx context.Context, opt task.TaskOpt) error {
 func NewJoinWorkFlow() WorkflowData {
 	joinTasks := []task.Task{
 		task.NewCheckEnvTask(),
+		task.NewDrainHostNodeTask(),
 		task.NewKubeadmResetTask(),
 		task.NewCleanHostClusterNodeTask(),
 		task.NewReomteUploadCATask(),
@@ -85,6 +90,7 @@ func NewJoinWorkFlow() WorkflowData {
 func NewUnjoinWorkFlow() WorkflowData {
 	unjoinTasks := []task.Task{
 		task.NewCheckEnvTask(),
+		task.NewDrainVirtualNodeTask(),
 		task.NewRemoveNodeFromVirtualTask(),
 		task.NewExecShellUnjoinCmdTask(),
 		task.NewJoinNodeToHostCmd(),

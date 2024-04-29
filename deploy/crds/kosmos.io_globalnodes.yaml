@@ -22,6 +22,9 @@ spec:
     - jsonPath: .spec.state
       name: STATE
       type: string
+    - jsonPath: .status.VirtualCluster
+      name: VIRTUAL_CLUSTER
+      type: string
     name: v1alpha1
     schema:
       openAPIV3Schema:
