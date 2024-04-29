@@ -44,6 +44,7 @@ const (
 	ApiServerServiceType          = "NodePort"
 	// APICallRetryInterval defines how long kubeadm should wait before retrying a failed API operation
 	ApiServerCallRetryInterval = 100 * time.Millisecond
+	APIServerSVCPortName       = "client"
 
 	//controlplane etcd
 	Etcd                 = "etcd"
