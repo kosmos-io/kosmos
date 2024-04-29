@@ -30,6 +30,9 @@ function release_binary_for_platform() {
       -ldflags "${LDFLAGS:-}" \
       -o "_output/release/$target-${platform}" \
       "${target_pkg}"
+  # copy node-agent files
+  mkdir -p "_output/release/$target-${platform}/agent"
+  cp "${REPO_ROOT}/hack/node-agent"/* "_output/release/$target-${platform}/agent"
   set +x
 }
 

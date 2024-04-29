@@ -52,6 +52,10 @@ function build_binary_for_platform() {
       -ldflags "${LDFLAGS:-}" \
       -o "_output/bin/${platform}/$target" \
       "${target_pkg}"
+  # copy file
+  echo "${REPO_ROOT}/hack/node-agent" "_output/bin/${platform}/$target"
+  mkdir -p "_output/bin/${platform}/agent"
+  cp "${REPO_ROOT}/hack/node-agent"/* "_output/bin/${platform}/agent"
   set +x
 }
 

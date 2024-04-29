@@ -211,7 +211,7 @@ func handleCmd(conn *websocket.Conn, params url.Values) {
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		log.Warnf("failed to execute command : %v", err)
-		_ = conn.WriteMessage(websocket.TextMessage, []byte(err.Error()))
+		_ = conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, fmt.Sprintf("%d", cmd.ProcessState.ExitCode())))
 	} else {
 		_ = conn.WriteMessage(websocket.TextMessage, out)
 	}
