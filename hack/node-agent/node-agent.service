@@ -7,11 +7,7 @@ User=root
 Group=root
 WorkingDirectory=/srv/node-agent
 EnvironmentFile=-/srv/node-agent/agent.env
-#./app: error while loading shared libraries: libz.so.1: failed to map segment from shared object
 Environment="TMPDIR=/srv/node-agent"
-#ExecStartPre=-/usr/bin/pip3 install -r /srv/node-agent/requirements.txt
-#ExecStart=/usr/bin/env python3 /srv/node-agent/app.py
-#ExecStart=/srv/node-agent/app
 ExecStart=/srv/node-agent/node-agent
 Restart=on-failure
 RestartSec=5

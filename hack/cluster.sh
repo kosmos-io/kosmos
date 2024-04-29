@@ -191,7 +191,6 @@ function addTaint() {
   local member_cluster=$2
   leafnode="kosmos-${member_cluster}"
   HOST_CLUSTER_DIR="${ROOT}/environments/${host_cluster}"
-  MEMBER_CLUSTER_DIR="${ROOT}/environments/${member_cluster}"
 
   sleep 100 && kubectl --kubeconfig $HOST_CLUSTER_DIR/kubeconfig get node -owide
   kubectl --kubeconfig $HOST_CLUSTER_DIR/kubeconfig taint nodes $leafnode test-node/e2e=leafnode:NoSchedule
