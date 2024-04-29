@@ -1,6 +1,7 @@
 package util
 
 import (
+	"encoding/base64"
 	"fmt"
 	"os"
 
@@ -49,7 +50,9 @@ func GetExectorHostMasterNodeIP() string {
 
 // tobke = base64(`username:password`)
 func GetExectorToken() string {
-	token := os.Getenv("EXECTOR_SHELL_TOKEN")
+	username := os.Getenv("WEB_USER")
+	password := os.Getenv("WEB_PASS")
+	token := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", username, password)))
 	if len(token) == 0 {
 		klog.Fatal("EXECTOR_SHELL_TOKEN is none")
 	}

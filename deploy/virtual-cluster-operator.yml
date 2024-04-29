@@ -278,6 +278,16 @@ spec:
             value: v1.25.7
           - name: EXECTOR_HOST_MASTER_NODE_IP
             value: 192.168.0.1
+          - name: WEB_USER
+            valueFrom:
+              secretKeyRef:
+                name: node-agent-secret
+                key: username
+          - name: WEB_PASS
+            valueFrom:
+              secretKeyRef:
+                name: node-agent-secret
+                key: password
         volumeMounts:
         - name: credentials
           mountPath: /etc/virtual-cluster-operator
@@ -331,9 +341,15 @@ spec:
             privileged: true
           env:
             - name: WEB_USER
-              value: {{update when you deploy}}
+              valueFrom:
+                secretKeyRef:
+                  name: node-agent-secret
+                  key: username
             - name: WEB_PASS
-              value: {{update when you deploy}}
+              valueFrom:
+                secretKeyRef:
+                  name: node-agent-secret
+                  key: password
           command: ["/bin/bash"]
           args:
             - "-c"
@@ -373,3 +389,12 @@ spec:
           hostPath:
             path: /etc/systemd/system
             type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: node-agent-secret
+type: kubernetes.io/basic-auth
+data:
+  username: {{ .USERNAME }}
+  password: {{ .PASSWORD }}
