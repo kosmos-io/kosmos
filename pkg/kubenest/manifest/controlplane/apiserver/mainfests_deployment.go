@@ -26,6 +26,24 @@ spec:
       - key: "node-role.kubernetes.io/control-plane"
         operator: "Exists"
         effect: "NoSchedule"
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: node-role.kubernetes.io/control-plane
+                    operator: Exists
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: virtualCluster-app
+                  operator: In
+                  values:
+                  - apiserver
+              topologyKey: kubernetes.io/hostname
       containers:
       - name: kube-apiserver
         image:  {{ .ImageRepository }}/kube-apiserver:{{ .Version }}
@@ -84,24 +102,6 @@ spec:
           periodSeconds: 10
           successThreshold: 1
           timeoutSeconds: 15
-        affinity:
-          nodeAffinity:
-            requiredDuringSchedulingIgnoredDuringExecution:
-              nodeSelectorTerms:
-                - matchExpressions:
-                    - key: node-role.kubernetes.io/control-plane
-                      operator: Exists
-          podAntiAffinity:
-            preferredDuringSchedulingIgnoredDuringExecution:
-            - weight: 100
-              podAffinityTerm:
-                labelSelector:
-                  matchExpressions:
-                  - key: virtualCluster-app
-                    operator: In
-                    values:
-                    - apiserver
-                topologyKey: kubernetes.io/hostname
         ports:
         - containerPort: {{ .ClusterPort }}
           name: http
