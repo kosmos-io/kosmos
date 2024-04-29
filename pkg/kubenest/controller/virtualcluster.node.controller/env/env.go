@@ -3,6 +3,8 @@ package util
 import (
 	"fmt"
 	"os"
+
+	"k8s.io/klog"
 )
 
 func GetExectorTmpPath() string {
@@ -38,18 +40,18 @@ func GetExectorShellPath() string {
 }
 
 func GetExectorHostMasterNodeIP() string {
-	// TODO: nil
-	return os.Getenv("EXECTOR_HOST_MASTER_NODE_IP")
+	hostIP := os.Getenv("EXECTOR_HOST_MASTER_NODE_IP")
+	if len(hostIP) == 0 {
+		klog.Fatal("EXECTOR_HOST_MASTER_NODE_IP is none")
+	}
+	return hostIP
 }
 
-// const username = "xxxxxxxx"
-// const password = "xxxxxxxx"
-// token = base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", username, password)))
+// tobke = base64(`username:password`)
 func GetExectorToken() string {
 	token := os.Getenv("EXECTOR_SHELL_TOKEN")
 	if len(token) == 0 {
-		// nolint
-		token = "YWRtaW46YmljaF9vb3NoMnpvaDZPaA=="
+		klog.Fatal("EXECTOR_SHELL_TOKEN is none")
 	}
 	return token
 }

@@ -1,6 +1,3 @@
-// Copyright 2015 The Gorilla WebSocket Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
 package exector
 
 import (
@@ -8,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -24,10 +20,15 @@ const (
 	FAILED
 )
 
+const (
+	NotFoundText = "127"
+)
+
 type ExectorReturn struct {
 	Status  Status
 	Reason  string
 	LastLog string
+	Text    string
 }
 
 func (r *ExectorReturn) String() string {
@@ -62,8 +63,7 @@ type WebSocketOption struct {
 
 func (h *ExectorHelper) DoExector(stopCh <-chan struct{}, exector Exector) *ExectorReturn {
 	ret := h.DoExectorReal(stopCh, exector)
-	// TODO: No such file or directory
-	if strings.Contains(ret.LastLog, "exit status 127") {
+	if ret.Text == NotFoundText {
 		// try to update shell script
 		srcFile := env.GetExectorShellPath()
 		klog.V(4).Infof("exector: src file path %s", srcFile)
@@ -86,7 +86,7 @@ func (h *ExectorHelper) DoExector(stopCh <-chan struct{}, exector Exector) *Exec
 func (h *ExectorHelper) DoExectorReal(stopCh <-chan struct{}, exector Exector) *ExectorReturn {
 	// default is error
 	result := &ExectorReturn{
-		FAILED, "init exector return status", "",
+		FAILED, "init exector return status", "", "",
 	}
 
 	// nolint
@@ -109,9 +109,15 @@ func (h *ExectorHelper) DoExectorReal(stopCh <-chan struct{}, exector Exector) *
 			if err != nil {
 				klog.V(4).Infof("read: %s", err)
 				cerr, ok := err.(*websocket.CloseError)
-				if ok && cerr.Text == "0" {
-					result.Status = SUCCESS
-					result.Reason = "success"
+				if ok {
+					if cerr.Text == "0" {
+						result.Status = SUCCESS
+						result.Reason = "success"
+					} else if cerr.Text == NotFoundText {
+						result.Status = FAILED
+						result.Reason = "command not found"
+						result.Text = cerr.Text
+					}
 				} else {
 					result.Reason = err.Error()
 				}
