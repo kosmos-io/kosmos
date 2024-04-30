@@ -1,3 +1,9 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kosmos-system
+---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -320,6 +326,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: node-agent
+  namespace: kosmos-system
 spec:
   selector:
     matchLabels:
@@ -394,6 +401,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: node-agent-secret
+  namespace: kosmos-system
 type: kubernetes.io/basic-auth
 data:
   username: {{ .USERNAME }}
