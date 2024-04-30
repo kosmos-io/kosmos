@@ -23,6 +23,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
+	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/controller/virtualcluster.node.controller/workflow"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/controller/virtualcluster.node.controller/workflow/task"
@@ -32,7 +33,9 @@ import (
 
 type NodeController struct {
 	client.Client
+	RootClientSet kubernetes.Interface
 	EventRecorder record.EventRecorder
+	KosmosClient  versioned.Interface
 }
 
 func (r *NodeController) SetupWithManager(mgr manager.Manager) error {
@@ -143,24 +146,27 @@ func (r *NodeController) compareAndTranformNodes(ctx context.Context, targetNode
 
 func (r *NodeController) UpdateVirtualClusterStatus(ctx context.Context, virtualCluster v1alpha1.VirtualCluster, status v1alpha1.Phase, reason string) error {
 	retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		targetObj := v1alpha1.VirtualCluster{}
+		var targetObj v1alpha1.VirtualCluster
 		if err := r.Get(ctx, types.NamespacedName{Name: virtualCluster.Name, Namespace: virtualCluster.Namespace}, &targetObj); err != nil {
+			klog.Warningf("get target virtualcluster %s namespace %s failed: %v", virtualCluster.Name, virtualCluster.Namespace, err)
 			return err
 		}
 		updateVirtualCluster := targetObj.DeepCopy()
-		updateVirtualCluster.Status.Phase = status
+		if len(status) > 0 {
+			updateVirtualCluster.Status.Phase = status
+		}
 		updateVirtualCluster.Status.Reason = reason
 		updateTime := metav1.Now()
 		updateVirtualCluster.Status.UpdateTime = &updateTime
-
-		if err := r.Update(ctx, updateVirtualCluster); err != nil {
+		if _, err := r.KosmosClient.KosmosV1alpha1().VirtualClusters(updateVirtualCluster.Namespace).Update(ctx, updateVirtualCluster, metav1.UpdateOptions{}); err != nil && !apierrors.IsNotFound(err) {
+			klog.Warningf("update target virtualcluster %s namespace %s failed: %v", virtualCluster.Name, virtualCluster.Namespace, err)
 			return err
 		}
 		return nil
 	})
 
 	if retryErr != nil {
-		return fmt.Errorf("update virtualcluster %s status failed: %s", virtualCluster.Name, retryErr)
+		return fmt.Errorf("update virtualcluster %s status namespace %s failed: %s", virtualCluster.Name, virtualCluster.Namespace, retryErr)
 	}
 
 	return nil
@@ -227,6 +233,9 @@ func (r *NodeController) Reconcile(ctx context.Context, request reconcile.Reques
 			return reconcile.Result{}, nil
 		}
 		klog.Errorf("get clusternode %s error: %v", request.NamespacedName, err)
+		if err := r.UpdateVirtualClusterStatus(ctx, virtualCluster, v1alpha1.Pending, err.Error()); err != nil {
+			klog.Errorf("update virtualcluster %s status error: %v", request.NamespacedName, err)
+		}
 		return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
 	}
 
@@ -238,6 +247,9 @@ func (r *NodeController) Reconcile(ctx context.Context, request reconcile.Reques
 	if !virtualCluster.GetDeletionTimestamp().IsZero() && len(virtualCluster.Spec.Kubeconfig) == 0 {
 		if err := r.DoNodeClean(ctx, virtualCluster); err != nil {
 			klog.Errorf("virtualcluster %s do node clean failed: %v", virtualCluster.Name, err)
+			if err := r.UpdateVirtualClusterStatus(ctx, virtualCluster, v1alpha1.Pending, err.Error()); err != nil {
+				klog.Errorf("update virtualcluster %s status error: %v", request.NamespacedName, err)
+			}
 			return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
 		}
 		return reconcile.Result{}, nil
@@ -248,8 +260,16 @@ func (r *NodeController) Reconcile(ctx context.Context, request reconcile.Reques
 		return reconcile.Result{}, nil
 	}
 
+	if virtualCluster.Status.Phase == v1alpha1.Pending {
+		klog.V(4).Infof("virtualcluster is pending, cluster name: %s", virtualCluster.Name)
+		return reconcile.Result{}, nil
+	}
+
 	if err := r.DoNodeTask(ctx, virtualCluster); err != nil {
 		klog.Errorf("virtualcluster %s do node task failed: %v", virtualCluster.Name, err)
+		if err := r.UpdateVirtualClusterStatus(ctx, virtualCluster, v1alpha1.Pending, err.Error()); err != nil {
+			klog.Errorf("update virtualcluster %s status error: %v", request.NamespacedName, err)
+		}
 		return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
 	}
 
@@ -285,7 +305,8 @@ func (r *NodeController) cleanGlobalNode(ctx context.Context, nodeInfos []v1alph
 		if err := workflow.NewCleanNodeWorkFlow().RunTask(ctx, task.TaskOpt{
 			NodeInfo:       nodeInfo,
 			VirtualCluster: virtualCluster,
-			HostK8sClient:  r.Client,
+			HostClient:     r.Client,
+			HostK8sClient:  r.RootClientSet,
 			// VirtualK8sClient: _,
 		}); err != nil {
 			return fmt.Errorf("unjoin node %s failed: %s", nodeInfo.Name, err)
@@ -313,7 +334,8 @@ func (r *NodeController) joinNode(ctx context.Context, nodeInfos []v1alpha1.Glob
 			NodeInfo:         nodeInfo,
 			VirtualCluster:   virtualCluster,
 			KubeDNSAddress:   clusterDNS,
-			HostK8sClient:    r.Client,
+			HostClient:       r.Client,
+			HostK8sClient:    r.RootClientSet,
 			VirtualK8sClient: k8sClient,
 		}); err != nil {
 			return fmt.Errorf("join node %s failed: %s", nodeInfo.Name, err)
@@ -327,7 +349,8 @@ func (r *NodeController) unjoinNode(ctx context.Context, nodeInfos []v1alpha1.Gl
 		if err := workflow.NewUnjoinWorkFlow().RunTask(ctx, task.TaskOpt{
 			NodeInfo:         nodeInfo,
 			VirtualCluster:   virtualCluster,
-			HostK8sClient:    r.Client,
+			HostClient:       r.Client,
+			HostK8sClient:    r.RootClientSet,
 			VirtualK8sClient: k8sClient,
 		}); err != nil {
 			return fmt.Errorf("unjoin node %s failed: %s", nodeInfo.Name, err)

@@ -13,6 +13,7 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 
 	"github.com/kosmos.io/kosmos/cmd/kubenest/operator/app/options"
+	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/controller"
 	kosmos "github.com/kosmos.io/kosmos/pkg/kubenest/controller/kosmos"
@@ -81,6 +82,11 @@ func run(ctx context.Context, opts *options.Options) error {
 		return fmt.Errorf("could not create clientset: %v", err)
 	}
 
+	kosmosClient, err := versioned.NewForConfig(config)
+	if err != nil {
+		return fmt.Errorf("could not create clientset: %v", err)
+	}
+
 	hostPortManager, err := vcnodecontroller.NewHostPortManager(hostKubeClient)
 	if err != nil {
 		return fmt.Errorf("failed to create host port manager: %v", err)
@@ -99,6 +105,8 @@ func run(ctx context.Context, opts *options.Options) error {
 
 	VirtualClusterNodeController := vcnodecontroller.NodeController{
 		Client:        mgr.GetClient(),
+		RootClientSet: hostKubeClient,
+		KosmosClient:  kosmosClient,
 		EventRecorder: mgr.GetEventRecorderFor(constants.NodeControllerName),
 	}
 

@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"os"
+	"strconv"
 
 	"k8s.io/klog"
 )
@@ -65,4 +66,18 @@ func GetExectorPort() string {
 		exectorPort = "5678"
 	}
 	return exectorPort
+}
+
+func GetDrainWaitSeconds() int {
+	drainWaitSeconds := os.Getenv("EXECTOR_DRAIN_WAIT_SECONDS")
+	if len(drainWaitSeconds) == 0 {
+		drainWaitSeconds = "60"
+	}
+	num, err := strconv.Atoi(drainWaitSeconds)
+
+	if err != nil {
+		klog.Fatalf("convert EXECTOR_DRAIN_WAIT_SECONDS failed, err: %s", err)
+	}
+
+	return num
 }
