@@ -27,6 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
+	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
 	vcnodecontroller "github.com/kosmos.io/kosmos/pkg/kubenest/controller/virtualcluster.node.controller"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/util"
@@ -38,6 +39,7 @@ type VirtualClusterInitController struct {
 	EventRecorder   record.EventRecorder
 	HostPortManager *vcnodecontroller.HostPortManager
 	RootClientSet   kubernetes.Interface
+	KosmosClient    versioned.Interface
 	lock            sync.Mutex
 }
 
@@ -104,7 +106,15 @@ func (c *VirtualClusterInitController) Reconcile(ctx context.Context, request re
 		if err != nil {
 			return reconcile.Result{RequeueAfter: RequeueTime}, errors.Wrapf(err, "Error update virtualcluster %s status", updatedCluster.Name)
 		}
-
+		//get latest virtualcluster
+		if err = c.Get(ctx, request.NamespacedName, originalCluster); err != nil {
+			if apierrors.IsNotFound(err) {
+				klog.Warningf("Virtualcluster %s is not found, previous status %s. This should not happen normally", updatedCluster.Name, updatedCluster.Status.Phase)
+				return reconcile.Result{}, nil
+			}
+			return reconcile.Result{RequeueAfter: RequeueTime}, nil
+		}
+		updatedCluster := originalCluster.DeepCopy()
 		err = c.createVirtualCluster(updatedCluster)
 		if err != nil {
 			klog.Errorf("Failed to create virtualcluster %s. err: %s", updatedCluster.Name, err.Error())
@@ -322,11 +332,9 @@ func (c *VirtualClusterInitController) assignNodesByPolicy(virtualCluster *v1alp
 		for _, index := range newAssignNodes {
 			updated := globalNodes[index].DeepCopy()
 			updated.Spec.State = v1alpha1.NodeInUse
-			updated.Status = v1alpha1.GlobalNodeStatus{
-				VirtualCluster: virtualCluster.Name,
-			}
+			updated.Status.VirtualCluster = virtualCluster.Name
 			klog.V(2).Infof("Assign node %s for virtualcluster %s policy %s", updated.Name, virtualCluster.GetName(), policy.LabelSelector.String())
-			if err := c.Client.Patch(context.TODO(), updated, client.MergeFrom(&globalNodes[index])); err != nil {
+			if _, err := c.KosmosClient.KosmosV1alpha1().GlobalNodes().Update(context.TODO(), updated, metav1.UpdateOptions{}); err != nil {
 				return nil, errors.Wrapf(err, "Failed to update globalNode %s to InUse", updated.Name)
 			}
 			globalNodes[index] = *updated
