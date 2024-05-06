@@ -25,8 +25,8 @@ import (
 
 func NewCoreDNSTask() workflow.Task {
 	return workflow.Task{
-		Name:        "apiserver",
-		Run:         runApiserver,
+		Name:        "coreDns",
+		Run:         runCoreDns,
 		RunSubTasks: true,
 		Tasks: []workflow.Task{
 			{
@@ -45,8 +45,18 @@ func NewCoreDNSTask() workflow.Task {
 	}
 }
 
+func runCoreDns(r workflow.RunData) error {
+	data, ok := r.(InitData)
+	if !ok {
+		return errors.New("coreDns task invoked with an invalid data struct")
+	}
+
+	klog.V(4).InfoS("[coreDns] Running coreDns task", "virtual cluster", klog.KObj(data))
+	return nil
+}
+
 func getCoreDnsHostComponentsConfig(client clientset.Interface, keyName string) ([]ComponentConfig, error) {
-	cm, err := client.CoreV1().ConfigMaps(constants.KosmosNs).Get(context.Background(), constants.ManifestComponentsConfigmap, metav1.GetOptions{})
+	cm, err := client.CoreV1().ConfigMaps(constants.KosmosNs).Get(context.Background(), constants.ManifestComponentsConfigMap, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil, nil
@@ -65,41 +75,6 @@ func getCoreDnsHostComponentsConfig(client clientset.Interface, keyName string) 
 		return nil, errors.Wrap(err, "Unmarshal manifests component config error")
 	}
 	return components, nil
-}
-
-func ApplyYMLTemplate(dynamicClient dynamic.Interface, manifestGlob string, templateMapping map[string]interface{}) error {
-	manifests, err := filepath.Glob(manifestGlob)
-	klog.V(2).Infof("Component Manifests %s", manifestGlob)
-	if err != nil {
-		return err
-	}
-	if manifests == nil {
-		return errors.Errorf("No matching file for pattern %v", manifestGlob)
-	}
-	for _, manifest := range manifests {
-		klog.V(2).Infof("Applying %s", manifest)
-		var obj unstructured.Unstructured
-		bytesData, err := os.ReadFile(manifest)
-		if err != nil {
-			return errors.Wrapf(err, "Read file %s error", manifest)
-		}
-
-		templateBytes, err := util.ParseTemplate(string(bytesData), templateMapping)
-		if err != nil {
-			return errors.Wrapf(err, "Parse template %s error", manifest)
-		}
-
-		err = yaml.Unmarshal(templateBytes, &obj)
-		if err != nil {
-			return errors.Wrapf(err, "Unmarshal manifest bytes data error")
-		}
-
-		err = createObject(dynamicClient, obj.GetNamespace(), obj.GetName(), &obj)
-		if err != nil {
-			return errors.Wrapf(err, "Create object error")
-		}
-	}
-	return nil
 }
 
 // in host
@@ -126,7 +101,7 @@ func runCoreDnsHostTask(r workflow.RunData) error {
 			"Name":            data.GetName(),
 			"ImageRepository": imageRepository,
 		}
-		err = ApplyYMLTemplate(dynamicClient, component.Path, templatedMapping)
+		err = applyYMLTemplate(dynamicClient, component.Path, templatedMapping)
 		if err != nil {
 			return err
 		}
@@ -222,9 +197,44 @@ func runCoreDnsVirtualTask(r workflow.RunData) error {
 			"MetricsPort":     MetricsPort,
 			"HostNodeAddress": HostNodeAddress,
 		}
-		err = ApplyYMLTemplate(dynamicClient, component.Path, templatedMapping)
+		err = applyYMLTemplate(dynamicClient, component.Path, templatedMapping)
 		if err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+func applyYMLTemplate(dynamicClient dynamic.Interface, manifestGlob string, templateMapping map[string]interface{}) error {
+	manifests, err := filepath.Glob(manifestGlob)
+	klog.V(2).Infof("Component Manifests %s", manifestGlob)
+	if err != nil {
+		return err
+	}
+	if manifests == nil {
+		return errors.Errorf("No matching file for pattern %v", manifestGlob)
+	}
+	for _, manifest := range manifests {
+		klog.V(2).Infof("Applying %s", manifest)
+		var obj unstructured.Unstructured
+		bytesData, err := os.ReadFile(manifest)
+		if err != nil {
+			return errors.Wrapf(err, "Read file %s error", manifest)
+		}
+
+		templateBytes, err := util.ParseTemplate(string(bytesData), templateMapping)
+		if err != nil {
+			return errors.Wrapf(err, "Parse template %s error", manifest)
+		}
+
+		err = yaml.Unmarshal(templateBytes, &obj)
+		if err != nil {
+			return errors.Wrapf(err, "Unmarshal manifest bytes data error")
+		}
+
+		err = util.CreateObject(dynamicClient, obj.GetNamespace(), obj.GetName(), &obj)
+		if err != nil {
+			return errors.Wrapf(err, "Create object error")
 		}
 	}
 	return nil

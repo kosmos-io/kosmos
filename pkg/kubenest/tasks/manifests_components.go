@@ -49,7 +49,7 @@ func runComponentsFromManifests(r workflow.RunData) error {
 		return errors.New("manifests-components task invoked with an invalid data struct")
 	}
 
-	klog.V(4).InfoS("[apiserver] Running manifests-components task", "virtual cluster", klog.KObj(data))
+	klog.V(4).InfoS("[manifests-components] Running manifests-components task", "virtual cluster", klog.KObj(data))
 	return nil
 }
 
@@ -96,7 +96,7 @@ func applyComponentsManifests(r workflow.RunData) error {
 }
 
 func getComponentsConfig(client clientset.Interface) ([]ComponentConfig, error) {
-	cm, err := client.CoreV1().ConfigMaps(constants.KosmosNs).Get(context.Background(), constants.ManifestComponentsConfigmap, metav1.GetOptions{})
+	cm, err := client.CoreV1().ConfigMaps(constants.KosmosNs).Get(context.Background(), constants.ManifestComponentsConfigMap, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil, nil
@@ -156,25 +156,9 @@ func applyTemplatedManifests(dynamicClient dynamic.Interface, manifestGlob strin
 			}
 			obj = unstructured.Unstructured{Object: res}
 		}
-		err = createObject(dynamicClient, obj.GetNamespace(), obj.GetName(), &obj)
+		err = util.CreateObject(dynamicClient, obj.GetNamespace(), obj.GetName(), &obj)
 		if err != nil {
 			return errors.Wrapf(err, "Create object error")
-		}
-	}
-	return nil
-}
-
-func createObject(dynamicClient dynamic.Interface, namespace string, name string, obj *unstructured.Unstructured) error {
-	gvk := obj.GroupVersionKind()
-	gvr, _ := meta.UnsafeGuessKindToResource(gvk)
-	klog.V(2).Infof("Create %s, name: %s, namespace: %s", gvr.String(), name, namespace)
-	_, err := dynamicClient.Resource(gvr).Namespace(namespace).Create(context.TODO(), obj, metav1.CreateOptions{})
-	if err != nil {
-		if apierrors.IsAlreadyExists(err) {
-			klog.Warningf("%s %s already exists", gvr.String(), name)
-			return nil
-		} else {
-			return err
 		}
 	}
 	return nil
