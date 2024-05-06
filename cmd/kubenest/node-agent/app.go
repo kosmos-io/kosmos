@@ -199,6 +199,21 @@ func handleUpload(conn *websocket.Conn, params url.Values) {
 	_ = conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseInvalidFramePayloadData, "Invalid file_name or file_path"))
 }
 
+/*
+0 → success
+non-zero → failure
+Exit code 1 indicates a general failure
+Exit code 2 indicates incorrect use of shell builtins
+Exit codes 3-124 indicate some error in job (check software exit codes)
+Exit code 125 indicates out of memory
+Exit code 126 indicates command cannot execute
+Exit code 127 indicates command not found
+Exit code 128 indicates invalid argument to exit
+Exit codes 129-192 indicate jobs terminated by Linux signals
+For these, subtract 128 from the number and match to signal code
+Enter kill -l to list signal codes
+Enter man signal for more information
+*/
 func handleCmd(conn *websocket.Conn, params url.Values) {
 	command := params.Get("command")
 	if command == "" {
@@ -210,13 +225,17 @@ func handleCmd(conn *websocket.Conn, params url.Values) {
 	cmd := exec.Command("sh", "-c", command)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		log.Warnf("failed to execute command : %v", err)
-		_ = conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, fmt.Sprintf("%d", cmd.ProcessState.ExitCode())))
+		exitCode := cmd.ProcessState.ExitCode()
+		log.Infof("Command : %s finished with exit code %d, output :%s", command, exitCode, string(out))
+		if strings.Contains(string(out), "No such file") {
+			exitCode = 127
+		}
+		_ = conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, fmt.Sprintf("%d", exitCode)))
 	} else {
 		_ = conn.WriteMessage(websocket.TextMessage, out)
 	}
 	exitCode := cmd.ProcessState.ExitCode()
-	log.Infof("Command finished with exit code %d", exitCode)
+	log.Infof("Command : %s finished with exit code %d, output :%s", command, exitCode, string(out))
 	_ = conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, fmt.Sprintf("%d", exitCode)))
 }
 
@@ -286,7 +305,7 @@ func handleScript(conn *websocket.Conn, params url.Values, command []string) {
 	if err := cmd.Wait(); err != nil {
 		var exitError *exec.ExitError
 		if errors.As(err, &exitError) {
-			log.Warnf("Command exited with non-zero status: %v", exitError)
+			log.Warnf("Command : %s exited with non-zero status: %v", command, exitError)
 		}
 	}
 	exitCode := cmd.ProcessState.ExitCode()
