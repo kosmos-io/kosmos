@@ -86,7 +86,7 @@ const (
 	HostPortsCMName     = "kosmos-hostports"
 	HostPortsCMDataName = "config.yaml"
 
-	ManifestComponentsConfigmap = "components-manifest-cm"
+	ManifestComponentsConfigMap = "components-manifest-cm"
 	NodePoolConfigmap           = "node-pool"
 	NodeVirtualclusterState     = "virtualcluster"
 	NodeFreeState               = "free"

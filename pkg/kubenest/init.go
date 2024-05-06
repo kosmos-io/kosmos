@@ -61,7 +61,8 @@ func NewInitPhase(opts *InitOptions, hostPortManager *vcnodecontroller.HostPortM
 	initPhase.AppendTask(tasks.NewCheckControlPlaneTask())
 	// create core-dns
 	initPhase.AppendTask(tasks.NewCoreDNSTask())
-	initPhase.AppendTask(tasks.NewComponentsFromManifestsTask()) // add server
+	// add server
+	initPhase.AppendTask(tasks.NewComponentsFromManifestsTask())
 
 	initPhase.SetDataInitializer(func() (workflow.RunData, error) {
 		return newRunData(opts, hostPortManager)
