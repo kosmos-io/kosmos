@@ -276,6 +276,28 @@ spec:
       # Enter the name of the node where the virtual cluster operator is deployed
       nodeName: nodeName
       serviceAccountName: virtual-cluster-operator
+      tolerations:
+        - key: "node-role.kubernetes.io/control-plane"
+          operator: "Exists"
+          effect: "NoSchedule"
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: node-role.kubernetes.io/control-plane
+                    operator: Exists
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - virtual-cluster-operator
+                topologyKey: kubernetes.io/hostname
       containers:
       - name: virtual-cluster-operator
         # Change a valid image address

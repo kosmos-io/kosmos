@@ -98,6 +98,7 @@ const (
 	// nolint
 	HostCoreDnsComponents    = "host-core-dns-components"
 	VirtualCoreDnsComponents = "virtual-core-dns-components"
+	PrometheusRuleManifest   = "prometheus-rules"
 )
 
 type Action string

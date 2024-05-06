@@ -85,7 +85,7 @@ func applyComponentsManifests(r workflow.RunData) error {
 
 	for _, component := range components {
 		klog.V(2).Infof("Deploy component %s", component.Name)
-		err = applyTemplatedManifests(dynamicClient, component.Path, templatedMapping)
+		err = applyTemplatedManifests(component.Name, dynamicClient, component.Path, templatedMapping)
 		if err != nil {
 			return err
 		}
@@ -117,7 +117,7 @@ func getComponentsConfig(client clientset.Interface) ([]ComponentConfig, error) 
 	return components, nil
 }
 
-func applyTemplatedManifests(dynamicClient dynamic.Interface, manifestGlob string, templateMapping map[string]interface{}) error {
+func applyTemplatedManifests(component string, dynamicClient dynamic.Interface, manifestGlob string, templateMapping map[string]interface{}) error {
 	manifests, err := filepath.Glob(manifestGlob)
 	klog.V(2).Infof("Component Manifests %s", manifestGlob)
 	if err != nil {
@@ -133,9 +133,13 @@ func applyTemplatedManifests(dynamicClient dynamic.Interface, manifestGlob strin
 		if err != nil {
 			return errors.Wrapf(err, "Read file %s error", manifest)
 		}
-		templateData, err := util.ParseTemplate(string(bytesData), templateMapping)
-		if err != nil {
-			panic(err)
+		templateData := bytesData
+		// template doesn't suit for prometheus rules, we deploy it directly
+		if component != constants.PrometheusRuleManifest {
+			templateData, err = util.ParseTemplate(string(bytesData), templateMapping)
+			if err != nil {
+				return errors.Wrapf(err, "Parse manifest file %s template error", manifest)
+			}
 		}
 		err = yaml.Unmarshal(templateData, &obj)
 		if err != nil {
