@@ -170,10 +170,8 @@ func runUploadAdminKubeconfig(r workflow.RunData) error {
 	if err != nil {
 		return err
 	}
-	clusterPort := getClusterPortFromAPIServerService(service)
-	clusterIP := service.Spec.ClusterIP
-	klog.V(4).Infof("UploadAdminKubeconfig get Cluster IP is : %s\n", clusterIP)
-	endpoint = fmt.Sprintf("https://%s:%d", clusterIP, clusterPort)
+	nodePort := getNodePortFromAPIServerService(service)
+	endpoint = fmt.Sprintf("https://%s:%d", data.ControlplaneAddress(), nodePort)
 	kubeconfig, err := buildKubeConfigFromSpec(data, endpoint)
 	if err != nil {
 		return err
@@ -200,18 +198,18 @@ func runUploadAdminKubeconfig(r workflow.RunData) error {
 	return nil
 }
 
-func getClusterPortFromAPIServerService(service *corev1.Service) int32 {
-	var clusterPort int32
+func getNodePortFromAPIServerService(service *corev1.Service) int32 {
+	var nodePort int32
 	if service.Spec.Type == corev1.ServiceTypeNodePort {
 		for _, port := range service.Spec.Ports {
 			if port.Name != constants.APIServerSVCPortName {
 				continue
 			}
-			clusterPort = port.Port
+			nodePort = port.NodePort
 		}
 	}
 
-	return clusterPort
+	return nodePort
 }
 
 func buildKubeConfigFromSpec(data InitData, serverURL string) (*clientcmdapi.Config, error) {
