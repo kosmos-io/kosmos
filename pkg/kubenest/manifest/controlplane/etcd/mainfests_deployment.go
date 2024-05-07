@@ -9,7 +9,7 @@ metadata:
   labels:
     virtualCluster-app: etcd
     app.kubernetes.io/managed-by: virtual-cluster-controller
-  namespace: {{ .Namespace }}
+  namespace: "{{ .Namespace }}"
   name: {{ .StatefulSetName }}
 spec:
   replicas: {{ .Replicas }}

@@ -6,7 +6,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: virtualcluster-scheduler
-  namespace: {{ .Namespace }}
+  namespace: "{{ .Namespace }}"
 `
 	VirtualSchedulerRoleBinding = `
 apiVersion: rbac.authorization.k8s.io/v1
@@ -16,7 +16,7 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: virtualcluster-scheduler
-    namespace: {{ .Namespace }}
+    namespace: "{{ .Namespace }}"
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole

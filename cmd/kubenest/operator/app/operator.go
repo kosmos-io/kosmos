@@ -67,11 +67,11 @@ func run(ctx context.Context, opts *options.Options) error {
 	}
 
 	mgr, err := controllerruntime.NewManager(config, controllerruntime.Options{
-		Logger:                  klog.Background(),
-		Scheme:                  newscheme,
-		LeaderElection:          opts.LeaderElection.LeaderElect,
-		LeaderElectionID:        opts.LeaderElection.ResourceName,
-		LeaderElectionNamespace: opts.LeaderElection.ResourceNamespace,
+		Logger: klog.Background(),
+		Scheme: newscheme,
+		/*	LeaderElection:          opts.LeaderElection.LeaderElect,
+			LeaderElectionID:        opts.LeaderElection.ResourceName,
+			LeaderElectionNamespace: opts.LeaderElection.ResourceNamespace,*/
 	})
 	if err != nil {
 		return fmt.Errorf("failed to build controller manager: %v", err)

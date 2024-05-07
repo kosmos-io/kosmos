@@ -10,7 +10,7 @@ metadata:
     virtualCluster-app: etcd
     app.kubernetes.io/managed-by: virtual-cluster-controller
   name: {{ .ServiceName }}
-  namespace: {{ .Namespace }}
+  namespace: "{{ .Namespace }}"
 spec:
   ports:
   - name: client
@@ -31,7 +31,7 @@ spec:
      virtualCluster-app: etcd
      app.kubernetes.io/managed-by: virtual-cluster-controller
    name: {{ .ServiceName }}
-   namespace: {{ .Namespace }}
+   namespace: "{{ .Namespace }}"
  spec:
    clusterIP: None
    ports:

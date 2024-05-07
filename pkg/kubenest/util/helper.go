@@ -198,3 +198,19 @@ func CreateObject(dynamicClient dynamic.Interface, namespace string, name string
 	}
 	return nil
 }
+
+func DeleteObject(dynamicClient dynamic.Interface, namespace string, name string, obj *unstructured.Unstructured) error {
+	gvk := obj.GroupVersionKind()
+	gvr, _ := meta.UnsafeGuessKindToResource(gvk)
+	klog.V(2).Infof("Delete %s, name: %s, namespace: %s", gvr.String(), name, namespace)
+	err := dynamicClient.Resource(gvr).Namespace(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			klog.Warningf("%s %s already deleted", gvr.String(), name)
+			return nil
+		} else {
+			return err
+		}
+	}
+	return nil
+}

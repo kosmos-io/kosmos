@@ -5,7 +5,7 @@ ARG BINARY
 WORKDIR /app
 # copy install file to container
 # build context is _output/xx/xx
-COPY agent/* .
+COPY agent/* ./
 
 # install rsync
 RUN apt-get update && apt-get install -y rsync pwgen openssl && \
