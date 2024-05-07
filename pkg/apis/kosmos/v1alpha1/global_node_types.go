@@ -13,7 +13,7 @@ import (
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:printcolumn:name="NODE_IP",type=string,JSONPath=`.spec.nodeIP`
 // +kubebuilder:printcolumn:name="STATE",type=string,JSONPath=`.spec.state`
-// +kubebuilder:printcolumn:name="VIRTUAL_CLUSTER",type=string,JSONPath=`.status.VirtualCluster`
+// +kubebuilder:printcolumn:name="VIRTUAL_CLUSTER",type=string,JSONPath=`.status.virtualCluster`
 
 type GlobalNode struct {
 	metav1.TypeMeta   `json:",inline"`
