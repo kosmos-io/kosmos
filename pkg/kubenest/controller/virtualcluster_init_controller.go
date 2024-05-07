@@ -179,7 +179,7 @@ func (c *VirtualClusterInitController) Reconcile(ctx context.Context, request re
 func (c *VirtualClusterInitController) SetupWithManager(mgr manager.Manager) error {
 	return controllerruntime.NewControllerManagedBy(mgr).
 		Named(constants.InitControllerName).
-		WithOptions(controller.Options{}).
+		WithOptions(controller.Options{MaxConcurrentReconciles: 5}).
 		For(&v1alpha1.VirtualCluster{},
 			builder.WithPredicates(predicate.Funcs{
 				//	UpdateFunc: c.onVirtualClusterUpdate,
@@ -332,10 +332,15 @@ func (c *VirtualClusterInitController) assignNodesByPolicy(virtualCluster *v1alp
 		for _, index := range newAssignNodes {
 			updated := globalNodes[index].DeepCopy()
 			updated.Spec.State = v1alpha1.NodeInUse
-			updated.Status.VirtualCluster = virtualCluster.Name
 			klog.V(2).Infof("Assign node %s for virtualcluster %s policy %s", updated.Name, virtualCluster.GetName(), policy.LabelSelector.String())
-			if _, err := c.KosmosClient.KosmosV1alpha1().GlobalNodes().Update(context.TODO(), updated, metav1.UpdateOptions{}); err != nil {
+			updated, err := c.KosmosClient.KosmosV1alpha1().GlobalNodes().Update(context.TODO(), updated, metav1.UpdateOptions{})
+			if err != nil {
 				return nil, errors.Wrapf(err, "Failed to update globalNode %s to InUse", updated.Name)
+			}
+			updated.Status.VirtualCluster = virtualCluster.Name
+			updated, err = c.KosmosClient.KosmosV1alpha1().GlobalNodes().UpdateStatus(context.TODO(), updated, metav1.UpdateOptions{})
+			if err != nil {
+				return nil, errors.Wrapf(err, "Failed to update globalNode %s status virtualcluster to %s", updated.Name, virtualCluster.Name)
 			}
 			globalNodes[index] = *updated
 			nodesAssigned = append(nodesAssigned, v1alpha1.NodeInfo{
@@ -395,7 +400,7 @@ func (c *VirtualClusterInitController) ensureAllPodsRunning(virtualCluster *v1al
 		}
 		klog.V(2).Infof("Check if all pods ready in namespace %s", namespace.Name)
 		err := wait.PollWithContext(context.TODO(), 5*time.Second, time.Duration(endTime-startTime)*time.Second, func(ctx context.Context) (done bool, err error) {
-			klog.V(2).Infof("Check if all deployments ready in namespace %s", namespace.Name)
+			klog.V(2).Infof("Check if virtualcluster %s all deployments ready in namespace %s", virtualCluster.Name, namespace.Name)
 			deployList, err := clientset.AppsV1().Deployments(namespace.Name).List(ctx, metav1.ListOptions{})
 			if err != nil {
 				return false, errors.Wrapf(err, "Get deployment list in namespace %s error", namespace.Name)
@@ -407,7 +412,7 @@ func (c *VirtualClusterInitController) ensureAllPodsRunning(virtualCluster *v1al
 				}
 			}
 
-			klog.V(2).Infof("Check if all statefulset ready in namespace %s", namespace.Name)
+			klog.V(2).Infof("Check if virtualcluster %s all statefulset ready in namespace %s", virtualCluster.Name, namespace.Name)
 			stsList, err := clientset.AppsV1().StatefulSets(namespace.Name).List(ctx, metav1.ListOptions{})
 			if err != nil {
 				return false, errors.Wrapf(err, "Get statefulset list in namespace %s error", namespace.Name)
@@ -419,7 +424,7 @@ func (c *VirtualClusterInitController) ensureAllPodsRunning(virtualCluster *v1al
 				}
 			}
 
-			klog.V(2).Infof("Check if all daemonset ready in namespace %s", namespace.Name)
+			klog.V(2).Infof("Check if virtualcluster %s all daemonset ready in namespace %s", virtualCluster.Name, namespace.Name)
 			damonsetList, err := clientset.AppsV1().DaemonSets(namespace.Name).List(ctx, metav1.ListOptions{})
 			if err != nil {
 				return false, errors.Wrapf(err, "Get daemonset list in namespace %s error", namespace.Name)

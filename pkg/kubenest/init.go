@@ -72,7 +72,7 @@ func NewInitPhase(opts *InitOptions, hostPortManager *vcnodecontroller.HostPortM
 
 func UninstallPhase(opts *InitOptions, hostPortManager *vcnodecontroller.HostPortManager) *workflow.Phase {
 	destroyPhase := workflow.NewPhase()
-
+	destroyPhase.AppendTask(tasks.UninstallCoreDNSTask())
 	destroyPhase.AppendTask(tasks.UninstallComponentTask())
 	destroyPhase.AppendTask(tasks.UninstallVirtualClusterApiserverTask())
 	destroyPhase.AppendTask(tasks.UninstallEtcdTask())

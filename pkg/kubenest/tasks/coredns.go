@@ -55,6 +55,20 @@ func runCoreDns(r workflow.RunData) error {
 	return nil
 }
 
+func UninstallCoreDNSTask() workflow.Task {
+	return workflow.Task{
+		Name:        "coredns",
+		Run:         runCoreDns,
+		RunSubTasks: true,
+		Tasks: []workflow.Task{
+			{
+				Name: "remove-core-dns-in-host-cluster",
+				Run:  uninstallCorednsHostTask,
+			},
+		},
+	}
+}
+
 func getCoreDnsHostComponentsConfig(client clientset.Interface, keyName string) ([]ComponentConfig, error) {
 	cm, err := client.CoreV1().ConfigMaps(constants.KosmosNs).Get(context.Background(), constants.ManifestComponentsConfigMap, metav1.GetOptions{})
 	if err != nil {
@@ -104,6 +118,31 @@ func runCoreDnsHostTask(r workflow.RunData) error {
 		err = applyYMLTemplate(dynamicClient, component.Path, templatedMapping)
 		if err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+func uninstallCorednsHostTask(r workflow.RunData) error {
+	data, ok := r.(InitData)
+	if !ok {
+		return errors.New("Virtual cluster manifests-components task invoked with an invalid data struct")
+	}
+
+	deployName := fmt.Sprintf("%s-%s", data.GetName(), "coredns")
+	if err := data.RemoteClient().AppsV1().Deployments(data.GetNamespace()).Delete(context.TODO(), deployName, metav1.DeleteOptions{}); err != nil {
+		if !apierrors.IsNotFound(err) {
+			return errors.Wrapf(err, "Failed to delete deployment %s/%s", deployName, data.GetNamespace())
+		}
+	}
+	if err := data.RemoteClient().CoreV1().ConfigMaps(data.GetNamespace()).Delete(context.TODO(), "coredns", metav1.DeleteOptions{}); err != nil {
+		if !apierrors.IsNotFound(err) {
+			return errors.Wrapf(err, "Failed to delete configmap %s/%s", "coredns", data.GetNamespace())
+		}
+	}
+	if err := data.RemoteClient().CoreV1().Services(data.GetNamespace()).Delete(context.TODO(), "kube-dns", metav1.DeleteOptions{}); err != nil {
+		if !apierrors.IsNotFound(err) {
+			return errors.Wrapf(err, "Failed to delete service %s/%s", "kube-dns", data.GetNamespace())
 		}
 	}
 	return nil
