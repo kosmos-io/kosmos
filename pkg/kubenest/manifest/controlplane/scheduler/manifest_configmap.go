@@ -1,4 +1,4 @@
-package kube_controller
+package scheduler
 
 const (
 	VirtualClusterSchedulerConfigMap = `

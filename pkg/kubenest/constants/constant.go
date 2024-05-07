@@ -39,7 +39,7 @@ const (
 	//controlplane apiserver
 	ApiServer                     = "apiserver"
 	ApiServerReplicas             = 2
-	ApiServerServiceSubnet        = "10.237.6.18/29"
+	ApiServerServiceSubnet        = "10.237.6.0/18"
 	ApiServerEtcdListenClientPort = 2379
 	ApiServerServiceType          = "NodePort"
 	// APICallRetryInterval defines how long kubeadm should wait before retrying a failed API operation
