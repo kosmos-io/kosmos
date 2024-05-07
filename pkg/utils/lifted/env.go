@@ -479,8 +479,9 @@ func podFieldSelectorRuntimeValue(fs *corev1.ObjectFieldSelector, pod *corev1.Po
 		return "", err
 	}
 	switch internalFieldPath {
-	case "spec.nodeName":
-		return pod.Spec.NodeName, nil
+	// skip spec.nodeName populated by vk
+	//case "spec.nodeName":
+	//	return pod.Spec.NodeName, nil
 	case "spec.serviceAccountName":
 		return pod.Spec.ServiceAccountName, nil
 	}
