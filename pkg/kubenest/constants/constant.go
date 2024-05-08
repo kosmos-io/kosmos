@@ -5,6 +5,7 @@ import "time"
 const (
 	InitControllerName            = "virtual-cluster-init-controller"
 	NodeControllerName            = "virtual-cluster-node-controller"
+	GlobalNodeControllerName      = "global-node-controller"
 	KosmosJoinControllerName      = "kosmos-join-controller"
 	KosmosNs                      = "kosmos-system"
 	SystemNs                      = "kube-system"
@@ -99,6 +100,8 @@ const (
 	HostCoreDnsComponents    = "host-core-dns-components"
 	VirtualCoreDnsComponents = "virtual-core-dns-components"
 	PrometheusRuleManifest   = "prometheus-rules"
+
+	StateLabelKey = "kosmos-io/state"
 )
 
 type Action string

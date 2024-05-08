@@ -18,6 +18,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
+	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
 	env "github.com/kosmos.io/kosmos/pkg/kubenest/controller/virtualcluster.node.controller/env"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/controller/virtualcluster.node.controller/exector"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/util"
@@ -278,25 +279,68 @@ func NewWaitNodeReadyTask() Task {
 	}
 }
 
-func NewUpdateNodeLabelsTask() Task {
+// nolint:dupl
+func NewUpdateVirtualNodeLabelsTask() Task {
 	return Task{
 		Name:  "update new-node labels",
 		Retry: true,
 		Run: func(ctx context.Context, to TaskOpt, _ interface{}) (interface{}, error) {
-			node, err := to.VirtualK8sClient.CoreV1().Nodes().Get(ctx, to.NodeInfo.Name, metav1.GetOptions{})
-			if err != nil {
-				return nil, fmt.Errorf("get node %s failed: %s", to.NodeInfo.Name, err)
-			}
+			err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+				node, err := to.VirtualK8sClient.CoreV1().Nodes().Get(ctx, to.NodeInfo.Name, metav1.GetOptions{})
+				if err != nil {
+					klog.V(4).Infof("get node %s failed: %s", to.NodeInfo.Name, err)
+					return err
+				}
 
-			updateNode := node.DeepCopy()
-			for k, v := range to.NodeInfo.Labels {
-				node.Labels[k] = v
-			}
+				updateNode := node.DeepCopy()
+				for k, v := range to.NodeInfo.Labels {
+					node.Labels[k] = v
+				}
 
-			if _, err := to.VirtualK8sClient.CoreV1().Nodes().Update(ctx, updateNode, metav1.UpdateOptions{}); err != nil {
-				return nil, fmt.Errorf("add label to node %s failed: %s", to.NodeInfo.Name, err)
-			}
-			return nil, nil
+				// add free label
+				node.Labels[constants.StateLabelKey] = string(v1alpha1.NodeInUse)
+
+				if _, err := to.VirtualK8sClient.CoreV1().Nodes().Update(ctx, updateNode, metav1.UpdateOptions{}); err != nil {
+					klog.V(4).Infof("add label to node %s failed: %s", to.NodeInfo.Name, err)
+					return err
+				}
+				return nil
+			})
+
+			return nil, err
+		},
+	}
+}
+
+// nolint:dupl
+func NewUpdateHostNodeLabelsTask() Task {
+	return Task{
+		Name:  "update host-node labels",
+		Retry: true,
+		Run: func(ctx context.Context, to TaskOpt, _ interface{}) (interface{}, error) {
+			err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+				node, err := to.HostK8sClient.CoreV1().Nodes().Get(ctx, to.NodeInfo.Name, metav1.GetOptions{})
+				if err != nil {
+					klog.V(4).Infof("get node %s failed: %s", to.NodeInfo.Name, err)
+					return err
+				}
+
+				updateNode := node.DeepCopy()
+				for k, v := range to.NodeInfo.Labels {
+					node.Labels[k] = v
+				}
+
+				// add free label
+				node.Labels[constants.StateLabelKey] = string(v1alpha1.NodeFreeState)
+
+				if _, err := to.HostK8sClient.CoreV1().Nodes().Update(ctx, updateNode, metav1.UpdateOptions{}); err != nil {
+					klog.V(4).Infof("add label to node %s failed: %s", to.NodeInfo.Name, err)
+					return err
+				}
+				return nil
+			})
+
+			return nil, err
 		},
 	}
 }
