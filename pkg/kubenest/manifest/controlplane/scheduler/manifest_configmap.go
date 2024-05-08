@@ -6,7 +6,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: scheduler-config
-  namespace: {{ .Namespace }}
+  namespace: "{{ .Namespace }}"
 data:
   scheduler-config.yaml: |
     apiVersion: kubescheduler.config.k8s.io/v1

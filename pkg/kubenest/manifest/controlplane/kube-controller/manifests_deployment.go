@@ -7,7 +7,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ .DeploymentName }}
-  namespace: {{ .Namespace }}
+  namespace: "{{ .Namespace }}"
   labels:
     virtualCluster-app: kube-controller-manager
     app.kubernetes.io/managed-by: virtual-cluster-controller
