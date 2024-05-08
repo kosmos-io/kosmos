@@ -9,7 +9,7 @@ metadata:
     virtualCluster-app: apiserver
     app.kubernetes.io/managed-by: virtual-cluster-controller
   name: {{ .ServiceName }}
-  namespace: {{ .Namespace }}
+  namespace: "{{ .Namespace }}"
 spec:
   ports:
   - name: client
