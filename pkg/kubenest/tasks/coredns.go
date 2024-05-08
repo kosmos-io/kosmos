@@ -129,20 +129,26 @@ func uninstallCorednsHostTask(r workflow.RunData) error {
 		return errors.New("Virtual cluster manifests-components task invoked with an invalid data struct")
 	}
 
-	deployName := fmt.Sprintf("%s-%s", data.GetName(), "coredns")
-	if err := data.RemoteClient().AppsV1().Deployments(data.GetNamespace()).Delete(context.TODO(), deployName, metav1.DeleteOptions{}); err != nil {
-		if !apierrors.IsNotFound(err) {
-			return errors.Wrapf(err, "Failed to delete deployment %s/%s", deployName, data.GetNamespace())
-		}
+	dynamicClient := data.DynamicClient()
+
+	components, err := getCoreDnsHostComponentsConfig(data.RemoteClient(), constants.HostCoreDnsComponents)
+	if err != nil {
+		return err
 	}
-	if err := data.RemoteClient().CoreV1().ConfigMaps(data.GetNamespace()).Delete(context.TODO(), "coredns", metav1.DeleteOptions{}); err != nil {
-		if !apierrors.IsNotFound(err) {
-			return errors.Wrapf(err, "Failed to delete configmap %s/%s", "coredns", data.GetNamespace())
+
+	imageRepository, _ := util.GetImageMessage()
+
+	for _, component := range components {
+		klog.V(2).Infof("Delete component %s", component.Name)
+
+		templatedMapping := map[string]interface{}{
+			"Namespace":       data.GetNamespace(),
+			"Name":            data.GetName(),
+			"ImageRepository": imageRepository,
 		}
-	}
-	if err := data.RemoteClient().CoreV1().Services(data.GetNamespace()).Delete(context.TODO(), "kube-dns", metav1.DeleteOptions{}); err != nil {
-		if !apierrors.IsNotFound(err) {
-			return errors.Wrapf(err, "Failed to delete service %s/%s", "kube-dns", data.GetNamespace())
+		err = deleteYMLTemplate(dynamicClient, component.Path, templatedMapping)
+		if err != nil {
+			return err
 		}
 	}
 	return nil
@@ -244,6 +250,7 @@ func runCoreDnsVirtualTask(r workflow.RunData) error {
 	return nil
 }
 
+// nolint:dupl
 func applyYMLTemplate(dynamicClient dynamic.Interface, manifestGlob string, templateMapping map[string]interface{}) error {
 	manifests, err := filepath.Glob(manifestGlob)
 	klog.V(2).Infof("Component Manifests %s", manifestGlob)
@@ -274,6 +281,42 @@ func applyYMLTemplate(dynamicClient dynamic.Interface, manifestGlob string, temp
 		err = util.CreateObject(dynamicClient, obj.GetNamespace(), obj.GetName(), &obj)
 		if err != nil {
 			return errors.Wrapf(err, "Create object error")
+		}
+	}
+	return nil
+}
+
+// nolint:dupl
+func deleteYMLTemplate(dynamicClient dynamic.Interface, manifestGlob string, templateMapping map[string]interface{}) error {
+	manifests, err := filepath.Glob(manifestGlob)
+	klog.V(2).Infof("Component Manifests %s", manifestGlob)
+	if err != nil {
+		return err
+	}
+	if manifests == nil {
+		return errors.Errorf("No matching file for pattern %v", manifestGlob)
+	}
+	for _, manifest := range manifests {
+		klog.V(2).Infof("Deleting %s", manifest)
+		var obj unstructured.Unstructured
+		bytesData, err := os.ReadFile(manifest)
+		if err != nil {
+			return errors.Wrapf(err, "Read file %s error", manifest)
+		}
+
+		templateBytes, err := util.ParseTemplate(string(bytesData), templateMapping)
+		if err != nil {
+			return errors.Wrapf(err, "Parse template %s error", manifest)
+		}
+
+		err = yaml.Unmarshal(templateBytes, &obj)
+		if err != nil {
+			return errors.Wrapf(err, "Unmarshal manifest bytes data error")
+		}
+
+		err = util.DeleteObject(dynamicClient, obj.GetNamespace(), obj.GetName(), &obj)
+		if err != nil {
+			return errors.Wrapf(err, "Delete object error")
 		}
 	}
 	return nil

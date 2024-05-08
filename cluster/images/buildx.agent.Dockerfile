@@ -5,7 +5,7 @@ ARG TARGETPLATFORM
 
 WORKDIR /app
 # copy install file to container
-COPY ${TARGETPLATFORM}/agent/* .
+COPY ${TARGETPLATFORM}/agent/* ./
 
 # install rsync
 RUN apt-get update && apt-get install -y rsync pwgen openssl && \
