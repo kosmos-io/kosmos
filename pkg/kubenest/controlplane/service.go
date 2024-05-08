@@ -8,9 +8,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	kuberuntime "k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/yaml"
 	clientset "k8s.io/client-go/kubernetes"
-	clientsetscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/klog/v2"
 
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
@@ -73,7 +72,7 @@ func createServerService(client clientset.Interface, name, namespace string, por
 	}
 
 	apiserverService := &corev1.Service{}
-	if err := kuberuntime.DecodeInto(clientsetscheme.Codecs.UniversalDecoder(), apiserverServiceBytes, apiserverService); err != nil {
+	if err := yaml.Unmarshal([]byte(apiserverServiceBytes), apiserverService); err != nil {
 		return fmt.Errorf("error when decoding virtual cluster apiserver service: %w", err)
 	}
 	if err := createOrUpdateService(client, apiserverService); err != nil {
@@ -94,7 +93,7 @@ func createServerService(client clientset.Interface, name, namespace string, por
 	}
 
 	etcdPeerService := &corev1.Service{}
-	if err := kuberuntime.DecodeInto(clientsetscheme.Codecs.UniversalDecoder(), etcdServicePeerBytes, etcdPeerService); err != nil {
+	if err := yaml.Unmarshal([]byte(etcdServicePeerBytes), etcdPeerService); err != nil {
 		return fmt.Errorf("error when decoding Etcd client service: %w", err)
 	}
 
@@ -115,7 +114,7 @@ func createServerService(client clientset.Interface, name, namespace string, por
 	}
 
 	etcdClientService := &corev1.Service{}
-	if err := kuberuntime.DecodeInto(clientsetscheme.Codecs.UniversalDecoder(), etcdClientServiceBytes, etcdClientService); err != nil {
+	if err := yaml.Unmarshal([]byte(etcdClientServiceBytes), etcdClientService); err != nil {
 		return fmt.Errorf("err when decoding Etcd client service: %w", err)
 	}
 

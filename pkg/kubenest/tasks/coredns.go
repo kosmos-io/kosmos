@@ -273,7 +273,7 @@ func applyYMLTemplate(dynamicClient dynamic.Interface, manifestGlob string, temp
 			return errors.Wrapf(err, "Parse template %s error", manifest)
 		}
 
-		err = yaml.Unmarshal(templateBytes, &obj)
+		err = yaml.Unmarshal([]byte(templateBytes), &obj)
 		if err != nil {
 			return errors.Wrapf(err, "Unmarshal manifest bytes data error")
 		}
@@ -309,7 +309,7 @@ func deleteYMLTemplate(dynamicClient dynamic.Interface, manifestGlob string, tem
 			return errors.Wrapf(err, "Parse template %s error", manifest)
 		}
 
-		err = yaml.Unmarshal(templateBytes, &obj)
+		err = yaml.Unmarshal([]byte(templateBytes), &obj)
 		if err != nil {
 			return errors.Wrapf(err, "Unmarshal manifest bytes data error")
 		}

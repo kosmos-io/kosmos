@@ -6,9 +6,8 @@ import (
 	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
-	kuberuntime "k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/yaml"
 	clientset "k8s.io/client-go/kubernetes"
-	clientsetscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/klog/v2"
 
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
@@ -133,7 +132,7 @@ func getKubeControllerManagerManifest(name, namespace string) (*appsv1.Deploymen
 	}
 
 	kcm := &appsv1.Deployment{}
-	if err := kuberuntime.DecodeInto(clientsetscheme.Codecs.UniversalDecoder(), kubeControllerManagerBytes, kcm); err != nil {
+	if err := yaml.Unmarshal([]byte(kubeControllerManagerBytes), kcm); err != nil {
 		return nil, fmt.Errorf("err when decoding kube-controller-manager deployment: %w", err)
 	}
 
@@ -152,7 +151,7 @@ func getVirtualClusterSchedulerConfigMapManifest(name, namespace string) (*v1.Co
 	}
 
 	config := &v1.ConfigMap{}
-	if err := kuberuntime.DecodeInto(clientsetscheme.Codecs.UniversalDecoder(), virtualClusterSchedulerConfigMapBytes, config); err != nil {
+	if err := yaml.Unmarshal([]byte(virtualClusterSchedulerConfigMapBytes), config); err != nil {
 		return nil, fmt.Errorf("err when decoding virtualCluster-scheduler configMap: %w", err)
 	}
 
@@ -179,7 +178,7 @@ func getVirtualClusterSchedulerManifest(name, namespace string) (*appsv1.Deploym
 	}
 
 	deploy := &appsv1.Deployment{}
-	if err := kuberuntime.DecodeInto(clientsetscheme.Codecs.UniversalDecoder(), virtualClusterSchedulerBytes, deploy); err != nil {
+	if err := yaml.Unmarshal([]byte(virtualClusterSchedulerBytes), deploy); err != nil {
 		return nil, fmt.Errorf("err when decoding virtualCluster-scheduler deployment: %w", err)
 	}
 

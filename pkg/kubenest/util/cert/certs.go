@@ -201,8 +201,8 @@ func apiServerAltNamesMutator(cfg *AltNamesMutatorConfig) (*certutil.AltNames, e
 		//TODO （考虑节点属于当前集群节点和非当前集群节点情况）
 		IPs: []net.IP{
 			net.IPv4(127, 0, 0, 1),
-			net.IPv4(100, 71, 7, 52),
 			net.IPv4(10, 237, 6, 17),
+			net.IPv4(10, 237, 0, 1),
 		},
 	}
 

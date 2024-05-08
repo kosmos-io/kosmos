@@ -5,9 +5,8 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
-	kuberuntime "k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/yaml"
 	clientset "k8s.io/client-go/kubernetes"
-	clientsetscheme "k8s.io/client-go/kubernetes/scheme"
 
 	"github.com/kosmos.io/kosmos/pkg/kubenest/manifest/controlplane/scheduler"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/util"
@@ -36,7 +35,7 @@ func grantVirtualClusterResourceClusterSA(client clientset.Interface, namespace 
 		return fmt.Errorf("error when parsing virtualCluster-scheduler sa template: %w", err)
 	}
 	serviceAccount := &v1.ServiceAccount{}
-	if err := kuberuntime.DecodeInto(clientsetscheme.Codecs.UniversalDecoder(), []byte(virtualClusterResourceClusterSABytes), serviceAccount); err != nil {
+	if err := yaml.Unmarshal([]byte(virtualClusterResourceClusterSABytes), serviceAccount); err != nil {
 		return fmt.Errorf("err when decoding Karmada view Clusterrole: %w", err)
 	}
 	return util.CreateOrUpdateClusterSA(client, serviceAccount, namespace)
@@ -53,7 +52,7 @@ func grantVirtualClusterResourceClusterRoleBinding(client clientset.Interface, n
 	}
 	viewClusterRoleBinding := &rbacv1.ClusterRoleBinding{}
 
-	if err := kuberuntime.DecodeInto(clientsetscheme.Codecs.UniversalDecoder(), []byte(virtualClusterResourceClusterRoleBindingBytes), viewClusterRoleBinding); err != nil {
+	if err := yaml.Unmarshal([]byte(virtualClusterResourceClusterRoleBindingBytes), viewClusterRoleBinding); err != nil {
 		return fmt.Errorf("err when decoding virtualCluster scheduler Clusterrole Binding: %w", err)
 	}
 	return util.CreateOrUpdateClusterRoleBinding(client, viewClusterRoleBinding)
@@ -61,7 +60,7 @@ func grantVirtualClusterResourceClusterRoleBinding(client clientset.Interface, n
 
 func grantVirtualClusterResourceClusterRole(client clientset.Interface) error {
 	viewClusterrole := &rbacv1.ClusterRole{}
-	if err := kuberuntime.DecodeInto(clientsetscheme.Codecs.UniversalDecoder(), []byte(scheduler.VirtualSchedulerRole), viewClusterrole); err != nil {
+	if err := yaml.Unmarshal([]byte(scheduler.VirtualSchedulerRole), viewClusterrole); err != nil {
 		return fmt.Errorf("err when decoding virtualCluster scheduler  Clusterrole: %w", err)
 	}
 	return util.CreateOrUpdateClusterRole(client, viewClusterrole)
