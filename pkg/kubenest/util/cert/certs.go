@@ -203,6 +203,7 @@ func apiServerAltNamesMutator(cfg *AltNamesMutatorConfig) (*certutil.AltNames, e
 			net.IPv4(127, 0, 0, 1),
 			net.IPv4(100, 71, 7, 52),
 			net.IPv4(10, 237, 6, 17),
+			net.IPv4(10, 237, 0, 1),
 		},
 	}
 
