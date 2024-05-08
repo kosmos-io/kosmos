@@ -1,4 +1,4 @@
-package kube_controller
+package kubecontroller
 
 const (
 	// KubeControllerManagerDeployment is KubeControllerManage deployment manifest
@@ -66,7 +66,7 @@ spec:
         - --node-cidr-mask-size=24
         - --root-ca-file=/etc/virtualcluster/pki/ca.crt
         - --service-account-private-key-file=/etc/virtualcluster/pki/virtualCluster.key
-        - --service-cluster-ip-range=10.96.0.0/12
+        - --service-cluster-ip-range={{ .ServiceSubnet }}
         - --use-service-account-credentials=true
         - --v=4
         livenessProbe:

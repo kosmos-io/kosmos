@@ -9,7 +9,7 @@ import (
 	clientset "k8s.io/client-go/kubernetes"
 	clientsetscheme "k8s.io/client-go/kubernetes/scheme"
 
-	"github.com/kosmos.io/kosmos/pkg/kubenest/manifest/controlplane/rbac"
+	"github.com/kosmos.io/kosmos/pkg/kubenest/manifest/controlplane/scheduler"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/util"
 )
 
@@ -27,7 +27,7 @@ func EnsureVirtualSchedulerRBAC(client clientset.Interface, namespace string) er
 }
 
 func grantVirtualClusterResourceClusterSA(client clientset.Interface, namespace string) error {
-	virtualClusterResourceClusterSABytes, err := util.ParseTemplate(rbac.VirtualSchedulerSA, struct {
+	virtualClusterResourceClusterSABytes, err := util.ParseTemplate(scheduler.VirtualSchedulerSA, struct {
 		Namespace string
 	}{
 		Namespace: namespace,
@@ -43,7 +43,7 @@ func grantVirtualClusterResourceClusterSA(client clientset.Interface, namespace 
 }
 
 func grantVirtualClusterResourceClusterRoleBinding(client clientset.Interface, namespace string) error {
-	virtualClusterResourceClusterRoleBindingBytes, err := util.ParseTemplate(rbac.VirtualSchedulerRoleBinding, struct {
+	virtualClusterResourceClusterRoleBindingBytes, err := util.ParseTemplate(scheduler.VirtualSchedulerRoleBinding, struct {
 		Namespace string
 	}{
 		Namespace: namespace,
@@ -61,7 +61,7 @@ func grantVirtualClusterResourceClusterRoleBinding(client clientset.Interface, n
 
 func grantVirtualClusterResourceClusterRole(client clientset.Interface) error {
 	viewClusterrole := &rbacv1.ClusterRole{}
-	if err := kuberuntime.DecodeInto(clientsetscheme.Codecs.UniversalDecoder(), []byte(rbac.VirtualSchedulerRole), viewClusterrole); err != nil {
+	if err := kuberuntime.DecodeInto(clientsetscheme.Codecs.UniversalDecoder(), []byte(scheduler.VirtualSchedulerRole), viewClusterrole); err != nil {
 		return fmt.Errorf("err when decoding virtualCluster scheduler  Clusterrole: %w", err)
 	}
 	return util.CreateOrUpdateClusterRole(client, viewClusterrole)

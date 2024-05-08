@@ -12,8 +12,8 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
-	controller "github.com/kosmos.io/kosmos/pkg/kubenest/manifest/controlplane/kube-controller"
-	scheduler "github.com/kosmos.io/kosmos/pkg/kubenest/manifest/controlplane/scheduler"
+	controller "github.com/kosmos.io/kosmos/pkg/kubenest/manifest/controlplane/kubecontroller"
+	"github.com/kosmos.io/kosmos/pkg/kubenest/manifest/controlplane/scheduler"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/util"
 )
 
@@ -115,9 +115,9 @@ func getComponentConfigmaps(component string) []string {
 func getKubeControllerManagerManifest(name, namespace string) (*appsv1.Deployment, error) {
 	imageRepository, imageVersion := util.GetImageMessage()
 	kubeControllerManagerBytes, err := util.ParseTemplate(controller.KubeControllerManagerDeployment, struct {
-		DeploymentName, Namespace, ImageRepository, Version string
-		VirtualClusterCertsSecret, KubeconfigSecret         string
-		Replicas                                            int32
+		DeploymentName, Namespace, ImageRepository, Version        string
+		VirtualClusterCertsSecret, KubeconfigSecret, ServiceSubnet string
+		Replicas                                                   int32
 	}{
 		DeploymentName:            fmt.Sprintf("%s-%s", name, "kube-controller-manager"),
 		Namespace:                 namespace,
@@ -125,6 +125,7 @@ func getKubeControllerManagerManifest(name, namespace string) (*appsv1.Deploymen
 		Version:                   imageVersion,
 		VirtualClusterCertsSecret: fmt.Sprintf("%s-%s", name, "cert"),
 		KubeconfigSecret:          fmt.Sprintf("%s-%s", name, "admin-config"),
+		ServiceSubnet:             constants.ApiServerServiceSubnet,
 		Replicas:                  constants.KubeControllerReplicas,
 	})
 	if err != nil {
@@ -147,15 +148,15 @@ func getVirtualClusterSchedulerConfigMapManifest(name, namespace string) (*v1.Co
 		Namespace:      namespace,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("error when parsing virtualCluster-scheduler configMap template: %w", err)
+		return nil, fmt.Errorf("error when parsing virtualCluster scheduler configMap template: %w", err)
 	}
 
-	scheduler := &v1.ConfigMap{}
-	if err := kuberuntime.DecodeInto(clientsetscheme.Codecs.UniversalDecoder(), virtualClusterSchedulerConfigMapBytes, scheduler); err != nil {
+	config := &v1.ConfigMap{}
+	if err := kuberuntime.DecodeInto(clientsetscheme.Codecs.UniversalDecoder(), virtualClusterSchedulerConfigMapBytes, config); err != nil {
 		return nil, fmt.Errorf("err when decoding virtualCluster-scheduler configMap: %w", err)
 	}
 
-	return scheduler, nil
+	return config, nil
 }
 
 func getVirtualClusterSchedulerManifest(name, namespace string) (*appsv1.Deployment, error) {
@@ -177,10 +178,10 @@ func getVirtualClusterSchedulerManifest(name, namespace string) (*appsv1.Deploym
 		return nil, fmt.Errorf("error when parsing virtualCluster-scheduler deployment template: %w", err)
 	}
 
-	scheduler := &appsv1.Deployment{}
-	if err := kuberuntime.DecodeInto(clientsetscheme.Codecs.UniversalDecoder(), virtualClusterSchedulerBytes, scheduler); err != nil {
+	deploy := &appsv1.Deployment{}
+	if err := kuberuntime.DecodeInto(clientsetscheme.Codecs.UniversalDecoder(), virtualClusterSchedulerBytes, deploy); err != nil {
 		return nil, fmt.Errorf("err when decoding virtualCluster-scheduler deployment: %w", err)
 	}
 
-	return scheduler, nil
+	return deploy, nil
 }
