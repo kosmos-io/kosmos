@@ -387,8 +387,7 @@ spec:
                   key: password
           command: ["/bin/bash"]
           args:
-            - "-c"
-            - "sed -i 's/^WEB_USER=.*/WEB_USER=$(WEB_USER)/' /app/agent.env && sed -i 's/^WEB_PASS=.*/WEB_PASS=$(WEB_PASS)/' /app/agent.env && rsync -avz /app/ /host-path/ && cp /app/node-agent.service /host-systemd/node-agent.service "
+            - "/app/init.sh"
           volumeMounts:
             - mountPath: /host-path
               name: node-agent
