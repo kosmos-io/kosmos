@@ -2,7 +2,6 @@ package vcnodecontroller
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 
 	v1 "k8s.io/api/core/v1"
@@ -65,28 +64,6 @@ func (r *NodeController) SetupWithManager(mgr manager.Manager) error {
 			},
 		})).
 		Complete(r)
-}
-
-func (r *NodeController) GenerateKubeclient(virtualCluster *v1alpha1.VirtualCluster) (kubernetes.Interface, error) {
-	if len(virtualCluster.Spec.Kubeconfig) == 0 {
-		return nil, fmt.Errorf("virtualcluster %s kubeconfig is empty", virtualCluster.Name)
-	}
-	kubeconfigStream, err := base64.StdEncoding.DecodeString(virtualCluster.Spec.Kubeconfig)
-	if err != nil {
-		return nil, fmt.Errorf("virtualcluster %s decode target kubernetes kubeconfig %s err: %v", virtualCluster.Name, virtualCluster.Spec.Kubeconfig, err)
-	}
-
-	config, err := utils.NewConfigFromBytes(kubeconfigStream)
-	if err != nil {
-		return nil, fmt.Errorf("generate kubernetes config failed: %s", err)
-	}
-
-	k8sClient, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return nil, fmt.Errorf("generate K8s basic client failed: %v", err)
-	}
-
-	return k8sClient, nil
 }
 
 func hasItemInArray(name string, f func(string) bool) bool {
@@ -173,7 +150,7 @@ func (r *NodeController) UpdateVirtualClusterStatus(ctx context.Context, virtual
 }
 
 func (r *NodeController) DoNodeTask(ctx context.Context, virtualCluster v1alpha1.VirtualCluster) error {
-	k8sClient, err := r.GenerateKubeclient(&virtualCluster)
+	k8sClient, err := util.GenerateKubeclient(&virtualCluster)
 	if err != nil {
 		return fmt.Errorf("virtualcluster %s crd kubernetes client failed: %v", virtualCluster.Name, err)
 	}

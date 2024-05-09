@@ -78,7 +78,7 @@ func NewJoinWorkFlow() WorkflowData {
 		task.NewRemoteUpdateConfigYamlTask(),
 		task.NewRemoteNodeJoinTask(),
 		task.NewWaitNodeReadyTask(),
-		task.NewUpdateNodeLabelsTask(),
+		task.NewUpdateVirtualNodeLabelsTask(),
 		task.NewUpdateNodePoolItemStatusTask(v1alpha1.NodeInUse, false),
 	}
 
@@ -94,6 +94,7 @@ func NewUnjoinWorkFlow() WorkflowData {
 		task.NewRemoveNodeFromVirtualTask(),
 		task.NewExecShellUnjoinCmdTask(),
 		task.NewJoinNodeToHostCmd(),
+		task.NewUpdateHostNodeLabelsTask(),
 		task.NewUpdateNodePoolItemStatusTask(v1alpha1.NodeFreeState, true),
 	}
 	return WorkflowData{

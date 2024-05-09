@@ -16,6 +16,7 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/controller"
+	glnodecontroller "github.com/kosmos.io/kosmos/pkg/kubenest/controller/global.node.controller"
 	kosmos "github.com/kosmos.io/kosmos/pkg/kubenest/controller/kosmos"
 	vcnodecontroller "github.com/kosmos.io/kosmos/pkg/kubenest/controller/virtualcluster.node.controller"
 	"github.com/kosmos.io/kosmos/pkg/scheme"
@@ -102,6 +103,17 @@ func run(ctx context.Context, opts *options.Options) error {
 	}
 	if err = VirtualClusterInitController.SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("error starting %s: %v", constants.InitControllerName, err)
+	}
+
+	GlobalNodeController := glnodecontroller.GlobalNodeController{
+		Client:        mgr.GetClient(),
+		RootClientSet: hostKubeClient,
+		KosmosClient:  kosmosClient,
+		EventRecorder: mgr.GetEventRecorderFor(constants.GlobalNodeControllerName),
+	}
+
+	if err = GlobalNodeController.SetupWithManager(mgr); err != nil {
+		return fmt.Errorf("error starting %s: %v", constants.GlobalNodeControllerName, err)
 	}
 
 	VirtualClusterNodeController := vcnodecontroller.NodeController{
