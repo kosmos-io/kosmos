@@ -22,7 +22,7 @@ spec:
     - jsonPath: .spec.state
       name: STATE
       type: string
-    - jsonPath: .status.VirtualCluster
+    - jsonPath: .status.virtualCluster
       name: VIRTUAL_CLUSTER
       type: string
     name: v1alpha1
