@@ -15,7 +15,7 @@ spec:
     shortNames:
     - pc
     singular: clusterpodconvertpolicy
-  scope: Namespaced
+  scope: Cluster
   versions:
   - name: v1alpha1
     schema:
