@@ -69,3 +69,11 @@ type VirtualClusterListerExpansion interface{}
 // VirtualClusterNamespaceListerExpansion allows custom methods to be added to
 // VirtualClusterNamespaceLister.
 type VirtualClusterNamespaceListerExpansion interface{}
+
+// VirtualClusterPluginListerExpansion allows custom methods to be added to
+// VirtualClusterPluginLister.
+type VirtualClusterPluginListerExpansion interface{}
+
+// VirtualClusterPluginNamespaceListerExpansion allows custom methods to be added to
+// VirtualClusterPluginNamespaceLister.
+type VirtualClusterPluginNamespaceListerExpansion interface{}

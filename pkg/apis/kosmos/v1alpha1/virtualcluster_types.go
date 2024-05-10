@@ -61,6 +61,30 @@ type VirtualClusterSpec struct {
 	// the resources can be nodes or just cpu,memory or gpu resources
 	// +optional
 	PromoteResources PromoteResources `json:"promoteResources,omitempty"`
+
+	// PluginSet  is the list of plugins that will be used by the virtual kubernetes's control plane
+	// If plugins is nil or empty, all default plugins will be used
+	// +optional
+	PluginSet PluginSet `json:"pluginSet,omitempty"`
+}
+
+// PluginSet specifies enabled and disabled plugins .
+// If an array is empty, missing, or nil, all plugins of VirtualClusterPlugin will be used.
+type PluginSet struct {
+	// Enabled specifies plugins that should be enabled .
+	// +optional
+	Enabled []Plugin `json:"enabled,omitempty"`
+
+	// Disabled specifies default plugins that should be disabled.
+	// +optional
+	Disabled []Plugin `json:"disabled,omitempty"`
+}
+
+// Plugin specifies a plugin name
+type Plugin struct {
+	// Name defines the name of plugin
+	// +required
+	Name string `json:"name"`
 }
 
 type PromotePolicy struct {

@@ -32,6 +32,8 @@ type Interface interface {
 	ShadowDaemonSets() ShadowDaemonSetInformer
 	// VirtualClusters returns a VirtualClusterInformer.
 	VirtualClusters() VirtualClusterInformer
+	// VirtualClusterPlugins returns a VirtualClusterPluginInformer.
+	VirtualClusterPlugins() VirtualClusterPluginInformer
 }
 
 type version struct {
@@ -103,4 +105,9 @@ func (v *version) ShadowDaemonSets() ShadowDaemonSetInformer {
 // VirtualClusters returns a VirtualClusterInformer.
 func (v *version) VirtualClusters() VirtualClusterInformer {
 	return &virtualClusterInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// VirtualClusterPlugins returns a VirtualClusterPluginInformer.
+func (v *version) VirtualClusterPlugins() VirtualClusterPluginInformer {
+	return &virtualClusterPluginInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
