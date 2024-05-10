@@ -12,6 +12,8 @@ spec:
     kind: VirtualCluster
     listKind: VirtualClusterList
     plural: virtualclusters
+    shortNames:
+    - vc
     singular: virtualcluster
   scope: Namespaced
   versions:
