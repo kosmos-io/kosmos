@@ -50,7 +50,7 @@ func NewCheckEnvTask() Task {
 			exectHelper := exector.NewExectorHelper(to.NodeInfo.Spec.NodeIP, "")
 			// check
 			checkCmd := &exector.CMDExector{
-				Cmd: fmt.Sprintf("sh %s check", env.GetExectorShellName()),
+				Cmd: fmt.Sprintf("bash %s check", env.GetExectorShellName()),
 			}
 			ret := exectHelper.DoExector(ctx.Done(), checkCmd)
 			if ret.Status != exector.SUCCESS {
@@ -69,7 +69,7 @@ func NewKubeadmResetTask() Task {
 			exectHelper := exector.NewExectorHelper(to.NodeInfo.Spec.NodeIP, "")
 
 			resetCmd := &exector.CMDExector{
-				Cmd: fmt.Sprintf("sh %s unjoin", env.GetExectorShellName()),
+				Cmd: fmt.Sprintf("bash %s unjoin", env.GetExectorShellName()),
 			}
 
 			ret := exectHelper.DoExector(ctx.Done(), resetCmd)
@@ -235,7 +235,7 @@ func NewRemoteNodeJoinTask() Task {
 			exectHelper := exector.NewExectorHelper(to.NodeInfo.Spec.NodeIP, "")
 
 			joinCmd := &exector.CMDExector{
-				Cmd: fmt.Sprintf("sh %s join %s", env.GetExectorShellName(), to.KubeDNSAddress),
+				Cmd: fmt.Sprintf("bash %s join %s", env.GetExectorShellName(), to.KubeDNSAddress),
 			}
 			ret := exectHelper.DoExector(ctx.Done(), joinCmd)
 			if ret.Status != exector.SUCCESS {
@@ -293,12 +293,12 @@ func NewUpdateVirtualNodeLabelsTask() Task {
 				}
 
 				updateNode := node.DeepCopy()
-				for k, v := range to.NodeInfo.Labels {
-					node.Labels[k] = v
+				for k, v := range to.NodeInfo.Spec.Labels {
+					updateNode.Labels[k] = v
 				}
 
 				// add free label
-				node.Labels[constants.StateLabelKey] = string(v1alpha1.NodeInUse)
+				updateNode.Labels[constants.StateLabelKey] = string(v1alpha1.NodeInUse)
 
 				if _, err := to.VirtualK8sClient.CoreV1().Nodes().Update(ctx, updateNode, metav1.UpdateOptions{}); err != nil {
 					klog.V(4).Infof("add label to node %s failed: %s", to.NodeInfo.Name, err)
@@ -326,12 +326,12 @@ func NewUpdateHostNodeLabelsTask() Task {
 				}
 
 				updateNode := node.DeepCopy()
-				for k, v := range to.NodeInfo.Labels {
-					node.Labels[k] = v
+				for k, v := range to.NodeInfo.Spec.Labels {
+					updateNode.Labels[k] = v
 				}
 
 				// add free label
-				node.Labels[constants.StateLabelKey] = string(v1alpha1.NodeFreeState)
+				updateNode.Labels[constants.StateLabelKey] = string(v1alpha1.NodeFreeState)
 
 				if _, err := to.HostK8sClient.CoreV1().Nodes().Update(ctx, updateNode, metav1.UpdateOptions{}); err != nil {
 					klog.V(4).Infof("add label to node %s failed: %s", to.NodeInfo.Name, err)
@@ -400,7 +400,7 @@ func NewExecShellUnjoinCmdTask() Task {
 			exectHelper := exector.NewExectorHelper(to.NodeInfo.Spec.NodeIP, "")
 
 			resetCmd := &exector.CMDExector{
-				Cmd: fmt.Sprintf("sh %s unjoin", env.GetExectorShellName()),
+				Cmd: fmt.Sprintf("bash %s unjoin", env.GetExectorShellName()),
 			}
 
 			ret := exectHelper.DoExector(ctx.Done(), resetCmd)
@@ -419,6 +419,18 @@ func getJoinCmdStr(log string) (string, error) {
 		return "", fmt.Errorf("get join cmd str failed")
 	}
 	return fmt.Sprintf("kubeadm join %s", strs[1]), nil
+}
+
+func getJoinCmdToken(joinCmdStr string) (string, error) {
+	strs := strings.Split(joinCmdStr, " --token ")
+	if len(strs) != 2 {
+		return "", fmt.Errorf("get join cmd token failed")
+	}
+	strs = strings.Split(strs[1], " ")
+	if len(strs) < 2 {
+		return "", fmt.Errorf("get join cmd token failed")
+	}
+	return strings.TrimSpace(strs[0]), nil
 }
 
 func NewJoinNodeToHostCmd() Task {
@@ -464,8 +476,12 @@ func NewExecJoinNodeToHostCmdTask() Task {
 			if !ok {
 				return nil, fmt.Errorf("get join cmd str failed")
 			}
+			token, err := getJoinCmdToken(joinCmdStr)
+			if err != nil {
+				return nil, err
+			}
 			joinCmd := &exector.CMDExector{
-				Cmd: joinCmdStr,
+				Cmd: fmt.Sprintf("bash  %s revert %s", env.GetExectorShellName(), token),
 			}
 
 			exectHelper := exector.NewExectorHelper(to.NodeInfo.Spec.NodeIP, "")

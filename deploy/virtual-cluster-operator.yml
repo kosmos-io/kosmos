@@ -61,6 +61,9 @@ data:
     # path for kubeadm
     PATH_KUBEADM=/usr/bin/kubeadm
     ##################################################
+    # path for kubeadm config
+    PATH_KUBEADM_CONFIG=/etc/kubeadm
+    ##################################################
     # path for kubernetes
     PATH_KUBERNETES=/etc/kubernetes/
     PATH_KUBERNETES_PKI="$PATH_KUBERNETES/pki"
@@ -75,16 +78,33 @@ data:
     # args
     DNS_ADDRESS=${2:-10.237.0.10}
     LOG_NAME=${2:-kubelet}
+    JOIN_TOKEN=$2
 
     function unjoin() {
         # before unjoin, you need delete node by kubectl
-        echo "exec(1/2): kubeadm reset...."
+        echo "exec(1/1): kubeadm reset...."
         echo "y" | ${PATH_KUBEADM} reset
         if [ $? -ne 0 ]; then
             exit 1
         fi
-        echo "exec(2/2): reset kubeadm-flags.env...."
-        cp "$PATH_FILE_TMP/kubeadm-flags.env.back" "$PATH_KUBELET_LIB/kubeadm-flags.env"
+    }
+
+    function revert() {
+        echo "exec(1/3): update kubeadm.cfg..."
+        sed -e "s|token: .*$|token: $JOIN_TOKEN|g" -e "w $PATH_FILE_TMP/kubeadm.cfg.current" "$PATH_KUBEADM_CONFIG/kubeadm.cfg"
+        if [ $? -ne 0 ]; then
+            exit 1
+        fi
+        
+        # add taints
+        echo "exec(2/3): update kubeadm.cfg tanits..."
+        sed -i "/kubeletExtraArgs/a \    register-with-taints: node.kosmos.io/unschedulable:NoSchedule"  "$PATH_FILE_TMP/kubeadm.cfg.current" 
+        if [ $? -ne 0 ]; then
+            exit 1
+        fi
+        
+        echo "exec(3/3): execute join cmd...."
+        kubeadm join --config "$PATH_FILE_TMP/kubeadm.cfg.current"
         if [ $? -ne 0 ]; then
             exit 1
         fi
@@ -153,23 +173,22 @@ data:
 
     # check the environments
     function check() {
-        if [ ! -d "$PATH_FILE_TMP" ]; then
-            echo "check(1/3): try to create $PATH_FILE_TMP"
+        echo "check(1/2): try to create $PATH_FILE_TMP"
+        if [ ! -d "$PATH_FILE_TMP" ]; then   
             mkdir -p "$PATH_FILE_TMP"
             if [ $? -ne 0 ]; then
                 exit 1
             fi
-            echo "check(2/3): copy  kubeadm-flags.env  to create $PATH_FILE_TMP and remove args[cloud-provider] "
+        fi
+        
+        echo "check(2/2): copy  kubeadm-flags.env  to create $PATH_FILE_TMP and remove args[cloud-provider] "
+        if [ ! -f "${PATH_FILE_TMP}/kubeadm-flags.env"]; then
             sed -e "s| --cloud-provider=external | |g" -e "w ${PATH_FILE_TMP}/kubeadm-flags.env" "$PATH_KUBELET_LIB/kubeadm-flags.env"
             if [ $? -ne 0 ]; then
                 exit 1
             fi
-            echo "check(3/3):  backup kubeadm-flags.env"
-            cp "$PATH_KUBELET_LIB/kubeadm-flags.env" "$PATH_FILE_TMP/kubeadm-flags.env.back"
-            if [ $? -ne 0 ]; then
-                exit 1
-            fi
         fi
+
         echo "environments is ok"
     }
 
@@ -194,11 +213,14 @@ data:
       log)
         log
         ;;
+      revert)
+        revert
+        ;;
       version)
         version
         ;;
       *)
-        echo $"usage: $0 unjoin|join|health|log|check|version"
+        echo $"usage: $0 unjoin|join|health|log|check|version|revert"
         exit 1
     esac
   config.yaml: |
