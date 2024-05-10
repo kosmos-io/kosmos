@@ -6,9 +6,8 @@ import (
 
 	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
-	kuberuntime "k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/yaml"
 	clientset "k8s.io/client-go/kubernetes"
-	clientsetscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/component-base/cli/flag"
 
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
@@ -72,7 +71,7 @@ func installEtcd(client clientset.Interface, name, namespace string) error {
 	}
 
 	etcdStatefulSet := &appsv1.StatefulSet{}
-	if err := kuberuntime.DecodeInto(clientsetscheme.Codecs.UniversalDecoder(), etcdStatefulSetBytes, etcdStatefulSet); err != nil {
+	if err := yaml.Unmarshal([]byte(etcdStatefulSetBytes), etcdStatefulSet); err != nil {
 		return fmt.Errorf("error when decoding Etcd StatefulSet: %w", err)
 	}
 

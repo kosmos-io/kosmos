@@ -136,10 +136,11 @@ func applyTemplatedManifests(component string, dynamicClient dynamic.Interface, 
 		templateData := bytesData
 		// template doesn't suit for prometheus rules, we deploy it directly
 		if component != constants.PrometheusRuleManifest {
-			templateData, err = util.ParseTemplate(string(bytesData), templateMapping)
+			templateString, err := util.ParseTemplate(string(bytesData), templateMapping)
 			if err != nil {
 				return errors.Wrapf(err, "Parse manifest file %s template error", manifest)
 			}
+			templateData = []byte(templateString)
 		}
 		err = yaml.Unmarshal(templateData, &obj)
 		if err != nil {

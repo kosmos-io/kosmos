@@ -4,14 +4,12 @@ metadata:
   namespace: test
   name: test
 spec:
+  externalIP: 127.0.0.10
+  promotePolicies:
+    - labelSelector:
+        matchLabels:
+          kubernetes.io/hostname: label1
+      nodeCount: 1
   promoteResources:
     nodeInfos:
       - nodeName: nodeName1
-        address: 127.0.0.1
-      - nodeName: nodeName2
-        address: 127.0.0.2
-    resources:
-      cpu: 2
-      memory: "1Gi"
-status:
-  phase: Completed
