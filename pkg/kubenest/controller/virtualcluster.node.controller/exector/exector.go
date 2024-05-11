@@ -65,17 +65,28 @@ func (h *ExectorHelper) DoExector(stopCh <-chan struct{}, exector Exector) *Exec
 	ret := h.DoExectorReal(stopCh, exector)
 	if ret.Text == NotFoundText {
 		// try to update shell script
-		srcFile := env.GetExectorShellPath()
-		klog.V(4).Infof("exector: src file path %s", srcFile)
+		srcEnvFile := env.GetExectorShellEnvPath()
+		klog.V(4).Infof("exector: src file path %s", srcEnvFile)
 
-		scpExector := &SCPExector{
+		scpEnvExector := &SCPExector{
 			DstFilePath: ".",
-			DstFileName: env.GetExectorShellName(),
-			SrcFile:     srcFile,
+			DstFileName: env.GetExectorShellEnvName(),
+			SrcFile:     srcEnvFile,
 		}
 
-		if ret := h.DoExectorReal(stopCh, scpExector); ret.Status == SUCCESS {
-			return h.DoExectorReal(stopCh, exector)
+		srcShellFile := env.GetExectorShellPath()
+		klog.V(4).Infof("exector: src file path %s", srcShellFile)
+
+		scpShellExector := &SCPExector{
+			DstFilePath: ".",
+			DstFileName: env.GetExectorShellName(),
+			SrcFile:     srcShellFile,
+		}
+
+		if ret := h.DoExectorReal(stopCh, scpEnvExector); ret.Status == SUCCESS {
+			if ret := h.DoExectorReal(stopCh, scpShellExector); ret.Status == SUCCESS {
+				return h.DoExectorReal(stopCh, exector)
+			}
 		} else {
 			return ret
 		}
@@ -106,6 +117,9 @@ func (h *ExectorHelper) DoExectorReal(stopCh <-chan struct{}, exector Exector) *
 		defer close(done)
 		for {
 			_, message, err := conn.ReadMessage()
+			if len(message) > 0 {
+				klog.V(4).Infof("recv: %s", string(message))
+			}
 			if err != nil {
 				klog.V(4).Infof("read: %s", err)
 				cerr, ok := err.(*websocket.CloseError)
@@ -123,7 +137,7 @@ func (h *ExectorHelper) DoExectorReal(stopCh <-chan struct{}, exector Exector) *
 				}
 				return
 			}
-			klog.V(4).Infof("recv: %s", string(message))
+			// klog.V(4).Infof("recv: %s", string(message))
 			// last
 			result.LastLog = result.LastLog + string(message)
 		}
