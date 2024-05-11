@@ -339,6 +339,30 @@ func (o *CommandJoinOptions) runCluster() error {
 			return err
 		}
 
+		clusterPodConvert, err := util.GenerateCustomResourceDefinition(manifest.ClusterPodConvert, nil)
+		if err != nil {
+			return err
+		}
+		_, err = o.K8sExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Create(context.Background(), clusterPodConvert, metav1.CreateOptions{})
+		if err != nil {
+			if !apierrors.IsAlreadyExists(err) {
+				return fmt.Errorf("kosmosctl join run error, crd options failed: %v", err)
+			}
+		}
+		klog.Info("Create CRD " + clusterPodConvert.Name + " successful.")
+
+		podConvert, err := util.GenerateCustomResourceDefinition(manifest.PodConvert, nil)
+		if err != nil {
+			return err
+		}
+		_, err = o.K8sExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Create(context.Background(), podConvert, metav1.CreateOptions{})
+		if err != nil {
+			if !apierrors.IsAlreadyExists(err) {
+				return fmt.Errorf("kosmosctl join run error, crd options failed: %v", err)
+			}
+		}
+		klog.Info("Create CRD " + podConvert.Name + " successful.")
+
 		if len(o.LeafModel) > 0 {
 			switch o.LeafModel {
 			case "one-to-one":

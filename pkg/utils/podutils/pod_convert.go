@@ -9,33 +9,51 @@ import (
 )
 
 // ConvertPod perform all conversions
-func ConvertPod(pod *corev1.Pod, policies []kosmosv1alpha1.PodConvertPolicy) {
-	if len(policies) <= 0 {
+func ConvertPod(pod *corev1.Pod, cpcp []kosmosv1alpha1.ClusterPodConvertPolicy, pcp []kosmosv1alpha1.PodConvertPolicy) {
+	if len(cpcp) <= 0 && len(pcp) <= 0 {
 		return
 	}
 
-	var choose *kosmosv1alpha1.PodConvertPolicy
-	// current, use the first non-empty matching policy
-	for idx, po := range policies {
-		if po.Spec.Converters != nil {
-			choose = &policies[idx]
-			break
+	var clusterScopeChoose *kosmosv1alpha1.ClusterPodConvertPolicy
+	var nsScopeChoose *kosmosv1alpha1.PodConvertPolicy
+	var converters *kosmosv1alpha1.Converters
+	if len(cpcp) > 0 {
+		// current, use the first non-empty matching policy
+		for idx, po := range cpcp {
+			if po.Spec.Converters != nil {
+				clusterScopeChoose = &cpcp[idx]
+				break
+			}
 		}
+		if clusterScopeChoose == nil {
+			return
+		}
+		converters = clusterScopeChoose.Spec.Converters
+		pod.Annotations[utils.KosmosConvertLabels] = clusterScopeChoose.Name
+		klog.V(4).Infof("Convert pod %v/%+v, policy: %s", pod.Namespace, pod.Name, clusterScopeChoose.Name)
+	} else {
+		// current, use the first non-empty matching policy
+		for idx, po := range pcp {
+			if po.Spec.Converters != nil {
+				nsScopeChoose = &pcp[idx]
+				break
+			}
+		}
+		if nsScopeChoose == nil {
+			return
+		}
+		converters = nsScopeChoose.Spec.Converters
+		pod.Annotations[utils.KosmosConvertLabels] = nsScopeChoose.Name
+		klog.V(4).Infof("Convert pod %v/%+v, policy: %s", pod.Namespace, pod.Name, nsScopeChoose.Name)
 	}
-	if choose == nil {
-		return
-	}
-	klog.V(4).Infof("Convert pod %v/%+v, policy: %s", pod.Namespace, pod.Name, choose.Name)
 
-	converters := choose.Spec.Converters
 	convertSchedulerName(pod, converters.SchedulerNameConverter)
 	convertNodeName(pod, converters.NodeNameConverter)
 	convertNodeSelector(pod, converters.NodeSelectorConverter)
 	converToleration(pod, converters.TolerationConverter)
 	convertAffinity(pod, converters.AffinityConverter)
 	convertTopologySpreadConstraints(pod, converters.TopologySpreadConstraintsConverter)
-
-	pod.Annotations[utils.KosmosConvertLabels] = choose.Name
+	convertHostAliases(pod, converters.HostAliasesConverter)
 }
 
 func convertSchedulerName(pod *corev1.Pod, converter *kosmosv1alpha1.SchedulerNameConverter) {
@@ -149,5 +167,24 @@ func convertTopologySpreadConstraints(pod *corev1.Pod, converter *kosmosv1alpha1
 		pod.Spec.TopologySpreadConstraints = converter.TopologySpreadConstraints
 	default:
 		klog.Warningf("Skip other convert type, TopologySpreadConstraints: %s", converter.ConvertType)
+	}
+}
+
+func convertHostAliases(pod *corev1.Pod, converter *kosmosv1alpha1.HostAliasesConverter) {
+	if converter == nil {
+		return
+	}
+
+	switch converter.ConvertType {
+	case kosmosv1alpha1.Add:
+		if pod.Spec.HostAliases == nil {
+			pod.Spec.HostAliases = converter.HostAliases
+		}
+	case kosmosv1alpha1.Remove:
+		pod.Spec.HostAliases = nil
+	case kosmosv1alpha1.Replace:
+		pod.Spec.HostAliases = converter.HostAliases
+	default:
+		klog.Warningf("Skip other convert type, HostAliases: %s", converter.ConvertType)
 	}
 }
