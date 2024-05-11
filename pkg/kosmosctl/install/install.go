@@ -654,8 +654,8 @@ func (o *CommandInstallOptions) createControlCluster() error {
 				return fmt.Errorf("kosmosctl install run error, get control panel cluster failed: %s", err)
 			}
 		} else {
-			// 'kosmos-control-cluster' has been created, only need to create serviceExport and serviceImport
-			err = joinOptions.CreateServiceExportAndImport()
+			// 'kosmos-control-cluster' has been created, only need to create related crds
+			err = joinOptions.CreateTreeRelatedCRDs()
 			if err != nil {
 				return fmt.Errorf("kosmosctl install run error, join control panel cluster failed: %s", err)
 			}

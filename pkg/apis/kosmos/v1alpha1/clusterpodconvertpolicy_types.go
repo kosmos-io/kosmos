@@ -8,14 +8,14 @@ import (
 // +genclient:nonNamespaced
 // +kubebuilder:resource:scope="Cluster"
 // +kubebuilder:subresource:status
-// +kubebuilder:resource:shortName=pc
+// +kubebuilder:resource:shortName=cpcp
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 type ClusterPodConvertPolicy struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	// Spec is the specification for the behaviour of the PodConvertPolicy.
+	// Spec is the specification for the behaviour of the ClusterPodConvertPolicy.
 	// +required
 	Spec ClusterPodConvertPolicySpec `json:"spec"`
 }

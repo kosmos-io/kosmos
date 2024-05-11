@@ -49,6 +49,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.GlobalNodeList":                     schema_pkg_apis_kosmos_v1alpha1_GlobalNodeList(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.GlobalNodeSpec":                     schema_pkg_apis_kosmos_v1alpha1_GlobalNodeSpec(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.GlobalNodeStatus":                   schema_pkg_apis_kosmos_v1alpha1_GlobalNodeStatus(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.HostAliasesConverter":               schema_pkg_apis_kosmos_v1alpha1_HostAliasesConverter(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Iptables":                           schema_pkg_apis_kosmos_v1alpha1_Iptables(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Knode":                              schema_pkg_apis_kosmos_v1alpha1_Knode(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.KnodeList":                          schema_pkg_apis_kosmos_v1alpha1_KnodeList(ref),
@@ -788,7 +789,7 @@ func schema_pkg_apis_kosmos_v1alpha1_ClusterPodConvertPolicy(ref common.Referenc
 					},
 					"spec": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Spec is the specification for the behaviour of the PodConvertPolicy.",
+							Description: "Spec is the specification for the behaviour of the ClusterPodConvertPolicy.",
 							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterPodConvertPolicySpec"),
 						},
@@ -1055,11 +1056,16 @@ func schema_pkg_apis_kosmos_v1alpha1_Converters(ref common.ReferenceCallback) co
 							Ref: ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.TopologySpreadConstraintsConverter"),
 						},
 					},
+					"hostAliasesConverter": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.HostAliasesConverter"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.AffinityConverter", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeNameConverter", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeSelectorConverter", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.SchedulerNameConverter", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.TolerationConverter", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.TopologySpreadConstraintsConverter"},
+			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.AffinityConverter", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.HostAliasesConverter", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeNameConverter", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeSelectorConverter", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.SchedulerNameConverter", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.TolerationConverter", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.TopologySpreadConstraintsConverter"},
 	}
 }
 
@@ -1713,6 +1719,42 @@ func schema_pkg_apis_kosmos_v1alpha1_GlobalNodeStatus(ref common.ReferenceCallba
 		},
 		Dependencies: []string{
 			"k8s.io/api/core/v1.NodeCondition"},
+	}
+}
+
+func schema_pkg_apis_kosmos_v1alpha1_HostAliasesConverter(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "HostAliasesConverter is an optional list of hosts and IPs that will be injected into the pod's hosts file if specified. This is only valid for non-hostNetwork pods.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"convertType": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"hostAliases": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/api/core/v1.HostAlias"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"convertType"},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/api/core/v1.HostAlias"},
 	}
 }
 

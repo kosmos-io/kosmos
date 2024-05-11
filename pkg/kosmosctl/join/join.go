@@ -246,8 +246,8 @@ func (o *CommandJoinOptions) Run(args []string) error {
 	return nil
 }
 
-// CreateServiceExportAndImport only enable tree, create serviceExport and serviceImport
-func (o *CommandJoinOptions) CreateServiceExportAndImport() error {
+// CreateTreeRelatedCRDs only enable tree, create related crds
+func (o *CommandJoinOptions) CreateTreeRelatedCRDs() error {
 	serviceExport, err := util.GenerateCustomResourceDefinition(manifest.ServiceExport, nil)
 	if err != nil {
 		return err
@@ -271,6 +271,30 @@ func (o *CommandJoinOptions) CreateServiceExportAndImport() error {
 		}
 	}
 	klog.Info("Create CRD " + serviceImport.Name + " successful.")
+
+	clusterPodConvert, err := util.GenerateCustomResourceDefinition(manifest.ClusterPodConvert, nil)
+	if err != nil {
+		return err
+	}
+	_, err = o.K8sExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Create(context.Background(), clusterPodConvert, metav1.CreateOptions{})
+	if err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return fmt.Errorf("kosmosctl join run error, crd options failed: %v", err)
+		}
+	}
+	klog.Info("Create CRD " + clusterPodConvert.Name + " successful.")
+
+	podConvert, err := util.GenerateCustomResourceDefinition(manifest.PodConvert, nil)
+	if err != nil {
+		return err
+	}
+	_, err = o.K8sExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Create(context.Background(), podConvert, metav1.CreateOptions{})
+	if err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return fmt.Errorf("kosmosctl join run error, crd options failed: %v", err)
+		}
+	}
+	klog.Info("Create CRD " + podConvert.Name + " successful.")
 
 	return nil
 }
@@ -333,8 +357,8 @@ func (o *CommandJoinOptions) runCluster() error {
 	}
 
 	if o.EnableTree {
-		// create serviceExport and serviceImport
-		err := o.CreateServiceExportAndImport()
+		// create ClusterTree related crds
+		err := o.CreateTreeRelatedCRDs()
 		if err != nil {
 			return err
 		}
