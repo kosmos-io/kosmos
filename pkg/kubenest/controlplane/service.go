@@ -50,7 +50,7 @@ func DeleteVirtualClusterService(client clientset.Interface, name, namespace str
 
 	err := manager.ReleaseHostPort(name)
 	if err != nil {
-		klog.Warningf("Error releasing host port for cluster %s: %v", name, err)
+		klog.Errorf("Error releasing host port for cluster %s: %v", name, err)
 	}
 
 	klog.V(2).Infof("Successfully uninstalled service for virtualcluster %s", name)

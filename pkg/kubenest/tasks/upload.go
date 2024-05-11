@@ -24,11 +24,6 @@ var (
 	VirtualClusterControllerLabel = labels.Set{constants.VirtualClusterLabelKeyName: constants.VirtualClusterController}
 )
 
-type PortInfo struct {
-	NodePort      int32
-	ClusterIPPort int32
-}
-
 func NewUploadCertsTask() workflow.Task {
 	return workflow.Task{
 		Name:        "Upload-Certs",
@@ -170,32 +165,19 @@ func runUploadAdminKubeconfig(r workflow.RunData) error {
 		return errors.New("UploadAdminKubeconfig task invoked with an invalid data struct")
 	}
 
-	var controlplaneIpEndpoint, clusterIPEndpoint string
+	var endpoint string
 	service, err := data.RemoteClient().CoreV1().Services(data.GetNamespace()).Get(context.TODO(), fmt.Sprintf("%s-%s", data.GetName(), "apiserver"), metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
-	portInfo := getPortInfoFromAPIServerService(service)
-	// controlplane address + nodePort
-	controlplaneIpEndpoint = fmt.Sprintf("https://%s:%d", data.ControlplaneAddress(), portInfo.NodePort)
-	controlplaneIpKubeconfig, err := buildKubeConfigFromSpec(data, controlplaneIpEndpoint)
+	nodePort := getNodePortFromAPIServerService(service)
+	endpoint = fmt.Sprintf("https://%s:%d", data.ControlplaneAddress(), nodePort)
+	kubeconfig, err := buildKubeConfigFromSpec(data, endpoint)
 	if err != nil {
 		return err
 	}
 
-	//clusterIP address + clusterIPPort
-	clusterIPEndpoint = fmt.Sprintf("https://%s:%d", service.Spec.ClusterIP, portInfo.ClusterIPPort)
-	clusterIPKubeconfig, err := buildKubeConfigFromSpec(data, clusterIPEndpoint)
-	if err != nil {
-		return err
-	}
-
-	controlplaneIpConfigBytes, err := clientcmd.Write(*controlplaneIpKubeconfig)
-	if err != nil {
-		return err
-	}
-
-	clusterIPConfigBytes, err := clientcmd.Write(*clusterIPKubeconfig)
+	configBytes, err := clientcmd.Write(*kubeconfig)
 	if err != nil {
 		return err
 	}
@@ -206,42 +188,28 @@ func runUploadAdminKubeconfig(r workflow.RunData) error {
 			Name:      fmt.Sprintf("%s-%s", data.GetName(), "admin-config"),
 			Labels:    VirtualClusterControllerLabel,
 		},
-		Data: map[string][]byte{"kubeconfig": controlplaneIpConfigBytes},
+		Data: map[string][]byte{"kubeconfig": configBytes},
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create secret of kubeconfig, err: %w", err)
 	}
 
-	err = createOrUpdateSecret(data.RemoteClient(), &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: data.GetNamespace(),
-			Name:      fmt.Sprintf("%s-%s", data.GetName(), "admin-config-clusterip"),
-			Labels:    VirtualClusterControllerLabel,
-		},
-		Data: map[string][]byte{"kubeconfig": clusterIPConfigBytes},
-	})
-	if err != nil {
-		return fmt.Errorf("failed to create secret of kubeconfig-clusterip, err: %w", err)
-	}
-
-	klog.V(2).InfoS("[UploadAdminKubeconfig] Successfully created secrets of virtual cluster apiserver kubeconfig", "virtual cluster", klog.KObj(data))
+	klog.V(2).InfoS("[UploadAdminKubeconfig] Successfully created secret of virtual cluster apiserver kubeconfig", "virtual cluster", klog.KObj(data))
 	return nil
 }
 
-func getPortInfoFromAPIServerService(service *corev1.Service) PortInfo {
-	var portInfo PortInfo
-	//var nodePort int32
+func getNodePortFromAPIServerService(service *corev1.Service) int32 {
+	var nodePort int32
 	if service.Spec.Type == corev1.ServiceTypeNodePort {
 		for _, port := range service.Spec.Ports {
 			if port.Name != constants.APIServerSVCPortName {
 				continue
 			}
-			portInfo.NodePort = port.NodePort
-			portInfo.ClusterIPPort = port.Port
+			nodePort = port.NodePort
 		}
 	}
 
-	return portInfo
+	return nodePort
 }
 
 func buildKubeConfigFromSpec(data InitData, serverURL string) (*clientcmdapi.Config, error) {
@@ -304,7 +272,6 @@ func deleteSecrets(r workflow.RunData) error {
 		fmt.Sprintf("%s-%s", data.GetName(), "cert"),
 		fmt.Sprintf("%s-%s", data.GetName(), "etcd-cert"),
 		fmt.Sprintf("%s-%s", data.GetName(), "admin-config"),
-		fmt.Sprintf("%s-%s", data.GetName(), "admin-config-clusterip"),
 	}
 	for _, secret := range secrets {
 		err := data.RemoteClient().CoreV1().Secrets(data.GetNamespace()).Delete(context.TODO(), secret, metav1.DeleteOptions{})

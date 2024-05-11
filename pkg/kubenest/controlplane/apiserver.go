@@ -34,7 +34,7 @@ func DeleteVirtualClusterAPIServer(client clientset.Interface, name, namespace s
 	}
 	err := manager.ReleaseHostPort(name)
 	if err != nil {
-		klog.Warningf("Error releasing host port for cluster %s: %v", name, err)
+		klog.Errorf("Error releasing host port for cluster %s: %v", name, err)
 	}
 	return nil
 }
