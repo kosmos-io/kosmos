@@ -26,7 +26,7 @@ func GetExectorWorkerDir() string {
 }
 
 func GetExectorShellName() string {
-	shellName := os.Getenv("EXECTOR_SHELL_VERSION")
+	shellName := os.Getenv("EXECTOR_SHELL_NAME")
 
 	if len(shellName) == 0 {
 		shellName = "kubelet_node_helper.sh"
@@ -80,4 +80,12 @@ func GetDrainWaitSeconds() int {
 	}
 
 	return num
+}
+
+func GetControlPlaneLabel() string {
+	controllPlaneLabel := os.Getenv("CONTROL_PLANE_LABEL")
+	if len(controllPlaneLabel) == 0 {
+		controllPlaneLabel = "node-role.kubernetes.io/control-plane"
+	}
+	return controllPlaneLabel
 }
