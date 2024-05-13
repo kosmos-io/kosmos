@@ -11,15 +11,20 @@ import (
 type Options struct {
 	LeaderElection             componentbaseconfig.LeaderElectionConfiguration
 	KubernetesOptions          KubernetesOptions
+	KubeNestOptions            KubeNestOptions
 	AllowNodeOwnbyMulticluster bool
 	KosmosJoinController       bool
 }
 
 type KubernetesOptions struct {
-	KubeConfig string  `json:"kubeconfig" yaml:"kubeconfig"`
-	Master     string  `json:"master,omitempty" yaml:"master,omitempty"`
-	QPS        float32 `json:"qps,omitempty" yaml:"qps,omitempty"`
-	Burst      int     `json:"burst,omitempty" yaml:"burst,omitempty"`
+	KubeConfig string
+	Master     string
+	QPS        float32
+	Burst      int
+}
+
+type KubeNestOptions struct {
+	ForceDestroy bool
 }
 
 func NewOptions() *Options {
@@ -47,4 +52,5 @@ func (o *Options) AddFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&o.KubernetesOptions.Master, "master", "", "Used to generate kubeconfig for downloading, if not specified, will use host in kubeconfig.")
 	flags.BoolVar(&o.AllowNodeOwnbyMulticluster, "multiowner", false, "Allow node own by multicluster or not.")
 	flags.BoolVar(&o.KosmosJoinController, "kosmos-join-controller", false, "Turn on or off kosmos-join-controller.")
+	flags.BoolVar(&o.KubeNestOptions.ForceDestroy, "kube-nest-force-destroy", false, "Force destroy the node.If it set true.If set to true, Kubernetes will not evict the existing nodes on the node when joining nodes to the tenant's control plane, but will instead force destroy.")
 }
