@@ -45,11 +45,20 @@ func RunWithRetry(ctx context.Context, task task.Task, opt task.TaskOpt, preArgs
 
 func (w WorkflowData) RunTask(ctx context.Context, opt task.TaskOpt) error {
 	var args interface{}
-	for i, task := range w.Tasks {
-		klog.V(4).Infof("HHHHHHHHHHHH (%d/%d) work flow run task %s  HHHHHHHHHHHH", i+1, len(w.Tasks), task.Name)
-		if len(task.SubTasks) > 0 {
-			for j, subTask := range task.SubTasks {
-				klog.V(4).Infof("HHHHHHHHHHHH (%d/%d) work flow run sub task %s HHHHHHHHHHHH", j+1, len(task.SubTasks), subTask.Name)
+	for i, t := range w.Tasks {
+		klog.V(4).Infof("HHHHHHHHHHHH (%d/%d) work flow run t %s  HHHHHHHHHHHH", i+1, len(w.Tasks), t.Name)
+		if t.Skip(ctx, opt) {
+			klog.V(4).Infof("work flow skip task %s", t.Name)
+			continue
+		}
+		if len(t.SubTasks) > 0 {
+			for j, subTask := range t.SubTasks {
+				klog.V(4).Infof("HHHHHHHHHHHH (%d/%d) work flow run sub t %s HHHHHHHHHHHH", j+1, len(t.SubTasks), subTask.Name)
+				if t.Skip(ctx, opt) {
+					klog.V(4).Infof("work flow skip sub task %s", t.Name)
+					continue
+				}
+
 				if nextArgs, err := RunWithRetry(ctx, subTask, opt, args); err != nil {
 					return err
 				} else {
@@ -57,7 +66,7 @@ func (w WorkflowData) RunTask(ctx context.Context, opt task.TaskOpt) error {
 				}
 			}
 		} else {
-			if nextArgs, err := RunWithRetry(ctx, task, opt, args); err != nil {
+			if nextArgs, err := RunWithRetry(ctx, t, opt, args); err != nil {
 				return err
 			} else {
 				args = nextArgs

@@ -17,6 +17,7 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/kosmos.io/kosmos/cmd/kubenest/operator/app/options"
 	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
 	env "github.com/kosmos.io/kosmos/pkg/kubenest/controller/virtualcluster.node.controller/env"
@@ -32,6 +33,8 @@ type TaskOpt struct {
 	HostClient       client.Client
 	HostK8sClient    kubernetes.Interface
 	VirtualK8sClient kubernetes.Interface
+
+	Opt *options.KubeNestOptions
 }
 
 type Task struct {
@@ -39,6 +42,7 @@ type Task struct {
 	Run         func(context.Context, TaskOpt, interface{}) (interface{}, error)
 	Retry       bool
 	SubTasks    []Task
+	Skip        func(context.Context, TaskOpt) bool
 	ErrorIgnore bool
 }
 
@@ -85,6 +89,9 @@ func NewDrainHostNodeTask() Task {
 	return Task{
 		Name:  "drain host node",
 		Retry: true,
+		Skip: func(ctx context.Context, opt TaskOpt) bool {
+			return opt.Opt.ForceDestroy
+		},
 		Run: func(ctx context.Context, to TaskOpt, _ interface{}) (interface{}, error) {
 			targetNode, err := to.HostK8sClient.CoreV1().Nodes().Get(ctx, to.NodeInfo.Name, metav1.GetOptions{})
 			if err != nil {
@@ -107,6 +114,9 @@ func NewDrainVirtualNodeTask() Task {
 		Name:  "drain virtual-control-plane node",
 		Retry: true,
 		// ErrorIgnore: true,
+		Skip: func(ctx context.Context, opt TaskOpt) bool {
+			return opt.Opt.ForceDestroy
+		},
 		Run: func(ctx context.Context, to TaskOpt, _ interface{}) (interface{}, error) {
 			targetNode, err := to.VirtualK8sClient.CoreV1().Nodes().Get(ctx, to.NodeInfo.Name, metav1.GetOptions{})
 			if err != nil {
