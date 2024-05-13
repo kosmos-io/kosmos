@@ -216,27 +216,14 @@ Enter man signal for more information
 */
 func handleCmd(conn *websocket.Conn, params url.Values) {
 	command := params.Get("command")
+	args := params["args"]
+	// if the command is file, the file should have execute permission
 	if command == "" {
 		log.Warnf("No command specified %v", params)
 		_ = conn.WriteMessage(websocket.TextMessage, []byte("No command specified"))
 		return
 	}
-
-	cmd := exec.Command("sh", "-c", command)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		exitCode := cmd.ProcessState.ExitCode()
-		log.Infof("Command : %s finished with exit code %d, output :%s", command, exitCode, string(out))
-		if strings.Contains(string(out), "No such file") {
-			exitCode = 127
-		}
-		_ = conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, fmt.Sprintf("%d", exitCode)))
-	} else {
-		_ = conn.WriteMessage(websocket.TextMessage, out)
-	}
-	exitCode := cmd.ProcessState.ExitCode()
-	log.Infof("Command : %s finished with exit code %d, output :%s", command, exitCode, string(out))
-	_ = conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, fmt.Sprintf("%d", exitCode)))
+	execCmd(conn, command, args)
 }
 
 func handleScript(conn *websocket.Conn, params url.Values, command []string) {
@@ -275,12 +262,15 @@ func handleScript(conn *websocket.Conn, params url.Values, command []string) {
 			continue
 		}
 	}
-
-	// Execute the Python script
 	executeCmd := append(command, tempFile.Name())
 	executeCmd = append(executeCmd, args...)
+	// Execute the Python script
+	execCmd(conn, executeCmd[0], executeCmd[1:])
+}
+
+func execCmd(conn *websocket.Conn, command string, args []string) {
 	// #nosec G204
-	cmd := exec.Command(executeCmd[0], executeCmd[1:]...)
+	cmd := exec.Command(command, args...)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		log.Warnf("Error obtaining command output pipe: %v", err)
@@ -288,7 +278,12 @@ func handleScript(conn *websocket.Conn, params url.Values, command []string) {
 	defer stdout.Close()
 
 	if err := cmd.Start(); err != nil {
-		log.Warnf("Error starting command: %v", err)
+		errStr := strings.ToLower(err.Error())
+		log.Warnf("Error starting command: %v, %s", err, errStr)
+		if strings.Contains(errStr, "no such file") {
+			exitCode := 127
+			_ = conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, fmt.Sprintf("%d", exitCode)))
+		}
 	}
 
 	// processOutput
@@ -309,5 +304,6 @@ func handleScript(conn *websocket.Conn, params url.Values, command []string) {
 		}
 	}
 	exitCode := cmd.ProcessState.ExitCode()
+	log.Infof("Command : %s finished with exit code %d", command, exitCode)
 	_ = conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, fmt.Sprintf("%d", exitCode)))
 }
