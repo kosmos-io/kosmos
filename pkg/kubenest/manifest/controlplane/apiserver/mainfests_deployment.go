@@ -48,6 +48,12 @@ spec:
       - name: kube-apiserver
         image:  {{ .ImageRepository }}/kube-apiserver:{{ .Version }}
         imagePullPolicy: IfNotPresent
+        env:
+          - name: PODIP
+            valueFrom:
+              fieldRef:
+                apiVersion: v1
+                fieldPath: status.podIP
         command:
         - kube-apiserver
         - --allow-privileged=true
@@ -82,6 +88,7 @@ spec:
         - --max-requests-inflight=1500
         - --max-mutating-requests-inflight=500
         - --v=4
+        - --advertise-address=$(PODIP)
         livenessProbe:
           failureThreshold: 8
           httpGet:
