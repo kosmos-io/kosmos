@@ -247,6 +247,7 @@ func NewRemoteNodeJoinTask() Task {
 			joinCmd := &exector.CMDExector{
 				Cmd: fmt.Sprintf("bash %s join %s", env.GetExectorShellName(), to.KubeDNSAddress),
 			}
+			klog.V(4).Infof("join node %s with cmd: %s", to.NodeInfo.Name, joinCmd.Cmd)
 			ret := exectHelper.DoExector(ctx.Done(), joinCmd)
 			if ret.Status != exector.SUCCESS {
 				return nil, fmt.Errorf("join node %s failed: %s", to.NodeInfo.Name, ret.String())
@@ -428,19 +429,15 @@ func getJoinCmdStr(log string) (string, error) {
 	if len(strs) != 2 {
 		return "", fmt.Errorf("get join cmd str failed")
 	}
-	return fmt.Sprintf("kubeadm join %s", strs[1]), nil
+	return fmt.Sprintf("kubeadm join %s", strings.TrimSpace(strs[1])), nil
 }
 
-func getJoinCmdToken(joinCmdStr string) (string, error) {
-	strs := strings.Split(joinCmdStr, " --token ")
-	if len(strs) != 2 {
-		return "", fmt.Errorf("get join cmd token failed")
+func getJoinCmdArgs(joinCmdStr string) (string, string, string, error) {
+	strs := strings.Split(joinCmdStr, " ")
+	if len(strs) != 7 {
+		return "", "", "", fmt.Errorf("invalid join cmd str: %s", joinCmdStr)
 	}
-	strs = strings.Split(strs[1], " ")
-	if len(strs) < 2 {
-		return "", fmt.Errorf("get join cmd token failed")
-	}
-	return strings.TrimSpace(strs[0]), nil
+	return strings.TrimSpace(strs[2]), strings.TrimSpace(strs[4]), strings.TrimSpace(strs[6]), nil
 }
 
 func NewJoinNodeToHostCmd() Task {
@@ -486,12 +483,12 @@ func NewExecJoinNodeToHostCmdTask() Task {
 			if !ok {
 				return nil, fmt.Errorf("get join cmd str failed")
 			}
-			token, err := getJoinCmdToken(joinCmdStr)
+			host, token, certHash, err := getJoinCmdArgs(joinCmdStr)
 			if err != nil {
 				return nil, err
 			}
 			joinCmd := &exector.CMDExector{
-				Cmd: fmt.Sprintf("bash  %s revert %s", env.GetExectorShellName(), token),
+				Cmd: fmt.Sprintf("bash  %s revert %s %s %s", env.GetExectorShellName(), host, token, certHash),
 			}
 
 			exectHelper := exector.NewExectorHelper(to.NodeInfo.Spec.NodeIP, "")
