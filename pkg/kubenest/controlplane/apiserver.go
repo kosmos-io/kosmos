@@ -7,34 +7,23 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	clientset "k8s.io/client-go/kubernetes"
-	"k8s.io/klog/v2"
 
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
-	vcnodecontroller "github.com/kosmos.io/kosmos/pkg/kubenest/controller/virtualcluster.node.controller"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/manifest/controlplane/apiserver"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/util"
 )
 
-func EnsureVirtualClusterAPIServer(client clientset.Interface, name, namespace string, manager *vcnodecontroller.HostPortManager) error {
-	port, err := manager.AllocateHostPort(name)
-	if err != nil {
-		return fmt.Errorf("failed to allocate host ip for virtual cluster apiserver, err: %w", err)
-	}
-
+func EnsureVirtualClusterAPIServer(client clientset.Interface, name, namespace string, port int32) error {
 	if err := installAPIServer(client, name, namespace, port); err != nil {
 		return fmt.Errorf("failed to install virtual cluster apiserver, err: %w", err)
 	}
 	return nil
 }
 
-func DeleteVirtualClusterAPIServer(client clientset.Interface, name, namespace string, manager *vcnodecontroller.HostPortManager) error {
+func DeleteVirtualClusterAPIServer(client clientset.Interface, name, namespace string) error {
 	deployName := fmt.Sprintf("%s-%s", name, "apiserver")
 	if err := util.DeleteDeployment(client, deployName, namespace); err != nil {
 		return errors.Wrapf(err, "Failed to delete deployment %s/%s", deployName, namespace)
-	}
-	err := manager.ReleaseHostPort(name)
-	if err != nil {
-		klog.Warningf("Error releasing host port for cluster %s: %v", name, err)
 	}
 	return nil
 }

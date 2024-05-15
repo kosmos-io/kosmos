@@ -44,7 +44,7 @@ func runVirtualClusterService(r workflow.RunData) error {
 		data.RemoteClient(),
 		data.GetName(),
 		data.GetNamespace(),
-		data.GetHostPortManager(),
+		data.HostPort(),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to install virtual cluster service , err: %w", err)
@@ -78,7 +78,6 @@ func uninstallVirtualClusterService(r workflow.RunData) error {
 		data.RemoteClient(),
 		data.GetName(),
 		data.GetNamespace(),
-		data.GetHostPortManager(),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to uninstall virtual cluster service , err: %w", err)

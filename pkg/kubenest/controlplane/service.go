@@ -13,25 +13,19 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
-	vcnodecontroller "github.com/kosmos.io/kosmos/pkg/kubenest/controller/virtualcluster.node.controller"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/manifest/controlplane/apiserver"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/manifest/controlplane/etcd"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/util"
 )
 
-func EnsureVirtualClusterService(client clientset.Interface, name, namespace string, manager *vcnodecontroller.HostPortManager) error {
-	port, err := manager.AllocateHostPort(name)
-	if err != nil {
-		return fmt.Errorf("failed to allocate host ip for virtual cluster apiserver, err: %w", err)
-	}
-
+func EnsureVirtualClusterService(client clientset.Interface, name, namespace string, port int32) error {
 	if err := createServerService(client, name, namespace, port); err != nil {
 		return fmt.Errorf("failed to create virtual cluster apiserver-service, err: %w", err)
 	}
 	return nil
 }
 
-func DeleteVirtualClusterService(client clientset.Interface, name, namespace string, manager *vcnodecontroller.HostPortManager) error {
+func DeleteVirtualClusterService(client clientset.Interface, name, namespace string) error {
 	services := []string{
 		fmt.Sprintf("%s-%s", name, "apiserver"),
 		fmt.Sprintf("%s-%s", name, "etcd"),
@@ -46,11 +40,6 @@ func DeleteVirtualClusterService(client clientset.Interface, name, namespace str
 			}
 			return errors.Wrapf(err, "Failed to delete service %s/%s", service, namespace)
 		}
-	}
-
-	err := manager.ReleaseHostPort(name)
-	if err != nil {
-		klog.Warningf("Error releasing host port for cluster %s: %v", name, err)
 	}
 
 	klog.V(2).Infof("Successfully uninstalled service for virtualcluster %s", name)
