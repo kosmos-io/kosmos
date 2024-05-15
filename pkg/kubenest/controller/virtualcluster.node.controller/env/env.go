@@ -34,9 +34,25 @@ func GetExectorShellName() string {
 	return shellName
 }
 
+func GetExectorShellEnvName() string {
+	shellName := os.Getenv("EXECTOR_SHELL_ENV_NAME")
+
+	if len(shellName) == 0 {
+		shellName = "env.sh"
+	}
+	return shellName
+}
+
 func GetExectorShellPath() string {
 	exectorWorkDir := GetExectorWorkerDir()
 	shellVersion := GetExectorShellName()
+
+	return fmt.Sprintf("%s%s", exectorWorkDir, shellVersion)
+}
+
+func GetExectorShellEnvPath() string {
+	exectorWorkDir := GetExectorWorkerDir()
+	shellVersion := GetExectorShellEnvName()
 
 	return fmt.Sprintf("%s%s", exectorWorkDir, shellVersion)
 }
