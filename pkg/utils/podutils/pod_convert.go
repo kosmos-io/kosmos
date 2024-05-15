@@ -50,7 +50,7 @@ func ConvertPod(pod *corev1.Pod, cpcp []kosmosv1alpha1.ClusterPodConvertPolicy, 
 	convertSchedulerName(pod, converters.SchedulerNameConverter)
 	convertNodeName(pod, converters.NodeNameConverter)
 	convertNodeSelector(pod, converters.NodeSelectorConverter)
-	converToleration(pod, converters.TolerationConverter)
+	convertToleration(pod, converters.TolerationConverter)
 	convertAffinity(pod, converters.AffinityConverter)
 	convertTopologySpreadConstraints(pod, converters.TopologySpreadConstraintsConverter)
 	convertHostAliases(pod, converters.HostAliasesConverter)
@@ -94,22 +94,22 @@ func convertNodeName(pod *corev1.Pod, converter *kosmosv1alpha1.NodeNameConverte
 	}
 }
 
-func converToleration(pod *corev1.Pod, conveter *kosmosv1alpha1.TolerationConverter) {
-	if conveter == nil {
+func convertToleration(pod *corev1.Pod, converter *kosmosv1alpha1.TolerationConverter) {
+	if converter == nil {
 		return
 	}
 
-	switch conveter.ConvertType {
+	switch converter.ConvertType {
 	case kosmosv1alpha1.Add:
 		if pod.Spec.Tolerations == nil {
-			pod.Spec.Tolerations = conveter.Tolerations
+			pod.Spec.Tolerations = converter.Tolerations
 		}
 	case kosmosv1alpha1.Remove:
 		pod.Spec.Tolerations = nil
 	case kosmosv1alpha1.Replace:
-		pod.Spec.Tolerations = conveter.Tolerations
+		pod.Spec.Tolerations = converter.Tolerations
 	default:
-		klog.Warningf("Skip other convert type, Tolerations: %s", conveter.ConvertType)
+		klog.Warningf("Skip other convert type, Tolerations: %s", converter.ConvertType)
 	}
 }
 
