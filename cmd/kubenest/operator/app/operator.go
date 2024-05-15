@@ -121,6 +121,7 @@ func run(ctx context.Context, opts *options.Options) error {
 		RootClientSet: hostKubeClient,
 		KosmosClient:  kosmosClient,
 		EventRecorder: mgr.GetEventRecorderFor(constants.NodeControllerName),
+		Options:       &opts.KubeNestOptions,
 	}
 
 	if err = VirtualClusterNodeController.SetupWithManager(mgr); err != nil {

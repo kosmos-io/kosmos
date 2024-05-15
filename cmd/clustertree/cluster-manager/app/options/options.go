@@ -54,10 +54,10 @@ type Options struct {
 }
 
 type KubernetesOptions struct {
-	KubeConfig string  `json:"kubeconfig" yaml:"kubeconfig"`
-	Master     string  `json:"master,omitempty" yaml:"master,omitempty"`
-	QPS        float32 `json:"qps,omitempty" yaml:"qps,omitempty"`
-	Burst      int     `json:"burst,omitempty" yaml:"burst,omitempty"`
+	KubeConfig string
+	Master     string
+	QPS        float32
+	Burst      int
 }
 
 func NewOptions() (*Options, error) {

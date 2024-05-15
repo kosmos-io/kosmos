@@ -21,6 +21,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/kosmos.io/kosmos/cmd/kubenest/operator/app/options"
 	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
@@ -35,6 +36,7 @@ type NodeController struct {
 	RootClientSet kubernetes.Interface
 	EventRecorder record.EventRecorder
 	KosmosClient  versioned.Interface
+	Options       *options.KubeNestOptions
 }
 
 func (r *NodeController) SetupWithManager(mgr manager.Manager) error {
@@ -299,7 +301,7 @@ func (r *NodeController) joinNode(ctx context.Context, nodeInfos []v1alpha1.Glob
 	}
 
 	clusterDNS := ""
-	dnssvc, err := k8sClient.CoreV1().Services((constants.SystemNs)).Get(ctx, constants.KubeDNSSVCName, metav1.GetOptions{})
+	dnssvc, err := k8sClient.CoreV1().Services(constants.SystemNs).Get(ctx, constants.KubeDNSSVCName, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("get kube-dns service failed: %s", err)
 	} else {
@@ -314,6 +316,7 @@ func (r *NodeController) joinNode(ctx context.Context, nodeInfos []v1alpha1.Glob
 			HostClient:       r.Client,
 			HostK8sClient:    r.RootClientSet,
 			VirtualK8sClient: k8sClient,
+			Opt:              r.Options,
 		}); err != nil {
 			return fmt.Errorf("join node %s failed: %s", nodeInfo.Name, err)
 		}
