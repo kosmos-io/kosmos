@@ -47,14 +47,14 @@ func (w WorkflowData) RunTask(ctx context.Context, opt task.TaskOpt) error {
 	var args interface{}
 	for i, t := range w.Tasks {
 		klog.V(4).Infof("HHHHHHHHHHHH (%d/%d) work flow run t %s  HHHHHHHHHHHH", i+1, len(w.Tasks), t.Name)
-		if t.Skip(ctx, opt) {
+		if t.Skip != nil && t.Skip(ctx, opt) {
 			klog.V(4).Infof("work flow skip task %s", t.Name)
 			continue
 		}
 		if len(t.SubTasks) > 0 {
 			for j, subTask := range t.SubTasks {
 				klog.V(4).Infof("HHHHHHHHHHHH (%d/%d) work flow run sub t %s HHHHHHHHHHHH", j+1, len(t.SubTasks), subTask.Name)
-				if t.Skip(ctx, opt) {
+				if t.Skip != nil && t.Skip(ctx, opt) {
 					klog.V(4).Infof("work flow skip sub task %s", t.Name)
 					continue
 				}
