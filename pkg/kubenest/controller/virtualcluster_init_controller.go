@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"gopkg.in/yaml.v3"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -29,18 +30,16 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
-	vcnodecontroller "github.com/kosmos.io/kosmos/pkg/kubenest/controller/virtualcluster.node.controller"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/util"
 )
 
 type VirtualClusterInitController struct {
 	client.Client
-	Config          *rest.Config
-	EventRecorder   record.EventRecorder
-	HostPortManager *vcnodecontroller.HostPortManager
-	RootClientSet   kubernetes.Interface
-	KosmosClient    versioned.Interface
-	lock            sync.Mutex
+	Config        *rest.Config
+	EventRecorder record.EventRecorder
+	RootClientSet kubernetes.Interface
+	KosmosClient  versioned.Interface
+	lock          sync.Mutex
 }
 
 type NodePool struct {
@@ -48,6 +47,10 @@ type NodePool struct {
 	Labels  map[string]string `json:"labels" yaml:"labels"`
 	Cluster string            `json:"cluster" yaml:"cluster"`
 	State   string            `json:"state" yaml:"state"`
+}
+
+type HostPortPool struct {
+	PortsPool []int32 `yaml:"portsPool"`
 }
 
 const (
@@ -230,7 +233,13 @@ func (c *VirtualClusterInitController) removeFinalizer(virtualCluster *v1alpha1.
 func (c *VirtualClusterInitController) createVirtualCluster(virtualCluster *v1alpha1.VirtualCluster) error {
 	klog.V(2).Infof("Reconciling virtual cluster", "name", virtualCluster.Name)
 
-	executer, err := NewExecutor(virtualCluster, c.Client, c.Config, c.HostPortManager)
+	//Assign host port
+	_, err := c.AllocateHostPort(virtualCluster)
+	if err != nil {
+		return errors.Wrap(err, "Error in assign host port!")
+	}
+
+	executer, err := NewExecutor(virtualCluster, c.Client, c.Config)
 	if err != nil {
 		return err
 	}
@@ -258,7 +267,7 @@ func (c *VirtualClusterInitController) createVirtualCluster(virtualCluster *v1al
 
 func (c *VirtualClusterInitController) destroyVirtualCluster(virtualCluster *v1alpha1.VirtualCluster) error {
 	klog.V(2).Infof("Destroying virtual cluster %s", virtualCluster.Name)
-	execute, err := NewExecutor(virtualCluster, c.Client, c.Config, c.HostPortManager)
+	execute, err := NewExecutor(virtualCluster, c.Client, c.Config)
 	if err != nil {
 		return err
 	}
@@ -452,4 +461,58 @@ func mapContains(big map[string]string, small map[string]string) bool {
 		}
 	}
 	return true
+}
+
+func GetHostPortPoolFromConfigMap(client kubernetes.Interface, ns, cmName, dataKey string) (*HostPortPool, error) {
+	hostPorts, err := client.CoreV1().ConfigMaps(ns).Get(context.TODO(), cmName, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	yamlData, exist := hostPorts.Data[dataKey]
+	if !exist {
+		return nil, fmt.Errorf("key '%s' not found in ConfigMap '%s'", dataKey, cmName)
+	}
+
+	var hostPool HostPortPool
+	if err := yaml.Unmarshal([]byte(yamlData), &hostPool); err != nil {
+		return nil, err
+	}
+
+	return &hostPool, nil
+}
+
+func (c *VirtualClusterInitController) isPortAllocated(port int32) bool {
+	vcList := &v1alpha1.VirtualClusterList{}
+	err := c.List(context.Background(), vcList)
+	if err != nil {
+		klog.Errorf("list virtual cluster error: %v", err)
+		return false
+	}
+
+	for _, vc := range vcList.Items {
+		if vc.Status.Port == port {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (c *VirtualClusterInitController) AllocateHostPort(virtualCluster *v1alpha1.VirtualCluster) (int32, error) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	hostPool, err := GetHostPortPoolFromConfigMap(c.RootClientSet, constants.KosmosNs, constants.HostPortsCMName, constants.HostPortsCMDataName)
+	if err != nil {
+		return 0, err
+	}
+
+	for _, port := range hostPool.PortsPool {
+		if !c.isPortAllocated(port) {
+			virtualCluster.Status.Port = port
+			return port, nil
+		}
+	}
+	return 0, fmt.Errorf("no available ports to allocate")
 }

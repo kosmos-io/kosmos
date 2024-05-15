@@ -97,6 +97,8 @@ type VirtualClusterStatus struct {
 	Reason string `json:"reason,omitempty" protobuf:"bytes,4,opt,name=reason"`
 	// +optional
 	UpdateTime *metav1.Time `json:"updateTime,omitempty" protobuf:"bytes,7,opt,name=updateTime"`
+	// +optional
+	Port int32 `json:"port,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

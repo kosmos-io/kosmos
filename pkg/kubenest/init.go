@@ -12,7 +12,6 @@ import (
 
 	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
-	vcnodecontroller "github.com/kosmos.io/kosmos/pkg/kubenest/controller/virtualcluster.node.controller"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/tasks"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/util"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/util/cert"
@@ -35,7 +34,7 @@ type initData struct {
 	virtualClusterDataDir string
 	privateRegistry       string
 	externalIP            string
-	hostPortManager       *vcnodecontroller.HostPortManager
+	hostPort              int32
 }
 
 type InitOptions struct {
@@ -47,7 +46,7 @@ type InitOptions struct {
 	virtualCluster        *v1alpha1.VirtualCluster
 }
 
-func NewInitPhase(opts *InitOptions, hostPortManager *vcnodecontroller.HostPortManager) *workflow.Phase {
+func NewInitPhase(opts *InitOptions) *workflow.Phase {
 	initPhase := workflow.NewPhase()
 
 	initPhase.AppendTask(tasks.NewVirtualClusterServiceTask())
@@ -65,12 +64,12 @@ func NewInitPhase(opts *InitOptions, hostPortManager *vcnodecontroller.HostPortM
 	initPhase.AppendTask(tasks.NewComponentsFromManifestsTask())
 
 	initPhase.SetDataInitializer(func() (workflow.RunData, error) {
-		return newRunData(opts, hostPortManager)
+		return newRunData(opts)
 	})
 	return initPhase
 }
 
-func UninstallPhase(opts *InitOptions, hostPortManager *vcnodecontroller.HostPortManager) *workflow.Phase {
+func UninstallPhase(opts *InitOptions) *workflow.Phase {
 	destroyPhase := workflow.NewPhase()
 	destroyPhase.AppendTask(tasks.UninstallCoreDNSTask())
 	destroyPhase.AppendTask(tasks.UninstallComponentTask())
@@ -81,7 +80,7 @@ func UninstallPhase(opts *InitOptions, hostPortManager *vcnodecontroller.HostPor
 	destroyPhase.AppendTask(tasks.DeleteEtcdPvcTask())
 
 	destroyPhase.SetDataInitializer(func() (workflow.RunData, error) {
-		return newRunData(opts, hostPortManager)
+		return newRunData(opts)
 	})
 	return destroyPhase
 }
@@ -120,7 +119,7 @@ func NewInitOptWithKubeconfig(config *rest.Config) InitOpt {
 	}
 }
 
-func newRunData(opt *InitOptions, hostPortManager *vcnodecontroller.HostPortManager) (*initData, error) {
+func newRunData(opt *InitOptions) (*initData, error) {
 	if err := opt.Validate(); err != nil {
 		return nil, err
 	}
@@ -170,7 +169,7 @@ func newRunData(opt *InitOptions, hostPortManager *vcnodecontroller.HostPortMana
 		privateRegistry:       utils.DefaultImageRepository,
 		CertStore:             cert.NewCertStore(),
 		externalIP:            opt.virtualCluster.Spec.ExternalIP,
-		hostPortManager:       hostPortManager,
+		hostPort:              opt.virtualCluster.Status.Port,
 	}, nil
 }
 
@@ -196,10 +195,6 @@ func (i initData) GetName() string {
 
 func (i initData) GetNamespace() string {
 	return i.namespace
-}
-
-func (i initData) GetHostPortManager() *vcnodecontroller.HostPortManager {
-	return i.hostPortManager
 }
 
 func (i initData) ControlplaneAddress() string {
@@ -232,6 +227,10 @@ func (i initData) VirtualClusterVersion() string {
 
 func (i initData) ExternalIP() string {
 	return i.externalIP
+}
+
+func (i initData) HostPort() int32 {
+	return i.hostPort
 }
 
 func (i initData) DynamicClient() *dynamic.DynamicClient {

@@ -88,18 +88,12 @@ func run(ctx context.Context, opts *options.Options) error {
 		return fmt.Errorf("could not create clientset: %v", err)
 	}
 
-	hostPortManager, err := vcnodecontroller.NewHostPortManager(hostKubeClient)
-	if err != nil {
-		return fmt.Errorf("failed to create host port manager: %v", err)
-	}
-
 	VirtualClusterInitController := controller.VirtualClusterInitController{
-		Client:          mgr.GetClient(),
-		Config:          mgr.GetConfig(),
-		EventRecorder:   mgr.GetEventRecorderFor(constants.InitControllerName),
-		HostPortManager: hostPortManager,
-		RootClientSet:   hostKubeClient,
-		KosmosClient:    kosmosClient,
+		Client:        mgr.GetClient(),
+		Config:        mgr.GetConfig(),
+		EventRecorder: mgr.GetEventRecorderFor(constants.InitControllerName),
+		RootClientSet: hostKubeClient,
+		KosmosClient:  kosmosClient,
 	}
 	if err = VirtualClusterInitController.SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("error starting %s: %v", constants.InitControllerName, err)
