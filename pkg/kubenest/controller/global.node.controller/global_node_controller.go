@@ -155,56 +155,24 @@ func (r *GlobalNodeController) SyncState(ctx context.Context, globalNode *v1alph
 }
 
 func (r *GlobalNodeController) SyncLabel(ctx context.Context, globalNode *v1alpha1.GlobalNode) error {
-	var client kubernetes.Interface
-	if globalNode.Spec.State != v1alpha1.NodeInUse {
-		client = r.RootClientSet
-	} else {
-		vclist, err := r.KosmosClient.KosmosV1alpha1().VirtualClusters("").List(ctx, metav1.ListOptions{})
-		if err != nil {
-			klog.Warningf("global-node-controller: SyncState: cannot list virtual cluster, err: %s", globalNode.Name)
-			return err
-		}
-		var targetVirtualCluster v1alpha1.VirtualCluster
-		for _, v := range vclist.Items {
-			if v.Name == globalNode.Status.VirtualCluster {
-				targetVirtualCluster = v
-				break
-			}
-		}
-		if targetVirtualCluster.Status.Phase != v1alpha1.Completed && targetVirtualCluster.Status.Phase != v1alpha1.AllNodeReady {
-			klog.Warningf("global-node-controller: SyncState: virtual cluster is not completed, err: %s", globalNode.Name)
-			return nil
-		}
-		virtualClient, err := util.GenerateKubeclient(&targetVirtualCluster)
-		if err != nil {
-			klog.Warningf("global-node-controller: SyncState: cannot generate kubeclient, err: %s", globalNode.Name)
-			return err
-		}
-
-		client = virtualClient
-	}
-
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		hostNode, err := client.CoreV1().Nodes().Get(ctx, globalNode.Name, metav1.GetOptions{})
+		rootNode, err := r.RootClientSet.CoreV1().Nodes().Get(ctx, globalNode.Name, metav1.GetOptions{})
 		if err != nil {
-			klog.Errorf("global-node-controller: SyncState: can not get global node, err: %s", globalNode.Name)
+			klog.Errorf("global-node-controller: SyncState: can not get root node: %s", globalNode.Name)
 			return err
 		}
 
-		updateHostNode := hostNode.DeepCopy()
-		needUpdate := false
-		for k, v := range globalNode.Spec.Labels {
-			if updateHostNode.Labels[k] != v {
-				updateHostNode.Labels[k] = v
-				needUpdate = true
-			}
-		}
-		if !needUpdate {
-			return nil
+		if _, err = r.KosmosClient.KosmosV1alpha1().GlobalNodes().Get(ctx, globalNode.Name, metav1.GetOptions{}); err != nil {
+			klog.Errorf("global-node-controller: SyncState: can not get global node: %s", globalNode.Name)
+			return err
 		}
 
-		if _, err := client.CoreV1().Nodes().Update(ctx, updateHostNode, metav1.UpdateOptions{}); err != nil {
-			klog.Errorf("global-node-controller: SyncState: update node label failed, err: %s", globalNode.Name)
+		// Use management plane node label to override global node
+		updateGlobalNode := globalNode.DeepCopy()
+		updateGlobalNode.Labels = rootNode.Labels
+
+		if _, err = r.KosmosClient.KosmosV1alpha1().GlobalNodes().Update(ctx, updateGlobalNode, metav1.UpdateOptions{}); err != nil {
+			klog.Errorf("global-node-controller: SyncState: update global node label failed, err: %s", err)
 			return err
 		}
 		return nil
@@ -220,6 +188,25 @@ func (r *GlobalNodeController) Reconcile(ctx context.Context, request reconcile.
 	if err := r.Get(ctx, request.NamespacedName, &globalNode); err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.V(4).Infof("global-node-controller: can not found %s", request.NamespacedName)
+			// If global node does not found, create it
+			var rootNode *v1.Node
+			if rootNode, err = r.RootClientSet.CoreV1().Nodes().Get(ctx, request.Name, metav1.GetOptions{}); err != nil {
+				klog.Errorf("global-node-controller: can not found root node: %s", request.Name)
+				return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
+			}
+			globalNode.Name = request.Name
+			globalNode.Spec.State = v1alpha1.NodeReserved
+			for _, a := range rootNode.Status.Addresses {
+				if a.Type == v1.NodeInternalIP {
+					globalNode.Spec.NodeIP = a.Address
+					break
+				}
+			}
+			if _, err = r.KosmosClient.KosmosV1alpha1().GlobalNodes().Create(ctx, &globalNode, metav1.CreateOptions{}); err != nil {
+				klog.Errorf("global-node-controller: can not create global node: %s", globalNode.Name)
+				return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
+			}
+			klog.V(4).Infof("global-node-controller: %s has been created", globalNode.Name)
 			return reconcile.Result{}, nil
 		}
 		klog.Errorf("get global-node %s error: %v", request.NamespacedName, err)
