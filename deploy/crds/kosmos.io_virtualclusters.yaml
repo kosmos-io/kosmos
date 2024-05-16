@@ -144,6 +144,9 @@ spec:
               phase:
                 description: Phase is the phase of kosmos-operator handling the VirtualCluster
                 type: string
+              port:
+                format: int32
+                type: integer
               reason:
                 type: string
               updateTime:
