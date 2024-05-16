@@ -84,8 +84,11 @@ const (
 	DeInitAction Action = "deInit"
 
 	//host_port_manager
-	HostPortsCMName     = "kosmos-hostports"
-	HostPortsCMDataName = "config.yaml"
+	HostPortsCMName              = "kosmos-hostports"
+	HostPortsCMDataName          = "config.yaml"
+	ApiServerPortKey             = "apiserver-port"
+	ApiServerNetworkProxyPortKey = "apiserver-network-proxy-port"
+	VirtualClusterPortNum        = 2
 
 	ManifestComponentsConfigMap = "components-manifest-cm"
 	NodePoolConfigmap           = "node-pool"

@@ -179,6 +179,11 @@ spec:
               port:
                 format: int32
                 type: integer
+              portMap:
+                additionalProperties:
+                  format: int32
+                  type: integer
+                type: object
               reason:
                 type: string
               updateTime:

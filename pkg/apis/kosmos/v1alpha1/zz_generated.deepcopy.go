@@ -1975,6 +1975,13 @@ func (in *VirtualClusterStatus) DeepCopyInto(out *VirtualClusterStatus) {
 		in, out := &in.UpdateTime, &out.UpdateTime
 		*out = (*in).DeepCopy()
 	}
+	if in.PortMap != nil {
+		in, out := &in.PortMap, &out.PortMap
+		*out = make(map[string]int32, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	return
 }
 

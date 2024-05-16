@@ -35,6 +35,7 @@ type initData struct {
 	privateRegistry       string
 	externalIP            string
 	hostPort              int32
+	hostPortMap           map[string]int32
 }
 
 type InitOptions struct {
@@ -231,6 +232,10 @@ func (i initData) ExternalIP() string {
 
 func (i initData) HostPort() int32 {
 	return i.hostPort
+}
+
+func (i initData) HostPortMap() map[string]int32 {
+	return i.hostPortMap
 }
 
 func (i initData) DynamicClient() *dynamic.DynamicClient {
