@@ -491,7 +491,16 @@ func (c *VirtualClusterInitController) isPortAllocated(port int32) bool {
 	}
 
 	for _, vc := range vcList.Items {
-		if vc.Status.Port == port {
+		// 判断一个map是否包含某个端口
+		contains := func(port int32) bool {
+			for _, p := range vc.Status.PortMap {
+				if p == port {
+					return true
+				}
+			}
+			return false
+		}
+		if vc.Status.Port == port || contains(port) {
 			return true
 		}
 	}
@@ -507,12 +516,19 @@ func (c *VirtualClusterInitController) AllocateHostPort(virtualCluster *v1alpha1
 	if err != nil {
 		return 0, err
 	}
-
-	for _, port := range hostPool.PortsPool {
-		if !c.isPortAllocated(port) {
-			virtualCluster.Status.Port = port
-			return port, nil
+	ports := func() []int32 {
+		ports := make([]int32, 0)
+		for _, p := range hostPool.PortsPool {
+			if !c.isPortAllocated(p) {
+				ports = append(ports, p)
+			}
 		}
+		return ports
+	}()
+	if len(ports) < constants.VirtualClusterPortNum {
+		return 0, fmt.Errorf("no available ports to allocate")
 	}
-	return 0, fmt.Errorf("no available ports to allocate")
+	virtualCluster.Status.PortMap[constants.ApiServerPortKey] = ports[0]
+	virtualCluster.Status.PortMap[constants.ApiServerNetworkProxyPortKey] = ports[1]
+	return 0, err
 }
