@@ -11,7 +11,6 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/kubenest"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
-	vcnodecontroller "github.com/kosmos.io/kosmos/pkg/kubenest/controller/virtualcluster.node.controller"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/workflow"
 )
 
@@ -22,7 +21,7 @@ type Executor struct {
 	config         *rest.Config
 }
 
-func NewExecutor(virtualCluster *v1alpha1.VirtualCluster, c client.Client, config *rest.Config, hostPortManager *vcnodecontroller.HostPortManager) (*Executor, error) {
+func NewExecutor(virtualCluster *v1alpha1.VirtualCluster, c client.Client, config *rest.Config) (*Executor, error) {
 	var phase *workflow.Phase
 
 	opts := []kubenest.InitOpt{
@@ -33,9 +32,9 @@ func NewExecutor(virtualCluster *v1alpha1.VirtualCluster, c client.Client, confi
 	action := recognizeActionFor(virtualCluster)
 	switch action {
 	case constants.InitAction:
-		phase = kubenest.NewInitPhase(options, hostPortManager)
+		phase = kubenest.NewInitPhase(options)
 	case constants.DeInitAction:
-		phase = kubenest.UninstallPhase(options, hostPortManager)
+		phase = kubenest.UninstallPhase(options)
 	default:
 		return nil, fmt.Errorf("failed to recognize action for virtual cluster %s", virtualCluster.Name)
 	}

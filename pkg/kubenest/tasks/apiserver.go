@@ -50,7 +50,7 @@ func runVirtualClusterAPIServer(r workflow.RunData) error {
 		data.RemoteClient(),
 		data.GetName(),
 		data.GetNamespace(),
-		data.GetHostPortManager(),
+		data.HostPort(),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to install virtual cluster apiserver component, err: %w", err)
@@ -101,7 +101,6 @@ func uninstallVirtualClusterAPIServer(r workflow.RunData) error {
 		data.RemoteClient(),
 		data.GetName(),
 		data.GetNamespace(),
-		data.GetHostPortManager(),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to install virtual cluster apiserver component, err: %w", err)
