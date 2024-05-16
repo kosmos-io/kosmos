@@ -51,6 +51,38 @@ spec:
                 description: Kubeconfig is the kubeconfig of the virtual kubernetes's
                   control plane
                 type: string
+              pluginSet:
+                description: PluginSet  is the list of plugins that will be used by
+                  the virtual kubernetes's control plane If plugins is nil or empty,
+                  all default plugins will be used
+                properties:
+                  disabled:
+                    description: Disabled specifies default plugins that should be
+                      disabled.
+                    items:
+                      description: Plugin specifies a plugin name
+                      properties:
+                        name:
+                          description: Name defines the name of plugin
+                          type: string
+                      required:
+                      - name
+                      type: object
+                    type: array
+                  enabled:
+                    description: Enabled specifies plugins that should be enabled
+                      .
+                    items:
+                      description: Plugin specifies a plugin name
+                      properties:
+                        name:
+                          description: Name defines the name of plugin
+                          type: string
+                      required:
+                      - name
+                      type: object
+                    type: array
+                type: object
               promotePolicies:
                 description: PromotePolicies definites the policies for promote to
                   the kubernetes's control plane

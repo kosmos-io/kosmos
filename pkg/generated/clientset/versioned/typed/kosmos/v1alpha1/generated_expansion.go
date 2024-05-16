@@ -25,3 +25,5 @@ type PodConvertPolicyExpansion interface{}
 type ShadowDaemonSetExpansion interface{}
 
 type VirtualClusterExpansion interface{}
+
+type VirtualClusterPluginExpansion interface{}
