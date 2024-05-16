@@ -8,7 +8,6 @@ import (
 // +genclient:nonNamespaced
 // +kubebuilder:resource:scope="Cluster"
 // +kubebuilder:subresource:status
-// +kubebuilder:resource:shortName=cpcp
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 type ClusterPodConvertPolicy struct {

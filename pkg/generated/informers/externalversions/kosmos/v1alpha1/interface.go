@@ -22,8 +22,6 @@ type Interface interface {
 	DistributionPolicies() DistributionPolicyInformer
 	// GlobalNodes returns a GlobalNodeInformer.
 	GlobalNodes() GlobalNodeInformer
-	// Knodes returns a KnodeInformer.
-	Knodes() KnodeInformer
 	// NodeConfigs returns a NodeConfigInformer.
 	NodeConfigs() NodeConfigInformer
 	// PodConvertPolicies returns a PodConvertPolicyInformer.
@@ -78,11 +76,6 @@ func (v *version) DistributionPolicies() DistributionPolicyInformer {
 // GlobalNodes returns a GlobalNodeInformer.
 func (v *version) GlobalNodes() GlobalNodeInformer {
 	return &globalNodeInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
-}
-
-// Knodes returns a KnodeInformer.
-func (v *version) Knodes() KnodeInformer {
-	return &knodeInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
 }
 
 // NodeConfigs returns a NodeConfigInformer.

@@ -76,9 +76,10 @@ spec:
           nodeSelectorTerms:
             - matchExpressions:
                 - key: kubernetes.io/hostname
-                  operator: NotIn
+                  operator: In
                   values:
-                    - cluster-host-control-plane
+                    - kosmos-cluster-member1
+                    - kosmos-cluster-member2
       podAntiAffinity:
         requiredDuringSchedulingIgnoredDuringExecution:
           - labelSelector:

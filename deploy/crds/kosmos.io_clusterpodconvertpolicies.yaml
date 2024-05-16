@@ -12,10 +12,8 @@ spec:
     kind: ClusterPodConvertPolicy
     listKind: ClusterPodConvertPolicyList
     plural: clusterpodconvertpolicies
-    shortNames:
-    - cpcp
     singular: clusterpodconvertpolicy
-  scope: Namespaced
+  scope: Cluster
   versions:
   - name: v1alpha1
     schema:
