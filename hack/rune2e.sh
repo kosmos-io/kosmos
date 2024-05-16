@@ -21,12 +21,7 @@ source "${ROOT}/cluster.sh"
 mkdir -p "$ARTIFACTS_PATH"
 
 # pull e2e test image
-docker pull bitpoke/mysql-operator-orchestrator:v0.6.3
-docker pull bitpoke/mysql-operator:v0.6.3
-docker pull bitpoke/mysql-operator-sidecar-5.7:v0.6.3
-docker pull nginx
-docker pull percona:5.7
-docker pull prom/mysqld-exporter:v0.13.0
+prepare_test_image
 
 # prepare for e2e test
 prepare_e2e_cluster "${HOST_CLUSTER_NAME}" &
@@ -71,8 +66,9 @@ util::wait_for_condition "mysql operator are ready" \
 kubectl --kubeconfig "${REPO_ROOT}/environments/${HOST_CLUSTER_NAME}/kubeconfig" apply -f "${REPO_ROOT}"/test/e2e/deploy/cr
 
 util::wait_for_condition "mysql cr are ready" \
-  "[ \$(kubectl --kubeconfig ${REPO_ROOT}/environments/${HOST_CLUSTER_NAME}/kubeconfig get pods -n kosmos-e2e --field-selector=status.phase=Running -l app.kubernetes.io/name=mysql --no-headers | wc -l) -eq 2 ]" \
+  "[ \$(kubectl --kubeconfig ${REPO_ROOT}/environments/${HOST_CLUSTER_NAME}/kubeconfig get pods -n kosmos-e2e -l app.kubernetes.io/name=mysql |grep \"4/4\"| grep \"Running\" | wc -l) -eq 2 ]" \
   1200
+
 
 echo "E2e test of mysql-operator success"
 

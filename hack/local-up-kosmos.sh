@@ -49,7 +49,7 @@ MEMBER3_CLUSTER_POD_CIDR="10.236.64.0/18"
 MEMBER3_CLUSTER_SERVICE_CIDR="10.236.0.0/18"
 
 REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
-export VERSION="latest"
+VERSION=${VERSION:-"latest"}
 source "$(dirname "${BASH_SOURCE[0]}")/install_kind_kubectl.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/cluster.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/util.sh"
@@ -60,7 +60,7 @@ if [[ -z "${HOST_IPADDRESS}" ]]; then
   util::get_macos_ipaddress # Adapt for macOS
   HOST_IPADDRESS=${MAC_NIC_IPADDRESS:-}
 fi
-make images GOOS="linux" --directory="${REPO_ROOT}"
+make images GOOS="linux" VERSION="$VERSION" --directory="${REPO_ROOT}"
 
 make kosmosctl
 os=$(go env GOOS)

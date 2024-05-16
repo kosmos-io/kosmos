@@ -8,7 +8,8 @@ set -o pipefail
 
 KOSMOS_GO_PACKAGE="github.com/kosmos.io/kosmos"
 
-
+REPO_ROOT="$(dirname "${BASH_SOURCE[0]}")/.."
+HOST_CLUSTER_NAME="cluster-host"
 
 MIN_Go_VERSION=go1.19.0
 
