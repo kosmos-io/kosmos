@@ -13,8 +13,8 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/kubenest/util"
 )
 
-func EnsureVirtualClusterAPIServer(client clientset.Interface, name, namespace string, port int32) error {
-	if err := installAPIServer(client, name, namespace, port); err != nil {
+func EnsureVirtualClusterAPIServer(client clientset.Interface, name, namespace string, portMap map[string]int32) error {
+	if err := installAPIServer(client, name, namespace, portMap); err != nil {
 		return fmt.Errorf("failed to install virtual cluster apiserver, err: %w", err)
 	}
 	return nil
@@ -28,7 +28,7 @@ func DeleteVirtualClusterAPIServer(client clientset.Interface, name, namespace s
 	return nil
 }
 
-func installAPIServer(client clientset.Interface, name, namespace string, port int32) error {
+func installAPIServer(client clientset.Interface, name, namespace string, portMap map[string]int32) error {
 	imageRepository, imageVersion := util.GetImageMessage()
 	clusterIp, err := util.GetEtcdServiceClusterIp(namespace, name+constants.EtcdSuffix, client)
 	if err != nil {
@@ -52,7 +52,7 @@ func installAPIServer(client clientset.Interface, name, namespace string, port i
 		EtcdCertsSecret:           fmt.Sprintf("%s-%s", name, "etcd-cert"),
 		Replicas:                  constants.ApiServerReplicas,
 		EtcdListenClientPort:      constants.ApiServerEtcdListenClientPort,
-		ClusterPort:               port,
+		ClusterPort:               portMap[constants.ApiServerPortKey],
 	})
 	if err != nil {
 		return fmt.Errorf("error when parsing virtual cluster apiserver deployment template: %w", err)

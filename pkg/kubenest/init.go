@@ -57,6 +57,7 @@ func NewInitPhase(opts *InitOptions) *workflow.Phase {
 	initPhase.AppendTask(tasks.NewVirtualClusterApiserverTask())
 	initPhase.AppendTask(tasks.NewUploadKubeconfigTask())
 	initPhase.AppendTask(tasks.NewCheckApiserverHealthTask())
+	initPhase.AppendTask(tasks.NewAnpTask())
 	initPhase.AppendTask(tasks.NewComponentTask())
 	initPhase.AppendTask(tasks.NewCheckControlPlaneTask())
 	// create core-dns
@@ -75,6 +76,7 @@ func UninstallPhase(opts *InitOptions) *workflow.Phase {
 	destroyPhase.AppendTask(tasks.UninstallCoreDNSTask())
 	destroyPhase.AppendTask(tasks.UninstallComponentTask())
 	destroyPhase.AppendTask(tasks.UninstallVirtualClusterApiserverTask())
+	destroyPhase.AppendTask(tasks.UninstallAnpTask())
 	destroyPhase.AppendTask(tasks.UninstallEtcdTask())
 	destroyPhase.AppendTask(tasks.UninstallVirtualClusterServiceTask())
 	destroyPhase.AppendTask(tasks.UninstallCertsAndKubeconfigTask())
@@ -171,6 +173,7 @@ func newRunData(opt *InitOptions) (*initData, error) {
 		CertStore:             cert.NewCertStore(),
 		externalIP:            opt.virtualCluster.Spec.ExternalIP,
 		hostPort:              opt.virtualCluster.Status.Port,
+		hostPortMap:           opt.virtualCluster.Status.PortMap,
 	}, nil
 }
 
