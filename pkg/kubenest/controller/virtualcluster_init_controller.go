@@ -508,10 +508,14 @@ func (c *VirtualClusterInitController) isPortAllocated(port int32) bool {
 	return false
 }
 
+// AllocateHostPort allocate host port for virtual cluster
+// #nosec G602
 func (c *VirtualClusterInitController) AllocateHostPort(virtualCluster *v1alpha1.VirtualCluster) (int32, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
-
+	if len(virtualCluster.Status.PortMap) > 0 || virtualCluster.Status.Port != 0 {
+		return 0, nil
+	}
 	hostPool, err := GetHostPortPoolFromConfigMap(c.RootClientSet, constants.KosmosNs, constants.HostPortsCMName, constants.HostPortsCMDataName)
 	if err != nil {
 		return 0, err
@@ -528,7 +532,14 @@ func (c *VirtualClusterInitController) AllocateHostPort(virtualCluster *v1alpha1
 	if len(ports) < constants.VirtualClusterPortNum {
 		return 0, fmt.Errorf("no available ports to allocate")
 	}
+	virtualCluster.Status.PortMap = make(map[string]int32)
 	virtualCluster.Status.PortMap[constants.ApiServerPortKey] = ports[0]
-	virtualCluster.Status.PortMap[constants.ApiServerNetworkProxyPortKey] = ports[1]
+	virtualCluster.Status.PortMap[constants.ApiServerNetworkProxyAgentPortKey] = ports[1]
+	virtualCluster.Status.PortMap[constants.ApiServerNetworkProxyServerPortKey] = ports[2]
+	virtualCluster.Status.PortMap[constants.ApiServerNetworkProxyHealthPortKey] = ports[3]
+	virtualCluster.Status.PortMap[constants.ApiServerNetworkProxyAdminPortKey] = ports[4]
+
+	klog.V(4).InfoS("Success allocate virtual cluster ports", "allocate ports", ports, "vc ports", ports[:2])
+
 	return 0, err
 }
