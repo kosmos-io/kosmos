@@ -219,6 +219,15 @@ func (r *GlobalNodeController) Reconcile(ctx context.Context, request reconcile.
 	// 	klog.V(4).Infof("sync state successed, %s", request.NamespacedName)
 	// }
 
+	_, err := r.RootClientSet.CoreV1().Nodes().Get(ctx, globalNode.Name, metav1.GetOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return reconcile.Result{}, nil
+		}
+		klog.Errorf("can not get root node: %s", globalNode.Name)
+		return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
+	}
+
 	if err := r.SyncLabel(ctx, &globalNode); err != nil {
 		klog.Warningf("sync label %s error: %v", request.NamespacedName, err)
 		return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
