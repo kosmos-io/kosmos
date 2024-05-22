@@ -286,6 +286,7 @@ func (r *NodeController) cleanGlobalNode(ctx context.Context, nodeInfos []v1alph
 			VirtualCluster: virtualCluster,
 			HostClient:     r.Client,
 			HostK8sClient:  r.RootClientSet,
+			Opt:            r.Options,
 			// VirtualK8sClient: _,
 		}); err != nil {
 			return fmt.Errorf("unjoin node %s failed: %s", nodeInfo.Name, err)
@@ -332,6 +333,7 @@ func (r *NodeController) unjoinNode(ctx context.Context, nodeInfos []v1alpha1.Gl
 			HostClient:       r.Client,
 			HostK8sClient:    r.RootClientSet,
 			VirtualK8sClient: k8sClient,
+			Opt:              r.Options,
 		}); err != nil {
 			return fmt.Errorf("unjoin node %s failed: %s", nodeInfo.Name, err)
 		}

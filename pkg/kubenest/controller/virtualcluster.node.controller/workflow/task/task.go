@@ -85,12 +85,16 @@ func NewKubeadmResetTask() Task {
 	}
 }
 
+// nolint:dupl
 func NewDrainHostNodeTask() Task {
 	return Task{
 		Name:  "drain host node",
 		Retry: true,
 		Skip: func(ctx context.Context, opt TaskOpt) bool {
-			return opt.Opt.ForceDestroy
+			if opt.Opt != nil {
+				return opt.Opt.ForceDestroy
+			}
+			return false
 		},
 		Run: func(ctx context.Context, to TaskOpt, _ interface{}) (interface{}, error) {
 			targetNode, err := to.HostK8sClient.CoreV1().Nodes().Get(ctx, to.NodeInfo.Name, metav1.GetOptions{})
@@ -109,13 +113,17 @@ func NewDrainHostNodeTask() Task {
 	}
 }
 
+// nolint:dupl
 func NewDrainVirtualNodeTask() Task {
 	return Task{
 		Name:  "drain virtual-control-plane node",
 		Retry: true,
 		// ErrorIgnore: true,
 		Skip: func(ctx context.Context, opt TaskOpt) bool {
-			return opt.Opt.ForceDestroy
+			if opt.Opt != nil {
+				return opt.Opt.ForceDestroy
+			}
+			return false
 		},
 		Run: func(ctx context.Context, to TaskOpt, _ interface{}) (interface{}, error) {
 			targetNode, err := to.VirtualK8sClient.CoreV1().Nodes().Get(ctx, to.NodeInfo.Name, metav1.GetOptions{})
@@ -203,7 +211,7 @@ func NewRemoteUpdateKubeletConfTask() Task {
 
 			scpKCCmd := &exector.SCPExector{
 				DstFilePath: env.GetExectorTmpPath(),
-				DstFileName: "kubelet.conf",
+				DstFileName: env.GetKubeletKubeConfigName(),
 				SrcByte:     kubeconfig,
 			}
 			ret := exectHelper.DoExector(ctx.Done(), scpKCCmd)
@@ -224,8 +232,8 @@ func NewRemoteUpdateConfigYamlTask() Task {
 
 			scpKubeletConfigCmd := &exector.SCPExector{
 				DstFilePath: env.GetExectorTmpPath(),
-				DstFileName: "config.yaml",
-				SrcFile:     env.GetExectorWorkerDir() + "config.yaml", // from configmap volumn
+				DstFileName: env.GetKubeletConfigName(),
+				SrcFile:     env.GetExectorWorkerDir() + env.GetKubeletConfigName(),
 			}
 
 			ret := exectHelper.DoExector(ctx.Done(), scpKubeletConfigCmd)
@@ -257,29 +265,64 @@ func NewRemoteNodeJoinTask() Task {
 	}
 }
 
-func NewWaitNodeReadyTask() Task {
+func NewWaitNodeReadyTask(isHost bool) Task {
 	return Task{
 		Name: "wait new node ready",
 		Run: func(ctx context.Context, to TaskOpt, _ interface{}) (interface{}, error) {
-			waitCtx, cancel := context.WithTimeout(ctx, 60*time.Second) // total waiting time
-			defer cancel()
-
 			isReady := false
 
-			wait.UntilWithContext(waitCtx, func(ctx context.Context) {
-				node, err := to.VirtualK8sClient.CoreV1().Nodes().Get(waitCtx, to.NodeInfo.Name, metav1.GetOptions{})
-				if err == nil {
-					if util.IsNodeReady(node.Status.Conditions) {
-						klog.V(4).Infof("node %s is ready", to.NodeInfo.Name)
-						isReady = true
-						cancel()
-					} else {
-						klog.V(4).Infof("node %s is not ready, status: %s", to.NodeInfo.Name, node.Status.Phase)
+			waitFunc := func() {
+				waitCtx, cancel := context.WithTimeout(ctx, 60*time.Second) // total waiting time
+				defer cancel()
+				wait.UntilWithContext(waitCtx, func(ctx context.Context) {
+					client := to.VirtualK8sClient
+					if isHost {
+						client = to.HostK8sClient
 					}
-				} else {
-					klog.V(4).Infof("get node %s failed: %s", to.NodeInfo.Name, err)
-				}
-			}, 10*time.Second) // Interval time
+
+					node, err := client.CoreV1().Nodes().Get(waitCtx, to.NodeInfo.Name, metav1.GetOptions{})
+					if err == nil {
+						if util.IsNodeReady(node.Status.Conditions) {
+							klog.V(4).Infof("node %s is ready", to.NodeInfo.Name)
+							isReady = true
+							cancel()
+						} else {
+							klog.V(4).Infof("node %s is not ready, status: %s", to.NodeInfo.Name, node.Status.Phase)
+						}
+					} else {
+						klog.V(4).Infof("get node %s failed: %s", to.NodeInfo.Name, err)
+					}
+				}, 10*time.Second) // Interval time
+			}
+
+			waitFunc()
+
+			if isReady {
+				return nil, nil
+			}
+
+			// try to restart containerd and kubelet
+			klog.V(4).Infof("try to restart containerd and kubelet on node: %s", to.NodeInfo.Name)
+			exectHelper := exector.NewExectorHelper(to.NodeInfo.Spec.NodeIP, "")
+
+			restartContainerdCmd := &exector.CMDExector{
+				Cmd: "systemctl restart containerd",
+			}
+			ret := exectHelper.DoExector(ctx.Done(), restartContainerdCmd)
+			if ret.Status != exector.SUCCESS {
+				return nil, fmt.Errorf("cannot restart containerd: %s", ret.String())
+			}
+
+			restartKubeletCmd := &exector.CMDExector{
+				Cmd: "systemctl restart kubelet",
+			}
+			ret = exectHelper.DoExector(ctx.Done(), restartKubeletCmd)
+			if ret.Status != exector.SUCCESS {
+				return nil, fmt.Errorf("cannot restart kubelet: %s", ret.String())
+			}
+
+			klog.V(4).Infof("wait for the node to be ready again. %s", to.NodeInfo.Name)
+			waitFunc()
 
 			if isReady {
 				return nil, nil
@@ -446,6 +489,7 @@ func NewJoinNodeToHostCmd() Task {
 		SubTasks: []Task{
 			NewGetJoinNodeToHostCmdTask(),
 			NewExecJoinNodeToHostCmdTask(),
+			NewWaitNodeReadyTask(true),
 		},
 	}
 }
@@ -488,7 +532,7 @@ func NewExecJoinNodeToHostCmdTask() Task {
 				return nil, err
 			}
 			joinCmd := &exector.CMDExector{
-				Cmd: fmt.Sprintf("bash  %s revert %s %s %s", env.GetExectorShellName(), host, token, certHash),
+				Cmd: fmt.Sprintf("bash %s revert %s %s %s", env.GetExectorShellName(), host, token, certHash),
 			}
 
 			exectHelper := exector.NewExectorHelper(to.NodeInfo.Spec.NodeIP, "")

@@ -17,6 +17,24 @@ func GetExectorTmpPath() string {
 	return tmpPath
 }
 
+func GetKubeletKubeConfigName() string {
+	kubeletKubeConfigName := os.Getenv("KUBELET_KUBE_CONFIG_NAME")
+	if len(kubeletKubeConfigName) == 0 {
+		// env.sh  KUBELET_KUBE_CONFIG_NAME
+		kubeletKubeConfigName = "kubelet.conf"
+	}
+	return kubeletKubeConfigName
+}
+
+func GetKubeletConfigName() string {
+	kubeletConfigName := os.Getenv("KUBELET_CONFIG_NAME")
+	if len(kubeletConfigName) == 0 {
+		// env.sh  KUBELET_CONFIG_NAME
+		kubeletConfigName = "config.yaml"
+	}
+	return kubeletConfigName
+}
+
 func GetExectorWorkerDir() string {
 	exectorWorkDir := os.Getenv("EXECTOR_WORKER_PATH")
 	if len(exectorWorkDir) == 0 {

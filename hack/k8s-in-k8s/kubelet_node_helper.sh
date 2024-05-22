@@ -12,14 +12,20 @@ JOIN_CA_HASH=$4
 function unjoin() {
     # before unjoin, you need delete node by kubectl
     echo "exec(1/2): kubeadm reset...."
-    echo "y" | ${PATH_KUBEADM} reset
+    echo "y" | kubeadm reset
     if [ $? -ne 0 ]; then
         exit 1
     fi
 
-    echo "exec(2/2): delete cni...."
+    echo "exec(2/3): restart cotnainerd...."
+    systemctl restart containerd
+    if [ $? -ne 0 ]; then
+        exit 1
+    fi
+
+    echo "exec(3/3): delete cni...."
     if [ -d "/etc/cni/net.d" ]; then   
-        mv /etc/cni/net.d '/etc/cni/net.d.back'`date +%Y_%m_%d_%H_%M_%S`
+        mv /etc/cni/net.d '/etc/cni/net.d.kosmos.back'`date +%Y_%m_%d_%H_%M_%S`
         if [ $? -ne 0 ]; then
             exit 1
         fi
@@ -27,30 +33,29 @@ function unjoin() {
 }
 
 function revert() {
+    echo "exec(1/4): update kubeadm.cfg..."
     if [ ! -f "$PATH_KUBEADM_CONFIG/kubeadm.cfg" ]; then
-        echo "exec(1/1): execure join cmd"
-        kubeadm join $JOIN_HOST --token $JOIN_TOKEN --discovery-token-ca-cert-hash $JOIN_CA_HASH
-        if [ $? -ne 0 ]; then
-            exit 1
-        fi
-        exit 0
+        GenerateKubeadmConfig  $JOIN_TOKEN $PATH_FILE_TMP
+    else
+      sed -e "s|token: .*$|token: $JOIN_TOKEN|g" -e "w $PATH_FILE_TMP/kubeadm.cfg.current" "$PATH_KUBEADM_CONFIG/kubeadm.cfg"
     fi
-    
-    echo "exec(1/3): update kubeadm.cfg..."
-    sed -e "s|token: .*$|token: $JOIN_TOKEN|g" -e "w $PATH_FILE_TMP/kubeadm.cfg.current" "$PATH_KUBEADM_CONFIG/kubeadm.cfg"
-    if [ $? -ne 0 ]; then
-        exit 1
-    fi
+
     
     # add taints
-    echo "exec(2/3): update kubeadm.cfg tanits..."
+    echo "exec(2/4): update kubeadm.cfg tanits..."
     sed -i "/kubeletExtraArgs/a \    register-with-taints: node.kosmos.io/unschedulable:NoSchedule"  "$PATH_FILE_TMP/kubeadm.cfg.current" 
     if [ $? -ne 0 ]; then
         exit 1
     fi
     
-    echo "exec(3/3): execute join cmd...."
+    echo "exec(3/4): execute join cmd...."
     kubeadm join --config "$PATH_FILE_TMP/kubeadm.cfg.current"
+    if [ $? -ne 0 ]; then
+        exit 1
+    fi
+
+    echo "exec(4/4): restart cotnainerd...."
+    systemctl restart containerd
     if [ $? -ne 0 ]; then
         exit 1
     fi
@@ -74,7 +79,7 @@ function join() {
         exit 1
     fi
     echo "exec(4/8): set core dns address...."
-    sed -e "s|__DNS_ADDRESS__|$DNS_ADDRESS|g" -e "w ${PATH_KUBELET_LIB}/${KUBELET_CONFIG_NAME}" "$PATH_FILE_TMP"/"$KUBELET_CONFIG_NAME"
+    sed -e "s|__DNS_ADDRESS__|$DNS_ADDRESS|g" -e "w ${PATH_KUBELET_CONF}/${KUBELET_CONFIG_NAME}" "$PATH_FILE_TMP"/"$KUBELET_CONFIG_NAME"
     if [ $? -ne 0 ]; then
         exit 1
     fi
@@ -83,18 +88,19 @@ function join() {
     if [ $? -ne 0 ]; then
         exit 1
     fi
-    echo "exec(6/8): start containerd"
-    systemctl start containerd
-    if [ $? -ne 0 ]; then
-        exit 1
-    fi
 
-    echo "exec(7/8): delete cni...."
+    echo "exec(6/8): delete cni...."
     if [ -d "/etc/cni/net.d" ]; then   
         mv /etc/cni/net.d '/etc/cni/net.d.back'`date +%Y_%m_%d_%H_%M_%S`
         if [ $? -ne 0 ]; then
             exit 1
         fi
+    fi
+
+    echo "exec(7/8): start containerd"
+    systemctl start containerd
+    if [ $? -ne 0 ]; then
+        exit 1
     fi
 
     echo "exec(8/8): start kubelet...."
@@ -128,39 +134,16 @@ function log() {
 
 # check the environments
 function check() {
-    echo "check(1/3): try to create $PATH_FILE_TMP"
+    # TODO: create env file
+    echo "check(1/2): try to create $PATH_FILE_TMP"
     if [ ! -d "$PATH_FILE_TMP" ]; then   
         mkdir -p "$PATH_FILE_TMP"
         if [ $? -ne 0 ]; then
             exit 1
         fi
     fi
-
-    echo "check(2/3): check dir: $PATH_KUBEADM_CONFIG"
-    if [ ! -d "$PATH_KUBEADM_CONFIG" ]; then
-        mkdir -p "$PATH_KUBEADM_CONFIG"
-        if [ $? -ne 0 ]; then
-            exit 1
-        fi
-
-        echo "---
-apiVersion: kubeadm.k8s.io/v1beta2
-discovery:
-    bootstrapToken:
-    apiServerEndpoint: apiserver.cluster.local:6443
-    token: xxxxxxxx
-    unsafeSkipCAVerification: true
-kind: JoinConfiguration
-nodeRegistration:
-    criSocket: /run/containerd/containerd.sock
-    kubeletExtraArgs:
-    container-runtime: remote
-    container-runtime-endpoint: unix:///run/containerd/containerd.sock
-    taints: null" > $PATH_KUBEADM_CONFIG/kubeadm.cfg
-
-    fi
     
-    echo "check(3/3): copy  kubeadm-flags.env  to create $PATH_FILE_TMP , remove args[cloud-provider] and taints"
+    echo "check(2/2): copy  kubeadm-flags.env  to create $PATH_FILE_TMP , remove args[cloud-provider] and taints"
     sed -e "s| --cloud-provider=external | |g" -e "w ${PATH_FILE_TMP}/kubeadm-flags.env" "$PATH_KUBELET_LIB/kubeadm-flags.env"
     sed -i "s| --register-with-taints=node.kosmos.io/unschedulable:NoSchedule||g" "${PATH_FILE_TMP}/kubeadm-flags.env"
     if [ $? -ne 0 ]; then
