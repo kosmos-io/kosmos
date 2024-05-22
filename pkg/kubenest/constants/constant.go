@@ -109,6 +109,8 @@ const (
 	PrometheusRuleManifest   = "prometheus-rules"
 
 	StateLabelKey = "kosmos-io/state"
+
+	KonnectivityServerSuffix = "konnectivity-server"
 )
 
 type Action string

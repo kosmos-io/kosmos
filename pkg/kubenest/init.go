@@ -79,7 +79,7 @@ func UninstallPhase(opts *InitOptions) *workflow.Phase {
 	destroyPhase.AppendTask(tasks.UninstallCoreDNSTask())
 	destroyPhase.AppendTask(tasks.UninstallComponentTask())
 	destroyPhase.AppendTask(tasks.UninstallVirtualClusterApiserverTask())
-	destroyPhase.AppendTask(tasks.UninstallAnpTask())
+	// destroyPhase.AppendTask(tasks.UninstallAnpTask())
 	destroyPhase.AppendTask(tasks.UninstallEtcdTask())
 	destroyPhase.AppendTask(tasks.UninstallVirtualClusterServiceTask())
 	destroyPhase.AppendTask(tasks.UninstallCertsAndKubeconfigTask())

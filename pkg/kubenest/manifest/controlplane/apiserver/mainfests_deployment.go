@@ -485,6 +485,7 @@ subsets:
       {{- end }}
     ports:
       - port: {{ .AgentPort }}
+        name: proxy-server
 ---
 apiVersion: v1
 kind: Service
@@ -494,6 +495,7 @@ metadata:
 spec:
   ports:
     - port: {{ .AgentPort }}
+      name: proxy-server
       targetPort: {{ .AgentPort }}
 `
 )
