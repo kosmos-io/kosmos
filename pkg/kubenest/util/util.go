@@ -43,17 +43,21 @@ func GenerateKubeclient(virtualCluster *v1alpha1.VirtualCluster) (kubernetes.Int
 }
 
 func GetFirstIP(ipNetStr string) (net.IP, error) {
-	_, ipNet, err := net.ParseCIDR(ipNetStr)
+	ip, ipNet, err := net.ParseCIDR(ipNetStr)
 	if err != nil {
-		fmt.Println("parse ipNetStr err:", err)
-		return nil, err
+		return nil, fmt.Errorf("parse ipNetStr failed: %s", err)
 	}
 
-	firstIP := make(net.IP, len(ipNet.IP))
-	copy(firstIP, ipNet.IP)
-	for i := range firstIP {
-		firstIP[i] |= ipNet.Mask[i]
+	ip = ip.To4()
+	if ip == nil {
+		return nil, fmt.Errorf("only support ipv4")
 	}
+
+	networkIP := ip.Mask(ipNet.Mask)
+
+	firstIP := make(net.IP, len(networkIP))
+	copy(firstIP, networkIP)
+	firstIP[3]++
 
 	return firstIP, nil
 }

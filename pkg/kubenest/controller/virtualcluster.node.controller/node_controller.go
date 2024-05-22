@@ -246,9 +246,9 @@ func (r *NodeController) Reconcile(ctx context.Context, request reconcile.Reques
 
 	if err := r.DoNodeTask(ctx, virtualCluster); err != nil {
 		klog.Errorf("virtualcluster %s do node task failed: %v", virtualCluster.Name, err)
-		//if err := r.UpdateVirtualClusterStatus(ctx, virtualCluster, v1alpha1.Pending, err.Error()); err != nil {
-		//	klog.Errorf("update virtualcluster %s status error: %v", request.NamespacedName, err)
-		//}
+		if err := r.UpdateVirtualClusterStatus(ctx, virtualCluster, v1alpha1.Pending, err.Error()); err != nil {
+			klog.Errorf("update virtualcluster %s status error: %v", request.NamespacedName, err)
+		}
 		return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
 	}
 

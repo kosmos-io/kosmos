@@ -11,11 +11,13 @@ import (
 	cliflag "k8s.io/component-base/cli/flag"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/kosmos.io/kosmos/cmd/kubenest/operator/app/options"
 	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/controller"
+	endpointscontroller "github.com/kosmos.io/kosmos/pkg/kubenest/controller/endpoints.sync.controller"
 	glnodecontroller "github.com/kosmos.io/kosmos/pkg/kubenest/controller/global.node.controller"
 	kosmos "github.com/kosmos.io/kosmos/pkg/kubenest/controller/kosmos"
 	vcnodecontroller "github.com/kosmos.io/kosmos/pkg/kubenest/controller/virtualcluster.node.controller"
@@ -52,6 +54,28 @@ func NewVirtualClusterOperatorCommand(ctx context.Context) *cobra.Command {
 	cmd.Flags().AddFlagSet(logsFlagSet)
 
 	return cmd
+}
+
+func startEndPointsControllers(mgr manager.Manager) error {
+	coreEndPointsController := endpointscontroller.CoreDNSController{
+		Client:        mgr.GetClient(),
+		EventRecorder: mgr.GetEventRecorderFor(constants.GlobalNodeControllerName),
+	}
+
+	if err := coreEndPointsController.SetupWithManager(mgr); err != nil {
+		return fmt.Errorf("error starting %s: %v", endpointscontroller.CoreDNSSyncControllerName, err)
+	}
+
+	KonnectivityEndPointsController := endpointscontroller.KonnectivityController{
+		Client:        mgr.GetClient(),
+		EventRecorder: mgr.GetEventRecorderFor(constants.GlobalNodeControllerName),
+	}
+
+	if err := KonnectivityEndPointsController.SetupWithManager(mgr); err != nil {
+		return fmt.Errorf("error starting %s: %v", endpointscontroller.KonnectivitySyncControllerName, err)
+	}
+
+	return nil
 }
 
 func run(ctx context.Context, opts *options.Options) error {
@@ -109,6 +133,10 @@ func run(ctx context.Context, opts *options.Options) error {
 
 	if err = GlobalNodeController.SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("error starting %s: %v", constants.GlobalNodeControllerName, err)
+	}
+
+	if err := startEndPointsControllers(mgr); err != nil {
+		return err
 	}
 
 	VirtualClusterNodeController := vcnodecontroller.NodeController{
