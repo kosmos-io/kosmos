@@ -82,6 +82,21 @@ subjects:
     name: coredns
     namespace: {{ .Namespace }}
 `
+
+	SchedulerClusterRoleBinding = `
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kosmos-scheduler
+subjects:
+  - kind: ServiceAccount
+    name: kosmos-scheduler
+    namespace: {{ .Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kosmos-scheduler
+`
 )
 
 type ClusterRoleBindingReplace struct {

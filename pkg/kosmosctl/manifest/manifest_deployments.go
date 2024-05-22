@@ -261,6 +261,68 @@ spec:
           name: customer-hosts
 
 `
+
+	SchedulerDeployment = `
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kosmos-scheduler
+  namespace: {{ .Namespace }}
+  labels:
+    app: scheduler
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: scheduler
+  template:
+    metadata:
+      labels:
+        app: scheduler
+    spec:
+      volumes:
+        - name: scheduler-config
+          configMap:
+            name: scheduler-config
+            defaultMode: 420
+        - name: kubeconfig-path
+          configMap:
+            name: host-kubeconfig
+            defaultMode: 420
+      containers:
+        - name: kosmos-scheduler
+          image: {{ .ImageRepository }}/scheduler:{{ .Version }}
+          imagePullPolicy: IfNotPresent
+          command:
+            - scheduler
+            - --config=/etc/kubernetes/kube-scheduler/scheduler-config.yaml
+          resources:
+            requests:
+              cpu: 200m
+          volumeMounts:
+            - name: scheduler-config
+              readOnly: true
+              mountPath: /etc/kubernetes/kube-scheduler
+            - name: kubeconfig-path
+              readOnly: true
+              mountPath: /etc/kubernetes
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 10259
+              scheme: HTTPS
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 10259
+              scheme: HTTPS
+      restartPolicy: Always
+      dnsPolicy: ClusterFirst
+      serviceAccountName: kosmos-scheduler
+`
 )
 
 type DeploymentReplace struct {

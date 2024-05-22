@@ -40,6 +40,59 @@ metadata:
   name: coredns-customer-hosts
   namespace: {{ .Namespace }}
 `
+
+	SchedulerConfigmap = `
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: scheduler-config
+  namespace: {{ .Namespace }}
+data:
+  scheduler-config.yaml: |
+    apiVersion: kubescheduler.config.k8s.io/v1beta1
+    kind: KubeSchedulerConfiguration
+    leaderElection:
+      leaderElect: true
+      resourceName: kosmos-scheduler
+      resourceNamespace: {{ .Namespace }}
+    profiles:
+      - schedulerName: default-scheduler
+        plugins:
+          preFilter:
+            disabled:
+              - name: "VolumeBinding"
+            enabled:
+              - name: "LeafNodeVolumeBinding"
+          filter:
+            disabled:
+              - name: "VolumeBinding"
+              - name: "TaintToleration"
+            enabled:
+              - name: "LeafNodeTaintToleration"
+              - name: "LeafNodeVolumeBinding"
+              - name: "LeafNodeDistribution"
+          score:
+            disabled:
+              - name: "VolumeBinding"
+          reserve:
+            disabled:
+              - name: "VolumeBinding"
+            enabled:
+              - name: "LeafNodeVolumeBinding"
+          preBind:
+            disabled:
+              - name: "VolumeBinding"
+            enabled:
+              - name: "LeafNodeVolumeBinding"
+        pluginConfig:
+          - name: LeafNodeVolumeBinding
+            args:
+              bindTimeoutSeconds: 5
+          - name: LeafNodeDistribution
+            args:
+            # kubeConfigPath: "REPLACE_ME_WITH_KUBE_CONFIG_PATH"
+              kubeConfigPath: "/etc/kubernetes/kubeconfig"
+`
 )
 
 type ConfigmapReplace struct {

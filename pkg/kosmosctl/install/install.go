@@ -40,6 +40,9 @@ var installExample = templates.Examples(i18n.T(`
 		
 		# Install clusterlink module to Kosmos control plane and set the necessary parameters, e.g: 
 		kosmosctl install -m clusterlink --cni cni-name --default-nic nic-name
+
+		# Install kosmos-scheduler to Kosmos control plane, e.g: 
+		kosmosctl install -m scheduler
 		
 		# Install coredns module to Kosmos control plane, e.g: 
 		kosmosctl install -m coredns`))
@@ -199,6 +202,16 @@ func (o *CommandInstallOptions) Run() error {
 			return err
 		}
 		util.CheckInstall("Clustertree")
+	case utils.Scheduler:
+		err := o.runScheduler()
+		if err != nil {
+			return err
+		}
+		err = o.createControlCluster()
+		if err != nil {
+			return err
+		}
+		util.CheckInstall("Scheduler")
 	case utils.All:
 		err := o.runClusterlink()
 		if err != nil {
@@ -500,6 +513,122 @@ func (o *CommandInstallOptions) runClustertree() error {
 		}
 	}
 
+	return nil
+}
+
+func (o *CommandInstallOptions) runScheduler() error {
+	klog.Info("Start creating kosmos-scheduler...")
+	namespace := &corev1.Namespace{}
+	namespace.Name = o.Namespace
+	_, err := o.K8sClient.CoreV1().Namespaces().Create(context.TODO(), namespace, metav1.CreateOptions{})
+	if err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return fmt.Errorf("kosmosctl install clustertree run error, namespace options failed: %v", err)
+		}
+	}
+	klog.Info("Namespace " + o.Namespace + " has been created.")
+
+	klog.Info("Start creating kosmos-scheduler ServiceAccount...")
+	schedulerSA, err := util.GenerateServiceAccount(manifest.SchedulerServiceAccount, manifest.ServiceAccountReplace{
+		Namespace: o.Namespace,
+	})
+	if err != nil {
+		return err
+	}
+	_, err = o.K8sClient.CoreV1().ServiceAccounts(o.Namespace).Create(context.TODO(), schedulerSA, metav1.CreateOptions{})
+	if err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return fmt.Errorf("kosmosctl install scheduler run error, serviceaccount options failed: %v", err)
+		}
+	}
+	klog.Info("ServiceAccount " + schedulerSA.Name + " has been created.")
+
+	klog.Info("Start creating kosmos-scheduler ClusterRole...")
+	schedulerCR, err := util.GenerateClusterRole(manifest.SchedulerClusterRole, nil)
+	if err != nil {
+		return err
+	}
+	_, err = o.K8sClient.RbacV1().ClusterRoles().Create(context.TODO(), schedulerCR, metav1.CreateOptions{})
+	if err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return fmt.Errorf("kosmosctl install scheduler run error, clusterrole options failed: %v", err)
+		}
+	}
+	klog.Info("ClusterRole " + schedulerCR.Name + " has been created.")
+
+	klog.Info("Start creating kosmos-scheduler ClusterRoleBinding...")
+	schedulerCRB, err := util.GenerateClusterRoleBinding(manifest.SchedulerClusterRoleBinding, manifest.ClusterRoleBindingReplace{
+		Namespace: o.Namespace,
+	})
+	if err != nil {
+		return err
+	}
+	_, err = o.K8sClient.RbacV1().ClusterRoleBindings().Create(context.TODO(), schedulerCRB, metav1.CreateOptions{})
+	if err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return fmt.Errorf("kosmosctl install scheduler run error, clusterrolebinding options failed: %v", err)
+		}
+	}
+	klog.Info("ClusterRoleBinding " + schedulerCRB.Name + " has been created.")
+
+	klog.Info("Start creating kosmos-scheduler ConfigMap...")
+	scheduleConfigFile, err := util.GenerateConfigMap(manifest.SchedulerConfigmap, manifest.ConfigmapReplace{
+		Namespace: o.Namespace,
+	})
+	if err != nil {
+		return err
+	}
+	_, err = o.K8sClient.CoreV1().ConfigMaps(o.Namespace).Create(context.TODO(), scheduleConfigFile, metav1.CreateOptions{})
+	if err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return fmt.Errorf("kosmosctl install scheduler run error, configmap options failed: %v", err)
+		}
+	}
+	klog.Infof("ConfigMap %s has been created.", scheduleConfigFile.Name)
+
+	hostkubeConfigMap := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      utils.HostKubeConfigName,
+			Namespace: o.Namespace,
+		},
+		Data: map[string]string{
+			"kubeconfig": string(func() []byte {
+				if len(o.InnerKubeConfigStream) != 0 {
+					return o.InnerKubeConfigStream
+				}
+				return o.HostKubeConfigStream
+			}()),
+		},
+	}
+	_, err = o.K8sClient.CoreV1().ConfigMaps(o.Namespace).Create(context.TODO(), hostkubeConfigMap, metav1.CreateOptions{})
+	if err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return fmt.Errorf("kosmosctl install scheduler run error, configmap options failed: %v", err)
+		}
+	}
+	klog.Info("ConfigMap host-kubeconfig has been created.")
+
+	klog.Info("Start creating kosmos-scheduler Deployment...")
+	schedulerDeploy, err := util.GenerateDeployment(manifest.SchedulerDeployment, manifest.DeploymentReplace{
+		Namespace:       o.Namespace,
+		ImageRepository: o.ImageRegistry,
+		Version:         o.Version,
+	})
+	if err != nil {
+		return err
+	}
+	_, err = o.K8sClient.AppsV1().Deployments(o.Namespace).Create(context.Background(), schedulerDeploy, metav1.CreateOptions{})
+	if err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return fmt.Errorf("kosmosctl install clustertree run error, deployment options failed: %v", err)
+		}
+	}
+	label := map[string]string{"app": schedulerDeploy.Labels["app"]}
+	if err = util.WaitPodReady(o.K8sClient, schedulerDeploy.Namespace, util.MapToString(label), o.WaitTime); err != nil {
+		return fmt.Errorf("kosmosctl install scheduler run error, deployment options failed: %v", err)
+	} else {
+		klog.Info("Deployment kosmos-scheduler has been created.")
+	}
 	return nil
 }
 
