@@ -10,6 +10,7 @@ import (
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
+	ko "github.com/kosmos.io/kosmos/cmd/kubenest/operator/app/options"
 	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/tasks"
@@ -36,6 +37,7 @@ type initData struct {
 	externalIP            string
 	hostPort              int32
 	hostPortMap           map[string]int32
+	kubeNestOptions       *ko.KubeNestOptions
 }
 
 type InitOptions struct {
@@ -45,6 +47,7 @@ type InitOptions struct {
 	virtualClusterVersion string
 	virtualClusterDataDir string
 	virtualCluster        *v1alpha1.VirtualCluster
+	KubeNestOptions       *ko.KubeNestOptions
 }
 
 func NewInitPhase(opts *InitOptions) *workflow.Phase {
@@ -122,6 +125,12 @@ func NewInitOptWithKubeconfig(config *rest.Config) InitOpt {
 	}
 }
 
+func NewInitOptWithKubeNestOptions(options *ko.KubeNestOptions) InitOpt {
+	return func(o *InitOptions) {
+		o.KubeNestOptions = options
+	}
+}
+
 func newRunData(opt *InitOptions) (*initData, error) {
 	if err := opt.Validate(); err != nil {
 		return nil, err
@@ -174,6 +183,7 @@ func newRunData(opt *InitOptions) (*initData, error) {
 		externalIP:            opt.virtualCluster.Spec.ExternalIP,
 		hostPort:              opt.virtualCluster.Status.Port,
 		hostPortMap:           opt.virtualCluster.Status.PortMap,
+		kubeNestOptions:       opt.KubeNestOptions,
 	}, nil
 }
 
@@ -243,4 +253,8 @@ func (i initData) HostPortMap() map[string]int32 {
 
 func (i initData) DynamicClient() *dynamic.DynamicClient {
 	return i.dynamicClient
+}
+
+func (i initData) KubeNestOpt() *ko.KubeNestOptions {
+	return i.kubeNestOptions
 }

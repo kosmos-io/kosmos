@@ -89,11 +89,12 @@ func run(ctx context.Context, opts *options.Options) error {
 	}
 
 	VirtualClusterInitController := controller.VirtualClusterInitController{
-		Client:        mgr.GetClient(),
-		Config:        mgr.GetConfig(),
-		EventRecorder: mgr.GetEventRecorderFor(constants.InitControllerName),
-		RootClientSet: hostKubeClient,
-		KosmosClient:  kosmosClient,
+		Client:          mgr.GetClient(),
+		Config:          mgr.GetConfig(),
+		EventRecorder:   mgr.GetEventRecorderFor(constants.InitControllerName),
+		RootClientSet:   hostKubeClient,
+		KosmosClient:    kosmosClient,
+		KubeNestOptions: &opts.KubeNestOptions,
 	}
 	if err = VirtualClusterInitController.SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("error starting %s: %v", constants.InitControllerName, err)
