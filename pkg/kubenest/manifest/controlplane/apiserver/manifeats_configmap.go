@@ -10,10 +10,19 @@ data:
     egressSelections:
     - name: cluster
       connection:
-        proxyProtocol: GRPC
+        proxyProtocol: {{ if eq .AnpMode "uds" }}GRPC{{ else }}HTTPConnect{{ end }}
         transport:
+          {{ if eq .AnpMode "uds" }}
           uds:
             udsName: /etc/kubernetes/konnectivity-server/{{ .Namespace }}/{{ .Name }}/konnectivity-server.socket
+          {{ else }}
+          tcp:
+            url: https://{{ .SvcName }}:{{ .ProxyServerPort }}
+            tlsConfig:
+              caBundle: /etc/virtualcluster/pki/ca.crt
+              clientKey: /etc/virtualcluster/pki/proxy-server.key
+              clientCert: /etc/virtualcluster/pki/proxy-server.crt
+          {{ end }}
     - name: master
       connection:
         proxyProtocol: Direct

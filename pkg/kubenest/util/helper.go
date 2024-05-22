@@ -240,6 +240,7 @@ func ApplyObject(dynamicClient dynamic.Interface, obj *unstructured.Unstructured
 		Force:        true,
 	})
 	if err != nil {
+		klog.V(2).Infof("Failed to apply changes to %s %s: %v", gvr.String(), name, err)
 		return fmt.Errorf("failed to apply changes to %s %s: %v", gvr.String(), name, err)
 	}
 

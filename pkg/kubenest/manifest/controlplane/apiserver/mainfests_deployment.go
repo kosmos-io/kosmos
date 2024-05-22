@@ -22,6 +22,7 @@ spec:
     spec:
       automountServiceAccountToken: false
       hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
       tolerations:
       - key: "node-role.kubernetes.io/control-plane"
         operator: "Exists"
@@ -150,6 +151,7 @@ spec:
     spec:
       automountServiceAccountToken: false
       hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
       tolerations:
       - key: "node-role.kubernetes.io/control-plane"
         operator: "Exists"
@@ -265,19 +267,27 @@ spec:
           runAsUser: 0
         command: [ "/proxy-server"]
         args: [
-          "--log-file=/var/log/konnectivity-server.log",
+          "--log-file=/var/log/{{ .Namespace }}/{{ .Name }}/konnectivity-server.log",
           "--logtostderr=true",
           "--log-file-max-size=0",
-          "--uds-name=/etc/kubernetes/konnectivity-server/{{ .Namespace }}/{{ .Name }}/konnectivity-server.socket",
-          "--delete-existing-uds-file",
           "--cluster-cert=/etc/virtualcluster/pki/apiserver.crt",
           "--cluster-key=/etc/virtualcluster/pki/apiserver.key",
+          {{ if eq .AnpMode "uds" }}
           "--server-port=0",
+          "--mode=grpc",
+          "--uds-name=/etc/kubernetes/konnectivity-server/{{ .Namespace }}/{{ .Name }}/konnectivity-server.socket",
+          "--delete-existing-uds-file",
+          {{ else }}
+          "--server-port={{ .ServerPort }}",
+          "--mode=http-connect",
+          "--server-cert=/etc/virtualcluster/pki/proxy-server.crt",
+          "--server-ca-cert=/etc/virtualcluster/pki/ca.crt",
+          "--server-key=/etc/virtualcluster/pki/proxy-server.key",
+          {{ end }}
           "--agent-port={{ .AgentPort }}",
           "--health-port={{ .HealthPort }}",
           "--admin-port={{ .AdminPort }}",
           "--keepalive-time=1h",
-          "--mode=grpc",
           "--agent-namespace=kube-system",
           "--agent-service-account=konnectivity-agent",
           "--kubeconfig=/etc/apiserver/kubeconfig",
@@ -309,7 +319,7 @@ spec:
           name: apiserver-cert
           readOnly: true
         - name: varlogkonnectivityserver
-          mountPath: /var/log/konnectivity-server.log
+          mountPath: /var/log/{{ .Namespace }}/{{ .Name }}
           readOnly: false
         - name: konnectivity-home
           mountPath: /etc/kubernetes/konnectivity-server/{{ .Namespace }}/{{ .Name }}
@@ -324,8 +334,8 @@ spec:
           secretName: {{ .KubeconfigSecret }}
       - name: varlogkonnectivityserver
         hostPath:
-          path: /var/log/{{ .Namespace }}/{{ .Name }}/konnectivity-server.log
-          type: FileOrCreate
+          path: /var/log/{{ .Namespace }}/{{ .Name }}
+          type: DirectoryOrCreate
       - name: konnectivity-home
         hostPath:
           path: /etc/kubernetes/konnectivity-server/{{ .Namespace }}/{{ .Name }}
@@ -413,7 +423,11 @@ spec:
             "--sync-interval-cap=30s",
             "--probe-interval=5s",
             "--service-account-token-path=/var/run/secrets/tokens/konnectivity-agent-token",
-            "--agent-identifiers=ipv4=$(HOST_IP)"
+            "--agent-identifiers=ipv4=$(HOST_IP)",
+            {{ if ne .AnpMode "uds" }}
+            "--agent-cert=/etc/virtualcluster/pki/apiserver.crt",
+            "--agent-key=/etc/virtualcluster/pki/apiserver.key",
+            {{ end }}
           ]
           env:
             - name: POD_NAME
@@ -443,10 +457,15 @@ spec:
             initialDelaySeconds: 15
             timeoutSeconds: 15
           volumeMounts:
+            - name: agent-cert
+              mountPath: /etc/virtualcluster/pki
             - mountPath: /var/run/secrets/tokens
               name: konnectivity-agent-token
       serviceAccountName: konnectivity-agent
       volumes:
+        - name: agent-cert
+          secret:
+            secretName: {{ .AgentCertName }}
         - name: konnectivity-agent-token
           projected:
             sources:

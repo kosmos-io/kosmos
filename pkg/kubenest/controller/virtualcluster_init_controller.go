@@ -27,6 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/kosmos.io/kosmos/cmd/kubenest/operator/app/options"
 	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
@@ -35,11 +36,12 @@ import (
 
 type VirtualClusterInitController struct {
 	client.Client
-	Config        *rest.Config
-	EventRecorder record.EventRecorder
-	RootClientSet kubernetes.Interface
-	KosmosClient  versioned.Interface
-	lock          sync.Mutex
+	Config          *rest.Config
+	EventRecorder   record.EventRecorder
+	RootClientSet   kubernetes.Interface
+	KosmosClient    versioned.Interface
+	lock            sync.Mutex
+	KubeNestOptions *options.KubeNestOptions
 }
 
 type NodePool struct {
@@ -118,7 +120,7 @@ func (c *VirtualClusterInitController) Reconcile(ctx context.Context, request re
 			return reconcile.Result{RequeueAfter: RequeueTime}, nil
 		}
 		updatedCluster := originalCluster.DeepCopy()
-		err = c.createVirtualCluster(updatedCluster)
+		err = c.createVirtualCluster(updatedCluster, c.KubeNestOptions)
 		if err != nil {
 			klog.Errorf("Failed to create virtualcluster %s. err: %s", updatedCluster.Name, err.Error())
 			updatedCluster.Status.Reason = err.Error()
@@ -230,7 +232,7 @@ func (c *VirtualClusterInitController) removeFinalizer(virtualCluster *v1alpha1.
 }
 
 // createVirtualCluster assign work nodes, create control plane and create compoennts from manifests
-func (c *VirtualClusterInitController) createVirtualCluster(virtualCluster *v1alpha1.VirtualCluster) error {
+func (c *VirtualClusterInitController) createVirtualCluster(virtualCluster *v1alpha1.VirtualCluster, kubeNestOptions *options.KubeNestOptions) error {
 	klog.V(2).Infof("Reconciling virtual cluster", "name", virtualCluster.Name)
 
 	//Assign host port
@@ -239,7 +241,7 @@ func (c *VirtualClusterInitController) createVirtualCluster(virtualCluster *v1al
 		return errors.Wrap(err, "Error in assign host port!")
 	}
 
-	executer, err := NewExecutor(virtualCluster, c.Client, c.Config)
+	executer, err := NewExecutor(virtualCluster, c.Client, c.Config, kubeNestOptions)
 	if err != nil {
 		return err
 	}
@@ -267,7 +269,7 @@ func (c *VirtualClusterInitController) createVirtualCluster(virtualCluster *v1al
 
 func (c *VirtualClusterInitController) destroyVirtualCluster(virtualCluster *v1alpha1.VirtualCluster) error {
 	klog.V(2).Infof("Destroying virtual cluster %s", virtualCluster.Name)
-	execute, err := NewExecutor(virtualCluster, c.Client, c.Config)
+	execute, err := NewExecutor(virtualCluster, c.Client, c.Config, c.KubeNestOptions)
 	if err != nil {
 		return err
 	}

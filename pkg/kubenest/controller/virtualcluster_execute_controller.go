@@ -8,6 +8,7 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	ko "github.com/kosmos.io/kosmos/cmd/kubenest/operator/app/options"
 	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/kubenest"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
@@ -21,12 +22,13 @@ type Executor struct {
 	config         *rest.Config
 }
 
-func NewExecutor(virtualCluster *v1alpha1.VirtualCluster, c client.Client, config *rest.Config) (*Executor, error) {
+func NewExecutor(virtualCluster *v1alpha1.VirtualCluster, c client.Client, config *rest.Config, kubeNestOptions *ko.KubeNestOptions) (*Executor, error) {
 	var phase *workflow.Phase
 
 	opts := []kubenest.InitOpt{
 		kubenest.NewInitOptWithVirtualCluster(virtualCluster),
 		kubenest.NewInitOptWithKubeconfig(config),
+		kubenest.NewInitOptWithKubeNestOptions(kubeNestOptions),
 	}
 	options := kubenest.NewPhaseInitOptions(opts...)
 	action := recognizeActionFor(virtualCluster)
