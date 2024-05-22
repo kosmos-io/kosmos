@@ -1,18 +1,27 @@
 package util
 
 import (
+	"bufio"
+	"bytes"
 	"context"
+	"fmt"
+	"io"
 
+	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	utilyaml "k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/dynamic"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/yaml"
 )
 
 func CreateOrUpdateDeployment(client clientset.Interface, deployment *appsv1.Deployment) error {
@@ -199,6 +208,45 @@ func CreateObject(dynamicClient dynamic.Interface, namespace string, name string
 	return nil
 }
 
+func ApplyObject(dynamicClient dynamic.Interface, obj *unstructured.Unstructured) error {
+	gvk := obj.GroupVersionKind()
+	gvr, _ := meta.UnsafeGuessKindToResource(gvk)
+	namespace := obj.GetNamespace()
+	name := obj.GetName()
+
+	klog.V(2).Infof("Apply %s, name: %s, namespace: %s", gvr.String(), name, namespace)
+
+	resourceClient := dynamicClient.Resource(gvr).Namespace(namespace)
+
+	// Get the existing resource
+	existingObj, err := resourceClient.Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		if kerrors.IsNotFound(err) {
+			// If not found, create the resource
+			_, err = resourceClient.Create(context.TODO(), obj, metav1.CreateOptions{})
+			if err != nil {
+				return err
+			}
+			klog.V(2).Infof("Created %s %s in namespace %s", gvr.String(), name, namespace)
+			return nil
+		}
+		return err
+	}
+
+	// If found, apply changes using Server-Side Apply
+	obj.SetResourceVersion(existingObj.GetResourceVersion())
+	_, err = resourceClient.Apply(context.TODO(), name, obj, metav1.ApplyOptions{
+		FieldManager: "vc-operator-manager",
+		Force:        true,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to apply changes to %s %s: %v", gvr.String(), name, err)
+	}
+
+	klog.V(2).Infof("Applied changes to %s %s in namespace %s", gvr.String(), name, namespace)
+	return nil
+}
+
 func DeleteObject(dynamicClient dynamic.Interface, namespace string, name string, obj *unstructured.Unstructured) error {
 	gvk := obj.GroupVersionKind()
 	gvr, _ := meta.UnsafeGuessKindToResource(gvk)
@@ -213,4 +261,103 @@ func DeleteObject(dynamicClient dynamic.Interface, namespace string, name string
 		}
 	}
 	return nil
+}
+
+// DecodeYAML unmarshals a YAML document or multidoc YAML as unstructured
+// objects, placing each decoded object into a channel.
+// code from https://github.com/kubernetes/client-go/issues/216
+func DecodeYAML(data []byte) (<-chan *unstructured.Unstructured, <-chan error) {
+	var (
+		chanErr        = make(chan error)
+		chanObj        = make(chan *unstructured.Unstructured)
+		multidocReader = utilyaml.NewYAMLReader(bufio.NewReader(bytes.NewReader(data)))
+	)
+
+	go func() {
+		defer close(chanErr)
+		defer close(chanObj)
+
+		// Iterate over the data until Read returns io.EOF. Every successful
+		// read returns a complete YAML document.
+		for {
+			buf, err := multidocReader.Read()
+			if err != nil {
+				if err == io.EOF {
+					return
+				}
+				klog.Warningf("failed to read yaml data")
+				chanErr <- errors.Wrap(err, "failed to read yaml data")
+				return
+			}
+
+			// Do not use this YAML doc if it is unkind.
+			var typeMeta runtime.TypeMeta
+			if err := yaml.Unmarshal(buf, &typeMeta); err != nil {
+				continue
+			}
+			if typeMeta.Kind == "" {
+				continue
+			}
+
+			// Define the unstructured object into which the YAML document will be
+			// unmarshaled.
+			obj := &unstructured.Unstructured{
+				Object: map[string]interface{}{},
+			}
+
+			// Unmarshal the YAML document into the unstructured object.
+			if err := yaml.Unmarshal(buf, &obj.Object); err != nil {
+				klog.Warningf("failed to unmarshal yaml data")
+				chanErr <- errors.Wrap(err, "failed to unmarshal yaml data")
+				return
+			}
+
+			// Place the unstructured object into the channel.
+			chanObj <- obj
+		}
+	}()
+
+	return chanObj, chanErr
+}
+
+// ForEachObjectInYAMLActionFunc is a function that is executed against each
+// object found in a YAML document.
+// When a non-empty namespace is provided then the object is assigned the
+// namespace prior to any other actions being performed with or to the object.
+type ForEachObjectInYAMLActionFunc func(context.Context, dynamic.Interface, *unstructured.Unstructured) error
+
+// ForEachObjectInYAML excutes actionFn for each object in the provided YAML.
+// If an error is returned then no further objects are processed.
+// The data may be a single YAML document or multidoc YAML.
+// When a non-empty namespace is provided then all objects are assigned the
+// the namespace prior to any other actions being performed with or to the
+// object.
+func ForEachObjectInYAML(
+	ctx context.Context,
+	dynamicClient dynamic.Interface,
+	data []byte,
+	namespace string,
+	actionFn ForEachObjectInYAMLActionFunc) error {
+	chanObj, chanErr := DecodeYAML(data)
+	for {
+		select {
+		case obj := <-chanObj:
+			if obj == nil {
+				return nil
+			}
+			if namespace != "" {
+				obj.SetNamespace(namespace)
+			}
+			klog.Infof("get object %s/%s", obj.GetNamespace(), obj.GetName())
+			if err := actionFn(ctx, dynamicClient, obj); err != nil {
+				return err
+			}
+		case err := <-chanErr:
+			if err == nil {
+				return nil
+			}
+			klog.Errorf("DecodeYaml error %v", err)
+			return errors.Wrap(err, "received error while decoding yaml")
+		}
+	}
 }

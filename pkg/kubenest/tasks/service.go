@@ -6,6 +6,7 @@ import (
 
 	"k8s.io/klog/v2"
 
+	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/controlplane"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/workflow"
 )
@@ -44,7 +45,7 @@ func runVirtualClusterService(r workflow.RunData) error {
 		data.RemoteClient(),
 		data.GetName(),
 		data.GetNamespace(),
-		data.HostPort(),
+		data.HostPortMap()[constants.ApiServerPortKey],
 	)
 	if err != nil {
 		return fmt.Errorf("failed to install virtual cluster service , err: %w", err)
