@@ -18,8 +18,8 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/kubenest/util"
 )
 
-func EnsureVirtualClusterService(client clientset.Interface, name, namespace string, port int32) error {
-	if err := createServerService(client, name, namespace, port); err != nil {
+func EnsureVirtualClusterService(client clientset.Interface, name, namespace string, portMap map[string]int32) error {
+	if err := createServerService(client, name, namespace, portMap); err != nil {
 		return fmt.Errorf("failed to create virtual cluster apiserver-service, err: %w", err)
 	}
 	return nil
@@ -46,7 +46,7 @@ func DeleteVirtualClusterService(client clientset.Interface, name, namespace str
 	return nil
 }
 
-func createServerService(client clientset.Interface, name, namespace string, port int32) error {
+func createServerService(client clientset.Interface, name, namespace string, portMap map[string]int32) error {
 	apiserverServiceBytes, err := util.ParseTemplate(apiserver.ApiserverService, struct {
 		ServiceName, Namespace, ServiceType string
 		ServicePort                         int32
@@ -54,10 +54,21 @@ func createServerService(client clientset.Interface, name, namespace string, por
 		ServiceName: fmt.Sprintf("%s-%s", name, "apiserver"),
 		Namespace:   namespace,
 		ServiceType: constants.ApiServerServiceType,
-		ServicePort: port,
+		ServicePort: portMap[constants.ApiServerPortKey],
 	})
 	if err != nil {
 		return fmt.Errorf("error when parsing virtualClusterApiserver serive template: %w", err)
+	}
+	anpServiceBytes, err := util.ParseTemplate(apiserver.ApiserverAnpService, struct {
+		ServiceName, Namespace string
+		ProxyServerPort        int32
+	}{
+		ServiceName:     fmt.Sprintf("%s-%s", name, "konnectivity-server"),
+		Namespace:       namespace,
+		ProxyServerPort: portMap[constants.ApiServerNetworkProxyServerPortKey],
+	})
+	if err != nil {
+		return fmt.Errorf("error when parsing virtualClusterApiserver anp service template: %w", err)
 	}
 
 	apiserverService := &corev1.Service{}
@@ -66,6 +77,14 @@ func createServerService(client clientset.Interface, name, namespace string, por
 	}
 	if err := createOrUpdateService(client, apiserverService); err != nil {
 		return fmt.Errorf("err when creating virtual cluster apiserver service for %s, err: %w", apiserverService.Name, err)
+	}
+
+	anpService := &corev1.Service{}
+	if err := yaml.Unmarshal([]byte(anpServiceBytes), anpService); err != nil {
+		return fmt.Errorf("error when decoding virtual cluster anp service: %w", err)
+	}
+	if err := createOrUpdateService(client, anpService); err != nil {
+		return fmt.Errorf("err when creating virtual cluster anp service for %s, err: %w", anpService.Name, err)
 	}
 
 	etcdServicePeerBytes, err := util.ParseTemplate(etcd.EtcdPeerService, struct {
