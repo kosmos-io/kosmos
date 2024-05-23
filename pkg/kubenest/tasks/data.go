@@ -20,5 +20,6 @@ type InitData interface {
 	VirtualClusterVersion() string
 	ExternalIP() string
 	HostPort() int32
+	HostPortMap() map[string]int32
 	DynamicClient() *dynamic.DynamicClient
 }

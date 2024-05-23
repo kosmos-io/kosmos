@@ -195,6 +195,7 @@ func apiServerAltNamesMutator(cfg *AltNamesMutatorConfig) (*certutil.AltNames, e
 			"kubernetes",
 			"kubernetes.default",
 			"kubernetes.default.svc",
+			"konnectivity-server.kube-system.svc.cluster.local",
 			fmt.Sprintf("*.%s.svc.cluster.local", constants.VirtualClusterSystemNamespace),
 			fmt.Sprintf("*.%s.svc", constants.VirtualClusterSystemNamespace),
 		},

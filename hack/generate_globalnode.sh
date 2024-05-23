@@ -34,7 +34,7 @@ $(echo "${labelsFormatted}" | awk '{print "    " $0}')
     # Apply the YAML
     echo "$yamlContent" | kubectl apply -f -
 
-    # clear resources
-    rm -rf kube_apply_logs
 
 done
+# clear resources
+rm -rf kube_apply_logs

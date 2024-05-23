@@ -123,6 +123,8 @@ type VirtualClusterStatus struct {
 	UpdateTime *metav1.Time `json:"updateTime,omitempty" protobuf:"bytes,7,opt,name=updateTime"`
 	// +optional
 	Port int32 `json:"port,omitempty"`
+	// +optional
+	PortMap map[string]int32 `json:"portMap,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

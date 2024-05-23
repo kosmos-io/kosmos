@@ -39,7 +39,7 @@ const (
 
 	//controlplane apiserver
 	ApiServer                     = "apiserver"
-	ApiServerReplicas             = 2
+	ApiServerReplicas             = 1
 	ApiServerServiceSubnet        = "10.237.6.0/18"
 	ApiServerEtcdListenClientPort = 2379
 	ApiServerServiceType          = "NodePort"
@@ -84,8 +84,14 @@ const (
 	DeInitAction Action = "deInit"
 
 	//host_port_manager
-	HostPortsCMName     = "kosmos-hostports"
-	HostPortsCMDataName = "config.yaml"
+	HostPortsCMName                    = "kosmos-hostports"
+	HostPortsCMDataName                = "config.yaml"
+	ApiServerPortKey                   = "apiserver-port"
+	ApiServerNetworkProxyAgentPortKey  = "apiserver-network-proxy-agent-port"
+	ApiServerNetworkProxyServerPortKey = "apiserver-network-proxy-server-port"
+	ApiServerNetworkProxyHealthPortKey = "apiserver-network-proxy-health-port"
+	ApiServerNetworkProxyAdminPortKey  = "apiserver-network-proxy-admin-port"
+	VirtualClusterPortNum              = 5
 
 	ManifestComponentsConfigMap = "components-manifest-cm"
 	NodePoolConfigmap           = "node-pool"

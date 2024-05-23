@@ -54,7 +54,7 @@ data:
   # Generate by script hack/k8s-in-k8s/generate_env.sh
   env.sh: |
     __env.sh__
-  # Copy from hack/k8s-in-k8s/kubelet_node_helper.sh 
+  # Copy from hack/k8s-in-k8s/kubelet_node_helper.sh
   kubelet_node_helper.sh: |
     __kubelet_node_helper__
   #  Obtain through the command "kubectl get cm kubelet-config -nkube-system -oyaml", change dns address to `__DNS_ADDRESS__`
@@ -249,4 +249,46 @@ type: kubernetes.io/basic-auth
 data:
   username: {{ .USERNAME }}
   password: {{ .PASSWORD }}
-
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kosmos-hostports
+  namespace: kosmos-system
+data:
+  config.yaml: |
+    # ports allocate for virtual cluster api server,from 33001, increment by 1 for each virtual cluster.Be careful not to use ports that are already in use
+    portsPool:
+      - 33001
+      - 33002
+      - 33003
+      - 33004
+      - 33005
+      - 33006
+      - 33007
+      - 33008
+      - 33009
+      - 33010
+---
+apiVersion: v1
+data:
+  egress_selector_configuration.yaml: |
+    apiVersion: apiserver.k8s.io/v1beta1
+    kind: EgressSelectorConfiguration
+    egressSelections:
+      - name: cluster
+        connection:
+          proxyProtocol: GRPC
+          transport:
+            uds:
+              udsName: /etc/kubernetes/konnectivity-server/konnectivity-server.socket
+      - name: master
+        connection:
+          proxyProtocol: Direct
+      - name: etcd
+        connection:
+          proxyProtocol: Direct
+kind: ConfigMap
+metadata:
+  name: kas-proxy-files
+  namespace: kas-proxy
