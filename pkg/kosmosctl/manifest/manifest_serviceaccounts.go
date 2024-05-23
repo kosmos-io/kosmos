@@ -48,6 +48,14 @@ metadata:
   name: coredns
   namespace: {{ .Namespace }}
 `
+
+	SchedulerServiceAccount = `
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kosmos-scheduler
+  namespace: {{ .Namespace }}
+`
 )
 
 type ServiceAccountReplace struct {

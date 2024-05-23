@@ -35,6 +35,9 @@ var uninstallExample = templates.Examples(i18n.T(`
 		# Uninstall clustertree module from Kosmos control plane, e.g: 
         kosmosctl uninstall -m clustertree
 
+		# Uninstall kosmos-scheduler from Kosmos control plane, e.g: 
+		kosmosctl uninstall -m scheduler
+
 		# Uninstall coredns module from Kosmos control plane, e.g: 
         kosmosctl uninstall -m coredns
 `))
@@ -137,6 +140,11 @@ func (o *CommandUninstallOptions) Run() error {
 		}
 	case "clustertree":
 		err := o.runClustertree()
+		if err != nil {
+			return err
+		}
+	case "scheduler":
+		err := o.runScheduler()
 		if err != nil {
 			return err
 		}
@@ -432,6 +440,75 @@ func (o *CommandUninstallOptions) runClustertree() error {
 	}
 
 	klog.Info("Clustertree uninstalled.")
+	return nil
+}
+
+func (o *CommandUninstallOptions) runScheduler() error {
+	klog.Info("Start uninstalling scheduler from kosmos control plane...")
+	schedulerDeploy, err := util.GenerateDeployment(manifest.SchedulerDeployment, manifest.DeploymentReplace{
+		Namespace: o.Namespace,
+		Version:   o.Version,
+	})
+	if err != nil {
+		return err
+	}
+	err = o.K8sClient.AppsV1().Deployments(o.Namespace).Delete(context.Background(), schedulerDeploy.Name, metav1.DeleteOptions{})
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return fmt.Errorf("kosmosctl uninstall scheduler run error, deployment options failed: %v", err)
+		}
+	}
+
+	schedulerConfig, err := util.GenerateConfigMap(manifest.SchedulerConfigmap, nil)
+	if err != nil {
+		return err
+	}
+	err = o.K8sClient.CoreV1().ConfigMaps(o.Namespace).Delete(context.TODO(), schedulerConfig.Name, metav1.DeleteOptions{})
+	if err != nil && !apierrors.IsNotFound(err) {
+		return fmt.Errorf("kosmosctl uninstall scheduler run error, configmap options failed: %v", err)
+	}
+	klog.Info("Configmap " + schedulerConfig.Name + " is deleted.")
+
+	schedulerCRB, err := util.GenerateClusterRoleBinding(manifest.SchedulerClusterRoleBinding, nil)
+	if err != nil {
+		return err
+	}
+	err = o.K8sClient.RbacV1().ClusterRoleBindings().Delete(context.TODO(), schedulerCRB.Name, metav1.DeleteOptions{})
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return fmt.Errorf("kosmosctl uninstall scheduler run error, clusterrolebinding options failed: %v", err)
+		}
+	} else {
+		klog.Info("ClusterRoleBinding " + schedulerCRB.Name + " is deleted.")
+	}
+
+	schedulerCR, err := util.GenerateClusterRole(manifest.SchedulerClusterRole, nil)
+	if err != nil {
+		return err
+	}
+	err = o.K8sClient.RbacV1().ClusterRoles().Delete(context.TODO(), schedulerCR.Name, metav1.DeleteOptions{})
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return fmt.Errorf("kosmosctl uninstall scheduler run error, clusterrole options failed: %v", err)
+		}
+	} else {
+		klog.Info("ClusterRole " + schedulerCR.Name + " is deleted.")
+	}
+
+	schedulerSA, err := util.GenerateServiceAccount(manifest.SchedulerServiceAccount, nil)
+	if err != nil {
+		return err
+	}
+	err = o.K8sClient.CoreV1().ServiceAccounts(o.Namespace).Delete(context.TODO(), schedulerSA.Name, metav1.DeleteOptions{})
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return fmt.Errorf("kosmosctl uninstall scheduler run error, serviceaccount options failed: %v", err)
+		}
+	} else {
+		klog.Info("ServiceAccount " + schedulerSA.Name + " is deleted.")
+	}
+
+	klog.Info("Scheduler uninstalled.")
 	return nil
 }
 

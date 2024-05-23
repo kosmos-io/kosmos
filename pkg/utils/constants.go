@@ -60,6 +60,7 @@ const (
 	ClusterLink = "clusterlink"
 	ClusterTree = "clustertree"
 	CoreDNS     = "coredns"
+	Scheduler   = "scheduler"
 )
 
 const ExternalIPPoolNamePrefix = "clusterlink"
