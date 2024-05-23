@@ -70,6 +70,20 @@ func GetDefaultCertList() []*CertConfig {
 		VirtualClusterCertEtcdCA(),
 		VirtualClusterCertEtcdServer(),
 		VirtualClusterCertEtcdClient(),
+		// proxy server cert config.
+		VirtualClusterProxyServer(),
+	}
+}
+
+func VirtualClusterProxyServer() *CertConfig {
+	return &CertConfig{
+		Name:   constants.ProxyServerCertAndKeyName,
+		CAName: constants.CaCertAndKeyName,
+		Config: certutil.Config{
+			CommonName: "virtualCluster-proxy-server",
+			Usages:     []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
+		},
+		AltNamesMutatorFunc: makeAltNamesMutator(proxyServerAltNamesMutator),
 	}
 }
 
@@ -186,6 +200,39 @@ func makeAltNamesMutator(f func(cfg *AltNamesMutatorConfig) (*certutil.AltNames,
 		cc.Config.AltNames = *altNames
 		return nil
 	}
+}
+
+func proxyServerAltNamesMutator(cfg *AltNamesMutatorConfig) (*certutil.AltNames, error) {
+	altNames := &certutil.AltNames{
+		DNSNames: []string{
+			"localhost",
+			"kubernetes",
+			"kubernetes.default",
+			"kubernetes.default.svc",
+		},
+		IPs: []net.IP{
+			net.IPv4(127, 0, 0, 1),
+			net.IPv4(10, 237, 6, 17),
+			net.IPv4(10, 237, 0, 1),
+		},
+	}
+
+	if cfg.Namespace != constants.VirtualClusterSystemNamespace {
+		appendSANsToAltNames(altNames, []string{fmt.Sprintf("*.%s.svc.cluster.local", cfg.Namespace),
+			fmt.Sprintf("*.%s.svc", cfg.Namespace)})
+	}
+	if len(cfg.ControlplaneAddr) > 0 {
+		appendSANsToAltNames(altNames, []string{cfg.ControlplaneAddr})
+	}
+	if len(cfg.ExternalIP) > 0 {
+		appendSANsToAltNames(altNames, []string{cfg.ExternalIP})
+	}
+	if len(cfg.ClusterIps) > 0 {
+		for _, clusterIp := range cfg.ClusterIps {
+			appendSANsToAltNames(altNames, []string{clusterIp})
+		}
+	}
+	return altNames, nil
 }
 
 func apiServerAltNamesMutator(cfg *AltNamesMutatorConfig) (*certutil.AltNames, error) {

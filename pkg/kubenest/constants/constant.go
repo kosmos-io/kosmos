@@ -36,6 +36,7 @@ const (
 	EtcdClientCertAndKeyName       = "etcd-client"
 	FrontProxyCaCertAndKeyName     = "front-proxy-ca"
 	FrontProxyClientCertAndKeyName = "front-proxy-client"
+	ProxyServerCertAndKeyName      = "proxy-server"
 
 	//controlplane apiserver
 	ApiServer                     = "apiserver"
