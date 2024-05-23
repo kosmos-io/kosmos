@@ -23,6 +23,7 @@ import (
 	netutils "k8s.io/utils/net"
 
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
+	"github.com/kosmos.io/kosmos/pkg/kubenest/util"
 )
 
 type CertConfig struct {
@@ -203,6 +204,11 @@ func makeAltNamesMutator(f func(cfg *AltNamesMutatorConfig) (*certutil.AltNames,
 }
 
 func proxyServerAltNamesMutator(cfg *AltNamesMutatorConfig) (*certutil.AltNames, error) {
+	firstIP, err := util.GetFirstIP(constants.ApiServerServiceSubnet)
+	if err != nil {
+		return nil, err
+	}
+
 	altNames := &certutil.AltNames{
 		DNSNames: []string{
 			"localhost",
@@ -212,8 +218,7 @@ func proxyServerAltNamesMutator(cfg *AltNamesMutatorConfig) (*certutil.AltNames,
 		},
 		IPs: []net.IP{
 			net.IPv4(127, 0, 0, 1),
-			net.IPv4(10, 237, 6, 17),
-			net.IPv4(10, 237, 0, 1),
+			firstIP,
 		},
 	}
 
@@ -236,6 +241,11 @@ func proxyServerAltNamesMutator(cfg *AltNamesMutatorConfig) (*certutil.AltNames,
 }
 
 func apiServerAltNamesMutator(cfg *AltNamesMutatorConfig) (*certutil.AltNames, error) {
+	firstIP, err := util.GetFirstIP(constants.ApiServerServiceSubnet)
+	if err != nil {
+		return nil, err
+	}
+
 	altNames := &certutil.AltNames{
 		DNSNames: []string{
 			"localhost",
@@ -243,14 +253,13 @@ func apiServerAltNamesMutator(cfg *AltNamesMutatorConfig) (*certutil.AltNames, e
 			"kubernetes.default",
 			"kubernetes.default.svc",
 			"konnectivity-server.kube-system.svc.cluster.local",
-			fmt.Sprintf("*.%s.svc.cluster.local", constants.VirtualClusterSystemNamespace),
+			// fmt.Sprintf("*.%s.svc.cluster.local", constants.VirtualClusterSystemNamespace),
 			fmt.Sprintf("*.%s.svc", constants.VirtualClusterSystemNamespace),
 		},
 		//TODO （考虑节点属于当前集群节点和非当前集群节点情况）
 		IPs: []net.IP{
 			net.IPv4(127, 0, 0, 1),
-			net.IPv4(10, 237, 6, 17),
-			net.IPv4(10, 237, 0, 1),
+			firstIP,
 		},
 	}
 
