@@ -3,6 +3,7 @@ package util
 import (
 	"encoding/base64"
 	"fmt"
+	"net"
 
 	"k8s.io/client-go/kubernetes"
 
@@ -39,4 +40,24 @@ func GenerateKubeclient(virtualCluster *v1alpha1.VirtualCluster) (kubernetes.Int
 	}
 
 	return k8sClient, nil
+}
+
+func GetFirstIP(ipNetStr string) (net.IP, error) {
+	ip, ipNet, err := net.ParseCIDR(ipNetStr)
+	if err != nil {
+		return nil, fmt.Errorf("parse ipNetStr failed: %s", err)
+	}
+
+	ip = ip.To4()
+	if ip == nil {
+		return nil, fmt.Errorf("only support ipv4")
+	}
+
+	networkIP := ip.Mask(ipNet.Mask)
+
+	firstIP := make(net.IP, len(networkIP))
+	copy(firstIP, networkIP)
+	firstIP[3]++
+
+	return firstIP, nil
 }

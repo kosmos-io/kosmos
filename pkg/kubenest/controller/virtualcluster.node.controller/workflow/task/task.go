@@ -272,7 +272,7 @@ func NewWaitNodeReadyTask(isHost bool) Task {
 			isReady := false
 
 			waitFunc := func() {
-				waitCtx, cancel := context.WithTimeout(ctx, 60*time.Second) // total waiting time
+				waitCtx, cancel := context.WithTimeout(ctx, 30*time.Second) // total waiting time
 				defer cancel()
 				wait.UntilWithContext(waitCtx, func(ctx context.Context) {
 					client := to.VirtualK8sClient
