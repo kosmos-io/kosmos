@@ -30,12 +30,12 @@ func NewAnpTask() workflow.Task {
 		RunSubTasks: true,
 		Tasks: []workflow.Task{
 			{
-				Name: "deploy-anp-server",
-				Run:  runAnpServer,
-			},
-			{
 				Name: "Upload-ProxyAgentCert",
 				Run:  runUploadProxyAgentCert,
+			},
+			{
+				Name: "deploy-anp-server",
+				Run:  runAnpServer,
 			},
 			{
 				Name: "deploy-anp-agent",
@@ -220,7 +220,9 @@ func getAnpAgentManifest(client clientset.Interface, name string, namespace stri
 	// get apiServer hostIp
 	proxyServerHost, err := getDeploymentPodIPs(client, namespace, fmt.Sprintf("%s-%s", name, "apiserver"))
 	if err != nil {
-		return "", nil, fmt.Errorf("error when get apiserver hostIp, err: %w", err)
+		klog.Warningf("Failed to get apiserver hostIp, err: %v", err)
+		// ignore if can't get the hostIp when uninstall  the deployment
+		proxyServerHost = []string{"127.0.0.1"}
 	}
 
 	anpAgentManifeattBytes, err := util.ParseTemplate(apiserver.AnpAgentManifest, struct {
@@ -319,6 +321,7 @@ func runUploadProxyAgentCert(r workflow.RunData) error {
 	certList := data.CertList()
 	certsData := make(map[string][]byte, len(certList))
 	for _, c := range certList {
+		// only upload apisever cert
 		if strings.Contains(c.KeyName(), "apiserver") {
 			certsData[c.KeyName()] = c.KeyData()
 			certsData[c.CertName()] = c.CertData()
