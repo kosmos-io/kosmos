@@ -169,7 +169,7 @@ func (r *GlobalNodeController) SyncLabel(ctx context.Context, globalNode *v1alph
 
 		// Use management plane node label to override global node
 		updateGlobalNode := globalNode.DeepCopy()
-		updateGlobalNode.Labels = rootNode.Labels
+		updateGlobalNode.Spec.Labels = rootNode.Labels
 
 		if _, err = r.KosmosClient.KosmosV1alpha1().GlobalNodes().Update(ctx, updateGlobalNode, metav1.UpdateOptions{}); err != nil {
 			klog.Errorf("global-node-controller: SyncState: update global node label failed, err: %s", err)
