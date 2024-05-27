@@ -40,10 +40,6 @@ func (c *FakeKosmosV1alpha1) GlobalNodes() v1alpha1.GlobalNodeInterface {
 	return &FakeGlobalNodes{c}
 }
 
-func (c *FakeKosmosV1alpha1) Knodes() v1alpha1.KnodeInterface {
-	return &FakeKnodes{c}
-}
-
 func (c *FakeKosmosV1alpha1) NodeConfigs() v1alpha1.NodeConfigInterface {
 	return &FakeNodeConfigs{c}
 }

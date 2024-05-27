@@ -10,7 +10,7 @@ ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 REUSE=${REUSE:-false}
 VERSION=${VERSION:-latest}
 
-CN_ZONE=${CN_ZONE:-false}
+CN_ZONE=${CN_ZONE:-true}
 source "$(dirname "${BASH_SOURCE[0]}")/util.sh"
 
 # default cert and key for node server https
@@ -22,6 +22,32 @@ if [ $REUSE == true ]; then
 fi
 
 source "${ROOT}/hack/util.sh"
+
+# pull e2e test image
+function prepare_test_image() {
+  if [ "${CN_ZONE}" == false ]; then
+        docker pull bitpoke/mysql-operator-orchestrator:v0.6.3
+        docker pull bitpoke/mysql-operator:v0.6.3
+        docker pull bitpoke/mysql-operator-sidecar-5.7:v0.6.3
+        docker pull nginx
+        docker pull percona:5.7
+        docker pull prom/mysqld-exporter:v0.13.0
+  else
+        docker pull docker.m.daocloud.io/bitpoke/mysql-operator-orchestrator:v0.6.3
+        docker pull docker.m.daocloud.io/bitpoke/mysql-operator:v0.6.3
+        docker pull docker.m.daocloud.io/bitpoke/mysql-operator-sidecar-5.7:v0.6.3
+        docker pull docker.m.daocloud.io/nginx
+        docker pull docker.m.daocloud.io/percona:5.7
+        docker pull docker.m.daocloud.io/prom/mysqld-exporter:v0.13.0
+
+        docker tag docker.m.daocloud.io/bitpoke/mysql-operator-orchestrator:v0.6.3 bitpoke/mysql-operator-orchestrator:v0.6.3
+        docker tag docker.m.daocloud.io/bitpoke/mysql-operator:v0.6.3 bitpoke/mysql-operator:v0.6.3
+        docker tag docker.m.daocloud.io/bitpoke/mysql-operator-sidecar-5.7:v0.6.3 bitpoke/mysql-operator-sidecar-5.7:v0.6.3
+        docker tag docker.m.daocloud.io/nginx nginx
+        docker tag docker.m.daocloud.io/percona:5.7 percona:5.7
+        docker tag docker.m.daocloud.io/prom/mysqld-exporter:v0.13.0 prom/mysqld-exporter:v0.13.0
+  fi
+}
 
 # prepare e2e cluster
 function prepare_e2e_cluster() {
@@ -60,16 +86,38 @@ function prepare_e2e_cluster() {
 
 # prepare docker image
 function prepare_docker_image() {
-  # pull calico image
-  docker pull calico/apiserver:v3.25.0
-  docker pull calico/cni:v3.25.0
-  docker pull calico/csi:v3.25.0
-  docker pull calico/kube-controllers:v3.25.0
-  docker pull calico/node-driver-registrar:v3.25.0
-  docker pull calico/node:v3.25.0
-  docker pull calico/pod2daemon-flexvol:v3.25.0
-  docker pull calico/typha:v3.25.0
-  docker pull quay.io/tigera/operator:v1.29.0
+  if [ "${CN_ZONE}" == false ]; then
+        # pull calico image
+        docker pull calico/apiserver:v3.25.0
+        docker pull calico/cni:v3.25.0
+        docker pull calico/csi:v3.25.0
+        docker pull calico/kube-controllers:v3.25.0
+        docker pull calico/node-driver-registrar:v3.25.0
+        docker pull calico/node:v3.25.0
+        docker pull calico/pod2daemon-flexvol:v3.25.0
+        docker pull calico/typha:v3.25.0
+        docker pull quay.io/tigera/operator:v1.29.0
+  else
+        docker pull quay.m.daocloud.io/tigera/operator:v1.29.0
+        docker pull docker.m.daocloud.io/calico/apiserver:v3.25.0
+        docker pull docker.m.daocloud.io/calico/cni:v3.25.0
+        docker pull docker.m.daocloud.io/calico/csi:v3.25.0
+        docker pull docker.m.daocloud.io/calico/kube-controllers:v3.25.0
+        docker pull docker.m.daocloud.io/calico/node-driver-registrar:v3.25.0
+        docker pull docker.m.daocloud.io/calico/node:v3.25.0
+        docker pull docker.m.daocloud.io/calico/pod2daemon-flexvol:v3.25.0
+        docker pull docker.m.daocloud.io/calico/typha:v3.25.0
+
+        docker tag quay.m.daocloud.io/tigera/operator:v1.29.0 quay.io/tigera/operator:v1.29.0
+        docker tag docker.m.daocloud.io/calico/apiserver:v3.25.0 calico/apiserver:v3.25.0
+        docker tag docker.m.daocloud.io/calico/cni:v3.25.0 calico/cni:v3.25.0
+        docker tag docker.m.daocloud.io/calico/csi:v3.25.0 calico/csi:v3.25.0
+        docker tag docker.m.daocloud.io/calico/kube-controllers:v3.25.0 calico/kube-controllers:v3.25.0
+        docker tag docker.m.daocloud.io/calico/node-driver-registrar:v3.25.0 calico/node-driver-registrar:v3.25.0
+        docker tag docker.m.daocloud.io/calico/node:v3.25.0 calico/node:v3.25.0
+        docker tag docker.m.daocloud.io/calico/pod2daemon-flexvol:v3.25.0 calico/pod2daemon-flexvol:v3.25.0
+        docker tag docker.m.daocloud.io/calico/typha:v3.25.0 calico/typha:v3.25.0
+  fi
 }
 
 #clustername podcidr servicecidr

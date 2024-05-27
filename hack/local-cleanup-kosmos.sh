@@ -4,6 +4,8 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
+VERSION=${VERSION:-"latest"}
+
 function usage() {
     echo "Usage:"
     echo "    hack/local-down-kosmos.sh [-k] [-h]"
@@ -57,17 +59,16 @@ echo "Remove cluster configs successfully."
 
 #step3. remove docker images
 echo -e "\nStart removing images"
-version="v0.2.0"
 registry="ghcr.io/kosmos-io"
 images=(
-"${registry}/clusterlink-network-manager:${version}"
-"${registry}/clusterlink-controller-manager:${version}"
-"${registry}/clusterlink-elector:${version}"
-"${registry}/clusterlink-operator:${version}"
-"${registry}/clusterlink-agent:${version}"
-"${registry}/clusterlink-proxy:${version}"
-"${registry}/clustertree-cluster-manager:${version}"
-"${registry}/scheduler:${version}"
+"${registry}/clusterlink-network-manager:${VERSION}"
+"${registry}/clusterlink-controller-manager:${VERSION}"
+"${registry}/clusterlink-elector:${VERSION}"
+"${registry}/clusterlink-operator:${VERSION}"
+"${registry}/clusterlink-agent:${VERSION}"
+"${registry}/clusterlink-proxy:${VERSION}"
+"${registry}/clustertree-cluster-manager:${VERSION}"
+"${registry}/scheduler:${VERSION}"
 )
 if [[ "${keep_images}" == "false" ]] ; then
   for ((i=0;i<${#images[*]};i++)); do
