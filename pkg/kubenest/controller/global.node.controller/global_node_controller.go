@@ -37,6 +37,24 @@ type GlobalNodeController struct {
 	KosmosClient  versioned.Interface
 }
 
+// compareMaps compares two map[string]string and returns true if they are equal
+func compareMaps(map1, map2 map[string]string) bool {
+	// If lengths are different, the maps are not equal
+	if len(map1) != len(map2) {
+		return false
+	}
+
+	// Iterate over map1 and check if all keys and values are present in map2
+	for key, value1 := range map1 {
+		if value2, ok := map2[key]; !ok || value1 != value2 {
+			return false
+		}
+	}
+
+	// If no discrepancies are found, the maps are equal
+	return true
+}
+
 func (r *GlobalNodeController) SetupWithManager(mgr manager.Manager) error {
 	if r.Client == nil {
 		r.Client = mgr.GetClient()
@@ -45,21 +63,23 @@ func (r *GlobalNodeController) SetupWithManager(mgr manager.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(constants.GlobalNodeControllerName).
 		WithOptions(controller.Options{MaxConcurrentReconciles: 5}).
-		For(&v1alpha1.GlobalNode{}, builder.WithPredicates(predicate.Funcs{
+		For(&v1.Node{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(createEvent event.CreateEvent) bool {
 				return true
 			},
 			UpdateFunc: func(updateEvent event.UpdateEvent) bool {
-				return true
+				oldObj := updateEvent.ObjectOld.(*v1.Node)
+				newObj := updateEvent.ObjectNew.(*v1.Node)
+				return !compareMaps(oldObj.Labels, newObj.Labels)
 			},
 			DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
-				return true
+				return false
 			},
 			GenericFunc: func(genericEvent event.GenericEvent) bool {
-				return true
+				return false
 			},
 		})).
-		Watches(&source.Kind{Type: &v1.Node{}}, handler.EnqueueRequestsFromMapFunc(r.newNodeMapFunc())).
+		// Watches(&source.Kind{Type: &v1.Node{}}, handler.EnqueueRequestsFromMapFunc(r.newNodeMapFunc())).
 		Watches(&source.Kind{Type: &v1alpha1.VirtualCluster{}}, handler.EnqueueRequestsFromMapFunc(r.newVirtualClusterMapFunc())).
 		Complete(r)
 }
@@ -81,17 +101,17 @@ func (r *GlobalNodeController) newVirtualClusterMapFunc() handler.MapFunc {
 	}
 }
 
-func (r *GlobalNodeController) newNodeMapFunc() handler.MapFunc {
-	return func(a client.Object) []reconcile.Request {
-		var requests []reconcile.Request
-		node := a.(*v1.Node)
-		klog.V(4).Infof("global-node-controller: node change: %s", node.Name)
-		requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{
-			Name: node.Name,
-		}})
-		return requests
-	}
-}
+// func (r *GlobalNodeController) newNodeMapFunc() handler.MapFunc {
+// 	return func(a client.Object) []reconcile.Request {
+// 		var requests []reconcile.Request
+// 		node := a.(*v1.Node)
+// 		klog.V(4).Infof("global-node-controller: node change: %s", node.Name)
+// 		requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{
+// 			Name: node.Name,
+// 		}})
+// 		return requests
+// 	}
+// }
 
 func (r *GlobalNodeController) SyncTaint(ctx context.Context, globalNode *v1alpha1.GlobalNode) error {
 	if globalNode.Spec.State == v1alpha1.NodeFreeState {
@@ -169,7 +189,10 @@ func (r *GlobalNodeController) SyncLabel(ctx context.Context, globalNode *v1alph
 
 		// Use management plane node label to override global node
 		updateGlobalNode := globalNode.DeepCopy()
-		updateGlobalNode.Labels = rootNode.Labels
+		if compareMaps(updateGlobalNode.Spec.Labels, rootNode.Labels) {
+			return nil
+		}
+		updateGlobalNode.Spec.Labels = rootNode.Labels
 
 		if _, err = r.KosmosClient.KosmosV1alpha1().GlobalNodes().Update(ctx, updateGlobalNode, metav1.UpdateOptions{}); err != nil {
 			klog.Errorf("global-node-controller: SyncState: update global node label failed, err: %s", err)
