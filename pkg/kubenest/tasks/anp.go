@@ -41,6 +41,10 @@ func NewAnpTask() workflow.Task {
 				Name: "deploy-anp-agent",
 				Run:  runAnpAgent,
 			},
+			{
+				Name: "check-anp-health",
+				Run:  runCheckVirtualClusterAPIServer,
+			},
 		},
 	}
 }
