@@ -282,6 +282,93 @@ func (r *RootPodReconciler) SetupWithManager(mgr manager.Manager) error {
 		Complete(r)
 }
 
+func (r *RootPodReconciler) createPvcInLeafCluster(ctx context.Context, lr *leafUtils.LeafResource, pvcs []string, rootpod *corev1.Pod, cn *leafUtils.ClusterNode) error {
+	for _, pvcName := range pvcs {
+		rootPVC := &corev1.PersistentVolumeClaim{}
+		err := r.RootClient.Get(ctx, types.NamespacedName{Namespace: rootpod.Namespace, Name: pvcName}, rootPVC)
+		if err != nil {
+			return fmt.Errorf("could not get pvc %s from root cluster: %v", pvcName, err)
+		}
+		anno := rootPVC.GetAnnotations()
+		if rootPVC.Status.Phase == corev1.ClaimBound {
+			if _, ok := anno[utils.KosmosResourceOwnersAnnotations]; !ok {
+				anno[utils.KosmosPvcImmediateMode] = "true"
+			}
+		}
+		anno = utils.AddResourceClusters(anno, lr.ClusterName)
+		anno[utils.KosmosGlobalLabel] = "true"
+
+		rootPVC.SetAnnotations(anno)
+		err = r.RootClient.Update(ctx, rootPVC)
+		if err != nil {
+			return fmt.Errorf("could not update pvc %s/%s in host cluster: %v", rootpod.Namespace, pvcName, err)
+		}
+
+		leafPvc, err := lr.Clientset.CoreV1().PersistentVolumeClaims(rootpod.Namespace).Get(ctx, pvcName, metav1.GetOptions{})
+		if err != nil {
+			if errors.IsNotFound(err) {
+				leafPvc = rootPVC.DeepCopy()
+				err = utils.ResetMetadata(leafPvc)
+				if err != nil {
+					return err
+				}
+				delete(anno, utils.PVCSelectedNodeKey)
+				leafPvc.SetAnnotations(anno)
+				leafPvc, err = lr.Clientset.CoreV1().PersistentVolumeClaims(rootpod.Namespace).Create(ctx, leafPvc, metav1.CreateOptions{})
+				if err != nil {
+					klog.Errorf("Failed to create pvc %s/%s err: %v", rootpod.Namespace, pvcName, err)
+					return err
+				}
+				klog.V(4).Infof("Create pvc %s/%s success", rootpod.Namespace, pvcName)
+				if _, ok := anno[utils.KosmosPvcImmediateMode]; ok {
+					return r.createImmediateModePvInLeafCluster(ctx, lr, leafPvc)
+				}
+			}
+			return fmt.Errorf("could not check pvc %s/%s in external cluster: %v", rootpod.Namespace, pvcName, err)
+		} else {
+			if utils.IsImmediateModePvc(leafPvc.Annotations) && leafPvc.Status.Phase != corev1.ClaimBound {
+				_, err := lr.Clientset.CoreV1().PersistentVolumes().Get(ctx, leafPvc.Spec.VolumeName, metav1.GetOptions{})
+				if errors.IsNotFound(err) {
+					return r.createImmediateModePvInLeafCluster(ctx, lr, leafPvc)
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func (r *RootPodReconciler) createImmediateModePvInLeafCluster(ctx context.Context, lr *leafUtils.LeafResource, leafPvc *corev1.PersistentVolumeClaim) error {
+	klog.V(4).Infof("Creating PV %s in leaf cluster %s", leafPvc.Spec.VolumeName, lr.ClusterName)
+	rootPV := &corev1.PersistentVolume{}
+	err := r.RootClient.Get(ctx, types.NamespacedName{Namespace: "", Name: leafPvc.Spec.VolumeName}, rootPV)
+	if err != nil {
+		return fmt.Errorf("could not get pv %s from root cluster: %v", leafPvc.Spec.VolumeName, err)
+	}
+	pv := rootPV.DeepCopy()
+	anno := pv.Annotations
+	if anno == nil {
+		anno = make(map[string]string)
+	}
+	anno[utils.KosmosGlobalLabel] = "true"
+	anno[utils.KosmosPvcImmediateMode] = "true"
+	pv.SetAnnotations(anno)
+	err = utils.ResetMetadata(pv)
+	if err != nil {
+		return err
+	}
+	pv.Spec.ClaimRef.ResourceVersion = leafPvc.ResourceVersion
+	pv.Spec.ClaimRef.UID = leafPvc.UID
+	_, err = lr.Clientset.CoreV1().PersistentVolumes().Create(ctx, pv, metav1.CreateOptions{})
+	if err != nil {
+		if errors.IsAlreadyExists(err) {
+			return nil
+		}
+		klog.Errorf("Failed to create pv %s err: %v", pv.Name, err)
+		return err
+	}
+	return nil
+}
+
 func (r *RootPodReconciler) createStorageInLeafCluster(ctx context.Context, lr *leafUtils.LeafResource, gvr schema.GroupVersionResource, resourcenames []string, rootpod *corev1.Pod, cn *leafUtils.ClusterNode) error {
 	ns := rootpod.Namespace
 	storageHandler, err := NewStorageHandler(gvr)
@@ -769,10 +856,11 @@ func (r *RootPodReconciler) createVolumes(ctx context.Context, lr *leafUtils.Lea
 				return false, err
 			}
 			klog.V(4).Info("Trying to creating dependent pvc")
-			if err := r.createStorageInLeafCluster(ctx, lr, utils.GVR_PVC, pvcsWithoutEs, basicPod, clusterNodeInfo); err != nil {
+			if err := r.createPvcInLeafCluster(ctx, lr, pvcsWithoutEs, basicPod, clusterNodeInfo); err != nil {
 				klog.Error(err)
 				return false, nil
 			}
+
 			klog.V(4).Infof("Create pvc %v of %v/%v success", pvcsWithoutEs, basicPod.Namespace, basicPod.Name)
 			// }
 			return true, nil

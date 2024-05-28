@@ -177,15 +177,15 @@ func (l *LeafPVController) SetupWithManager(mgr manager.Manager) error {
 		For(&v1.PersistentVolume{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(createEvent event.CreateEvent) bool {
 				curr := createEvent.Object.(*v1.PersistentVolume)
-				return !podutils.IsOneWayPV(curr)
+				return !podutils.IsOneWayPV(curr) && !utils.IsImmediateModePvc(curr.Annotations)
 			},
 			UpdateFunc: func(updateEvent event.UpdateEvent) bool {
 				curr := updateEvent.ObjectNew.(*v1.PersistentVolume)
-				return !podutils.IsOneWayPV(curr)
+				return !podutils.IsOneWayPV(curr) && !utils.IsImmediateModePvc(curr.Annotations)
 			},
 			DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
 				curr := deleteEvent.Object.(*v1.PersistentVolume)
-				return !podutils.IsOneWayPV(curr)
+				return !podutils.IsOneWayPV(curr) && !utils.IsImmediateModePvc(curr.Annotations)
 			},
 			GenericFunc: func(genericEvent event.GenericEvent) bool {
 				return false

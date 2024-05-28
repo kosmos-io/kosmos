@@ -2,6 +2,8 @@ package utils
 
 import (
 	"encoding/json"
+	"fmt"
+	"reflect"
 	"strings"
 
 	jsonpatch "github.com/evanphx/json-patch"
@@ -133,30 +135,59 @@ func IsObjectUnstructuredGlobal(obj map[string]string) bool {
 	return false
 }
 
+func ResetMetadata(obj interface{}) error {
+	value := reflect.ValueOf(obj)
+	if value.Kind() != reflect.Ptr {
+		return fmt.Errorf("obj must be a pointer")
+	}
+
+	value = value.Elem()
+	metaField := value.FieldByName("ObjectMeta")
+	if !metaField.IsValid() || metaField.Kind() != reflect.Struct {
+		return fmt.Errorf("obj does not have an ObjectMeta field")
+	}
+	metaField.FieldByName("ResourceVersion").SetString("")
+	metaField.FieldByName("UID").SetString("")
+	metaField.FieldByName("Generation").SetInt(0)
+	metaField.FieldByName("SelfLink").SetString("")
+	ownerRefsField := metaField.FieldByName("OwnerReferences")
+	if ownerRefsField.IsValid() && ownerRefsField.Kind() == reflect.Slice && ownerRefsField.CanSet() {
+		ownerRefsField.Set(reflect.MakeSlice(ownerRefsField.Type(), 0, 0))
+	}
+	return nil
+}
+
+func IsImmediateModePvc(annotations map[string]string) bool {
+	if _, ok := annotations[KosmosPvcImmediateMode]; ok {
+		return true
+	}
+	return false
+}
+
 func AddResourceClusters(anno map[string]string, clusterName string) map[string]string {
 	if anno == nil {
-		anno = map[string]string{}
+		anno = make(map[string]string)
 	}
-	owners := strings.Split(anno[KosmosResourceOwnersAnnotations], ",")
-	newowners := make([]string, 0)
 
-	flag := false
+	ownerStr := anno[KosmosResourceOwnersAnnotations]
+	if ownerStr == "" {
+		anno[KosmosResourceOwnersAnnotations] = clusterName
+		return anno
+	}
+
+	owners := strings.Split(ownerStr, ",")
+	found := false
 	for _, v := range owners {
-		if len(v) == 0 {
-			continue
-		}
-		newowners = append(newowners, v)
-		if v == clusterName {
-			// already existed
-			flag = true
+		if strings.TrimSpace(v) == clusterName {
+			found = true
+			break
 		}
 	}
 
-	if !flag {
-		newowners = append(newowners, clusterName)
+	if !found {
+		owners = append(owners, clusterName)
+		anno[KosmosResourceOwnersAnnotations] = strings.Join(owners, ",")
 	}
-
-	anno[KosmosResourceOwnersAnnotations] = strings.Join(newowners, ",")
 	return anno
 }
 

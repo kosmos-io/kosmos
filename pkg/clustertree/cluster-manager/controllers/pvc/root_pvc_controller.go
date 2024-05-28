@@ -133,16 +133,18 @@ func (r *RootPVCController) cleanupPvc(pvc *v1.PersistentVolumeClaim) (reconcile
 		return reconcile.Result{}, nil
 	}
 
-	lr, err := r.GlobalLeafManager.GetLeafResource(clusters[0])
-	if err != nil {
-		klog.Warningf("pvc leaf %q: %q doesn't existed in LeafResources", pvc.GetNamespace(), pvc.GetName())
-		return reconcile.Result{}, nil
-	}
-
-	if err = lr.Clientset.CoreV1().PersistentVolumeClaims(pvc.GetNamespace()).Delete(context.TODO(), pvc.GetName(), metav1.DeleteOptions{}); err != nil {
-		if !errors.IsNotFound(err) {
-			klog.Errorf("delete pvc from leaf cluster failed, %q: %q, error: %v", pvc.GetNamespace(), pvc.GetName(), err)
+	for _, cluster := range clusters {
+		lr, err := r.GlobalLeafManager.GetLeafResource(cluster)
+		if err != nil {
+			klog.Errorf("Delete pvc %s/%s from leaf cluster %s, get leafresource error %s.", pvc.GetNamespace(), pvc.GetName(), cluster, err.Error())
 			return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, err
+		}
+
+		if err = lr.Clientset.CoreV1().PersistentVolumeClaims(pvc.GetNamespace()).Delete(context.TODO(), pvc.GetName(), metav1.DeleteOptions{}); err != nil {
+			if !errors.IsNotFound(err) {
+				klog.Errorf("delete pvc from leaf cluster failed, %q: %q, error: %v", pvc.GetNamespace(), pvc.GetName(), err)
+				return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, err
+			}
 		}
 	}
 	return reconcile.Result{}, nil
