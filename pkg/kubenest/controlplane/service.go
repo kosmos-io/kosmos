@@ -14,6 +14,7 @@ import (
 
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/manifest/controlplane/apiserver"
+	"github.com/kosmos.io/kosmos/pkg/kubenest/manifest/controlplane/coredns/host"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/manifest/controlplane/etcd"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/util"
 )
@@ -30,6 +31,7 @@ func DeleteVirtualClusterService(client clientset.Interface, name, namespace str
 		fmt.Sprintf("%s-%s", name, "apiserver"),
 		fmt.Sprintf("%s-%s", name, "etcd"),
 		fmt.Sprintf("%s-%s", name, "etcd-client"),
+		"kube-dns",
 	}
 	for _, service := range services {
 		err := client.CoreV1().Services(namespace).Delete(context.TODO(), service, metav1.DeleteOptions{})
@@ -109,6 +111,7 @@ func createServerService(client clientset.Interface, name, namespace string, por
 		return fmt.Errorf("error when creating etcd client service, err: %w", err)
 	}
 
+	//etcd-client service
 	etcdClientServiceBytes, err := util.ParseTemplate(etcd.EtcdClientService, struct {
 		ServiceName, Namespace string
 		EtcdListenClientPort   int32
@@ -128,6 +131,25 @@ func createServerService(client clientset.Interface, name, namespace string, por
 
 	if err := createOrUpdateService(client, etcdClientService); err != nil {
 		return fmt.Errorf("err when creating etcd client service, err: %w", err)
+	}
+
+	//core-dns service
+	coreDnsServiceBytes, err := util.ParseTemplate(host.CoreDnsService, struct {
+		Namespace string
+	}{
+		Namespace: namespace,
+	})
+	if err != nil {
+		return fmt.Errorf("error when parsing core-dns serive template: %w", err)
+	}
+
+	coreDnsService := &corev1.Service{}
+	if err := yaml.Unmarshal([]byte(coreDnsServiceBytes), coreDnsService); err != nil {
+		return fmt.Errorf("err when decoding core-dns service: %w", err)
+	}
+
+	if err := createOrUpdateService(client, coreDnsService); err != nil {
+		return fmt.Errorf("err when creating core-dns service, err: %w", err)
 	}
 
 	return nil

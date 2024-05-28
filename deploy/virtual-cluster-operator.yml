@@ -113,6 +113,8 @@ spec:
             value: ghcr.io/kosmos-io
           - name: IMAGE_VERSION
             value: v1.25.7
+          - name: COREDNS_IMAGE_TAG
+            value: v1.9.3
             # Enter the ip address of a master node
           - name: EXECTOR_HOST_MASTER_NODE_IP
             value: 192.168.0.1

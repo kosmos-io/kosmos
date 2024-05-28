@@ -268,7 +268,7 @@ func (c *KosmosJoinController) DeployKosmos(ctx context.Context, request reconci
 	klog.Infof("Secret %s/%s-clustertree-cluster-manager has been created. ", request.Namespace, request.Name)
 
 	klog.Infof("Start creating kosmos-clustertree deployment %s/%s-clustertree-cluster-manager...", request.Namespace, request.Name)
-	imageRepository := os.Getenv(constants.DefauleImageRepositoryEnv)
+	imageRepository := os.Getenv(constants.DefaultImageRepositoryEnv)
 	if len(imageRepository) == 0 {
 		imageRepository = utils.DefaultImageRepository
 	}
