@@ -26,26 +26,26 @@ source "${ROOT}/hack/util.sh"
 # pull e2e test image
 function prepare_test_image() {
   if [ "${CN_ZONE}" == false ]; then
-        docker pull bitpoke/mysql-operator-orchestrator:v0.6.3
-        docker pull bitpoke/mysql-operator:v0.6.3
-        docker pull bitpoke/mysql-operator-sidecar-5.7:v0.6.3
-        docker pull nginx
-        docker pull percona:5.7
-        docker pull prom/mysqld-exporter:v0.13.0
+    docker pull bitpoke/mysql-operator-orchestrator:v0.6.3
+    docker pull bitpoke/mysql-operator:v0.6.3
+    docker pull bitpoke/mysql-operator-sidecar-5.7:v0.6.3
+    docker pull nginx
+    docker pull percona:5.7
+    docker pull prom/mysqld-exporter:v0.13.0
   else
-        docker pull docker.m.daocloud.io/bitpoke/mysql-operator-orchestrator:v0.6.3
-        docker pull docker.m.daocloud.io/bitpoke/mysql-operator:v0.6.3
-        docker pull docker.m.daocloud.io/bitpoke/mysql-operator-sidecar-5.7:v0.6.3
-        docker pull docker.m.daocloud.io/nginx
-        docker pull docker.m.daocloud.io/percona:5.7
-        docker pull docker.m.daocloud.io/prom/mysqld-exporter:v0.13.0
+    docker pull docker.m.daocloud.io/bitpoke/mysql-operator-orchestrator:v0.6.3
+    docker pull docker.m.daocloud.io/bitpoke/mysql-operator:v0.6.3
+    docker pull docker.m.daocloud.io/bitpoke/mysql-operator-sidecar-5.7:v0.6.3
+    docker pull docker.m.daocloud.io/nginx
+    docker pull docker.m.daocloud.io/percona:5.7
+    docker pull docker.m.daocloud.io/prom/mysqld-exporter:v0.13.0
 
-        docker tag docker.m.daocloud.io/bitpoke/mysql-operator-orchestrator:v0.6.3 bitpoke/mysql-operator-orchestrator:v0.6.3
-        docker tag docker.m.daocloud.io/bitpoke/mysql-operator:v0.6.3 bitpoke/mysql-operator:v0.6.3
-        docker tag docker.m.daocloud.io/bitpoke/mysql-operator-sidecar-5.7:v0.6.3 bitpoke/mysql-operator-sidecar-5.7:v0.6.3
-        docker tag docker.m.daocloud.io/nginx nginx
-        docker tag docker.m.daocloud.io/percona:5.7 percona:5.7
-        docker tag docker.m.daocloud.io/prom/mysqld-exporter:v0.13.0 prom/mysqld-exporter:v0.13.0
+    docker tag docker.m.daocloud.io/bitpoke/mysql-operator-orchestrator:v0.6.3 bitpoke/mysql-operator-orchestrator:v0.6.3
+    docker tag docker.m.daocloud.io/bitpoke/mysql-operator:v0.6.3 bitpoke/mysql-operator:v0.6.3
+    docker tag docker.m.daocloud.io/bitpoke/mysql-operator-sidecar-5.7:v0.6.3 bitpoke/mysql-operator-sidecar-5.7:v0.6.3
+    docker tag docker.m.daocloud.io/nginx nginx
+    docker tag docker.m.daocloud.io/percona:5.7 percona:5.7
+    docker tag docker.m.daocloud.io/prom/mysqld-exporter:v0.13.0 prom/mysqld-exporter:v0.13.0
   fi
 }
 
@@ -87,36 +87,36 @@ function prepare_e2e_cluster() {
 # prepare docker image
 function prepare_docker_image() {
   if [ "${CN_ZONE}" == false ]; then
-        # pull calico image
-        docker pull calico/apiserver:v3.25.0
-        docker pull calico/cni:v3.25.0
-        docker pull calico/csi:v3.25.0
-        docker pull calico/kube-controllers:v3.25.0
-        docker pull calico/node-driver-registrar:v3.25.0
-        docker pull calico/node:v3.25.0
-        docker pull calico/pod2daemon-flexvol:v3.25.0
-        docker pull calico/typha:v3.25.0
-        docker pull quay.io/tigera/operator:v1.29.0
+    # pull calico image
+    docker pull calico/apiserver:v3.25.0
+    docker pull calico/cni:v3.25.0
+    docker pull calico/csi:v3.25.0
+    docker pull calico/kube-controllers:v3.25.0
+    docker pull calico/node-driver-registrar:v3.25.0
+    docker pull calico/node:v3.25.0
+    docker pull calico/pod2daemon-flexvol:v3.25.0
+    docker pull calico/typha:v3.25.0
+    docker pull quay.io/tigera/operator:v1.29.0
   else
-        docker pull quay.m.daocloud.io/tigera/operator:v1.29.0
-        docker pull docker.m.daocloud.io/calico/apiserver:v3.25.0
-        docker pull docker.m.daocloud.io/calico/cni:v3.25.0
-        docker pull docker.m.daocloud.io/calico/csi:v3.25.0
-        docker pull docker.m.daocloud.io/calico/kube-controllers:v3.25.0
-        docker pull docker.m.daocloud.io/calico/node-driver-registrar:v3.25.0
-        docker pull docker.m.daocloud.io/calico/node:v3.25.0
-        docker pull docker.m.daocloud.io/calico/pod2daemon-flexvol:v3.25.0
-        docker pull docker.m.daocloud.io/calico/typha:v3.25.0
+    docker pull quay.m.daocloud.io/tigera/operator:v1.29.0
+    docker pull docker.m.daocloud.io/calico/apiserver:v3.25.0
+    docker pull docker.m.daocloud.io/calico/cni:v3.25.0
+    docker pull docker.m.daocloud.io/calico/csi:v3.25.0
+    docker pull docker.m.daocloud.io/calico/kube-controllers:v3.25.0
+    docker pull docker.m.daocloud.io/calico/node-driver-registrar:v3.25.0
+    docker pull docker.m.daocloud.io/calico/node:v3.25.0
+    docker pull docker.m.daocloud.io/calico/pod2daemon-flexvol:v3.25.0
+    docker pull docker.m.daocloud.io/calico/typha:v3.25.0
 
-        docker tag quay.m.daocloud.io/tigera/operator:v1.29.0 quay.io/tigera/operator:v1.29.0
-        docker tag docker.m.daocloud.io/calico/apiserver:v3.25.0 calico/apiserver:v3.25.0
-        docker tag docker.m.daocloud.io/calico/cni:v3.25.0 calico/cni:v3.25.0
-        docker tag docker.m.daocloud.io/calico/csi:v3.25.0 calico/csi:v3.25.0
-        docker tag docker.m.daocloud.io/calico/kube-controllers:v3.25.0 calico/kube-controllers:v3.25.0
-        docker tag docker.m.daocloud.io/calico/node-driver-registrar:v3.25.0 calico/node-driver-registrar:v3.25.0
-        docker tag docker.m.daocloud.io/calico/node:v3.25.0 calico/node:v3.25.0
-        docker tag docker.m.daocloud.io/calico/pod2daemon-flexvol:v3.25.0 calico/pod2daemon-flexvol:v3.25.0
-        docker tag docker.m.daocloud.io/calico/typha:v3.25.0 calico/typha:v3.25.0
+    docker tag quay.m.daocloud.io/tigera/operator:v1.29.0 quay.io/tigera/operator:v1.29.0
+    docker tag docker.m.daocloud.io/calico/apiserver:v3.25.0 calico/apiserver:v3.25.0
+    docker tag docker.m.daocloud.io/calico/cni:v3.25.0 calico/cni:v3.25.0
+    docker tag docker.m.daocloud.io/calico/csi:v3.25.0 calico/csi:v3.25.0
+    docker tag docker.m.daocloud.io/calico/kube-controllers:v3.25.0 calico/kube-controllers:v3.25.0
+    docker tag docker.m.daocloud.io/calico/node-driver-registrar:v3.25.0 calico/node-driver-registrar:v3.25.0
+    docker tag docker.m.daocloud.io/calico/node:v3.25.0 calico/node:v3.25.0
+    docker tag docker.m.daocloud.io/calico/pod2daemon-flexvol:v3.25.0 calico/pod2daemon-flexvol:v3.25.0
+    docker tag docker.m.daocloud.io/calico/typha:v3.25.0 calico/typha:v3.25.0
   fi
 }
 
@@ -128,6 +128,15 @@ function create_cluster() {
   local -r podcidr=$4
   local -r servicecidr=$5
   local -r isDual=${6:-false}
+  local -r multiNodes=${7:-false}
+
+  local KIND_CONFIG_NAME
+
+  if [ "${multiNodes}" == true ]; then
+      KIND_CONFIG_NAME="kubenest_kindconfig"
+  else
+      KIND_CONFIG_NAME="kindconfig"
+  fi
 
   CLUSTER_DIR="${ROOT}/environments/${clustername}"
   mkdir -p "${CLUSTER_DIR}"
@@ -144,19 +153,19 @@ function create_cluster() {
     podcidr_all=${podcidr_ipv6}","${podcidr}
     servicecidr_all=${servicecidr_ipv6}","${servicecidr}
     sed -e "s|__POD_CIDR__|$podcidr|g" -e "s|__POD_CIDR_IPV6__|$podcidr_ipv6|g" -e "s|#DUAL||g" -e "w ${CLUSTER_DIR}/calicoconfig" "${CURRENT}/clustertemplete/calicoconfig"
-    sed -e "s|__POD_CIDR__|$podcidr_all|g" -e "s|__SERVICE_CIDR__|$servicecidr_all|g" -e "s|__IP_FAMILY__|$ipFamily|g" -e "w ${CLUSTER_DIR}/kindconfig" "${CURRENT}/clustertemplete/kindconfig"
+    sed -e "s|__POD_CIDR__|$podcidr_all|g" -e "s|__SERVICE_CIDR__|$servicecidr_all|g" -e "s|__IP_FAMILY__|$ipFamily|g" -e "w ${CLUSTER_DIR}/${KIND_CONFIG_NAME}" "${CURRENT}/clustertemplete/${KIND_CONFIG_NAME}"
   else
-    sed -e "s|__POD_CIDR__|$podcidr|g" -e "s|__SERVICE_CIDR__|$servicecidr|g" -e "s|__IP_FAMILY__|$ipFamily|g" -e "w ${CLUSTER_DIR}/kindconfig" "${CURRENT}/clustertemplete/kindconfig"
+    sed -e "s|__POD_CIDR__|$podcidr|g" -e "s|__SERVICE_CIDR__|$servicecidr|g" -e "s|__IP_FAMILY__|$ipFamily|g" -e "w ${CLUSTER_DIR}/${KIND_CONFIG_NAME}" "${CURRENT}/clustertemplete/${KIND_CONFIG_NAME}"
     sed -e "s|__POD_CIDR__|$podcidr|g" -e "s|__SERVICE_CIDR__|$servicecidr|g" -e "w ${CLUSTER_DIR}/calicoconfig" "${CURRENT}/clustertemplete/calicoconfig"
   fi
-  sed -i'' -e "s/__HOST_IPADDRESS__/${hostIpAddress}/g" ${CLUSTER_DIR}/kindconfig
 
+  sed -i'' -e "s/__HOST_IPADDRESS__/${hostIpAddress}/g" ${CLUSTER_DIR}/${KIND_CONFIG_NAME}
   if [[ "$(kind get clusters | grep -c "${clustername}")" -eq 1 && "${REUSE}" = true ]]; then
     echo "cluster ${clustername} exist reuse it"
   else
     kind delete clusters $clustername || true
     echo "create cluster ${clustername} with kind image ${KIND_IMAGE}"
-    kind create cluster --name "${clustername}" --config "${CLUSTER_DIR}/kindconfig" --image "${KIND_IMAGE}"
+    kind create cluster --name "${clustername}" --config "${CLUSTER_DIR}/${KIND_CONFIG_NAME}" --image "${KIND_IMAGE}"
   fi
   # load docker image to kind cluster
   kind load docker-image calico/apiserver:v3.25.0 --name $clustername
@@ -172,7 +181,7 @@ function create_cluster() {
   kubectl --kubeconfig $CLUSTER_DIR/kubeconfig taint nodes --all node-role.kubernetes.io/control-plane- || true
 
   # prepare external kubeconfig
-  kind get kubeconfig --name "${clustername}" > "${CLUSTER_DIR}/kubeconfig"
+  kind get kubeconfig --name "${clustername}" >"${CLUSTER_DIR}/kubeconfig"
   dockerip=$(docker inspect "${clustername}-control-plane" --format "{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}")
   echo "get docker ip from pod $dockerip"
   docker exec ${clustername}-control-plane /bin/sh -c "cat /etc/kubernetes/admin.conf" | sed -e "s|${clustername}-control-plane|$dockerip|g" -e "/certificate-authority-data:/d" -e "5s/^/    insecure-skip-tls-verify: true\n/" -e "w ${CLUSTER_DIR}/kubeconfig-nodeIp"
@@ -309,6 +318,13 @@ function load_cluster_images() {
   kind load docker-image -n "$clustername" ghcr.io/kosmos-io/clusterlink-proxy:"${VERSION}"
   kind load docker-image -n "$clustername" ghcr.io/kosmos-io/clustertree-cluster-manager:"${VERSION}"
   kind load docker-image -n "$clustername" ghcr.io/kosmos-io/scheduler:"${VERSION}"
+}
+
+function load_kubenetst_cluster_images() {
+  local -r clustername=$1
+
+  kind load docker-image -n "$clustername" ghcr.io/kosmos-io/virtual-cluster-operator:"${VERSION}"
+  kind load docker-image -n "$clustername" ghcr.io/kosmos-io/node-agent:"${VERSION}"
 }
 
 function delete_cluster() {
