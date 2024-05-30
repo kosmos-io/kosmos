@@ -20,6 +20,7 @@ import (
 
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/util"
+	apiclient "github.com/kosmos.io/kosmos/pkg/kubenest/util/api-client"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/workflow"
 )
 
@@ -278,7 +279,9 @@ func applyYMLTemplate(dynamicClient dynamic.Interface, manifestGlob string, temp
 			return errors.Wrapf(err, "Unmarshal manifest bytes data error")
 		}
 
-		err = util.CreateObject(dynamicClient, obj.GetNamespace(), obj.GetName(), &obj)
+		err = apiclient.TryRunCommand(func() error {
+			return util.CreateObject(dynamicClient, obj.GetNamespace(), obj.GetName(), &obj)
+		}, 3)
 		if err != nil {
 			return errors.Wrapf(err, "Create object error")
 		}
