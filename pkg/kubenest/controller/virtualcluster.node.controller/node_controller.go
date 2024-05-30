@@ -244,6 +244,11 @@ func (r *NodeController) Reconcile(ctx context.Context, request reconcile.Reques
 		return reconcile.Result{}, nil
 	}
 
+	if len(virtualCluster.Spec.Kubeconfig) == 0 {
+		klog.Warning("virtualcluster.spec.kubeconfig is nil, wait virtualcluster control-plane ready.")
+		return reconcile.Result{}, nil
+	}
+
 	if err := r.DoNodeTask(ctx, virtualCluster); err != nil {
 		klog.Errorf("virtualcluster %s do node task failed: %v", virtualCluster.Name, err)
 		if err := r.UpdateVirtualClusterStatus(ctx, virtualCluster, v1alpha1.Pending, err.Error()); err != nil {
