@@ -230,7 +230,8 @@ func (r *GlobalNodeController) Reconcile(ctx context.Context, request reconcile.
 				return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
 			}
 			klog.V(4).Infof("global-node-controller: %s has been created", globalNode.Name)
-			return reconcile.Result{}, nil
+			// do sync label and taint
+			return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
 		}
 		klog.Errorf("get global-node %s error: %v", request.NamespacedName, err)
 		return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
