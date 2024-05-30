@@ -60,9 +60,9 @@ func NewInitPhase(opts *InitOptions) *workflow.Phase {
 	initPhase.AppendTask(tasks.NewVirtualClusterApiserverTask())
 	initPhase.AppendTask(tasks.NewUploadKubeconfigTask())
 	initPhase.AppendTask(tasks.NewCheckApiserverHealthTask())
-	initPhase.AppendTask(tasks.NewAnpTask())
 	initPhase.AppendTask(tasks.NewComponentTask())
 	initPhase.AppendTask(tasks.NewCheckControlPlaneTask())
+	initPhase.AppendTask(tasks.NewAnpTask())
 	// create core-dns
 	initPhase.AppendTask(tasks.NewCoreDNSTask())
 	// add server

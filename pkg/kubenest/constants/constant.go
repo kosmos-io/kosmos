@@ -40,6 +40,7 @@ const (
 
 	//controlplane apiserver
 	ApiServer                     = "apiserver"
+	ApiServerAnp                  = "apiserver-anp"
 	ApiServerReplicas             = 1
 	ApiServerServiceSubnet        = "10.237.6.0/18"
 	ApiServerEtcdListenClientPort = 2379
