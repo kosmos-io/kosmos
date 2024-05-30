@@ -136,6 +136,7 @@ kind: Deployment
 metadata:
   labels:
     virtualCluster-app: apiserver
+    virtualCluster-anp: apiserver-anp
     app.kubernetes.io/managed-by: virtual-cluster-controller
   name: {{ .DeploymentName }}
   namespace: {{ .Namespace }}
@@ -148,6 +149,7 @@ spec:
     metadata:
       labels:
         virtualCluster-app: apiserver
+        virtualCluster-anp: apiserver-anp
     spec:
       automountServiceAccountToken: false
       hostNetwork: true
