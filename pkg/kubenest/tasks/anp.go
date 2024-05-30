@@ -3,7 +3,6 @@ package tasks
 import (
 	"context"
 	"fmt"
-	apiclient "github.com/kosmos.io/kosmos/pkg/kubenest/util/api-client"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -21,6 +20,7 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/manifest/controlplane/apiserver"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/util"
+	apiclient "github.com/kosmos.io/kosmos/pkg/kubenest/util/api-client"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/workflow"
 )
 
