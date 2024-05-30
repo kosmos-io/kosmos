@@ -17,6 +17,7 @@ var (
 	virtualClusterManagerLabels   = labels.Set{"virtualCluster-app": constants.VirtualClusterScheduler}
 	virtualClusterApiserverLabels = labels.Set{"virtualCluster-app": constants.ApiServer}
 	virtualClusterEtcdLabels      = labels.Set{"virtualCluster-app": constants.Etcd}
+	virtualClusterAnpLabels       = labels.Set{"virtualCluster-anp": constants.ApiServerAnp}
 )
 
 func NewCheckApiserverHealthTask() workflow.Task {

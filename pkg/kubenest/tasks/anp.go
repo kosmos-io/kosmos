@@ -3,6 +3,7 @@ package tasks
 import (
 	"context"
 	"fmt"
+	apiclient "github.com/kosmos.io/kosmos/pkg/kubenest/util/api-client"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -43,7 +44,7 @@ func NewAnpTask() workflow.Task {
 			},
 			{
 				Name: "check-anp-health",
-				Run:  runCheckVirtualClusterAPIServer,
+				Run:  runCheckVirtualClusterAnp,
 			},
 		},
 	}
@@ -348,5 +349,22 @@ func runUploadProxyAgentCert(r workflow.RunData) error {
 	}
 
 	klog.V(2).InfoS("[Upload-ProxyAgentCert] Successfully uploaded virtual cluster agent certs to secret", "virtual cluster", klog.KObj(data))
+	return nil
+}
+
+func runCheckVirtualClusterAnp(r workflow.RunData) error {
+	data, ok := r.(InitData)
+	if !ok {
+		return errors.New("check-VirtualClusterAnp task invoked with an invalid data struct")
+	}
+
+	checker := apiclient.NewVirtualClusterChecker(data.RemoteClient(), constants.ComponentBeReadyTimeout)
+
+	err := checker.WaitForSomePods(virtualClusterAnpLabels.String(), data.GetNamespace(), 1)
+	if err != nil {
+		return fmt.Errorf("checking for virtual cluster anp to ready timeout, err: %w", err)
+	}
+
+	klog.V(2).InfoS("[check-VirtualClusterAPIServer] the virtual cluster anp is ready", "virtual cluster", klog.KObj(data))
 	return nil
 }
