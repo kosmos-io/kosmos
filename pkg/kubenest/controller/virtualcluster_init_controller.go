@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"sort"
 	"sync"
 	"time"
 
@@ -285,6 +286,9 @@ func (c *VirtualClusterInitController) assignWorkNodes(virtualCluster *v1alpha1.
 	}
 	allNodeInfos := make([]v1alpha1.NodeInfo, 0)
 	globalNodes := globalNodeList.Items
+	sort.Slice(globalNodes, func(i, j int) bool {
+		return globalNodes[i].Name < globalNodes[j].Name
+	})
 	for _, policy := range virtualCluster.Spec.PromotePolicies {
 		nodeInfos, err := c.assignNodesByPolicy(virtualCluster, policy, globalNodes)
 		if err != nil {
