@@ -8,13 +8,14 @@ import (
 	"k8s.io/apimachinery/pkg/util/yaml"
 	clientset "k8s.io/client-go/kubernetes"
 
+	"github.com/kosmos.io/kosmos/cmd/kubenest/operator/app/options"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/manifest/controlplane/apiserver"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/util"
 )
 
-func EnsureVirtualClusterAPIServer(client clientset.Interface, name, namespace string, portMap map[string]int32) error {
-	if err := installAPIServer(client, name, namespace, portMap); err != nil {
+func EnsureVirtualClusterAPIServer(client clientset.Interface, name, namespace string, portMap map[string]int32, opt *options.KubeNestOptions) error {
+	if err := installAPIServer(client, name, namespace, portMap, opt); err != nil {
 		return fmt.Errorf("failed to install virtual cluster apiserver, err: %w", err)
 	}
 	return nil
@@ -28,7 +29,7 @@ func DeleteVirtualClusterAPIServer(client clientset.Interface, name, namespace s
 	return nil
 }
 
-func installAPIServer(client clientset.Interface, name, namespace string, portMap map[string]int32) error {
+func installAPIServer(client clientset.Interface, name, namespace string, portMap map[string]int32, opt *options.KubeNestOptions) error {
 	imageRepository, imageVersion := util.GetImageMessage()
 	clusterIp, err := util.GetEtcdServiceClusterIp(namespace, name+constants.EtcdSuffix, client)
 	if err != nil {
@@ -41,6 +42,7 @@ func installAPIServer(client clientset.Interface, name, namespace string, portMa
 		Replicas                                                               int32
 		EtcdListenClientPort                                                   int32
 		ClusterPort                                                            int32
+		AdmissionPlugins                                                       bool
 	}{
 		DeploymentName:            fmt.Sprintf("%s-%s", name, "apiserver"),
 		Namespace:                 namespace,
@@ -53,6 +55,7 @@ func installAPIServer(client clientset.Interface, name, namespace string, portMa
 		Replicas:                  constants.ApiServerReplicas,
 		EtcdListenClientPort:      constants.ApiServerEtcdListenClientPort,
 		ClusterPort:               portMap[constants.ApiServerPortKey],
+		AdmissionPlugins:          opt.AdmissionPlugins,
 	})
 	if err != nil {
 		return fmt.Errorf("error when parsing virtual cluster apiserver deployment template: %w", err)

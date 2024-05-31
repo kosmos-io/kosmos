@@ -3,7 +3,6 @@ package tasks
 import (
 	"context"
 	"fmt"
-	apiclient "github.com/kosmos.io/kosmos/pkg/kubenest/util/api-client"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -21,6 +20,7 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/manifest/controlplane/apiserver"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/util"
+	apiclient "github.com/kosmos.io/kosmos/pkg/kubenest/util/api-client"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/workflow"
 )
 
@@ -70,17 +70,19 @@ func runAnpServer(r workflow.RunData) error {
 	portMap := data.HostPortMap()
 	// install egress_selector_configuration config map
 	egressSelectorConfig, err := util.ParseTemplate(apiserver.EgressSelectorConfiguration, struct {
-		Namespace       string
-		Name            string
-		AnpMode         string
-		ProxyServerPort int32
-		SvcName         string
+		Namespace        string
+		Name             string
+		AnpMode          string
+		ProxyServerPort  int32
+		SvcName          string
+		AdmissionPlugins bool
 	}{
-		Namespace:       namespace,
-		Name:            name,
-		ProxyServerPort: portMap[constants.ApiServerNetworkProxyServerPortKey],
-		SvcName:         fmt.Sprintf("%s-konnectivity-server.%s.svc.cluster.local", name, namespace),
-		AnpMode:         kubeNestOpt.AnpMode,
+		Namespace:        namespace,
+		Name:             name,
+		ProxyServerPort:  portMap[constants.ApiServerNetworkProxyServerPortKey],
+		SvcName:          fmt.Sprintf("%s-konnectivity-server.%s.svc.cluster.local", name, namespace),
+		AnpMode:          kubeNestOpt.AnpMode,
+		AdmissionPlugins: kubeNestOpt.AdmissionPlugins,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to parse egress_selector_configuration config map template, err: %w", err)
