@@ -24,8 +24,9 @@ type KubernetesOptions struct {
 }
 
 type KubeNestOptions struct {
-	ForceDestroy bool
-	AnpMode      string
+	ForceDestroy     bool
+	AnpMode          string
+	AdmissionPlugins bool
 }
 
 func NewOptions() *Options {
@@ -55,4 +56,5 @@ func (o *Options) AddFlags(flags *pflag.FlagSet) {
 	flags.BoolVar(&o.KosmosJoinController, "kosmos-join-controller", false, "Turn on or off kosmos-join-controller.")
 	flags.BoolVar(&o.KubeNestOptions.ForceDestroy, "kube-nest-force-destroy", false, "Force destroy the node.If it set true.If set to true, Kubernetes will not evict the existing nodes on the node when joining nodes to the tenant's control plane, but will instead force destroy.")
 	flags.StringVar(&o.KubeNestOptions.AnpMode, "kube-nest-anp-mode", "tcp", "kube-apiserver network proxy mode, must be set to tcp or uds. uds mode the replicas for apiserver should be one, and tcp for multi apiserver replicas.")
+	flags.BoolVar(&o.KubeNestOptions.AdmissionPlugins, "kube-nest-admission-plugins", false, "kube-apiserver network disable-admission-plugins, false for - --disable-admission-plugins=License, true for remove the --disable-admission-plugins=License flag .")
 }
