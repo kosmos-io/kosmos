@@ -126,7 +126,7 @@ func start(addr, certFile, keyFile, user, password string) {
 
 	log.Infof("Starting server on %s", addr)
 	tlsConfig := &tls.Config{
-		MinVersion: tls.VersionTLS12,
+		MinVersion: tls.VersionTLS13,
 	}
 	tlsConfig.Certificates = make([]tls.Certificate, 1)
 	tlsConfig.Certificates[0], _ = tls.LoadX509KeyPair(certFile, keyFile)
