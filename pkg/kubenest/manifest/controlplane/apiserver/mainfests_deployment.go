@@ -90,6 +90,9 @@ spec:
         - --max-mutating-requests-inflight=500
         - --v=4
         - --advertise-address=$(PODIP)
+        {{ if not .AdmissionPlugins }}
+        - --disable-admission-plugins=License
+        {{ end }}
         livenessProbe:
           failureThreshold: 8
           httpGet:
@@ -222,6 +225,9 @@ spec:
         - --v=4
         - --advertise-address=$(PODIP)
         - --egress-selector-config-file=/etc/kubernetes/konnectivity-server-config/{{ .Namespace }}/{{ .Name }}/egress_selector_configuration.yaml
+        {{ if not .AdmissionPlugins }}
+        - --disable-admission-plugins=License
+        {{ end }}
         livenessProbe:
           failureThreshold: 8
           httpGet:

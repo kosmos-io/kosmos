@@ -51,6 +51,7 @@ func runVirtualClusterAPIServer(r workflow.RunData) error {
 		data.GetName(),
 		data.GetNamespace(),
 		data.HostPortMap(),
+		data.KubeNestOpt(),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to install virtual cluster apiserver component, err: %w", err)
