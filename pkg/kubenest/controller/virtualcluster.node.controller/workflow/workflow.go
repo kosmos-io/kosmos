@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"context"
+	"time"
 
 	"k8s.io/klog/v2"
 
@@ -11,7 +12,7 @@ import (
 
 const (
 	retryCount = 0
-	maxRetries = 3
+	maxRetries = 5
 )
 
 type WorkflowData struct {
@@ -27,7 +28,9 @@ func RunWithRetry(ctx context.Context, task task.Task, opt task.TaskOpt, preArgs
 			if !task.Retry {
 				break
 			}
-			klog.V(4).Infof("work flow retry %d, task name: %s, err: %s", i, task.Name, err)
+			waitTime := 3 * (i + 1)
+			klog.V(4).Infof("work flow retry %d after %ds, task name: %s, err: %s", i, waitTime, task.Name, err)
+			time.Sleep(time.Duration(waitTime) * time.Second)
 		} else {
 			break
 		}

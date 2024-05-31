@@ -271,8 +271,8 @@ func NewWaitNodeReadyTask(isHost bool) Task {
 		Run: func(ctx context.Context, to TaskOpt, _ interface{}) (interface{}, error) {
 			isReady := false
 
-			waitFunc := func() {
-				waitCtx, cancel := context.WithTimeout(ctx, 30*time.Second) // total waiting time
+			waitFunc := func(timeout time.Duration) {
+				waitCtx, cancel := context.WithTimeout(ctx, timeout) // total waiting time
 				defer cancel()
 				wait.UntilWithContext(waitCtx, func(ctx context.Context) {
 					client := to.VirtualK8sClient
@@ -295,7 +295,7 @@ func NewWaitNodeReadyTask(isHost bool) Task {
 				}, 10*time.Second) // Interval time
 			}
 
-			waitFunc()
+			waitFunc(time.Duration(env.GetWaitNodeReadTime()) * time.Second)
 
 			if isReady {
 				return nil, nil
@@ -322,7 +322,7 @@ func NewWaitNodeReadyTask(isHost bool) Task {
 			}
 
 			klog.V(4).Infof("wait for the node to be ready again. %s", to.NodeInfo.Name)
-			waitFunc()
+			waitFunc(time.Duration(env.GetWaitNodeReadTime()*2) * time.Second)
 
 			if isReady {
 				return nil, nil
