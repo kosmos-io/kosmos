@@ -118,7 +118,7 @@ func (r *GlobalNodeController) SyncTaint(ctx context.Context, globalNode *v1alph
 		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 			var targetNode v1.Node
 			if err := r.Get(ctx, types.NamespacedName{Name: globalNode.Name}, &targetNode); err != nil {
-				klog.Errorf("global-node-controller: SyncTaints: can not get global node, err: %s", globalNode.Name)
+				klog.Errorf("global-node-controller: SyncTaints: can not get host node, err: %s", globalNode.Name)
 				return err
 			}
 
@@ -175,15 +175,19 @@ func (r *GlobalNodeController) SyncState(ctx context.Context, globalNode *v1alph
 }
 
 func (r *GlobalNodeController) SyncLabel(ctx context.Context, globalNode *v1alpha1.GlobalNode) error {
+	if globalNode.Spec.State == v1alpha1.NodeInUse {
+		klog.V(4).Infof("global-node-controller: SyncLabel: node is in use %s, skip", globalNode.Name)
+		return nil
+	}
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		rootNode, err := r.RootClientSet.CoreV1().Nodes().Get(ctx, globalNode.Name, metav1.GetOptions{})
 		if err != nil {
-			klog.Errorf("global-node-controller: SyncState: can not get root node: %s", globalNode.Name)
+			klog.Errorf("global-node-controller: SyncLabel: can not get root node: %s", globalNode.Name)
 			return err
 		}
 
 		if _, err = r.KosmosClient.KosmosV1alpha1().GlobalNodes().Get(ctx, globalNode.Name, metav1.GetOptions{}); err != nil {
-			klog.Errorf("global-node-controller: SyncState: can not get global node: %s", globalNode.Name)
+			klog.Errorf("global-node-controller: SyncLabel: can not get global node: %s", globalNode.Name)
 			return err
 		}
 
@@ -195,7 +199,7 @@ func (r *GlobalNodeController) SyncLabel(ctx context.Context, globalNode *v1alph
 		updateGlobalNode.Spec.Labels = rootNode.Labels
 
 		if _, err = r.KosmosClient.KosmosV1alpha1().GlobalNodes().Update(ctx, updateGlobalNode, metav1.UpdateOptions{}); err != nil {
-			klog.Errorf("global-node-controller: SyncState: update global node label failed, err: %s", err)
+			klog.Errorf("global-node-controller: SyncLabel: update global node label failed, err: %s", err)
 			return err
 		}
 		return nil
@@ -249,6 +253,10 @@ func (r *GlobalNodeController) Reconcile(ctx context.Context, request reconcile.
 			return reconcile.Result{}, nil
 		}
 		klog.Errorf("can not get root node: %s", globalNode.Name)
+		return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
+	}
+	if globalNode.Spec.State == v1alpha1.NodeInUse {
+		// wait globalNode free
 		return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
 	}
 

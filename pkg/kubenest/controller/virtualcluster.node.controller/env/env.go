@@ -123,3 +123,15 @@ func GetControlPlaneLabel() string {
 	}
 	return controllPlaneLabel
 }
+
+func GetWaitNodeReadTime() int {
+	readTimeSeconds := os.Getenv("WAIT_NODE_READ_TIME")
+	if len(readTimeSeconds) == 0 {
+		readTimeSeconds = "30"
+	}
+	num, err := strconv.Atoi(readTimeSeconds)
+	if err != nil {
+		klog.Fatalf("convert WAIT_NODE_READ_TIME failed, err: %s", err)
+	}
+	return num
+}
