@@ -39,7 +39,7 @@ func installAPIServer(client clientset.Interface, name, namespace string, portMa
 	apiserverDeploymentBytes, err := util.ParseTemplate(apiserver.ApiserverDeployment, struct {
 		DeploymentName, Namespace, ImageRepository, EtcdClientService, Version string
 		ServiceSubnet, VirtualClusterCertsSecret, EtcdCertsSecret              string
-		Replicas                                                               int32
+		Replicas                                                               int
 		EtcdListenClientPort                                                   int32
 		ClusterPort                                                            int32
 		AdmissionPlugins                                                       bool
@@ -52,7 +52,7 @@ func installAPIServer(client clientset.Interface, name, namespace string, portMa
 		ServiceSubnet:             constants.ApiServerServiceSubnet,
 		VirtualClusterCertsSecret: fmt.Sprintf("%s-%s", name, "cert"),
 		EtcdCertsSecret:           fmt.Sprintf("%s-%s", name, "etcd-cert"),
-		Replicas:                  constants.ApiServerReplicas,
+		Replicas:                  opt.ApiServerReplicas,
 		EtcdListenClientPort:      constants.ApiServerEtcdListenClientPort,
 		ClusterPort:               portMap[constants.ApiServerPortKey],
 		AdmissionPlugins:          opt.AdmissionPlugins,

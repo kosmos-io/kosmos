@@ -70,19 +70,17 @@ func runAnpServer(r workflow.RunData) error {
 	portMap := data.HostPortMap()
 	// install egress_selector_configuration config map
 	egressSelectorConfig, err := util.ParseTemplate(apiserver.EgressSelectorConfiguration, struct {
-		Namespace        string
-		Name             string
-		AnpMode          string
-		ProxyServerPort  int32
-		SvcName          string
-		AdmissionPlugins bool
+		Namespace       string
+		Name            string
+		AnpMode         string
+		ProxyServerPort int32
+		SvcName         string
 	}{
-		Namespace:        namespace,
-		Name:             name,
-		ProxyServerPort:  portMap[constants.ApiServerNetworkProxyServerPortKey],
-		SvcName:          fmt.Sprintf("%s-konnectivity-server.%s.svc.cluster.local", name, namespace),
-		AnpMode:          kubeNestOpt.AnpMode,
-		AdmissionPlugins: kubeNestOpt.AdmissionPlugins,
+		Namespace:       namespace,
+		Name:            name,
+		ProxyServerPort: portMap[constants.ApiServerNetworkProxyServerPortKey],
+		SvcName:         fmt.Sprintf("%s-konnectivity-server.%s.svc.cluster.local", name, namespace),
+		AnpMode:         kubeNestOpt.AnpMode,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to parse egress_selector_configuration config map template, err: %w", err)
@@ -159,7 +157,7 @@ func installAnpServer(client clientset.Interface, name, namespace string, portMa
 	apiserverDeploymentBytes, err := util.ParseTemplate(apiserver.ApiserverAnpDeployment, struct {
 		DeploymentName, Namespace, ImageRepository, EtcdClientService, Version string
 		ServiceSubnet, VirtualClusterCertsSecret, EtcdCertsSecret              string
-		Replicas                                                               int32
+		Replicas                                                               int
 		EtcdListenClientPort                                                   int32
 		ClusterPort                                                            int32
 		AgentPort                                                              int32
@@ -169,6 +167,7 @@ func installAnpServer(client clientset.Interface, name, namespace string, portMa
 		KubeconfigSecret                                                       string
 		Name                                                                   string
 		AnpMode                                                                string
+		AdmissionPlugins                                                       bool
 	}{
 		DeploymentName:            fmt.Sprintf("%s-%s", name, "apiserver"),
 		Namespace:                 namespace,
@@ -178,7 +177,7 @@ func installAnpServer(client clientset.Interface, name, namespace string, portMa
 		ServiceSubnet:             constants.ApiServerServiceSubnet,
 		VirtualClusterCertsSecret: fmt.Sprintf("%s-%s", name, "cert"),
 		EtcdCertsSecret:           fmt.Sprintf("%s-%s", name, "etcd-cert"),
-		Replicas:                  constants.ApiServerReplicas,
+		Replicas:                  kubeNestOpt.ApiServerReplicas,
 		EtcdListenClientPort:      constants.ApiServerEtcdListenClientPort,
 		ClusterPort:               portMap[constants.ApiServerPortKey],
 		AgentPort:                 portMap[constants.ApiServerNetworkProxyAgentPortKey],
@@ -188,6 +187,7 @@ func installAnpServer(client clientset.Interface, name, namespace string, portMa
 		KubeconfigSecret:          fmt.Sprintf("%s-%s", name, "admin-config-clusterip"),
 		Name:                      name,
 		AnpMode:                   kubeNestOpt.AnpMode,
+		AdmissionPlugins:          kubeNestOpt.AdmissionPlugins,
 	})
 	if err != nil {
 		return fmt.Errorf("error when parsing virtual cluster apiserver deployment template: %w", err)
