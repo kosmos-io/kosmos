@@ -145,6 +145,8 @@ metadata:
   namespace: {{ .Namespace }}
 spec:
   replicas: {{ .Replicas }}
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       virtualCluster-app: apiserver
