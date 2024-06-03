@@ -280,7 +280,7 @@ func applyYMLTemplate(dynamicClient dynamic.Interface, manifestGlob string, temp
 		}
 
 		err = apiclient.TryRunCommand(func() error {
-			return util.CreateObject(dynamicClient, obj.GetNamespace(), obj.GetName(), &obj)
+			return util.ApplyObject(dynamicClient, &obj)
 		}, 3)
 		if err != nil {
 			return errors.Wrapf(err, "Create object error")
