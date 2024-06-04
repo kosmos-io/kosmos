@@ -35,16 +35,12 @@ func NewAnpTask() workflow.Task {
 				Run:  runUploadProxyAgentCert,
 			},
 			{
-				Name: "deploy-anp-server",
-				Run:  runAnpServer,
-			},
-			{
-				Name: "check-anp-health",
-				Run:  runCheckVirtualClusterAnp,
-			},
-			{
 				Name: "deploy-anp-agent",
 				Run:  runAnpAgent,
+			},
+			{
+				Name: "deploy-anp-server",
+				Run:  runAnpServer,
 			},
 			{
 				Name: "check-anp-health",
@@ -221,7 +217,9 @@ func installAnpAgent(data InitData) error {
 	}
 	actionFunc := func(ctx context.Context, c dynamic.Interface, u *unstructured.Unstructured) error {
 		// create the object
-		return util.ApplyObject(vcClient, u)
+		return apiclient.TryRunCommand(func() error {
+			return util.ApplyObject(vcClient, u)
+		}, 3)
 	}
 	return util.ForEachObjectInYAML(context.TODO(), vcClient, []byte(anpAgentManifestBytes), "", actionFunc)
 }

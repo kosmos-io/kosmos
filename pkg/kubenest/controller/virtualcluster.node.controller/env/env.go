@@ -135,3 +135,15 @@ func GetWaitNodeReadTime() int {
 	}
 	return num
 }
+
+func GetNodeTaskMaxGoroutines() int {
+	maxGoroutines := os.Getenv("NODE_TASK_MAX_GOROUTINES")
+	if len(maxGoroutines) == 0 {
+		maxGoroutines = "10"
+	}
+	num, err := strconv.Atoi(maxGoroutines)
+	if err != nil {
+		klog.Fatalf("convert NODE_TASK_MAX_GOROUTINES failed, err: %s", err)
+	}
+	return num
+}

@@ -139,13 +139,13 @@ func run(ctx context.Context, opts *options.Options) error {
 		return err
 	}
 
-	VirtualClusterNodeController := vcnodecontroller.NodeController{
-		Client:        mgr.GetClient(),
-		RootClientSet: hostKubeClient,
-		KosmosClient:  kosmosClient,
-		EventRecorder: mgr.GetEventRecorderFor(constants.NodeControllerName),
-		Options:       &opts.KubeNestOptions,
-	}
+	VirtualClusterNodeController := vcnodecontroller.NewNodeController(
+		mgr.GetClient(),
+		hostKubeClient,
+		mgr.GetEventRecorderFor(constants.NodeControllerName),
+		kosmosClient,
+		&opts.KubeNestOptions,
+	)
 
 	if err = VirtualClusterNodeController.SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("error starting %s: %v", constants.NodeControllerName, err)
