@@ -34,7 +34,15 @@ type TaskOpt struct {
 	HostK8sClient    kubernetes.Interface
 	VirtualK8sClient kubernetes.Interface
 
-	Opt *options.KubeNestOptions
+	Opt    *options.KubeNestOptions
+	logger *PrefixedLogger
+}
+
+func (to *TaskOpt) Loger() *PrefixedLogger {
+	if to.logger == nil {
+		to.logger = NewPrefixedLogger(klog.V(4), fmt.Sprintf("[%s] ", to.NodeInfo.Name))
+	}
+	return to.logger
 }
 
 type Task struct {
@@ -255,7 +263,7 @@ func NewRemoteNodeJoinTask() Task {
 			joinCmd := &exector.CMDExector{
 				Cmd: fmt.Sprintf("bash %s join %s", env.GetExectorShellName(), to.KubeDNSAddress),
 			}
-			klog.V(4).Infof("join node %s with cmd: %s", to.NodeInfo.Name, joinCmd.Cmd)
+			to.Loger().Infof("join node %s with cmd: %s", to.NodeInfo.Name, joinCmd.Cmd)
 			ret := exectHelper.DoExector(ctx.Done(), joinCmd)
 			if ret.Status != exector.SUCCESS {
 				return nil, fmt.Errorf("join node %s failed: %s", to.NodeInfo.Name, ret.String())
@@ -283,14 +291,14 @@ func NewWaitNodeReadyTask(isHost bool) Task {
 					node, err := client.CoreV1().Nodes().Get(waitCtx, to.NodeInfo.Name, metav1.GetOptions{})
 					if err == nil {
 						if util.IsNodeReady(node.Status.Conditions) {
-							klog.V(4).Infof("node %s is ready", to.NodeInfo.Name)
+							to.Loger().Infof("node %s is ready", to.NodeInfo.Name)
 							isReady = true
 							cancel()
 						} else {
-							klog.V(4).Infof("node %s is not ready, status: %s", to.NodeInfo.Name, node.Status.Phase)
+							to.Loger().Infof("node %s is not ready, status: %s", to.NodeInfo.Name, node.Status.Phase)
 						}
 					} else {
-						klog.V(4).Infof("get node %s failed: %s", to.NodeInfo.Name, err)
+						to.Loger().Infof("get node %s failed: %s", to.NodeInfo.Name, err)
 					}
 				}, 10*time.Second) // Interval time
 			}
@@ -302,7 +310,7 @@ func NewWaitNodeReadyTask(isHost bool) Task {
 			}
 
 			// try to restart containerd and kubelet
-			klog.V(4).Infof("try to restart containerd and kubelet on node: %s", to.NodeInfo.Name)
+			to.Loger().Infof("try to restart containerd and kubelet on node: %s", to.NodeInfo.Name)
 			exectHelper := exector.NewExectorHelper(to.NodeInfo.Spec.NodeIP, "")
 
 			restartContainerdCmd := &exector.CMDExector{
@@ -321,7 +329,7 @@ func NewWaitNodeReadyTask(isHost bool) Task {
 				return nil, fmt.Errorf("cannot restart kubelet: %s", ret.String())
 			}
 
-			klog.V(4).Infof("wait for the node to be ready again. %s", to.NodeInfo.Name)
+			to.Loger().Infof("wait for the node to be ready again. %s", to.NodeInfo.Name)
 			waitFunc(time.Duration(env.GetWaitNodeReadTime()*2) * time.Second)
 
 			if isReady {
@@ -342,7 +350,7 @@ func NewUpdateVirtualNodeLabelsTask() Task {
 			err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 				node, err := to.VirtualK8sClient.CoreV1().Nodes().Get(ctx, to.NodeInfo.Name, metav1.GetOptions{})
 				if err != nil {
-					klog.V(4).Infof("get node %s failed: %s", to.NodeInfo.Name, err)
+					to.Loger().Infof("get node %s failed: %s", to.NodeInfo.Name, err)
 					return err
 				}
 
@@ -355,7 +363,7 @@ func NewUpdateVirtualNodeLabelsTask() Task {
 				updateNode.Labels[constants.StateLabelKey] = string(v1alpha1.NodeInUse)
 
 				if _, err := to.VirtualK8sClient.CoreV1().Nodes().Update(ctx, updateNode, metav1.UpdateOptions{}); err != nil {
-					klog.V(4).Infof("add label to node %s failed: %s", to.NodeInfo.Name, err)
+					to.Loger().Infof("add label to node %s failed: %s", to.NodeInfo.Name, err)
 					return err
 				}
 				return nil
@@ -375,7 +383,7 @@ func NewUpdateHostNodeLabelsTask() Task {
 			err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 				node, err := to.HostK8sClient.CoreV1().Nodes().Get(ctx, to.NodeInfo.Name, metav1.GetOptions{})
 				if err != nil {
-					klog.V(4).Infof("get node %s failed: %s", to.NodeInfo.Name, err)
+					to.Loger().Infof("get node %s failed: %s", to.NodeInfo.Name, err)
 					return err
 				}
 
@@ -388,7 +396,7 @@ func NewUpdateHostNodeLabelsTask() Task {
 				updateNode.Labels[constants.StateLabelKey] = string(v1alpha1.NodeFreeState)
 
 				if _, err := to.HostK8sClient.CoreV1().Nodes().Update(ctx, updateNode, metav1.UpdateOptions{}); err != nil {
-					klog.V(4).Infof("add label to node %s failed: %s", to.NodeInfo.Name, err)
+					to.Loger().Infof("add label to node %s failed: %s", to.NodeInfo.Name, err)
 					return err
 				}
 				return nil
@@ -407,7 +415,7 @@ func NewUpdateNodePoolItemStatusTask(nodeState v1alpha1.NodeState, isClean bool)
 				targetGlobalNode := v1alpha1.GlobalNode{}
 
 				if err := to.HostClient.Get(ctx, types.NamespacedName{Name: to.NodeInfo.Name}, &targetGlobalNode); err != nil {
-					klog.Errorf("get global node %s failed: %s", to.NodeInfo.Name, err)
+					to.Loger().Errorf("get global node %s failed: %s", to.NodeInfo.Name, err)
 					return err
 				}
 
@@ -415,13 +423,13 @@ func NewUpdateNodePoolItemStatusTask(nodeState v1alpha1.NodeState, isClean bool)
 
 				updateGlobalNode.Spec.State = nodeState
 				if err := to.HostClient.Update(ctx, updateGlobalNode); err != nil {
-					klog.Errorf("update global node %s spec.state failed: %s", updateGlobalNode.Name, err)
+					to.Loger().Errorf("update global node %s spec.state failed: %s", updateGlobalNode.Name, err)
 					return err
 				}
 				if isClean {
 					updateGlobalNode.Status.VirtualCluster = ""
 					if err := to.HostClient.Status().Update(ctx, updateGlobalNode); err != nil {
-						klog.Errorf("update global node %s status failed: %s", updateGlobalNode.Name, err)
+						to.Loger().Errorf("update global node %s status failed: %s", updateGlobalNode.Name, err)
 						return err
 					}
 				}
@@ -523,6 +531,16 @@ func NewExecJoinNodeToHostCmdTask() Task {
 		Name:  "remote join node to host",
 		Retry: true,
 		Run: func(ctx context.Context, to TaskOpt, args interface{}) (interface{}, error) {
+			// check
+			_, err := to.HostK8sClient.CoreV1().Nodes().Get(ctx, to.NodeInfo.Name, metav1.GetOptions{})
+			if err == nil {
+				to.Loger().Info("node already joined, skip task")
+				return nil, nil
+			}
+			if !apierrors.IsNotFound(err) {
+				return nil, fmt.Errorf("query node %s failed, the error is %s", to.NodeInfo.Name, err.Error())
+			}
+
 			joinCmdStr, ok := args.(string)
 			if !ok {
 				return nil, fmt.Errorf("get join cmd str failed")

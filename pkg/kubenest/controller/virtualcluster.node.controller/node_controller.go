@@ -3,7 +3,9 @@ package vcnodecontroller
 import (
 	"context"
 	"fmt"
+	"sync"
 
+	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -25,6 +27,7 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
+	env "github.com/kosmos.io/kosmos/pkg/kubenest/controller/virtualcluster.node.controller/env"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/controller/virtualcluster.node.controller/workflow"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/controller/virtualcluster.node.controller/workflow/task"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/util"
@@ -37,6 +40,19 @@ type NodeController struct {
 	EventRecorder record.EventRecorder
 	KosmosClient  versioned.Interface
 	Options       *options.KubeNestOptions
+	sem           chan struct{}
+}
+
+func NewNodeController(client client.Client, RootClientSet kubernetes.Interface, EventRecorder record.EventRecorder, KosmosClient versioned.Interface, Options *options.KubeNestOptions) *NodeController {
+	r := NodeController{
+		Client:        client,
+		RootClientSet: RootClientSet,
+		EventRecorder: EventRecorder,
+		KosmosClient:  KosmosClient,
+		Options:       Options,
+		sem:           make(chan struct{}, env.GetNodeTaskMaxGoroutines()),
+	}
+	return &r
 }
 
 func (r *NodeController) SetupWithManager(mgr manager.Manager) error {
@@ -285,20 +301,16 @@ func (r *NodeController) DoNodeClean(ctx context.Context, virtualCluster v1alpha
 }
 
 func (r *NodeController) cleanGlobalNode(ctx context.Context, nodeInfos []v1alpha1.GlobalNode, virtualCluster v1alpha1.VirtualCluster, _ kubernetes.Interface) error {
-	for _, nodeInfo := range nodeInfos {
-		if err := workflow.NewCleanNodeWorkFlow().RunTask(ctx, task.TaskOpt{
+	return r.BatchProcessNodes(nodeInfos, func(nodeInfo v1alpha1.GlobalNode) error {
+		return workflow.NewCleanNodeWorkFlow().RunTask(ctx, task.TaskOpt{
 			NodeInfo:       nodeInfo,
 			VirtualCluster: virtualCluster,
 			HostClient:     r.Client,
 			HostK8sClient:  r.RootClientSet,
 			Opt:            r.Options,
 			// VirtualK8sClient: _,
-		}); err != nil {
-			return fmt.Errorf("unjoin node %s failed: %s", nodeInfo.Name, err)
-		}
-	}
-
-	return nil
+		})
+	})
 }
 
 func (r *NodeController) joinNode(ctx context.Context, nodeInfos []v1alpha1.GlobalNode, virtualCluster v1alpha1.VirtualCluster, k8sClient kubernetes.Interface) error {
@@ -314,8 +326,8 @@ func (r *NodeController) joinNode(ctx context.Context, nodeInfos []v1alpha1.Glob
 		clusterDNS = dnssvc.Spec.ClusterIP
 	}
 
-	for _, nodeInfo := range nodeInfos {
-		if err := workflow.NewJoinWorkFlow().RunTask(ctx, task.TaskOpt{
+	return r.BatchProcessNodes(nodeInfos, func(nodeInfo v1alpha1.GlobalNode) error {
+		return workflow.NewJoinWorkFlow().RunTask(ctx, task.TaskOpt{
 			NodeInfo:         nodeInfo,
 			VirtualCluster:   virtualCluster,
 			KubeDNSAddress:   clusterDNS,
@@ -323,25 +335,56 @@ func (r *NodeController) joinNode(ctx context.Context, nodeInfos []v1alpha1.Glob
 			HostK8sClient:    r.RootClientSet,
 			VirtualK8sClient: k8sClient,
 			Opt:              r.Options,
-		}); err != nil {
-			return fmt.Errorf("join node %s failed: %s", nodeInfo.Name, err)
-		}
-	}
-	return nil
+		})
+	})
 }
 
 func (r *NodeController) unjoinNode(ctx context.Context, nodeInfos []v1alpha1.GlobalNode, virtualCluster v1alpha1.VirtualCluster, k8sClient kubernetes.Interface) error {
-	for _, nodeInfo := range nodeInfos {
-		if err := workflow.NewUnjoinWorkFlow().RunTask(ctx, task.TaskOpt{
+	return r.BatchProcessNodes(nodeInfos, func(nodeInfo v1alpha1.GlobalNode) error {
+		return workflow.NewUnjoinWorkFlow().RunTask(ctx, task.TaskOpt{
 			NodeInfo:         nodeInfo,
 			VirtualCluster:   virtualCluster,
 			HostClient:       r.Client,
 			HostK8sClient:    r.RootClientSet,
 			VirtualK8sClient: k8sClient,
 			Opt:              r.Options,
-		}); err != nil {
-			return fmt.Errorf("unjoin node %s failed: %s", nodeInfo.Name, err)
+		})
+	})
+}
+
+func (r *NodeController) BatchProcessNodes(nodeInfos []v1alpha1.GlobalNode, f func(v1alpha1.GlobalNode) error) error {
+	var wg sync.WaitGroup
+	errChan := make(chan error, len(nodeInfos))
+
+	for _, nodeInfo := range nodeInfos {
+		wg.Add(1)
+		r.sem <- struct{}{}
+		go func(nodeInfo v1alpha1.GlobalNode) {
+			defer wg.Done()
+			defer func() { <-r.sem }()
+			if err := f(nodeInfo); err != nil {
+				errChan <- fmt.Errorf("[%s] batchprocessnodes failed: %s", nodeInfo.Name, err)
+			}
+		}(nodeInfo)
+	}
+
+	wg.Wait()
+	close(errChan)
+
+	var taskErr error
+	for err := range errChan {
+		if err != nil {
+			if taskErr == nil {
+				taskErr = err
+			} else {
+				taskErr = errors.Wrap(err, taskErr.Error())
+			}
 		}
 	}
+
+	if taskErr != nil {
+		return taskErr
+	}
+
 	return nil
 }
