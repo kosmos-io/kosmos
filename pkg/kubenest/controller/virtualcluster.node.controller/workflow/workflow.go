@@ -4,8 +4,6 @@ import (
 	"context"
 	"time"
 
-	"k8s.io/klog/v2"
-
 	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/controller/virtualcluster.node.controller/workflow/task"
 )
@@ -29,7 +27,7 @@ func RunWithRetry(ctx context.Context, task task.Task, opt task.TaskOpt, preArgs
 				break
 			}
 			waitTime := 3 * (i + 1)
-			klog.V(4).Infof("work flow retry %d after %ds, task name: %s, err: %s", i, waitTime, task.Name, err)
+			opt.Loger().Infof("work flow retry %d after %ds, task name: %s, err: %s", i, waitTime, task.Name, err)
 			time.Sleep(time.Duration(waitTime) * time.Second)
 		} else {
 			break
@@ -37,10 +35,10 @@ func RunWithRetry(ctx context.Context, task task.Task, opt task.TaskOpt, preArgs
 	}
 	if err != nil {
 		if task.ErrorIgnore {
-			klog.V(4).Infof("work flow ignore err, task name: %s, err: %s", task.Name, err)
+			opt.Loger().Infof("work flow ignore err, task name: %s, err: %s", task.Name, err)
 			return nil, nil
 		}
-		klog.V(4).Infof("work flow interrupt, task name: %s, err: %s", task.Name, err)
+		opt.Loger().Infof("work flow interrupt, task name: %s, err: %s", task.Name, err)
 		return nil, err
 	}
 	return args, nil
@@ -49,16 +47,16 @@ func RunWithRetry(ctx context.Context, task task.Task, opt task.TaskOpt, preArgs
 func (w WorkflowData) RunTask(ctx context.Context, opt task.TaskOpt) error {
 	var args interface{}
 	for i, t := range w.Tasks {
-		klog.V(4).Infof("HHHHHHHHHHHH (%d/%d) work flow run task %s  HHHHHHHHHHHH", i+1, len(w.Tasks), t.Name)
+		opt.Loger().Infof("HHHHHHHHHHHH (%d/%d) work flow run task %s  HHHHHHHHHHHH", i+1, len(w.Tasks), t.Name)
 		if t.Skip != nil && t.Skip(ctx, opt) {
-			klog.V(4).Infof("work flow skip task %s", t.Name)
+			opt.Loger().Infof("work flow skip task %s", t.Name)
 			continue
 		}
 		if len(t.SubTasks) > 0 {
 			for j, subTask := range t.SubTasks {
-				klog.V(4).Infof("HHHHHHHHHHHH (%d/%d) work flow run sub task %s HHHHHHHHHHHH", j+1, len(t.SubTasks), subTask.Name)
+				opt.Loger().Infof("HHHHHHHHHHHH (%d/%d) work flow run sub task %s HHHHHHHHHHHH", j+1, len(t.SubTasks), subTask.Name)
 				if t.Skip != nil && t.Skip(ctx, opt) {
-					klog.V(4).Infof("work flow skip sub task %s", t.Name)
+					opt.Loger().Infof("work flow skip sub task %s", t.Name)
 					continue
 				}
 
