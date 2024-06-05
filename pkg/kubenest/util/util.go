@@ -61,3 +61,12 @@ func GetFirstIP(ipNetStr string) (net.IP, error) {
 
 	return firstIP, nil
 }
+
+func MapContains(big map[string]string, small map[string]string) bool {
+	for k, v := range small {
+		if bigV, ok := big[k]; !ok || bigV != v {
+			return false
+		}
+	}
+	return true
+}

@@ -102,9 +102,6 @@ const (
 	VirtualClusterPortNum              = 5
 
 	ManifestComponentsConfigMap = "components-manifest-cm"
-	NodePoolConfigmap           = "node-pool"
-	NodeVirtualclusterState     = "virtualcluster"
-	NodeFreeState               = "free"
 
 	WaitAllPodsRunningTimeoutSeconds = 1800
 

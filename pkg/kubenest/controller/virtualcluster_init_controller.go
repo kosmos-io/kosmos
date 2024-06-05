@@ -12,11 +12,13 @@ import (
 	"gopkg.in/yaml.v3"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -32,6 +34,7 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
+	"github.com/kosmos.io/kosmos/pkg/kubenest/controller/virtualcluster.node.controller/selector"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/util"
 )
 
@@ -84,13 +87,14 @@ func (c *VirtualClusterInitController) Reconcile(ctx context.Context, request re
 		if len(updatedCluster.Spec.PromoteResources.NodeInfos) > 0 {
 			updatedCluster.Spec.PromoteResources.NodeInfos = nil
 			updatedCluster.Status.Phase = v1alpha1.Deleting
-			err := c.Update(originalCluster, updatedCluster)
+			err := c.Update(updatedCluster)
 			if err != nil {
 				klog.Errorf("Error update virtualcluster %s status to %s", updatedCluster.Name, updatedCluster.Status.Phase)
 				return reconcile.Result{}, errors.Wrapf(err, "Error update virtualcluster %s status", updatedCluster.Name)
 			}
 			return reconcile.Result{}, nil
 		}
+
 		if updatedCluster.Status.Phase == v1alpha1.AllNodeDeleted {
 			err := c.destroyVirtualCluster(updatedCluster)
 			if err != nil {
@@ -98,9 +102,11 @@ func (c *VirtualClusterInitController) Reconcile(ctx context.Context, request re
 				return reconcile.Result{}, errors.Wrapf(err, "Destroy virtual cluter %s failed. err: %s", updatedCluster.Name, err.Error())
 			}
 			return c.removeFinalizer(updatedCluster)
-		} else {
+		} else if updatedCluster.Status.Phase == v1alpha1.Deleting {
 			klog.V(2).InfoS("Virtual Cluster is deleting, wait for event 'AllNodeDeleted'", "Virtual Cluster", request)
 			return reconcile.Result{}, nil
+		} else {
+			return c.removeFinalizer(updatedCluster)
 		}
 	}
 
@@ -108,25 +114,16 @@ func (c *VirtualClusterInitController) Reconcile(ctx context.Context, request re
 	case "":
 		//create request
 		updatedCluster.Status.Phase = v1alpha1.Preparing
-		err := c.Update(originalCluster, updatedCluster)
+		err := c.Update(updatedCluster)
 		if err != nil {
 			return reconcile.Result{RequeueAfter: RequeueTime}, errors.Wrapf(err, "Error update virtualcluster %s status", updatedCluster.Name)
 		}
-		//get latest virtualcluster
-		if err = c.Get(ctx, request.NamespacedName, originalCluster); err != nil {
-			if apierrors.IsNotFound(err) {
-				klog.Warningf("Virtualcluster %s is not found, previous status %s. This should not happen normally", updatedCluster.Name, updatedCluster.Status.Phase)
-				return reconcile.Result{}, nil
-			}
-			return reconcile.Result{RequeueAfter: RequeueTime}, nil
-		}
-		updatedCluster := originalCluster.DeepCopy()
 		err = c.createVirtualCluster(updatedCluster, c.KubeNestOptions)
 		if err != nil {
 			klog.Errorf("Failed to create virtualcluster %s. err: %s", updatedCluster.Name, err.Error())
 			updatedCluster.Status.Reason = err.Error()
 			updatedCluster.Status.Phase = v1alpha1.Pending
-			err := c.Update(originalCluster, updatedCluster)
+			err := c.Update(updatedCluster)
 			if err != nil {
 				klog.Errorf("Error update virtualcluster %s. err: %s", updatedCluster.Name, err.Error())
 				return reconcile.Result{}, errors.Wrapf(err, "Error update virtualcluster %s status", updatedCluster.Name)
@@ -134,9 +131,9 @@ func (c *VirtualClusterInitController) Reconcile(ctx context.Context, request re
 			return reconcile.Result{}, errors.Wrap(err, "Error createVirtualCluster")
 		}
 		updatedCluster.Status.Phase = v1alpha1.Initialized
-		err = c.Update(originalCluster, updatedCluster)
+		err = c.Update(updatedCluster)
 		if err != nil {
-			klog.Errorf("Error update virtualcluster %s status to %s", updatedCluster.Name, updatedCluster.Status.Phase)
+			klog.Errorf("Error update virtualcluster %s status to %s. %v", updatedCluster.Name, updatedCluster.Status.Phase, err)
 			return reconcile.Result{}, errors.Wrapf(err, "Error update virtualcluster %s status", updatedCluster.Name)
 		}
 	case v1alpha1.AllNodeReady:
@@ -148,7 +145,7 @@ func (c *VirtualClusterInitController) Reconcile(ctx context.Context, request re
 		} else {
 			updatedCluster.Status.Phase = v1alpha1.Completed
 		}
-		err = c.Update(originalCluster, updatedCluster)
+		err = c.Update(updatedCluster)
 		if err != nil {
 			klog.Errorf("Error update virtualcluster %s status to %s", updatedCluster.Name, updatedCluster.Status.Phase)
 			return reconcile.Result{}, errors.Wrapf(err, "Error update virtualcluster %s status", updatedCluster.Name)
@@ -167,10 +164,10 @@ func (c *VirtualClusterInitController) Reconcile(ctx context.Context, request re
 		} else {
 			err := c.assignWorkNodes(updatedCluster)
 			if err != nil {
-				return reconcile.Result{}, errors.Wrapf(err, "Error update virtualcluster %s", updatedCluster.Name)
+				return reconcile.Result{RequeueAfter: RequeueTime}, errors.Wrapf(err, "Error update virtualcluster %s", updatedCluster.Name)
 			}
 			updatedCluster.Status.Phase = v1alpha1.Updating
-			err = c.Update(originalCluster, updatedCluster)
+			err = c.Update(updatedCluster)
 			if err != nil {
 				klog.Errorf("Error update virtualcluster %s status to %s", updatedCluster.Name, updatedCluster.Status.Phase)
 				return reconcile.Result{}, errors.Wrapf(err, "Error update virtualcluster %s status", updatedCluster.Name)
@@ -198,20 +195,44 @@ func (c *VirtualClusterInitController) SetupWithManager(mgr manager.Manager) err
 		Complete(c)
 }
 
-func (c *VirtualClusterInitController) Update(original, updated *v1alpha1.VirtualCluster) error {
-	now := metav1.Now()
-	updated.Status.UpdateTime = &now
-	return c.Client.Patch(context.TODO(), updated, client.MergeFrom(original))
+func (c *VirtualClusterInitController) Update(updated *v1alpha1.VirtualCluster) error {
+	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		current := &v1alpha1.VirtualCluster{}
+		if err := c.Client.Get(context.TODO(), types.NamespacedName{
+			Namespace: updated.Namespace,
+			Name:      updated.Name,
+		}, current); err != nil {
+			klog.Errorf("get virtualcluster %s error. %v", updated.Name, err)
+			return err
+		}
+		now := metav1.Now()
+		updated.Status.UpdateTime = &now
+		updated.ResourceVersion = current.ResourceVersion
+		return c.Client.Patch(context.TODO(), updated, client.MergeFrom(current))
+	}); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (c *VirtualClusterInitController) ensureFinalizer(virtualCluster *v1alpha1.VirtualCluster) (reconcile.Result, error) {
 	if controllerutil.ContainsFinalizer(virtualCluster, VirtualClusterControllerFinalizer) {
 		return reconcile.Result{}, nil
 	}
+	current := &v1alpha1.VirtualCluster{}
+	if err := c.Client.Get(context.TODO(), types.NamespacedName{
+		Namespace: virtualCluster.Namespace,
+		Name:      virtualCluster.Name,
+	}, current); err != nil {
+		klog.Errorf("get virtualcluster %s error. %v", virtualCluster.Name, err)
+		return reconcile.Result{Requeue: true}, err
+	}
 
-	controllerutil.AddFinalizer(virtualCluster, VirtualClusterControllerFinalizer)
-	err := c.Client.Update(context.TODO(), virtualCluster)
+	updated := current.DeepCopy()
+	controllerutil.AddFinalizer(updated, VirtualClusterControllerFinalizer)
+	err := c.Client.Update(context.TODO(), updated)
 	if err != nil {
+		klog.Errorf("update virtualcluster %s error. %v", virtualCluster.Name, err)
 		return reconcile.Result{Requeue: true}, err
 	}
 
@@ -223,8 +244,18 @@ func (c *VirtualClusterInitController) removeFinalizer(virtualCluster *v1alpha1.
 		return reconcile.Result{}, nil
 	}
 
-	controllerutil.RemoveFinalizer(virtualCluster, VirtualClusterControllerFinalizer)
-	err := c.Client.Update(context.TODO(), virtualCluster)
+	current := &v1alpha1.VirtualCluster{}
+	if err := c.Client.Get(context.TODO(), types.NamespacedName{
+		Namespace: virtualCluster.Namespace,
+		Name:      virtualCluster.Name,
+	}, current); err != nil {
+		klog.Errorf("get virtualcluster %s error. %v", virtualCluster.Name, err)
+		return reconcile.Result{Requeue: true}, err
+	}
+	updated := current.DeepCopy()
+
+	controllerutil.RemoveFinalizer(updated, VirtualClusterControllerFinalizer)
+	err := c.Client.Update(context.TODO(), updated)
 	if err != nil {
 		return reconcile.Result{Requeue: true}, err
 	}
@@ -280,16 +311,20 @@ func (c *VirtualClusterInitController) destroyVirtualCluster(virtualCluster *v1a
 func (c *VirtualClusterInitController) assignWorkNodes(virtualCluster *v1alpha1.VirtualCluster) error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
-	globalNodeList := &v1alpha1.GlobalNodeList{}
-	if err := c.Client.List(context.TODO(), globalNodeList); err != nil {
+	globalNodeList, err := c.KosmosClient.KosmosV1alpha1().GlobalNodes().List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
 		return fmt.Errorf("list global nodes: %w", err)
 	}
 	allNodeInfos := make([]v1alpha1.NodeInfo, 0)
-	globalNodes := globalNodeList.Items
-	sort.Slice(globalNodes, func(i, j int) bool {
-		return globalNodes[i].Name < globalNodes[j].Name
-	})
 	for _, policy := range virtualCluster.Spec.PromotePolicies {
+		globalNodes, err := retrieveGlobalNodesWithLabelSelector(globalNodeList.Items, policy.LabelSelector)
+		if err != nil {
+			return fmt.Errorf("retrieve globalnode with labelselector: %w", err)
+		}
+		sort.Slice(globalNodes, func(i, j int) bool {
+			return globalNodes[i].Name < globalNodes[j].Name
+		})
+		klog.V(4).Infof("LabelSelected Globalnode count %d", len(globalNodes))
 		nodeInfos, err := c.assignNodesByPolicy(virtualCluster, policy, globalNodes)
 		if err != nil {
 			return fmt.Errorf("assign nodes by policy: %w", err)
@@ -297,22 +332,48 @@ func (c *VirtualClusterInitController) assignWorkNodes(virtualCluster *v1alpha1.
 		allNodeInfos = append(allNodeInfos, nodeInfos...)
 	}
 
+	// set all node status in usage
+	for _, nodeInfo := range allNodeInfos {
+		globalNode, ok := util.FindGlobalNode(nodeInfo.NodeName, globalNodeList.Items)
+		if !ok {
+			return fmt.Errorf("assigned node %s doesn't exist in globalnode list. this should not happen normally", nodeInfo.NodeName)
+		}
+
+		// only new assigned nodes' status is not `InUse`
+		if globalNode.Spec.State != v1alpha1.NodeInUse {
+			// Note. Although we tried hard to make sure update globalNode successful in func `setGlobalNodeUsageStatus`.
+			//  But in case of failure, some dirty data will occur because of some globalNodes have been marked `InUse`.
+			// But virutalcluster's NodeInfos have not been updated yet.
+			err = c.setGlobalNodeUsageStatus(virtualCluster, globalNode)
+			if err != nil {
+				return fmt.Errorf("set globalnode %s InUse error. %v", globalNode.Name, err)
+			}
+
+			// Preventive programming. Sometimes promotePolicies may not be well-designed，not absolutely non-overlapping.
+			// this may lead to multiple same node in `allNodeInfos`.
+			globalNode.Spec.State = v1alpha1.NodeInUse
+		}
+	}
 	virtualCluster.Spec.PromoteResources.NodeInfos = allNodeInfos
 	return nil
 }
 
 func (c *VirtualClusterInitController) checkPromotePoliciesChanged(virtualCluster *v1alpha1.VirtualCluster) (bool, error) {
-	globalNodeList := &v1alpha1.GlobalNodeList{}
-	if err := c.Client.List(context.TODO(), globalNodeList); err != nil {
+	globalNodeList, err := c.KosmosClient.KosmosV1alpha1().GlobalNodes().List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
 		return false, fmt.Errorf("list global nodes: %w", err)
 	}
 	for _, policy := range virtualCluster.Spec.PromotePolicies {
-		nodesAssignedMatchedPolicy, err := getAssignedNodesByPolicy(virtualCluster, policy, globalNodeList.Items)
+		globalNodes, err := retrieveGlobalNodesWithLabelSelector(globalNodeList.Items, policy.LabelSelector)
+		if err != nil {
+			return false, fmt.Errorf("retrieve globalnode with labelselector: %w", err)
+		}
+		nodesAssigned, err := retrieveAssignedNodesByPolicy(virtualCluster, globalNodes)
 		if err != nil {
 			return false, errors.Wrapf(err, "Parse assigned nodes by policy %s error", policy.LabelSelector.String())
 		}
-		if policy.NodeCount != int32(len(nodesAssignedMatchedPolicy)) {
-			klog.V(2).Infof("Promote policy node count changed from %d to %d", len(nodesAssignedMatchedPolicy), policy.NodeCount)
+		if policy.NodeCount != int32(len(nodesAssigned)) {
+			klog.V(2).Infof("Promote policy node count changed from %d to %d", len(nodesAssigned), policy.NodeCount)
 			return true, nil
 		}
 	}
@@ -320,8 +381,8 @@ func (c *VirtualClusterInitController) checkPromotePoliciesChanged(virtualCluste
 }
 
 // nodesChangeCalculate calculate nodes changed when update virtualcluster.
-func (c *VirtualClusterInitController) assignNodesByPolicy(virtualCluster *v1alpha1.VirtualCluster, policy v1alpha1.PromotePolicy, globalNodes []v1alpha1.GlobalNode) ([]v1alpha1.NodeInfo, error) {
-	nodesAssigned, err := getAssignedNodesByPolicy(virtualCluster, policy, globalNodes)
+func (c *VirtualClusterInitController) assignNodesByPolicy(virtualCluster *v1alpha1.VirtualCluster, policy v1alpha1.PromotePolicy, policyMatchedGlobalNodes []v1alpha1.GlobalNode) ([]v1alpha1.NodeInfo, error) {
+	nodesAssigned, err := retrieveAssignedNodesByPolicy(virtualCluster, policyMatchedGlobalNodes)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Parse assigned nodes by policy %s error", policy.LabelSelector.String())
 	}
@@ -330,39 +391,29 @@ func (c *VirtualClusterInitController) assignNodesByPolicy(virtualCluster *v1alp
 	if requestNodesChanged == 0 {
 		klog.V(2).Infof("Nothing to do for policy %s", policy.LabelSelector.String())
 		return nodesAssigned, nil
-	} else if requestNodesChanged > 0 { // nodes needs to be increased
+	} else if requestNodesChanged > 0 {
+		// nodes needs to increase
 		klog.V(2).Infof("Try allocate %d nodes for policy %s", requestNodesChanged, policy.LabelSelector.String())
-		var newAssignNodes []int
-		for i, globalNode := range globalNodes {
-			if globalNode.Spec.State == v1alpha1.NodeFreeState && mapContains(globalNode.Spec.Labels, policy.LabelSelector.MatchLabels) {
-				newAssignNodes = append(newAssignNodes, i)
+		var newAssignNodesIndex []int
+		for i, globalNode := range policyMatchedGlobalNodes {
+			if globalNode.Spec.State == v1alpha1.NodeFreeState {
+				newAssignNodesIndex = append(newAssignNodesIndex, i)
 			}
-			if int32(len(newAssignNodes)) == requestNodesChanged {
+			if int32(len(newAssignNodesIndex)) == requestNodesChanged {
 				break
 			}
 		}
-		if int32(len(newAssignNodes)) < requestNodesChanged {
-			return nodesAssigned, errors.Errorf("There is not enough work nodes for promotepolicy %s. Desired %d, matched %d", policy.LabelSelector.String(), requestNodesChanged, len(newAssignNodes))
+		if int32(len(newAssignNodesIndex)) < requestNodesChanged {
+			return nodesAssigned, errors.Errorf("There is not enough work nodes for promotepolicy %s. Desired %d, matched %d", policy.LabelSelector.String(), requestNodesChanged, len(newAssignNodesIndex))
 		}
-		for _, index := range newAssignNodes {
-			updated := globalNodes[index].DeepCopy()
-			updated.Spec.State = v1alpha1.NodeInUse
-			klog.V(2).Infof("Assign node %s for virtualcluster %s policy %s", updated.Name, virtualCluster.GetName(), policy.LabelSelector.String())
-			updated, err := c.KosmosClient.KosmosV1alpha1().GlobalNodes().Update(context.TODO(), updated, metav1.UpdateOptions{})
-			if err != nil {
-				return nil, errors.Wrapf(err, "Failed to update globalNode %s to InUse", updated.Name)
-			}
-			updated.Status.VirtualCluster = virtualCluster.Name
-			updated, err = c.KosmosClient.KosmosV1alpha1().GlobalNodes().UpdateStatus(context.TODO(), updated, metav1.UpdateOptions{})
-			if err != nil {
-				return nil, errors.Wrapf(err, "Failed to update globalNode %s status virtualcluster to %s", updated.Name, virtualCluster.Name)
-			}
-			globalNodes[index] = *updated
+		for _, index := range newAssignNodesIndex {
+			klog.V(2).Infof("Assign node %s for virtualcluster %s policy %s", policyMatchedGlobalNodes[index].Name, virtualCluster.GetName(), policy.LabelSelector.String())
 			nodesAssigned = append(nodesAssigned, v1alpha1.NodeInfo{
-				NodeName: updated.Name,
+				NodeName: policyMatchedGlobalNodes[index].Name,
 			})
 		}
-	} else { // nodes needs to decrease
+	} else {
+		// nodes needs to decrease
 		klog.V(2).Infof("Try decrease nodes %d for policy %s", -requestNodesChanged, policy.LabelSelector.String())
 		decrease := int(-requestNodesChanged)
 		if len(nodesAssigned) < decrease {
@@ -374,18 +425,89 @@ func (c *VirtualClusterInitController) assignNodesByPolicy(virtualCluster *v1alp
 	return nodesAssigned, nil
 }
 
-func getAssignedNodesByPolicy(virtualCluster *v1alpha1.VirtualCluster, policy v1alpha1.PromotePolicy, globalNodes []v1alpha1.GlobalNode) ([]v1alpha1.NodeInfo, error) {
+// retrieveAssignedNodesByPolicy retrieve nodes assigned by policy from virtual cluster spec.
+// Note: this function only retrieves nodes that match the policy's label selector.
+func retrieveAssignedNodesByPolicy(virtualCluster *v1alpha1.VirtualCluster, policyMatchedGlobalNodes []v1alpha1.GlobalNode) ([]v1alpha1.NodeInfo, error) {
 	var nodesAssignedMatchedPolicy []v1alpha1.NodeInfo
 	for _, nodeInfo := range virtualCluster.Spec.PromoteResources.NodeInfos {
-		node, ok := util.FindGlobalNode(nodeInfo.NodeName, globalNodes)
-		if !ok {
-			return nil, errors.Errorf("Node %s doesn't find in nodes pool", nodeInfo.NodeName)
-		}
-		if mapContains(node.Spec.Labels, policy.LabelSelector.MatchLabels) {
+		if _, ok := util.FindGlobalNode(nodeInfo.NodeName, policyMatchedGlobalNodes); ok {
 			nodesAssignedMatchedPolicy = append(nodesAssignedMatchedPolicy, nodeInfo)
 		}
 	}
 	return nodesAssignedMatchedPolicy, nil
+}
+
+func retrieveGlobalNodesWithLabelSelector(nodes []v1alpha1.GlobalNode, labelSelector *metav1.LabelSelector) ([]v1alpha1.GlobalNode, error) {
+	matchedNodes := make([]v1alpha1.GlobalNode, 0)
+	for _, node := range nodes {
+		matched, err := selector.MatchesWithLabelSelector(node.Spec.Labels, labelSelector)
+		if err != nil {
+			return nil, err
+		}
+		if matched {
+			matchedNodes = append(matchedNodes, node)
+		}
+	}
+	return matchedNodes, nil
+}
+
+func (c *VirtualClusterInitController) setGlobalNodeUsageStatus(virtualCluster *v1alpha1.VirtualCluster, node *v1alpha1.GlobalNode) error {
+	updateSpecFunc := func() error {
+		current, err := c.KosmosClient.KosmosV1alpha1().GlobalNodes().Get(context.TODO(), node.Name, metav1.GetOptions{})
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				klog.Errorf("globalnode %s not found. This should not happen normally", node.Name)
+				return nil // 如果节点不存在，则不执行更新并返回nil
+			}
+			return fmt.Errorf("failed to get globalNode %s: %v", node.Name, err)
+		}
+
+		updated := current.DeepCopy()
+		updated.Spec.State = v1alpha1.NodeInUse
+		_, err = c.KosmosClient.KosmosV1alpha1().GlobalNodes().Update(context.TODO(), updated, metav1.UpdateOptions{})
+		if err != nil {
+			if apierrors.IsConflict(err) {
+				return err
+			}
+
+			klog.Errorf("failed to update globalNode spec for %s: %v", updated.Name, err)
+			return err
+		}
+		return nil
+	}
+
+	if err := retry.RetryOnConflict(retry.DefaultRetry, updateSpecFunc); err != nil {
+		return err
+	}
+
+	updateStatusFunc := func() error {
+		current, err := c.KosmosClient.KosmosV1alpha1().GlobalNodes().Get(context.TODO(), node.Name, metav1.GetOptions{})
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				klog.Errorf("globalnode %s not found. This should not happen normally", node.Name)
+				return nil
+			}
+			return fmt.Errorf("failed to get globalNode %s: %v", node.Name, err)
+		}
+
+		updated := current.DeepCopy()
+		updated.Status.VirtualCluster = virtualCluster.Name
+		_, err = c.KosmosClient.KosmosV1alpha1().GlobalNodes().UpdateStatus(context.TODO(), updated, metav1.UpdateOptions{})
+		if err != nil {
+			if apierrors.IsConflict(err) {
+				return err
+			}
+
+			klog.Errorf("failed to update globalNode status for %s: %v", updated.Name, err)
+			return err
+		}
+		return nil
+	}
+
+	if err := retry.RetryOnConflict(retry.DefaultRetry, updateStatusFunc); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (c *VirtualClusterInitController) ensureAllPodsRunning(virtualCluster *v1alpha1.VirtualCluster, timeout time.Duration) error {
@@ -458,15 +580,6 @@ func (c *VirtualClusterInitController) ensureAllPodsRunning(virtualCluster *v1al
 		}
 	}
 	return nil
-}
-
-func mapContains(big map[string]string, small map[string]string) bool {
-	for k, v := range small {
-		if bigV, ok := big[k]; !ok || bigV != v {
-			return false
-		}
-	}
-	return true
 }
 
 func GetHostPortPoolFromConfigMap(client kubernetes.Interface, ns, cmName, dataKey string) (*HostPortPool, error) {
