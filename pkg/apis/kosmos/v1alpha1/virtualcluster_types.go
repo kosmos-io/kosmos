@@ -61,6 +61,17 @@ type VirtualClusterSpec struct {
 	// the resources can be nodes or just cpu,memory or gpu resources
 	// +optional
 	PromoteResources PromoteResources `json:"promoteResources,omitempty"`
+
+	// datasource for plugin yaml
+	// +optional
+	PluginOptions []PluginOptions `json:"pluginOptions,omitempty"`
+}
+
+type PluginOptions struct {
+	// +required
+	Name string `json:"name"`
+	// +required
+	Value string `json:"value"`
 }
 
 type PromotePolicy struct {
