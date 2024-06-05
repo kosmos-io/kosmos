@@ -183,6 +183,9 @@ func runCoreDnsVirtualTask(r workflow.RunData) error {
 		"MetricsPort":     MetricsPort,
 		"HostNodeAddress": HostNodeAddress,
 	}
+	for k, v := range data.PluginOptions() {
+		templatedMapping[k] = v
+	}
 
 	err = coredns.EnsureVirtualClusterCoreDns(dynamicClient, templatedMapping)
 	if err != nil {

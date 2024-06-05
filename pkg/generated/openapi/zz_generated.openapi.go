@@ -65,6 +65,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeSelector":                       schema_pkg_apis_kosmos_v1alpha1_NodeSelector(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeSelectorConverter":              schema_pkg_apis_kosmos_v1alpha1_NodeSelectorConverter(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Plugin":                             schema_pkg_apis_kosmos_v1alpha1_Plugin(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PluginOptions":                      schema_pkg_apis_kosmos_v1alpha1_PluginOptions(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PluginSet":                          schema_pkg_apis_kosmos_v1alpha1_PluginSet(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PluginSources":                      schema_pkg_apis_kosmos_v1alpha1_PluginSources(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PodConvertPolicy":                   schema_pkg_apis_kosmos_v1alpha1_PodConvertPolicy(ref),
@@ -2330,6 +2331,33 @@ func schema_pkg_apis_kosmos_v1alpha1_Plugin(ref common.ReferenceCallback) common
 	}
 }
 
+func schema_pkg_apis_kosmos_v1alpha1_PluginOptions(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"value": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+				},
+				Required: []string{"name", "value"},
+			},
+		},
+	}
+}
+
 func schema_pkg_apis_kosmos_v1alpha1_PluginSet(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -3227,11 +3255,25 @@ func schema_pkg_apis_kosmos_v1alpha1_VirtualClusterSpec(ref common.ReferenceCall
 							Ref:         ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PluginSet"),
 						},
 					},
+					"pluginOptions": {
+						SchemaProps: spec.SchemaProps{
+							Description: "datasource for plugin yaml",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PluginOptions"),
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PluginSet", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PromotePolicy", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PromoteResources"},
+			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PluginOptions", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PluginSet", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PromotePolicy", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PromoteResources"},
 	}
 }
 

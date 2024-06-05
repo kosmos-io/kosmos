@@ -51,6 +51,19 @@ spec:
                 description: Kubeconfig is the kubeconfig of the virtual kubernetes's
                   control plane
                 type: string
+              pluginOptions:
+                description: datasource for plugin yaml
+                items:
+                  properties:
+                    name:
+                      type: string
+                    value:
+                      type: string
+                  required:
+                  - name
+                  - value
+                  type: object
+                type: array
               pluginSet:
                 description: PluginSet  is the list of plugins that will be used by
                   the virtual kubernetes's control plane If plugins is nil or empty,

@@ -13,3 +13,8 @@ spec:
   promoteResources:
     nodeInfos:
       - nodeName: nodeName1
+  pluginOptions:
+    - name: accessKey
+      value: hello
+    - name: secretKey
+      value: world

@@ -66,6 +66,10 @@ type VirtualClusterSpec struct {
 	// If plugins is nil or empty, all default plugins will be used
 	// +optional
 	PluginSet PluginSet `json:"pluginSet,omitempty"`
+
+	// datasource for plugin yaml
+	// +optional
+	PluginOptions []PluginOptions `json:"pluginOptions,omitempty"`
 }
 
 // PluginSet specifies enabled and disabled plugins .
@@ -85,6 +89,13 @@ type Plugin struct {
 	// Name defines the name of plugin
 	// +required
 	Name string `json:"name"`
+}
+
+type PluginOptions struct {
+	// +required
+	Name string `json:"name"`
+	// +required
+	Value string `json:"value"`
 }
 
 type PromotePolicy struct {
