@@ -43,7 +43,7 @@ spec:
       - args:
         - -conf
         - /etc/coredns/Corefile
-        image: {{ .ImageRepository }}/coredns: {{ .CoreDNSImageTag }}
+        image: {{ .ImageRepository }}/coredns:{{ .CoreDNSImageTag }}
         imagePullPolicy: IfNotPresent
         livenessProbe:
           failureThreshold: 5
