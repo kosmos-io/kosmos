@@ -116,6 +116,9 @@ func runCoreDnsHostTask(r workflow.RunData) error {
 			"Name":            data.GetName(),
 			"ImageRepository": imageRepository,
 		}
+		for k, v := range data.PluginOptions() {
+			templatedMapping[k] = v
+		}
 		err = applyYMLTemplate(dynamicClient, component.Path, templatedMapping)
 		if err != nil {
 			return err
@@ -242,6 +245,9 @@ func runCoreDnsVirtualTask(r workflow.RunData) error {
 			"DNSTCPPort":      DNSTCPPort,
 			"MetricsPort":     MetricsPort,
 			"HostNodeAddress": HostNodeAddress,
+		}
+		for k, v := range data.PluginOptions() {
+			templatedMapping[k] = v
 		}
 		err = applyYMLTemplate(dynamicClient, component.Path, templatedMapping)
 		if err != nil {
