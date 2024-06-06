@@ -176,7 +176,7 @@ func CreateOrUpdateClusterRoleBinding(client clientset.Interface, clusterroleBin
 			return err
 		}
 
-		older, err := client.RbacV1().ClusterRoles().Get(context.TODO(), clusterroleBinding.GetName(), metav1.GetOptions{})
+		older, err := client.RbacV1().ClusterRoleBindings().Get(context.TODO(), clusterroleBinding.GetName(), metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
