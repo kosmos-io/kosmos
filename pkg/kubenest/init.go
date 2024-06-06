@@ -38,6 +38,7 @@ type initData struct {
 	hostPort              int32
 	hostPortMap           map[string]int32
 	kubeNestOptions       *ko.KubeNestOptions
+	virtualCluster        *v1alpha1.VirtualCluster
 }
 
 type InitOptions struct {
@@ -184,6 +185,7 @@ func newRunData(opt *InitOptions) (*initData, error) {
 		hostPort:              opt.virtualCluster.Status.Port,
 		hostPortMap:           opt.virtualCluster.Status.PortMap,
 		kubeNestOptions:       opt.KubeNestOptions,
+		virtualCluster:        opt.virtualCluster,
 	}, nil
 }
 
@@ -257,4 +259,17 @@ func (i initData) DynamicClient() *dynamic.DynamicClient {
 
 func (i initData) KubeNestOpt() *ko.KubeNestOptions {
 	return i.kubeNestOptions
+}
+
+func (i initData) PluginOptions() map[string]string {
+	if i.virtualCluster.Spec.PluginOptions == nil {
+		return nil
+	}
+
+	pluginOptoinsMapping := map[string]string{}
+
+	for _, option := range i.virtualCluster.Spec.PluginOptions {
+		pluginOptoinsMapping[option.Name] = option.Value
+	}
+	return pluginOptoinsMapping
 }

@@ -6,10 +6,21 @@ import (
 	"text/template"
 )
 
+// pluginOptions
+func defaultValue(value interface{}, defaultVal string) string {
+	if str, ok := value.(string); ok && str != "" {
+		return str
+	}
+	return defaultVal
+}
+
 // ParseTemplate validates and parses passed as argument template
 func ParseTemplate(strtmpl string, obj interface{}) (string, error) {
 	var buf bytes.Buffer
-	tmpl, err := template.New("template").Parse(strtmpl)
+	tmpl := template.New("template").Funcs(template.FuncMap{
+		"defaultValue": defaultValue,
+	})
+	tmpl, err := tmpl.Parse(strtmpl)
 	if err != nil {
 		return "", fmt.Errorf("error when parsing template, err: %w", err)
 	}

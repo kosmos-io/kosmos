@@ -24,4 +24,5 @@ type InitData interface {
 	HostPortMap() map[string]int32
 	DynamicClient() *dynamic.DynamicClient
 	KubeNestOpt() *ko.KubeNestOptions
+	PluginOptions() map[string]string
 }

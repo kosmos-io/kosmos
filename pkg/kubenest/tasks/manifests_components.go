@@ -84,6 +84,10 @@ func applyComponentsManifests(r workflow.RunData) error {
 	imageRepository, _ := util.GetImageMessage()
 	templatedMapping["ImageRepository"] = imageRepository
 
+	for k, v := range data.PluginOptions() {
+		templatedMapping[k] = v
+	}
+
 	for _, component := range components {
 		klog.V(2).Infof("Deploy component %s", component.Name)
 		err = applyTemplatedManifests(component.Name, dynamicClient, component.Path, templatedMapping)
