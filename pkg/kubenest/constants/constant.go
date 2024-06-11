@@ -13,8 +13,10 @@ const (
 	KosmosJoinControllerName         = "kosmos-join-controller"
 	KosmosNs                         = "kosmos-system"
 	SystemNs                         = "kube-system"
+	DefaultNs                        = "default"
 	DefauleImageRepositoryEnv        = "IMAGE_REPOSITIRY"
 	DefauleImageVersionEnv           = "IMAGE_VERSION"
+	DefaultCoreDnsImageTagEnv        = "COREDNS_IMAGE_TAG"
 	DefauleVirtualControllerLabelEnv = "VIRTUAL_CONTROLLER_LABEL"
 	VirtualClusterFinalizerName      = "kosmos.io/virtual-cluster-finalizer"
 	ServiceType                      = "NodePort"
@@ -115,6 +117,9 @@ const (
 	StateLabelKey = "kosmos-io/state"
 
 	KonnectivityServerSuffix = "konnectivity-server"
+
+	//in virtual cluster
+	ApiServerExternalService = "api-server-external-service"
 )
 
 type Action string

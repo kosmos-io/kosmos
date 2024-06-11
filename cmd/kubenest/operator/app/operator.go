@@ -75,6 +75,15 @@ func startEndPointsControllers(mgr manager.Manager) error {
 		return fmt.Errorf("error starting %s: %v", endpointscontroller.KonnectivitySyncControllerName, err)
 	}
 
+	ApiServerExternalSyncController := endpointscontroller.ApiServerExternalSyncController{
+		Client:        mgr.GetClient(),
+		EventRecorder: mgr.GetEventRecorderFor(constants.GlobalNodeControllerName),
+	}
+
+	if err := ApiServerExternalSyncController.SetupWithManager(mgr); err != nil {
+		return fmt.Errorf("error starting %s: %v", endpointscontroller.ApiServerExternalSyncControllerName, err)
+	}
+
 	return nil
 }
 

@@ -68,6 +68,7 @@ func NewInitPhase(opts *InitOptions) *workflow.Phase {
 	initPhase.AppendTask(tasks.NewCoreDNSTask())
 	// add server
 	initPhase.AppendTask(tasks.NewComponentsFromManifestsTask())
+	initPhase.AppendTask(tasks.NewEndPointTask())
 
 	initPhase.SetDataInitializer(func() (workflow.RunData, error) {
 		return newRunData(opts)

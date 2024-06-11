@@ -188,7 +188,7 @@ func runCheckCoreDnsTask(r workflow.RunData) error {
 func runCoreDnsVirtualTask(r workflow.RunData) error {
 	data, ok := r.(InitData)
 	if !ok {
-		return errors.New("Virtual cluster manifests-components task invoked with an invalid data struct")
+		return errors.New("Virtual cluster coreDns task invoked with an invalid data struct")
 	}
 
 	secret, err := data.RemoteClient().CoreV1().Secrets(data.GetNamespace()).Get(context.TODO(),
