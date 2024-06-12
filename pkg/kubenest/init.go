@@ -273,3 +273,7 @@ func (i initData) PluginOptions() map[string]string {
 	}
 	return pluginOptoinsMapping
 }
+
+func (i initData) GetUseTenantCoreDnsFlag() bool {
+	return i.virtualCluster.UseTenantCoreDns()
+}

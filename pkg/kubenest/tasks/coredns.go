@@ -28,6 +28,7 @@ func NewCoreDNSTask() workflow.Task {
 	return workflow.Task{
 		Name:        "coreDns",
 		Run:         runCoreDns,
+		Skip:        skipCoreDns,
 		RunSubTasks: true,
 		Tasks: []workflow.Task{
 			{
@@ -44,6 +45,18 @@ func NewCoreDNSTask() workflow.Task {
 			},
 		},
 	}
+}
+
+func skipCoreDns(d workflow.RunData) (bool, error) {
+	data, ok := d.(InitData)
+	if !ok {
+		return false, errors.New("coreDns task invoked with an invalid data struct")
+	}
+
+	if data.GetUseTenantCoreDnsFlag() {
+		return true, nil
+	}
+	return false, nil
 }
 
 func runCoreDns(r workflow.RunData) error {
@@ -131,6 +144,10 @@ func uninstallCorednsHostTask(r workflow.RunData) error {
 	data, ok := r.(InitData)
 	if !ok {
 		return errors.New("Virtual cluster manifests-components task invoked with an invalid data struct")
+	}
+
+	if data.GetUseTenantCoreDnsFlag() {
+		return nil
 	}
 
 	dynamicClient := data.DynamicClient()
@@ -235,6 +252,8 @@ func runCoreDnsVirtualTask(r workflow.RunData) error {
 		return fmt.Errorf("get master node ip from env failed")
 	}
 
+	imageRepository, _ := util.GetImageMessage()
+
 	for _, component := range components {
 		klog.V(2).Infof("Deploy component %s", component.Name)
 
@@ -245,6 +264,7 @@ func runCoreDnsVirtualTask(r workflow.RunData) error {
 			"DNSTCPPort":      DNSTCPPort,
 			"MetricsPort":     MetricsPort,
 			"HostNodeAddress": HostNodeAddress,
+			"ImageRepository": imageRepository,
 		}
 		for k, v := range data.PluginOptions() {
 			templatedMapping[k] = v

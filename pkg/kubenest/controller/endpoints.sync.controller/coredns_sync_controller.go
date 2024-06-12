@@ -147,6 +147,10 @@ func (e *CoreDNSController) Reconcile(ctx context.Context, request reconcile.Req
 		return reconcile.Result{}, nil
 	}
 
+	if targetVirtualCluster.UseTenantCoreDns() {
+		return reconcile.Result{}, nil
+	}
+
 	if targetVirtualCluster.Status.Phase != v1alpha1.AllNodeReady && targetVirtualCluster.Status.Phase != v1alpha1.Completed {
 		return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
 	}
