@@ -64,6 +64,8 @@ func NewInitPhase(opts *InitOptions) *workflow.Phase {
 	initPhase.AppendTask(tasks.NewComponentTask())
 	initPhase.AppendTask(tasks.NewCheckControlPlaneTask())
 	initPhase.AppendTask(tasks.NewAnpTask())
+	// create proxy
+	initPhase.AppendTask(tasks.NewVirtualClusterProxyTask())
 	// create core-dns
 	initPhase.AppendTask(tasks.NewCoreDNSTask())
 	// add server
@@ -85,6 +87,7 @@ func UninstallPhase(opts *InitOptions) *workflow.Phase {
 	destroyPhase.AppendTask(tasks.UninstallVirtualClusterServiceTask())
 	destroyPhase.AppendTask(tasks.UninstallCertsAndKubeconfigTask())
 	destroyPhase.AppendTask(tasks.DeleteEtcdPvcTask())
+	destroyPhase.AppendTask(tasks.UninstallVirtualClusterProxyTask())
 
 	destroyPhase.SetDataInitializer(func() (workflow.RunData, error) {
 		return newRunData(opts)

@@ -16,7 +16,7 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/kubenest/util"
 )
 
-func EnsureControlPlaneComponent(component, name, namespace string, client clientset.Interface) error {
+func EnsureControlPlaneComponent(component, name, namespace string, client clientset.Interface, clusterCIDR string) error {
 	configMaps, err := getComponentConfigMapManifests(name, namespace)
 	if err != nil {
 		return err
@@ -31,7 +31,7 @@ func EnsureControlPlaneComponent(component, name, namespace string, client clien
 		return fmt.Errorf("failed to create configMap resource for component %s, err: %w", component, err)
 	}
 
-	deployments, err := getComponentManifests(name, namespace)
+	deployments, err := getComponentManifests(name, namespace, clusterCIDR)
 	if err != nil {
 		return err
 	}
@@ -72,8 +72,8 @@ func DeleteControlPlaneComponent(component, virtualclusterName, namespace string
 	return nil
 }
 
-func getComponentManifests(name, namespace string) (map[string]*appsv1.Deployment, error) {
-	kubeControllerManager, err := getKubeControllerManagerManifest(name, namespace)
+func getComponentManifests(name, namespace, clusterCIDR string) (map[string]*appsv1.Deployment, error) {
+	kubeControllerManager, err := getKubeControllerManagerManifest(name, namespace, clusterCIDR)
 	if err != nil {
 		return nil, err
 	}
@@ -111,12 +111,12 @@ func getComponentConfigmaps(component string) []string {
 	return nil
 }
 
-func getKubeControllerManagerManifest(name, namespace string) (*appsv1.Deployment, error) {
+func getKubeControllerManagerManifest(name, namespace, clusterCIDR string) (*appsv1.Deployment, error) {
 	imageRepository, imageVersion := util.GetImageMessage()
 	kubeControllerManagerBytes, err := util.ParseTemplate(controller.KubeControllerManagerDeployment, struct {
-		DeploymentName, Namespace, ImageRepository, Version        string
-		VirtualClusterCertsSecret, KubeconfigSecret, ServiceSubnet string
-		Replicas                                                   int32
+		DeploymentName, Namespace, ImageRepository, Version, ClusterCIDR string
+		VirtualClusterCertsSecret, KubeconfigSecret, ServiceSubnet       string
+		Replicas                                                         int32
 	}{
 		DeploymentName:            fmt.Sprintf("%s-%s", name, "kube-controller-manager"),
 		Namespace:                 namespace,
@@ -126,6 +126,7 @@ func getKubeControllerManagerManifest(name, namespace string) (*appsv1.Deploymen
 		KubeconfigSecret:          fmt.Sprintf("%s-%s", name, "admin-config-clusterip"),
 		ServiceSubnet:             constants.ApiServerServiceSubnet,
 		Replicas:                  constants.KubeControllerReplicas,
+		ClusterCIDR:               clusterCIDR,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error when parsing kube-controller-manager deployment template: %w", err)

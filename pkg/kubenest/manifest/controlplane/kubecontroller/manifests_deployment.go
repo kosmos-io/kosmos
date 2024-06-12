@@ -57,7 +57,7 @@ spec:
         - --authorization-kubeconfig=/etc/virtualcluster/kubeconfig
         - --bind-address=0.0.0.0
         - --client-ca-file=/etc/virtualcluster/pki/ca.crt
-        - --cluster-cidr=10.244.0.0/16
+        - --cluster-cidr={{ .ClusterCIDR }}
         - --cluster-name=virtualcluster
         - --cluster-signing-cert-file=/etc/virtualcluster/pki/ca.crt
         - --cluster-signing-key-file=/etc/virtualcluster/pki/ca.key
