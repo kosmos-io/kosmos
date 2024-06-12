@@ -49,6 +49,10 @@ const (
 	ApiServerCallRetryInterval = 100 * time.Millisecond
 	APIServerSVCPortName       = "client"
 
+	//install kube-proxy in virtualCluster
+	Proxy = "kube-proxy"
+	// configmap kube-proxy clustercidr
+
 	//controlplane etcd
 	Etcd                 = "etcd"
 	EtcdReplicas         = 3
@@ -58,9 +62,10 @@ const (
 	EtcdSuffix           = "-etcd-client"
 
 	//controlplane kube-controller
-	KubeControllerReplicas         = 2
-	KubeControllerManagerComponent = "KubeControllerManager"
-	KubeControllerManager          = "kube-controller-manager"
+	KubeControllerReplicas           = 2
+	KubeControllerManagerComponent   = "KubeControllerManager"
+	KubeControllerManager            = "kube-controller-manager"
+	KubeControllerManagerClusterCIDR = "10.244.0.0/16"
 
 	//controlplane scheduler
 	VirtualClusterSchedulerReplicas           = 2

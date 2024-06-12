@@ -28,6 +28,7 @@ type KubeNestOptions struct {
 	AnpMode           string
 	AdmissionPlugins  bool
 	ApiServerReplicas int
+	ClusterCIDR       string
 }
 
 func NewOptions() *Options {
@@ -59,4 +60,5 @@ func (o *Options) AddFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&o.KubeNestOptions.AnpMode, "kube-nest-anp-mode", "tcp", "kube-apiserver network proxy mode, must be set to tcp or uds. uds mode the replicas for apiserver should be one, and tcp for multi apiserver replicas.")
 	flags.BoolVar(&o.KubeNestOptions.AdmissionPlugins, "kube-nest-admission-plugins", false, "kube-apiserver network disable-admission-plugins, false for - --disable-admission-plugins=License, true for remove the --disable-admission-plugins=License flag .")
 	flags.IntVar(&o.KubeNestOptions.ApiServerReplicas, "kube-nest-apiserver-replicas", 1, "virtual-cluster kube-apiserver replicas. default is 2.")
+	flags.StringVar(&o.KubeNestOptions.ClusterCIDR, "cluster-cidr", "10.244.0.0/16", "Used to set the cluster-cidr of kube-controller-manager and kube-proxy (configmap)")
 }

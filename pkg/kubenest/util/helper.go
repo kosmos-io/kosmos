@@ -54,6 +54,66 @@ func DeleteDeployment(client clientset.Interface, deployment string, namespace s
 	return nil
 }
 
+func CreateOrUpdateDaemonSet(client clientset.Interface, daemonSet *appsv1.DaemonSet) error {
+	_, err := client.AppsV1().DaemonSets(daemonSet.GetNamespace()).Create(context.TODO(), daemonSet, metav1.CreateOptions{})
+	if err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return err
+		}
+
+		_, err := client.AppsV1().DaemonSets(daemonSet.GetNamespace()).Update(context.TODO(), daemonSet, metav1.UpdateOptions{})
+		if err != nil {
+			return err
+		}
+	}
+
+	klog.V(5).InfoS("Successfully created or updated daemonSet", "daemonSet", daemonSet.GetName())
+	return nil
+}
+
+func DeleteDaemonSet(client clientset.Interface, daemonSet string, namespace string) error {
+	err := client.AppsV1().DaemonSets(namespace).Delete(context.TODO(), daemonSet, metav1.DeleteOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			klog.V(2).Infof("DaemonSet %s/%s not found, skip delete", daemonSet, namespace)
+			return nil
+		}
+		return err
+	}
+	klog.V(2).Infof("Delete daemonSet %s/%s success", daemonSet, namespace)
+	return nil
+}
+
+func CreateOrUpdateServiceAccount(client clientset.Interface, serviceAccount *v1.ServiceAccount) error {
+	_, err := client.CoreV1().ServiceAccounts(serviceAccount.GetNamespace()).Create(context.TODO(), serviceAccount, metav1.CreateOptions{})
+	if err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return err
+		}
+
+		_, err := client.CoreV1().ServiceAccounts(serviceAccount.GetNamespace()).Update(context.TODO(), serviceAccount, metav1.UpdateOptions{})
+		if err != nil {
+			return err
+		}
+	}
+
+	klog.V(5).InfoS("Successfully created or updated serviceAccount", "serviceAccount", serviceAccount.GetName())
+	return nil
+}
+
+func DeleteServiceAccount(client clientset.Interface, serviceAccount string, namespace string) error {
+	err := client.CoreV1().ServiceAccounts(namespace).Delete(context.TODO(), serviceAccount, metav1.DeleteOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			klog.V(2).Infof("ServiceAccount %s/%s not found, skip delete", serviceAccount, namespace)
+			return nil
+		}
+		return err
+	}
+	klog.V(2).Infof("Delete serviceAccount %s/%s success", serviceAccount, namespace)
+	return nil
+}
+
 func CreateOrUpdateConfigMap(client clientset.Interface, configMap *v1.ConfigMap) error {
 	_, err := client.CoreV1().ConfigMaps(configMap.GetNamespace()).Create(context.TODO(), configMap, metav1.CreateOptions{})
 	if err != nil {

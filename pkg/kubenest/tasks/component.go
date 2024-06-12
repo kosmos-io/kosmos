@@ -47,11 +47,14 @@ func runComponentSubTask(component string) func(r workflow.RunData) error {
 			return errors.New("components task invoked with an invalid data struct")
 		}
 
+		kubeNestOpt := data.KubeNestOpt()
+
 		err := controlplane.EnsureControlPlaneComponent(
 			component,
 			data.GetName(),
 			data.GetNamespace(),
 			data.RemoteClient(),
+			kubeNestOpt.ClusterCIDR,
 		)
 		if err != nil {
 			return fmt.Errorf("failed to apply component %s, err: %w", component, err)
