@@ -31,6 +31,7 @@ TARGETS :=  clusterlink-controller-manager \
 			virtual-cluster-operator \
 			node-agent \
 			scheduler \
+			webhook
 
 # If GOOS is macOS, assign the value of MACOS_TARGETS to TARGETS
 ifeq ($(GOOS), darwin)
