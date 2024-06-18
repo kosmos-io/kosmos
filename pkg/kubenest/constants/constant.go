@@ -9,6 +9,7 @@ const (
 	KosmosJoinControllerName      = "kosmos-join-controller"
 	KosmosNs                      = "kosmos-system"
 	SystemNs                      = "kube-system"
+	DefaultNs                     = "default"
 	DefaultImageRepositoryEnv     = "IMAGE_REPOSITIRY"
 	DefaultImageVersionEnv        = "IMAGE_VERSION"
 	DefaultCoreDnsImageTagEnv     = "COREDNS_IMAGE_TAG"
@@ -117,6 +118,9 @@ const (
 	StateLabelKey = "kosmos-io/state"
 
 	KonnectivityServerSuffix = "konnectivity-server"
+
+	//in virtual cluster
+	ApiServerExternalService = "api-server-external-service"
 )
 
 type Action string
