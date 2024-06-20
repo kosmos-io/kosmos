@@ -111,6 +111,7 @@ const (
 	KosmosNodeTaintEffect  = "NoSchedule"
 	KosmosPodLabel         = "kosmos-io/pod"
 	KosmosGlobalLabel      = "kosmos.io/global"
+	KosmosPvcImmediateMode = "kosmos/pvc-immediate-mode"
 	KosmosSelectorKey      = "kosmos.io/cluster-selector"
 	KosmosTrippedLabels    = "kosmos-io/tripped"
 	KosmosConvertLabels    = "kosmos-io/convert-policy"
