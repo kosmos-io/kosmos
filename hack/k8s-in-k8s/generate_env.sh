@@ -68,6 +68,10 @@ function GetKubernetesCaPath() {
     kubectl get cm kubelet-config -nkube-system -oyaml  | awk '/clientCAFile:/{print $2}'
 }
 
+function GetKubeDnsClusterIP() {
+    kubectl get svc -nkube-system kube-dns  -o jsonpath='{.spec.clusterIP}'
+}
+
 function GetFileName() {
     local fullpath="$1"
     local filename=$(basename "$fullpath")
@@ -91,6 +95,7 @@ KUBELET_KUBE_CONFIG_NAME=$(GetFileName "$(GetKubeletKubeConfigFilePath)")
 PATH_KUBERNETES_PKI=$(GetDirectory "$(GetKubernetesCaPath)")
 # length=${#PATH_KUBERNETES_PKI}
 PATH_KUBERNETES=$(GetDirectory $PATH_KUBERNETES_PKI)
+HOST_CORE_DNS=$(GetKubeDnsClusterIP)
 
 echo "#!/usr/bin/env bash
 
@@ -117,10 +122,12 @@ PATH_KUBELET_LIB=$PATH_KUBELET_LIB
 PATH_KUBELET_CONF=$PATH_KUBELET_CONF
 # name for config file of kubelet
 KUBELET_CONFIG_NAME=$KUBELET_CONFIG_NAME
+HOST_CORE_DNS=$HOST_CORE_DNS
 
 function GenerateKubeadmConfig() {
     echo \"---
 apiVersion: kubeadm.k8s.io/v1beta2
+caCertPath: $PATH_KUBERNETES_PKI/ca.crt
 discovery:
     bootstrapToken:
         apiServerEndpoint: apiserver.cluster.local:6443
@@ -133,6 +140,41 @@ nodeRegistration:
     container-runtime: remote
     container-runtime-endpoint: unix:///run/containerd/containerd.sock
     taints: null\" > \$2/kubeadm.cfg.current
+}
+
+function GenerateStaticNginxProxy() {
+    echo \"apiVersion: v1
+kind: Pod
+metadata:
+  creationTimestamp: null
+  name: nginx-proxy
+  namespace: kube-system
+spec:
+  containers:
+  - image: registry.paas/cmss/nginx:1.21.4
+    imagePullPolicy: IfNotPresent
+    name: nginx-proxy
+    resources:
+      limits:
+        cpu: 300m
+        memory: 512M
+      requests:
+        cpu: 25m
+        memory: 32M
+    securityContext:
+      privileged: true
+    volumeMounts:
+    - mountPath: /etc/nginx
+      name: etc-nginx
+      readOnly: true
+  hostNetwork: true
+  priorityClassName: system-node-critical
+  volumes:
+  - hostPath:
+      path: /apps/conf/nginx
+      type: 
+    name: etc-nginx
+status: {}\" > $PATH_KUBERNETES/manifests/nginx-proxy.yaml
 }
 
 " > g.env.sh
