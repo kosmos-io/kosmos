@@ -33,9 +33,10 @@ function prepare_test_image() {
     docker pull percona:5.7
     docker pull prom/mysqld-exporter:v0.13.0
   else
-    docker pull docker.m.daocloud.io/bitpoke/mysql-operator-orchestrator:v0.6.3
-    docker pull docker.m.daocloud.io/bitpoke/mysql-operator:v0.6.3
-    docker pull docker.m.daocloud.io/bitpoke/mysql-operator-sidecar-5.7:v0.6.3
+#    todo add bitpoke to m.daocloud.io's Whitelist
+    docker pull bitpoke/mysql-operator-orchestrator:v0.6.3
+    docker pull bitpoke/mysql-operator:v0.6.3
+    docker pull bitpoke/mysql-operator-sidecar-5.7:v0.6.3
     docker pull docker.m.daocloud.io/nginx
     docker pull docker.m.daocloud.io/percona:5.7
     docker pull docker.m.daocloud.io/prom/mysqld-exporter:v0.13.0

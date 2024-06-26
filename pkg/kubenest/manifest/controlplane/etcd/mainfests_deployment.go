@@ -111,7 +111,7 @@ spec:
         - ReadWriteOnce
       resources:
         requests:
-          storage: 1Gi
-      storageClassName: openebs-hostpath
+          storage: {{ .ETCDStorageSize }}
+      storageClassName: {{ .ETCDStorageClass }}
 `
 )
