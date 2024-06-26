@@ -28,6 +28,8 @@ type KubeNestOptions struct {
 	AnpMode           string
 	AdmissionPlugins  bool
 	ApiServerReplicas int
+	ETCDStorageClass  string
+	ETCDUnitSize      string
 }
 
 func NewOptions() *Options {
@@ -59,4 +61,6 @@ func (o *Options) AddFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&o.KubeNestOptions.AnpMode, "kube-nest-anp-mode", "tcp", "kube-apiserver network proxy mode, must be set to tcp or uds. uds mode the replicas for apiserver should be one, and tcp for multi apiserver replicas.")
 	flags.BoolVar(&o.KubeNestOptions.AdmissionPlugins, "kube-nest-admission-plugins", false, "kube-apiserver network disable-admission-plugins, false for - --disable-admission-plugins=License, true for remove the --disable-admission-plugins=License flag .")
 	flags.IntVar(&o.KubeNestOptions.ApiServerReplicas, "kube-nest-apiserver-replicas", 1, "virtual-cluster kube-apiserver replicas. default is 2.")
+	flags.StringVar(&o.KubeNestOptions.ETCDStorageClass, "etcd-storage-class", "openebs-hostpath", "Used to set the etcd storage class.")
+	flags.StringVar(&o.KubeNestOptions.ETCDUnitSize, "etcd-unit-size", "1Gi", "Used to set the etcd unit size, each node is allocated storage of etcd-unit-size.")
 }
