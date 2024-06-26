@@ -22,7 +22,7 @@ spec:
     spec:
       automountServiceAccountToken: false
       tolerations:
-      - key: "node-role.kubernetes.io/control-plane"
+      - key: {{ .VirtualControllerLabel }}
         operator: "Exists"
         effect: "NoSchedule"
       affinity:
@@ -30,7 +30,7 @@ spec:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
               - matchExpressions:
-                  - key: node-role.kubernetes.io/control-plane
+                  - key: {{ .VirtualControllerLabel }}
                     operator: Exists
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:

@@ -46,25 +46,35 @@ func installEtcd(client clientset.Interface, name, namespace string) error {
 		initialClusters[index] = fmt.Sprintf("%s=%s", memberName, memberPeerURL)
 	}
 
+	vclabel := util.GetVirtualControllerLabel()
+
+	IPV6FirstFlag, err := util.IPV6First(constants.ApiServerServiceSubnet)
+	if err != nil {
+		return err
+	}
+
 	etcdStatefulSetBytes, err := util.ParseTemplate(etcd.EtcdStatefulSet, struct {
-		StatefulSetName, Namespace, ImageRepository, Image, EtcdClientService, Version string
-		CertsSecretName, EtcdPeerServiceName                                           string
-		InitialCluster, EtcdDataVolumeName, EtcdCipherSuites                           string
-		Replicas, EtcdListenClientPort, EtcdListenPeerPort                             int32
+		StatefulSetName, Namespace, ImageRepository, Image, EtcdClientService, Version, VirtualControllerLabel string
+		CertsSecretName, EtcdPeerServiceName                                                                   string
+		InitialCluster, EtcdDataVolumeName, EtcdCipherSuites                                                   string
+		Replicas, EtcdListenClientPort, EtcdListenPeerPort                                                     int32
+		IPV6First                                                                                              bool
 	}{
-		StatefulSetName:      fmt.Sprintf("%s-%s", name, "etcd"),
-		Namespace:            namespace,
-		ImageRepository:      imageRepository,
-		Version:              imageVersion,
-		EtcdClientService:    fmt.Sprintf("%s-%s", name, "etcd-client"),
-		CertsSecretName:      fmt.Sprintf("%s-%s", name, "etcd-cert"),
-		EtcdPeerServiceName:  fmt.Sprintf("%s-%s", name, "etcd"),
-		EtcdDataVolumeName:   constants.EtcdDataVolumeName,
-		InitialCluster:       strings.Join(initialClusters, ","),
-		EtcdCipherSuites:     strings.Join(flag.PreferredTLSCipherNames(), ","),
-		Replicas:             constants.EtcdReplicas,
-		EtcdListenClientPort: constants.EtcdListenClientPort,
-		EtcdListenPeerPort:   constants.EtcdListenPeerPort,
+		StatefulSetName:        fmt.Sprintf("%s-%s", name, "etcd"),
+		Namespace:              namespace,
+		ImageRepository:        imageRepository,
+		Version:                imageVersion,
+		VirtualControllerLabel: vclabel,
+		EtcdClientService:      fmt.Sprintf("%s-%s", name, "etcd-client"),
+		CertsSecretName:        fmt.Sprintf("%s-%s", name, "etcd-cert"),
+		EtcdPeerServiceName:    fmt.Sprintf("%s-%s", name, "etcd"),
+		EtcdDataVolumeName:     constants.EtcdDataVolumeName,
+		InitialCluster:         strings.Join(initialClusters, ","),
+		EtcdCipherSuites:       strings.Join(flag.PreferredTLSCipherNames(), ","),
+		Replicas:               constants.EtcdReplicas,
+		EtcdListenClientPort:   constants.EtcdListenClientPort,
+		EtcdListenPeerPort:     constants.EtcdListenPeerPort,
+		IPV6First:              IPV6FirstFlag,
 	})
 	if err != nil {
 		return fmt.Errorf("error when parsing Etcd statefuelset template: %w", err)

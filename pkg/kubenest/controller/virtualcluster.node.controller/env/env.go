@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"k8s.io/klog"
 )
@@ -146,4 +147,12 @@ func GetNodeTaskMaxGoroutines() int {
 		klog.Fatalf("convert NODE_TASK_MAX_GOROUTINES failed, err: %s", err)
 	}
 	return num
+}
+
+func GetCMDPaths() []string {
+	cmdAbsolutePaths := os.Getenv("CMD_ABSOLUTE_PATHS")
+	if len(cmdAbsolutePaths) == 0 {
+		return nil
+	}
+	return strings.Split(cmdAbsolutePaths, ",")
 }

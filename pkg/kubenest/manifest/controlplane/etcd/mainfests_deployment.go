@@ -25,7 +25,7 @@ spec:
     spec:
       automountServiceAccountToken: false
       tolerations:
-      - key: "node-role.kubernetes.io/control-plane"
+      - key: {{ .VirtualControllerLabel }}
         operator: "Exists"
         effect: "NoSchedule"
       affinity:
@@ -33,7 +33,7 @@ spec:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
             - matchExpressions:
-              - key: node-role.kubernetes.io/control-plane
+              - key: {{ .VirtualControllerLabel }}
                 operator: Exists
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
@@ -53,10 +53,15 @@ spec:
         command:
         - /usr/local/bin/etcd
         - --name=$(VIRTUAL_ETCD_NAME)
-        - --listen-client-urls= https://0.0.0.0:{{ .EtcdListenClientPort }}
-        - --listen-peer-urls=http://0.0.0.0:{{ .EtcdListenPeerPort }}
+        - --listen-client-urls= https://[::]:{{ .EtcdListenClientPort }}
+        - --listen-peer-urls=http://[::]:{{ .EtcdListenPeerPort }}
         - --advertise-client-urls=https://{{ .EtcdClientService }}.{{ .Namespace }}.svc.cluster.local:{{ .EtcdListenClientPort }}
         - --initial-cluster={{ .InitialCluster }}
+        {{ if .IPV6First }}
+        - --initial-advertise-peer-urls=http://[$(PODIP)]:2380
+        {{ else }}
+        - --initial-advertise-peer-urls=http://$(PODIP):2380
+        {{ end }}
         - --initial-cluster-state=new
         - --client-cert-auth=true
         - --trusted-ca-file=/etc/virtualcluster/pki/etcd/etcd-ca.crt
@@ -71,6 +76,11 @@ spec:
         #- --peer-key-file=/etc/virtualcluster/pki/etcd/etcd-server.key
         #- --peer-trusted-ca-file=/etc/virtualcluster/pki/etcd/etcd-ca.crt
         env:
+        - name: PODIP
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: status.podIP
         - name: VIRTUAL_ETCD_NAME
           valueFrom:
             fieldRef:
@@ -81,7 +91,11 @@ spec:
             command:
             - /bin/sh
             - -ec
+            {{ if .IPV6First }}
+            - etcdctl get /registry --prefix --keys-only --endpoints https://[::1]:{{ .EtcdListenClientPort }} --cacert=/etc/virtualcluster/pki/etcd/etcd-ca.crt --cert=/etc/virtualcluster/pki/etcd/etcd-server.crt --key=/etc/virtualcluster/pki/etcd/etcd-server.key
+            {{ else }}
             - etcdctl get /registry --prefix --keys-only --endpoints https://127.0.0.1:{{ .EtcdListenClientPort }} --cacert=/etc/virtualcluster/pki/etcd/etcd-ca.crt --cert=/etc/virtualcluster/pki/etcd/etcd-server.crt --key=/etc/virtualcluster/pki/etcd/etcd-server.key
+            {{ end }}
           failureThreshold: 3
           initialDelaySeconds: 600
           periodSeconds: 60

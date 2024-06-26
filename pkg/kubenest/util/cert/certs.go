@@ -146,7 +146,7 @@ func etcdServerAltNamesMutator(cfg *AltNamesMutatorConfig) (*certutil.AltNames, 
 
 	altNames := &certutil.AltNames{
 		DNSNames: []string{"localhost", etcdClientServiceDNS, etcdPeerServiceDNS},
-		IPs:      []net.IP{net.IPv4(127, 0, 0, 1)},
+		IPs:      []net.IP{net.ParseIP("::1"), net.IPv4(127, 0, 0, 1)},
 	}
 
 	if len(cfg.ClusterIps) > 0 {
@@ -204,7 +204,7 @@ func makeAltNamesMutator(f func(cfg *AltNamesMutatorConfig) (*certutil.AltNames,
 }
 
 func proxyServerAltNamesMutator(cfg *AltNamesMutatorConfig) (*certutil.AltNames, error) {
-	firstIP, err := util.GetFirstIP(constants.ApiServerServiceSubnet)
+	firstIPs, err := util.GetFirstIP(constants.ApiServerServiceSubnet)
 	if err != nil {
 		return nil, err
 	}
@@ -216,10 +216,10 @@ func proxyServerAltNamesMutator(cfg *AltNamesMutatorConfig) (*certutil.AltNames,
 			"kubernetes.default",
 			"kubernetes.default.svc",
 		},
-		IPs: []net.IP{
+		IPs: append([]net.IP{
+			net.ParseIP("::1"),
 			net.IPv4(127, 0, 0, 1),
-			firstIP,
-		},
+		}, firstIPs...),
 	}
 
 	if cfg.Namespace != constants.VirtualClusterSystemNamespace {
@@ -241,7 +241,7 @@ func proxyServerAltNamesMutator(cfg *AltNamesMutatorConfig) (*certutil.AltNames,
 }
 
 func apiServerAltNamesMutator(cfg *AltNamesMutatorConfig) (*certutil.AltNames, error) {
-	firstIP, err := util.GetFirstIP(constants.ApiServerServiceSubnet)
+	firstIPs, err := util.GetFirstIP(constants.ApiServerServiceSubnet)
 	if err != nil {
 		return nil, err
 	}
@@ -257,10 +257,10 @@ func apiServerAltNamesMutator(cfg *AltNamesMutatorConfig) (*certutil.AltNames, e
 			fmt.Sprintf("*.%s.svc", constants.VirtualClusterSystemNamespace),
 		},
 		//TODO （考虑节点属于当前集群节点和非当前集群节点情况）
-		IPs: []net.IP{
+		IPs: append([]net.IP{
+			net.ParseIP("::1"),
 			net.IPv4(127, 0, 0, 1),
-			firstIP,
-		},
+		}, firstIPs...),
 	}
 
 	if cfg.Namespace != constants.VirtualClusterSystemNamespace {
