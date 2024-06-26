@@ -24,7 +24,7 @@ spec:
       hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet
       tolerations:
-      - key: "node-role.kubernetes.io/control-plane"
+      - key: {{ .VirtualControllerLabel }}
         operator: "Exists"
         effect: "NoSchedule"
       affinity:
@@ -32,8 +32,8 @@ spec:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
               - matchExpressions:
-                  - key: node-role.kubernetes.io/control-plane
-                    operator: Exists
+                - key: {{ .VirtualControllerLabel }}
+                  operator: Exists
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
           - weight: 100
@@ -66,8 +66,12 @@ spec:
         - --etcd-certfile=/etc/etcd/pki/etcd-client.crt
         - --etcd-keyfile=/etc/etcd/pki/etcd-client.key
         #- --etcd-servers=https://{{ .EtcdClientService }}.{{ .Namespace }}.svc.cluster.local:{{ .EtcdListenClientPort }}
+        {{ if .IPV6First }}
+        - --etcd-servers=https://[{{ .EtcdClientService }}]:{{ .EtcdListenClientPort }}
+        {{ else }}
         - --etcd-servers=https://{{ .EtcdClientService }}:{{ .EtcdListenClientPort }}
-        - --bind-address=0.0.0.0
+        {{ end }}
+        - '--bind-address=::'
         - --kubelet-client-certificate=/etc/virtualcluster/pki/virtualCluster.crt
         - --kubelet-client-key=/etc/virtualcluster/pki/virtualCluster.key
         - --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname
@@ -160,7 +164,7 @@ spec:
       hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet
       tolerations:
-      - key: "node-role.kubernetes.io/control-plane"
+      - key: {{ .VirtualControllerLabel }}
         operator: "Exists"
         effect: "NoSchedule"
       affinity:
@@ -168,8 +172,8 @@ spec:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
               - matchExpressions:
-                  - key: node-role.kubernetes.io/control-plane
-                    operator: Exists
+                - key: {{ .VirtualControllerLabel }}
+                  operator: Exists
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
           - weight: 100
@@ -202,8 +206,12 @@ spec:
         - --etcd-certfile=/etc/etcd/pki/etcd-client.crt
         - --etcd-keyfile=/etc/etcd/pki/etcd-client.key
         #- --etcd-servers=https://{{ .EtcdClientService }}.{{ .Namespace }}.svc.cluster.local:{{ .EtcdListenClientPort }}
+        {{ if .IPV6First }}
+        - --etcd-servers=https://[{{ .EtcdClientService }}]:{{ .EtcdListenClientPort }}
+        {{ else }}
         - --etcd-servers=https://{{ .EtcdClientService }}:{{ .EtcdListenClientPort }}
-        - --bind-address=0.0.0.0
+        {{ end }}
+        - '--bind-address=::'
         - --kubelet-client-certificate=/etc/virtualcluster/pki/virtualCluster.crt
         - --kubelet-client-key=/etc/virtualcluster/pki/virtualCluster.key
         - --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname

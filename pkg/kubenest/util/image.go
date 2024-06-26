@@ -26,3 +26,11 @@ func GetCoreDnsImageTag() string {
 	}
 	return coreDnsImageTag
 }
+
+func GetVirtualControllerLabel() string {
+	lb := os.Getenv(constants.DefauleVirtualControllerLabelEnv)
+	if len(lb) == 0 {
+		return "node-role.kubernetes.io/control-plane"
+	}
+	return lb
+}

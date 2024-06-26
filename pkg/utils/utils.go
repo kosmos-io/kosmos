@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"fmt"
+	"os"
 	"strings"
 )
 
@@ -24,4 +26,19 @@ func IsIPv6(s string) bool {
 		}
 	}
 	return false
+}
+
+func GetEnvWithDefaultValue(envName string, defaultValue string) string {
+	v := os.Getenv(envName)
+	if len(v) == 0 {
+		return defaultValue
+	}
+	return v
+}
+
+func GenerateAddrStr(addr string, port string) string {
+	if IsIPv6(addr) {
+		return fmt.Sprintf("[%s]:%s", addr, port)
+	}
+	return fmt.Sprintf("%s:%s", addr, port)
 }

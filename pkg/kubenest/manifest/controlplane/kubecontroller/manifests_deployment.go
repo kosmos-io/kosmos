@@ -24,7 +24,7 @@ spec:
       automountServiceAccountToken: false
       priorityClassName: system-node-critical
       tolerations:
-      - key: "node-role.kubernetes.io/control-plane"
+      - key: {{ .VirtualControllerLabel }}
         operator: "Exists"
         effect: "NoSchedule"
       affinity:
@@ -32,7 +32,7 @@ spec:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
               - matchExpressions:
-                  - key: node-role.kubernetes.io/control-plane
+                  - key: {{ .VirtualControllerLabel }}
                     operator: Exists
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
@@ -55,15 +55,17 @@ spec:
         - --kubeconfig=/etc/virtualcluster/kubeconfig
         - --authentication-kubeconfig=/etc/virtualcluster/kubeconfig
         - --authorization-kubeconfig=/etc/virtualcluster/kubeconfig
-        - --bind-address=0.0.0.0
+        - '--bind-address=::'
         - --client-ca-file=/etc/virtualcluster/pki/ca.crt
-        - --cluster-cidr={{ .ClusterCIDR }}
+        - --cluster-cidr={{ .PodSubnet }}
         - --cluster-name=virtualcluster
         - --cluster-signing-cert-file=/etc/virtualcluster/pki/ca.crt
         - --cluster-signing-key-file=/etc/virtualcluster/pki/ca.key
         - --controllers=*,namespace,garbagecollector,serviceaccount-token,ttl-after-finished,bootstrapsigner,csrapproving,csrcleaner,csrsigning,clusterrole-aggregation
         - --leader-elect=true
+        {{ if not .IPV6First }}
         - --node-cidr-mask-size=24
+        {{ end }}
         - --root-ca-file=/etc/virtualcluster/pki/ca.crt
         - --service-account-private-key-file=/etc/virtualcluster/pki/virtualCluster.key
         - --service-cluster-ip-range={{ .ServiceSubnet }}

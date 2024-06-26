@@ -36,18 +36,27 @@ func installAPIServer(client clientset.Interface, name, namespace string, portMa
 		return nil
 	}
 
+	vclabel := util.GetVirtualControllerLabel()
+
+	IPV6FirstFlag, err := util.IPV6First(constants.ApiServerServiceSubnet)
+	if err != nil {
+		return err
+	}
+
 	apiserverDeploymentBytes, err := util.ParseTemplate(apiserver.ApiserverDeployment, struct {
-		DeploymentName, Namespace, ImageRepository, EtcdClientService, Version string
-		ServiceSubnet, VirtualClusterCertsSecret, EtcdCertsSecret              string
-		Replicas                                                               int
-		EtcdListenClientPort                                                   int32
-		ClusterPort                                                            int32
-		AdmissionPlugins                                                       bool
+		DeploymentName, Namespace, ImageRepository, EtcdClientService, Version, VirtualControllerLabel string
+		ServiceSubnet, VirtualClusterCertsSecret, EtcdCertsSecret                                      string
+		Replicas                                                                                       int
+		EtcdListenClientPort                                                                           int32
+		ClusterPort                                                                                    int32
+		AdmissionPlugins                                                                               bool
+		IPV6First                                                                                      bool
 	}{
 		DeploymentName:            fmt.Sprintf("%s-%s", name, "apiserver"),
 		Namespace:                 namespace,
 		ImageRepository:           imageRepository,
 		Version:                   imageVersion,
+		VirtualControllerLabel:    vclabel,
 		EtcdClientService:         clusterIp,
 		ServiceSubnet:             constants.ApiServerServiceSubnet,
 		VirtualClusterCertsSecret: fmt.Sprintf("%s-%s", name, "cert"),
@@ -56,6 +65,7 @@ func installAPIServer(client clientset.Interface, name, namespace string, portMa
 		EtcdListenClientPort:      constants.ApiServerEtcdListenClientPort,
 		ClusterPort:               portMap[constants.ApiServerPortKey],
 		AdmissionPlugins:          opt.AdmissionPlugins,
+		IPV6First:                 IPV6FirstFlag,
 	})
 	if err != nil {
 		return fmt.Errorf("error when parsing virtual cluster apiserver deployment template: %w", err)

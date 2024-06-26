@@ -1,27 +1,32 @@
 package constants
 
-import "time"
+import (
+	"time"
+
+	"github.com/kosmos.io/kosmos/pkg/utils"
+)
 
 const (
-	InitControllerName            = "virtual-cluster-init-controller"
-	NodeControllerName            = "virtual-cluster-node-controller"
-	GlobalNodeControllerName      = "global-node-controller"
-	KosmosJoinControllerName      = "kosmos-join-controller"
-	KosmosNs                      = "kosmos-system"
-	SystemNs                      = "kube-system"
-	DefaultNs                     = "default"
-	DefaultImageRepositoryEnv     = "IMAGE_REPOSITIRY"
-	DefaultImageVersionEnv        = "IMAGE_VERSION"
-	DefaultCoreDnsImageTagEnv     = "COREDNS_IMAGE_TAG"
-	VirtualClusterFinalizerName   = "kosmos.io/virtual-cluster-finalizer"
-	ServiceType                   = "NodePort"
-	EtcdServiceType               = "ClusterIP"
-	DisableCascadingDeletionLabel = "operator.virtualcluster.io/disable-cascading-deletion"
-	ControllerFinalizerName       = "operator.virtualcluster.io/finalizer"
-	DefaultKubeconfigPath         = "/etc/cluster-tree/cert"
-	Label                         = "virtualCluster-app"
-	ComponentBeReadyTimeout       = 300 * time.Second
-	ComponentBeDeletedTimeout     = 300 * time.Second
+	InitControllerName               = "virtual-cluster-init-controller"
+	NodeControllerName               = "virtual-cluster-node-controller"
+	GlobalNodeControllerName         = "global-node-controller"
+	KosmosJoinControllerName         = "kosmos-join-controller"
+	KosmosNs                         = "kosmos-system"
+	SystemNs                         = "kube-system"
+	DefaultNs                        = "default"
+	DefaultImageRepositoryEnv        = "IMAGE_REPOSITIRY"
+	DefaultImageVersionEnv           = "IMAGE_VERSION"
+	DefaultCoreDnsImageTagEnv        = "COREDNS_IMAGE_TAG"
+	VirtualClusterFinalizerName      = "kosmos.io/virtual-cluster-finalizer"
+	ServiceType                      = "NodePort"
+	EtcdServiceType                  = "ClusterIP"
+	DisableCascadingDeletionLabel    = "operator.virtualcluster.io/disable-cascading-deletion"
+	ControllerFinalizerName          = "operator.virtualcluster.io/finalizer"
+	DefaultKubeconfigPath            = "/etc/cluster-tree/cert"
+	Label                            = "virtualCluster-app"
+	ComponentBeReadyTimeout          = 300 * time.Second
+	ComponentBeDeletedTimeout        = 300 * time.Second
+	DefauleVirtualControllerLabelEnv = "VIRTUAL_CONTROLLER_LABEL"
 
 	// CertificateBlockType is a possible value for pem.Block.Type.
 	CertificateBlockType           = "CERTIFICATE"
@@ -43,7 +48,6 @@ const (
 	//controlplane apiserver
 	ApiServer                     = "apiserver"
 	ApiServerAnp                  = "apiserver-anp"
-	ApiServerServiceSubnet        = "10.237.6.0/18"
 	ApiServerEtcdListenClientPort = 2379
 	ApiServerServiceType          = "NodePort"
 	// APICallRetryInterval defines how long kubeadm should wait before retrying a failed API operation
@@ -121,3 +125,12 @@ const (
 )
 
 type Action string
+
+var ApiServerServiceSubnet string
+var KubeControllerManagerPodSubnet string
+
+func init() {
+	ApiServerServiceSubnet = utils.GetEnvWithDefaultValue("SERVICE_SUBNET", "10.237.6.0/18")
+	// fd11:1122:1111::/48,
+	KubeControllerManagerPodSubnet = utils.GetEnvWithDefaultValue("POD_SUBNET", "10.244.0.0/16")
+}
