@@ -11,6 +11,7 @@ import (
 	"k8s.io/klog/v2"
 
 	env "github.com/kosmos.io/kosmos/pkg/kubenest/controller/virtualcluster.node.controller/env"
+	"github.com/kosmos.io/kosmos/pkg/utils"
 )
 
 type Status int
@@ -175,6 +176,6 @@ func NewExectorHelper(addr string, port string) *ExectorHelper {
 	token := env.GetExectorToken()
 	return &ExectorHelper{
 		Token: token,
-		Addr:  fmt.Sprintf("%s:%s", addr, exectorPort),
+		Addr:  utils.GenerateAddrStr(addr, exectorPort),
 	}
 }

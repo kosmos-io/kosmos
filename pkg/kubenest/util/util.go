@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net"
+	"strings"
 
 	"k8s.io/client-go/kubernetes"
 
@@ -42,22 +43,48 @@ func GenerateKubeclient(virtualCluster *v1alpha1.VirtualCluster) (kubernetes.Int
 	return k8sClient, nil
 }
 
-func GetFirstIP(ipNetStr string) (net.IP, error) {
-	ip, ipNet, err := net.ParseCIDR(ipNetStr)
-	if err != nil {
-		return nil, fmt.Errorf("parse ipNetStr failed: %s", err)
+func GetFirstIP(ipNetStrs string) ([]net.IP, error) {
+	ipNetStrArray := strings.Split(ipNetStrs, ",")
+	if len(ipNetStrArray) > 2 {
+		return nil, fmt.Errorf("getFirstIP failed, ipstring is too long: %s", ipNetStrs)
 	}
 
-	ip = ip.To4()
-	if ip == nil {
-		return nil, fmt.Errorf("only support ipv4")
+	var ips []net.IP
+	for _, ipNetStr := range ipNetStrArray {
+		ip, ipNet, err := net.ParseCIDR(ipNetStr)
+		if err != nil {
+			return nil, fmt.Errorf("parse ipNetStr failed: %s", err)
+		}
+
+		networkIP := ip.Mask(ipNet.Mask)
+
+		// IPv4
+		if ip.To4() != nil {
+			firstIP := make(net.IP, len(networkIP))
+			copy(firstIP, networkIP)
+			firstIP[len(firstIP)-1]++
+			ips = append(ips, firstIP)
+			continue
+		}
+
+		// IPv6
+		firstIP := make(net.IP, len(networkIP))
+		copy(firstIP, networkIP)
+		for i := len(firstIP) - 1; i >= 0; i-- {
+			firstIP[i]++
+			if firstIP[i] != 0 {
+				break
+			}
+		}
+		ips = append(ips, firstIP)
 	}
+	return ips, nil
+}
 
-	networkIP := ip.Mask(ipNet.Mask)
-
-	firstIP := make(net.IP, len(networkIP))
-	copy(firstIP, networkIP)
-	firstIP[3]++
-
-	return firstIP, nil
+func IPV6First(ipNetStr string) (bool, error) {
+	ipNetStrArray := strings.Split(ipNetStr, ",")
+	if len(ipNetStrArray) > 2 {
+		return false, fmt.Errorf("getFirstIP failed, ipstring is too long: %s", ipNetStr)
+	}
+	return utils.IsIPv6(ipNetStrArray[0]), nil
 }
