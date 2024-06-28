@@ -5,6 +5,7 @@ import (
 	clientset "k8s.io/client-go/kubernetes"
 
 	ko "github.com/kosmos.io/kosmos/cmd/kubenest/operator/app/options"
+	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/util/cert"
 )
@@ -18,7 +19,7 @@ type InitData interface {
 	RemoteClient() clientset.Interface
 	KosmosClient() versioned.Interface
 	DataDir() string
-	VirtualClusterVersion() string
+	VirtualCluster() *v1alpha1.VirtualCluster
 	ExternalIP() string
 	HostPort() int32
 	HostPortMap() map[string]int32

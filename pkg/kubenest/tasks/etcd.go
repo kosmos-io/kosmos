@@ -56,7 +56,7 @@ func runDeployEtcd(r workflow.RunData) error {
 		return errors.New("deploy-etcd task invoked with an invalid data struct")
 	}
 
-	err := controlplane.EnsureVirtualClusterEtcd(data.RemoteClient(), data.GetName(), data.GetNamespace())
+	err := controlplane.EnsureVirtualClusterEtcd(data.RemoteClient(), data.GetName(), data.GetNamespace(), data.KubeNestOpt(), data.VirtualCluster())
 	if err != nil {
 		return fmt.Errorf("failed to install etcd component, err: %w", err)
 	}

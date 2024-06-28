@@ -12,6 +12,7 @@ import (
 	"gopkg.in/yaml.v3"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
@@ -34,7 +35,6 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
-	"github.com/kosmos.io/kosmos/pkg/kubenest/controller/virtualcluster.node.controller/selector"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/util"
 )
 
@@ -116,6 +116,7 @@ func (c *VirtualClusterInitController) Reconcile(ctx context.Context, request re
 		updatedCluster.Status.Phase = v1alpha1.Preparing
 		err := c.Update(updatedCluster)
 		if err != nil {
+			klog.Errorf("Error update virtualcluster %s status, err: %v", updatedCluster.Name, err)
 			return reconcile.Result{RequeueAfter: RequeueTime}, errors.Wrapf(err, "Error update virtualcluster %s status", updatedCluster.Name)
 		}
 		err = c.createVirtualCluster(updatedCluster, c.KubeNestOptions)
@@ -233,6 +234,7 @@ func (c *VirtualClusterInitController) ensureFinalizer(virtualCluster *v1alpha1.
 	err := c.Client.Update(context.TODO(), updated)
 	if err != nil {
 		klog.Errorf("update virtualcluster %s error. %v", virtualCluster.Name, err)
+		klog.Errorf("Failed to add finalizer to VirtualCluster %s/%s: %v", virtualCluster.Namespace, virtualCluster.Name, err)
 		return reconcile.Result{Requeue: true}, err
 	}
 
@@ -257,6 +259,7 @@ func (c *VirtualClusterInitController) removeFinalizer(virtualCluster *v1alpha1.
 	controllerutil.RemoveFinalizer(updated, VirtualClusterControllerFinalizer)
 	err := c.Client.Update(context.TODO(), updated)
 	if err != nil {
+		klog.Errorf("Failed to remove finalizer to VirtualCluster %s/%s: %v", virtualCluster.Namespace, virtualCluster.Name, err)
 		return reconcile.Result{Requeue: true}, err
 	}
 
@@ -380,20 +383,33 @@ func (c *VirtualClusterInitController) checkPromotePoliciesChanged(virtualCluste
 	return false, nil
 }
 
+func IsLabelsMatchSelector(selector *metav1.LabelSelector, targetLabels labels.Set) (match bool, err error) {
+	if selector == nil {
+		return true, nil
+	}
+	sel, err := metav1.LabelSelectorAsSelector(selector)
+	if err != nil {
+		return false, err
+	}
+
+	match = sel.Matches(targetLabels)
+	return match, nil
+}
+
 // nodesChangeCalculate calculate nodes changed when update virtualcluster.
 func (c *VirtualClusterInitController) assignNodesByPolicy(virtualCluster *v1alpha1.VirtualCluster, policy v1alpha1.PromotePolicy, policyMatchedGlobalNodes []v1alpha1.GlobalNode) ([]v1alpha1.NodeInfo, error) {
 	nodesAssigned, err := retrieveAssignedNodesByPolicy(virtualCluster, policyMatchedGlobalNodes)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Parse assigned nodes by policy %s error", policy.LabelSelector.String())
+		return nil, fmt.Errorf("parse assigned nodes by policy %v error", policy.LabelSelector)
 	}
 
 	requestNodesChanged := policy.NodeCount - int32(len(nodesAssigned))
 	if requestNodesChanged == 0 {
-		klog.V(2).Infof("Nothing to do for policy %s", policy.LabelSelector.String())
+		klog.V(2).Infof("Nothing to do for policy %v", policy.LabelSelector)
 		return nodesAssigned, nil
 	} else if requestNodesChanged > 0 {
 		// nodes needs to increase
-		klog.V(2).Infof("Try allocate %d nodes for policy %s", requestNodesChanged, policy.LabelSelector.String())
+		klog.V(2).Infof("Try allocate %d nodes for policy %v", requestNodesChanged, policy.LabelSelector)
 		var newAssignNodesIndex []int
 		for i, globalNode := range policyMatchedGlobalNodes {
 			if globalNode.Spec.State == v1alpha1.NodeFreeState {
@@ -404,20 +420,20 @@ func (c *VirtualClusterInitController) assignNodesByPolicy(virtualCluster *v1alp
 			}
 		}
 		if int32(len(newAssignNodesIndex)) < requestNodesChanged {
-			return nodesAssigned, errors.Errorf("There is not enough work nodes for promotepolicy %s. Desired %d, matched %d", policy.LabelSelector.String(), requestNodesChanged, len(newAssignNodesIndex))
+			return nodesAssigned, errors.Errorf("There is not enough work nodes for promotepolicy %v. Desired %d, matched %d", policy.LabelSelector, requestNodesChanged, len(newAssignNodesIndex))
 		}
 		for _, index := range newAssignNodesIndex {
-			klog.V(2).Infof("Assign node %s for virtualcluster %s policy %s", policyMatchedGlobalNodes[index].Name, virtualCluster.GetName(), policy.LabelSelector.String())
+			klog.V(2).Infof("Assign node %s for virtualcluster %s policy %v", policyMatchedGlobalNodes[index].Name, virtualCluster.GetName(), policy.LabelSelector)
 			nodesAssigned = append(nodesAssigned, v1alpha1.NodeInfo{
 				NodeName: policyMatchedGlobalNodes[index].Name,
 			})
 		}
 	} else {
 		// nodes needs to decrease
-		klog.V(2).Infof("Try decrease nodes %d for policy %s", -requestNodesChanged, policy.LabelSelector.String())
+		klog.V(2).Infof("Try decrease nodes %d for policy %v", -requestNodesChanged, policy.LabelSelector)
 		decrease := int(-requestNodesChanged)
 		if len(nodesAssigned) < decrease {
-			return nil, errors.Errorf("Illegal work nodes decrease operation for promotepolicy %s. Desired %d, matched %d", policy.LabelSelector.String(), decrease, len(nodesAssigned))
+			return nil, errors.Errorf("Illegal work nodes decrease operation for promotepolicy %v. Desired %d, matched %d", policy.LabelSelector, decrease, len(nodesAssigned))
 		}
 		nodesAssigned = nodesAssigned[:len(nodesAssigned)-decrease]
 		// note: node pool will not be modified here. NodeController will modify it when node delete success
@@ -437,10 +453,24 @@ func retrieveAssignedNodesByPolicy(virtualCluster *v1alpha1.VirtualCluster, poli
 	return nodesAssignedMatchedPolicy, nil
 }
 
+func matchesWithLabelSelector(metaLabels labels.Set, labelSelector *metav1.LabelSelector) (bool, error) {
+	if labelSelector == nil {
+		return true, nil
+	}
+
+	sel, err := metav1.LabelSelectorAsSelector(labelSelector)
+	if err != nil {
+		return false, err
+	}
+
+	match := sel.Matches(metaLabels)
+	return match, nil
+}
+
 func retrieveGlobalNodesWithLabelSelector(nodes []v1alpha1.GlobalNode, labelSelector *metav1.LabelSelector) ([]v1alpha1.GlobalNode, error) {
 	matchedNodes := make([]v1alpha1.GlobalNode, 0)
 	for _, node := range nodes {
-		matched, err := selector.MatchesWithLabelSelector(node.Spec.Labels, labelSelector)
+		matched, err := matchesWithLabelSelector(node.Spec.Labels, labelSelector)
 		if err != nil {
 			return nil, err
 		}
@@ -457,7 +487,8 @@ func (c *VirtualClusterInitController) setGlobalNodeUsageStatus(virtualCluster *
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				klog.Errorf("globalnode %s not found. This should not happen normally", node.Name)
-				return nil // 如果节点不存在，则不执行更新并返回nil
+				// 如果节点不存在，则不执行更新并返回nil
+				return nil
 			}
 			return fmt.Errorf("failed to get globalNode %s: %v", node.Name, err)
 		}
