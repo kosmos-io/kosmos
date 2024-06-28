@@ -23,6 +23,7 @@ type InitData interface {
 	ExternalIP() string
 	HostPort() int32
 	HostPortMap() map[string]int32
+	VipMap() map[string]string
 	DynamicClient() *dynamic.DynamicClient
 	KubeNestOpt() *ko.KubeNestOptions
 	PluginOptions() map[string]string

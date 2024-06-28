@@ -10,11 +10,11 @@ import (
 
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
-	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
+	cs "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/record"
@@ -33,10 +33,8 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
-	env "github.com/kosmos.io/kosmos/pkg/kubenest/controller/virtualcluster.node.controller/env"
-	"github.com/kosmos.io/kosmos/pkg/kubenest/controller/virtualcluster.node.controller/exector"
+	"github.com/kosmos.io/kosmos/pkg/kubenest/tasks"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/util"
-	apiclient "github.com/kosmos.io/kosmos/pkg/kubenest/util/api-client"
 )
 
 type VirtualClusterInitController struct {
@@ -58,6 +56,10 @@ type NodePool struct {
 
 type HostPortPool struct {
 	PortsPool []int32 `yaml:"portsPool"`
+}
+
+type VipPool struct {
+	Vips []string `yaml:"vipPool"`
 }
 
 const (
@@ -144,6 +146,23 @@ func (c *VirtualClusterInitController) Reconcile(ctx context.Context, request re
 			return reconcile.Result{}, errors.Wrapf(err, "Error update virtualcluster %s status", updatedCluster.Name)
 		}
 	case v1alpha1.AllNodeReady:
+		name, namespace := request.Name, request.Namespace
+		// check if the vc enable vip
+		if len(originalCluster.Status.VipMap) > 0 {
+			// label node for keepalived
+			vcClient, err := tasks.GetVcClientset(c.RootClientSet, name, namespace)
+			if err != nil {
+				klog.Errorf("Get vc client failed. err: %s", err.Error())
+				return reconcile.Result{}, errors.Wrapf(err, "Get vc client failed. err: %s", err.Error())
+			}
+			reps, err := c.labelNode(vcClient)
+			if err != nil {
+				klog.Errorf("Label node for keepalived failed. err: %s", err.Error())
+				return reconcile.Result{}, errors.Wrapf(err, "Label node for keepalived failed. err: %s", err.Error())
+			}
+			klog.V(2).Infof("Label %d node for keepalived", reps)
+		}
+
 		err := c.ensureAllPodsRunning(updatedCluster, constants.WaitAllPodsRunningTimeoutSeconds*time.Second)
 		if err != nil {
 			klog.Errorf("Check all pods running err: %s", err.Error())
@@ -238,12 +257,22 @@ func (c *VirtualClusterInitController) removeFinalizer(virtualCluster *v1alpha1.
 
 // createVirtualCluster assign work nodes, create control plane and create compoennts from manifests
 func (c *VirtualClusterInitController) createVirtualCluster(virtualCluster *v1alpha1.VirtualCluster, kubeNestOptions *options.KubeNestOptions) error {
-	klog.V(2).Infof("Reconciling virtual cluster", "name", virtualCluster.Name)
+	klog.V(2).Infof("Reconciling virtual cluster %s %s", "name", virtualCluster.Name)
 
 	//Assign host port
 	_, err := c.AllocateHostPort(virtualCluster)
 	if err != nil {
 		return errors.Wrap(err, "Error in assign host port!")
+	}
+	// check if enable vip
+	vipPool, err := GetVipFromConfigMap(c.RootClientSet, constants.KosmosNs, constants.VipPoolConfigMapName, constants.VipPoolKey)
+	if err == nil && vipPool != nil && len(vipPool.Vips) > 0 {
+		klog.V(2).Infof("Enable vip for virtual cluster %s", virtualCluster.Name)
+		//Allocate vip
+		err = c.AllocateVip(virtualCluster, vipPool)
+		if err != nil {
+			return errors.Wrap(err, "Error in allocate vip!")
+		}
 	}
 
 	executer, err := NewExecutor(virtualCluster, c.Client, c.Config, kubeNestOptions)
@@ -492,13 +521,31 @@ func GetHostPortPoolFromConfigMap(client kubernetes.Interface, ns, cmName, dataK
 	return &hostPool, nil
 }
 
-// Return false to indicate that the port is not occupied
-func (c *VirtualClusterInitController) isPortAllocated(port int32, hostAddress []string) bool {
+func GetVipFromConfigMap(client kubernetes.Interface, ns, cmName, key string) (*VipPool, error) {
+	vipPoolCm, err := client.CoreV1().ConfigMaps(ns).Get(context.TODO(), cmName, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	yamlData, exist := vipPoolCm.Data[key]
+	if !exist {
+		return nil, fmt.Errorf("key '%s' not found in vip pool ConfigMap '%s'", key, cmName)
+	}
+
+	var vipPool VipPool
+	if err := yaml.Unmarshal([]byte(yamlData), &vipPool); err != nil {
+		return nil, err
+	}
+
+	return &vipPool, nil
+}
+
+func (c *VirtualClusterInitController) isPortAllocated(port int32) bool {
 	vcList := &v1alpha1.VirtualClusterList{}
 	err := c.List(context.Background(), vcList)
 	if err != nil {
 		klog.Errorf("list virtual cluster error: %v", err)
-		return true
+		return false
 	}
 
 	for _, vc := range vcList.Items {
@@ -516,84 +563,7 @@ func (c *VirtualClusterInitController) isPortAllocated(port int32, hostAddress [
 		}
 	}
 
-	ret, err := checkPortOnHostWithAddresses(port, hostAddress)
-	if err != nil {
-		klog.Errorf("check port on host error: %v", err)
-		return true
-	}
-	return ret
-}
-
-// Return false to indicate that the port is not occupied
-func checkPortOnHostWithAddresses(port int32, hostAddress []string) (bool, error) {
-	for _, addr := range hostAddress {
-		flag, err := CheckPortOnHost(addr, port)
-		if err != nil {
-			return false, err
-		}
-		if flag {
-			return true, nil
-		}
-	}
-	return false, nil
-}
-
-func findAddress(node corev1.Node) (string, error) {
-	for _, addr := range node.Status.Addresses {
-		if addr.Type == corev1.NodeInternalIP {
-			return addr.Address, nil
-		}
-	}
-	return "", fmt.Errorf("cannot find internal IP address in node addresses, node name: %s", node.GetName())
-}
-
-// Return false to indicate that the port is not occupied
-func CheckPortOnHost(addr string, port int32) (bool, error) {
-	hostExectorHelper := exector.NewExectorHelper(addr, "")
-	checkCmd := &exector.CheckExector{
-		Port: fmt.Sprintf("%d", port),
-	}
-
-	var ret *exector.ExectorReturn
-	err := apiclient.TryRunCommand(func() error {
-		ret = hostExectorHelper.DoExector(context.TODO().Done(), checkCmd)
-		if ret.Code != 1000 {
-			return fmt.Errorf("chekc port failed, err: %s", ret.String())
-		}
-		return nil
-	}, 3)
-
-	if err != nil {
-		klog.Errorf("check port on host error! addr:%s, port %d, err: %s", addr, port, err.Error())
-		return true, err
-	}
-
-	if ret.Status != exector.SUCCESS {
-		return true, fmt.Errorf("pod[%d] is occupied", port)
-	} else {
-		return false, nil
-	}
-}
-
-func (c *VirtualClusterInitController) findHostAddresses() ([]string, error) {
-	nodes, err := c.RootClientSet.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{
-		LabelSelector: env.GetControlPlaneLabel(),
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	ret := []string{}
-
-	for _, node := range nodes.Items {
-		addr, err := findAddress(node)
-		if err != nil {
-			return nil, err
-		}
-
-		ret = append(ret, addr)
-	}
-	return ret, nil
+	return false
 }
 
 // AllocateHostPort allocate host port for virtual cluster
@@ -608,20 +578,11 @@ func (c *VirtualClusterInitController) AllocateHostPort(virtualCluster *v1alpha1
 	if err != nil {
 		return 0, err
 	}
-
-	hostAddress, err := c.findHostAddresses()
-	if err != nil {
-		return 0, err
-	}
-
 	ports := func() []int32 {
 		ports := make([]int32, 0)
 		for _, p := range hostPool.PortsPool {
-			if !c.isPortAllocated(p, hostAddress) {
+			if !c.isPortAllocated(p) {
 				ports = append(ports, p)
-				if len(ports) > constants.VirtualClusterPortNum {
-					break
-				}
 			}
 		}
 		return ports
@@ -639,4 +600,87 @@ func (c *VirtualClusterInitController) AllocateHostPort(virtualCluster *v1alpha1
 	klog.V(4).InfoS("Success allocate virtual cluster ports", "allocate ports", ports, "vc ports", ports[:2])
 
 	return 0, err
+}
+
+// AllocateVip allocate vip for virtual cluster
+// #nosec G602
+func (c *VirtualClusterInitController) AllocateVip(virtualCluster *v1alpha1.VirtualCluster, vipPool *VipPool) error {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	if len(virtualCluster.Status.VipMap) > 0 {
+		return nil
+	}
+	klog.V(4).InfoS("get vip pool", "vipPool", vipPool)
+
+	vcList := &v1alpha1.VirtualClusterList{}
+	err := c.List(context.Background(), vcList)
+	if err != nil {
+		klog.Errorf("list virtual cluster error: %v", err)
+		return err
+	}
+	var allocatedVips []string
+	for _, vc := range vcList.Items {
+		for _, val := range vc.Status.VipMap {
+			allocatedVips = append(allocatedVips, val)
+		}
+	}
+
+	vip, err := util.FindAvailableIP(vipPool.Vips, allocatedVips)
+	if err != nil {
+		klog.Errorf("find available vip error: %v", err)
+		return err
+	}
+	virtualCluster.Status.VipMap = make(map[string]string)
+	virtualCluster.Status.VipMap[constants.VcVipStatusKey] = vip
+
+	return err
+}
+
+func (c *VirtualClusterInitController) labelNode(client cs.Interface) (reps int, err error) {
+	replicas := constants.VipKeepAlivedReplicas
+	nodes, err := client.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return 0, fmt.Errorf("failed to list nodes, err: %w", err)
+	}
+	if len(nodes.Items) == 0 {
+		return 0, fmt.Errorf("no nodes found")
+	}
+	reps = replicas
+	// select replicas nodes
+	if replicas > len(nodes.Items) {
+		reps = len(nodes.Items)
+	}
+	randomIndex, err := util.SecureRandomInt(reps)
+	if err != nil {
+		klog.Errorf("failed to get random index for master node, err: %v", err)
+		return 0, err
+	}
+	// sub reps as nodes
+	subNodes := nodes.Items[:reps]
+	masterNode := nodes.Items[randomIndex]
+
+	// label node
+	for _, node := range subNodes {
+		currentNode := node
+		labels := currentNode.GetLabels()
+		if currentNode.Name == masterNode.Name {
+			// label master
+			labels[constants.VipKeepAlivedNodeRoleKey] = constants.VipKeepAlivedNodeRoleMaster
+		} else {
+			// label backup
+			labels[constants.VipKeepAlivedNodeRoleKey] = constants.VipKeepalivedNodeRoleBackup
+		}
+		labels[constants.VipKeepAlivedNodeLabelKey] = constants.VipKeepAlivedNodeLabelValue
+
+		// update label
+		currentNode.SetLabels(labels)
+		_, err := client.CoreV1().Nodes().Update(context.TODO(), &currentNode, metav1.UpdateOptions{})
+		if err != nil {
+			klog.V(2).Infof("Failed to update labels for node %s: %v", currentNode.Name, err)
+			return 0, err
+		}
+		klog.V(2).Infof("Successfully updated labels for node %s", currentNode.Name)
+	}
+	klog.V(2).InfoS("[vip] Successfully label all node")
+	return reps, nil
 }
