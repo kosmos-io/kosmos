@@ -113,20 +113,36 @@ func getComponentConfigmaps(component string) []string {
 
 func getKubeControllerManagerManifest(name, namespace, clusterCIDR string) (*appsv1.Deployment, error) {
 	imageRepository, imageVersion := util.GetImageMessage()
+
+	vclabel := util.GetVirtualControllerLabel()
+
+	IPV6FirstFlag, err := util.IPV6First(constants.ApiServerServiceSubnet)
+	if err != nil {
+		return nil, err
+	}
+
+	podSubnet := constants.KubeControllerManagerPodSubnet
+	if len(clusterCIDR) > 0 {
+		podSubnet = clusterCIDR
+	}
+
 	kubeControllerManagerBytes, err := util.ParseTemplate(controller.KubeControllerManagerDeployment, struct {
-		DeploymentName, Namespace, ImageRepository, Version, ClusterCIDR string
-		VirtualClusterCertsSecret, KubeconfigSecret, ServiceSubnet       string
-		Replicas                                                         int32
+		DeploymentName, Namespace, ImageRepository, Version, VirtualControllerLabel, PodSubnet string
+		VirtualClusterCertsSecret, KubeconfigSecret, ServiceSubnet                             string
+		Replicas                                                                               int32
+		IPV6First                                                                              bool
 	}{
 		DeploymentName:            fmt.Sprintf("%s-%s", name, "kube-controller-manager"),
 		Namespace:                 namespace,
 		ImageRepository:           imageRepository,
 		Version:                   imageVersion,
+		VirtualControllerLabel:    vclabel,
 		VirtualClusterCertsSecret: fmt.Sprintf("%s-%s", name, "cert"),
 		KubeconfigSecret:          fmt.Sprintf("%s-%s", name, "admin-config-clusterip"),
 		ServiceSubnet:             constants.ApiServerServiceSubnet,
+		PodSubnet:                 podSubnet,
 		Replicas:                  constants.KubeControllerReplicas,
-		ClusterCIDR:               clusterCIDR,
+		IPV6First:                 IPV6FirstFlag,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error when parsing kube-controller-manager deployment template: %w", err)
@@ -161,18 +177,20 @@ func getVirtualClusterSchedulerConfigMapManifest(name, namespace string) (*v1.Co
 
 func getVirtualClusterSchedulerManifest(name, namespace string) (*appsv1.Deployment, error) {
 	imageRepository, imageVersion := util.GetImageMessage()
+	vclabel := util.GetVirtualControllerLabel()
 	virtualClusterSchedulerBytes, err := util.ParseTemplate(scheduler.VirtualClusterSchedulerDeployment, struct {
-		Replicas                                                             int32
-		DeploymentName, Namespace, SystemNamespace, ImageRepository, Version string
-		Image, KubeconfigSecret                                              string
+		Replicas                                                                                     int32
+		DeploymentName, Namespace, SystemNamespace, ImageRepository, Version, VirtualControllerLabel string
+		Image, KubeconfigSecret                                                                      string
 	}{
-		DeploymentName:   fmt.Sprintf("%s-%s", name, "virtualcluster-scheduler"),
-		Namespace:        namespace,
-		SystemNamespace:  constants.SystemNs,
-		ImageRepository:  imageRepository,
-		Version:          imageVersion,
-		KubeconfigSecret: fmt.Sprintf("%s-%s", name, "admin-config-clusterip"),
-		Replicas:         constants.VirtualClusterSchedulerReplicas,
+		DeploymentName:         fmt.Sprintf("%s-%s", name, "virtualcluster-scheduler"),
+		Namespace:              namespace,
+		SystemNamespace:        constants.SystemNs,
+		ImageRepository:        imageRepository,
+		VirtualControllerLabel: vclabel,
+		Version:                imageVersion,
+		KubeconfigSecret:       fmt.Sprintf("%s-%s", name, "admin-config-clusterip"),
+		Replicas:               constants.VirtualClusterSchedulerReplicas,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error when parsing virtualCluster-scheduler deployment template: %w", err)

@@ -18,6 +18,7 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/kubenest/util"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/util/cert"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/workflow"
+	"github.com/kosmos.io/kosmos/pkg/utils"
 )
 
 var (
@@ -177,14 +178,14 @@ func runUploadAdminKubeconfig(r workflow.RunData) error {
 	}
 	portInfo := getPortInfoFromAPIServerService(service)
 	// controlplane address + nodePort
-	controlplaneIpEndpoint = fmt.Sprintf("https://%s:%d", data.ControlplaneAddress(), portInfo.NodePort)
+	controlplaneIpEndpoint = fmt.Sprintf("https://%s", utils.GenerateAddrStr(data.ControlplaneAddress(), fmt.Sprintf("%d", portInfo.NodePort)))
 	controlplaneIpKubeconfig, err := buildKubeConfigFromSpec(data, controlplaneIpEndpoint)
 	if err != nil {
 		return err
 	}
 
 	//clusterIP address + clusterIPPort
-	clusterIPEndpoint = fmt.Sprintf("https://%s:%d", service.Spec.ClusterIP, portInfo.ClusterIPPort)
+	clusterIPEndpoint = fmt.Sprintf("https://%s", utils.GenerateAddrStr(service.Spec.ClusterIP, fmt.Sprintf("%d", portInfo.ClusterIPPort)))
 	clusterIPKubeconfig, err := buildKubeConfigFromSpec(data, clusterIPEndpoint)
 	if err != nil {
 		return err

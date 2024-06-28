@@ -154,25 +154,34 @@ func installAnpServer(client clientset.Interface, name, namespace string, portMa
 		return nil
 	}
 
+	IPV6FirstFlag, err := util.IPV6First(constants.ApiServerServiceSubnet)
+	if err != nil {
+		return err
+	}
+
+	vclabel := util.GetVirtualControllerLabel()
+
 	apiserverDeploymentBytes, err := util.ParseTemplate(apiserver.ApiserverAnpDeployment, struct {
-		DeploymentName, Namespace, ImageRepository, EtcdClientService, Version string
-		ServiceSubnet, VirtualClusterCertsSecret, EtcdCertsSecret              string
-		Replicas                                                               int
-		EtcdListenClientPort                                                   int32
-		ClusterPort                                                            int32
-		AgentPort                                                              int32
-		ServerPort                                                             int32
-		HealthPort                                                             int32
-		AdminPort                                                              int32
-		KubeconfigSecret                                                       string
-		Name                                                                   string
-		AnpMode                                                                string
-		AdmissionPlugins                                                       bool
+		DeploymentName, Namespace, ImageRepository, EtcdClientService, Version, VirtualControllerLabel string
+		ServiceSubnet, VirtualClusterCertsSecret, EtcdCertsSecret                                      string
+		Replicas                                                                                       int
+		EtcdListenClientPort                                                                           int32
+		ClusterPort                                                                                    int32
+		AgentPort                                                                                      int32
+		ServerPort                                                                                     int32
+		HealthPort                                                                                     int32
+		AdminPort                                                                                      int32
+		KubeconfigSecret                                                                               string
+		Name                                                                                           string
+		AnpMode                                                                                        string
+		AdmissionPlugins                                                                               bool
+		IPV6First                                                                                      bool
 	}{
 		DeploymentName:            fmt.Sprintf("%s-%s", name, "apiserver"),
 		Namespace:                 namespace,
 		ImageRepository:           imageRepository,
 		Version:                   imageVersion,
+		VirtualControllerLabel:    vclabel,
 		EtcdClientService:         clusterIp,
 		ServiceSubnet:             constants.ApiServerServiceSubnet,
 		VirtualClusterCertsSecret: fmt.Sprintf("%s-%s", name, "cert"),
@@ -188,6 +197,7 @@ func installAnpServer(client clientset.Interface, name, namespace string, portMa
 		Name:                      name,
 		AnpMode:                   kubeNestOpt.AnpMode,
 		AdmissionPlugins:          kubeNestOpt.AdmissionPlugins,
+		IPV6First:                 IPV6FirstFlag,
 	})
 	if err != nil {
 		return fmt.Errorf("error when parsing virtual cluster apiserver deployment template: %w", err)
