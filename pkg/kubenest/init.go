@@ -36,6 +36,7 @@ type initData struct {
 	externalIP            string
 	hostPort              int32
 	hostPortMap           map[string]int32
+	vipMap                map[string]string
 	kubeNestOptions       *v1alpha1.KubeNestConfiguration
 	virtualCluster        *v1alpha1.VirtualCluster
 	ETCDStorageClass      string
@@ -189,6 +190,7 @@ func newRunData(opt *InitOptions) (*initData, error) {
 		externalIP:            opt.virtualCluster.Spec.ExternalIP,
 		hostPort:              opt.virtualCluster.Status.Port,
 		hostPortMap:           opt.virtualCluster.Status.PortMap,
+		vipMap:                opt.virtualCluster.Status.VipMap,
 		kubeNestOptions:       opt.KubeNestOptions,
 		virtualCluster:        opt.virtualCluster,
 		ETCDUnitSize:          opt.KubeNestOptions.KubeInKubeConfig.ETCDUnitSize,
@@ -247,6 +249,9 @@ func (i initData) DataDir() string {
 func (i initData) VirtualCluster() *v1alpha1.VirtualCluster {
 	return i.virtualCluster
 }
+func (i initData) VirtualClusterVersion() string {
+	return i.virtualClusterVersion.String()
+}
 
 func (i initData) ExternalIP() string {
 	return i.externalIP
@@ -258,6 +263,10 @@ func (i initData) HostPort() int32 {
 
 func (i initData) HostPortMap() map[string]int32 {
 	return i.hostPortMap
+}
+
+func (i initData) VipMap() map[string]string {
+	return i.vipMap
 }
 
 func (i initData) DynamicClient() *dynamic.DynamicClient {
