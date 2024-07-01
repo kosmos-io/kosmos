@@ -10,7 +10,6 @@ import (
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
-	ko "github.com/kosmos.io/kosmos/cmd/kubenest/operator/app/options"
 	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/tasks"
@@ -37,7 +36,7 @@ type initData struct {
 	externalIP            string
 	hostPort              int32
 	hostPortMap           map[string]int32
-	kubeNestOptions       *ko.KubeNestOptions
+	kubeNestOptions       *v1alpha1.KubeNestConfiguration
 	virtualCluster        *v1alpha1.VirtualCluster
 	ETCDStorageClass      string
 	ETCDUnitSize          string
@@ -50,7 +49,7 @@ type InitOptions struct {
 	virtualClusterVersion string
 	virtualClusterDataDir string
 	virtualCluster        *v1alpha1.VirtualCluster
-	KubeNestOptions       *ko.KubeNestOptions
+	KubeNestOptions       *v1alpha1.KubeNestConfiguration
 }
 
 func NewInitPhase(opts *InitOptions) *workflow.Phase {
@@ -132,7 +131,7 @@ func NewInitOptWithKubeconfig(config *rest.Config) InitOpt {
 	}
 }
 
-func NewInitOptWithKubeNestOptions(options *ko.KubeNestOptions) InitOpt {
+func NewInitOptWithKubeNestOptions(options *v1alpha1.KubeNestConfiguration) InitOpt {
 	return func(o *InitOptions) {
 		o.KubeNestOptions = options
 	}
@@ -192,8 +191,8 @@ func newRunData(opt *InitOptions) (*initData, error) {
 		hostPortMap:           opt.virtualCluster.Status.PortMap,
 		kubeNestOptions:       opt.KubeNestOptions,
 		virtualCluster:        opt.virtualCluster,
-		ETCDUnitSize:          opt.KubeNestOptions.ETCDUnitSize,
-		ETCDStorageClass:      opt.KubeNestOptions.ETCDStorageClass,
+		ETCDUnitSize:          opt.KubeNestOptions.KubeInKubeConfig.ETCDUnitSize,
+		ETCDStorageClass:      opt.KubeNestOptions.KubeInKubeConfig.ETCDStorageClass,
 	}, nil
 }
 
@@ -265,7 +264,7 @@ func (i initData) DynamicClient() *dynamic.DynamicClient {
 	return i.dynamicClient
 }
 
-func (i initData) KubeNestOpt() *ko.KubeNestOptions {
+func (i initData) KubeNestOpt() *v1alpha1.KubeNestConfiguration {
 	return i.kubeNestOptions
 }
 

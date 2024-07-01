@@ -8,7 +8,6 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	ko "github.com/kosmos.io/kosmos/cmd/kubenest/operator/app/options"
 	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/kubenest"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
@@ -22,7 +21,7 @@ type Executor struct {
 	config         *rest.Config
 }
 
-func NewExecutor(virtualCluster *v1alpha1.VirtualCluster, c client.Client, config *rest.Config, kubeNestOptions *ko.KubeNestOptions) (*Executor, error) {
+func NewExecutor(virtualCluster *v1alpha1.VirtualCluster, c client.Client, config *rest.Config, kubeNestOptions *v1alpha1.KubeNestConfiguration) (*Executor, error) {
 	var phase *workflow.Phase
 
 	opts := []kubenest.InitOpt{
@@ -71,7 +70,7 @@ func (e *Executor) Execute() error {
 //		return err
 //	}
 //
-//	kubeconfigBytes := secret.Data[constants.KubeConfig]
+//	kubeconfigBytes := secret.Data[constants.restConfig]
 //	configString := base64.StdEncoding.EncodeToString(kubeconfigBytes)
 //	e.virtualCluster.Spec.Kubeconfig = configString
 //	e.virtualCluster.Status.Phase = v1alpha1.Completed

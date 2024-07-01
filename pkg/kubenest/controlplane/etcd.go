@@ -12,15 +12,14 @@ import (
 	"k8s.io/component-base/cli/flag"
 	"k8s.io/klog"
 
-	ko "github.com/kosmos.io/kosmos/cmd/kubenest/operator/app/options"
 	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/manifest/controlplane/etcd"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/util"
 )
 
-func EnsureVirtualClusterEtcd(client clientset.Interface, name, namespace string, ko *ko.KubeNestOptions, vc *v1alpha1.VirtualCluster) error {
-	if err := installEtcd(client, name, namespace, ko, vc); err != nil {
+func EnsureVirtualClusterEtcd(client clientset.Interface, name, namespace string, kubeNestConfiguration *v1alpha1.KubeNestConfiguration, vc *v1alpha1.VirtualCluster) error {
+	if err := installEtcd(client, name, namespace, kubeNestConfiguration, vc); err != nil {
 		return err
 	}
 	return nil
@@ -34,13 +33,13 @@ func DeleteVirtualClusterEtcd(client clientset.Interface, name, namespace string
 	return nil
 }
 
-func installEtcd(client clientset.Interface, name, namespace string, ko *ko.KubeNestOptions, vc *v1alpha1.VirtualCluster) error {
+func installEtcd(client clientset.Interface, name, namespace string, kubeNestConfiguration *v1alpha1.KubeNestConfiguration, vc *v1alpha1.VirtualCluster) error {
 	imageRepository, imageVersion := util.GetImageMessage()
 
 	nodeCount := getNodeCountFromPromotePolicy(vc)
-	resourceQuantity, err := resource.ParseQuantity(ko.ETCDUnitSize)
+	resourceQuantity, err := resource.ParseQuantity(kubeNestConfiguration.KubeInKubeConfig.ETCDUnitSize)
 	if err != nil {
-		klog.Errorf("Failed to parse quantity %s: %v", ko.ETCDUnitSize, err)
+		klog.Errorf("Failed to parse quantity %s: %v", kubeNestConfiguration.KubeInKubeConfig.ETCDUnitSize, err)
 		return err
 	}
 	resourceQuantity.Set(resourceQuantity.Value() * int64(nodeCount))
@@ -78,7 +77,6 @@ func installEtcd(client clientset.Interface, name, namespace string, ko *ko.Kube
 		Namespace:              namespace,
 		ImageRepository:        imageRepository,
 		Version:                imageVersion,
-		VirtualControllerLabel: vclabel,
 		EtcdClientService:      fmt.Sprintf("%s-%s", name, "etcd-client"),
 		CertsSecretName:        fmt.Sprintf("%s-%s", name, "etcd-cert"),
 		EtcdPeerServiceName:    fmt.Sprintf("%s-%s", name, "etcd"),
@@ -88,8 +86,9 @@ func installEtcd(client clientset.Interface, name, namespace string, ko *ko.Kube
 		Replicas:               constants.EtcdReplicas,
 		EtcdListenClientPort:   constants.EtcdListenClientPort,
 		EtcdListenPeerPort:     constants.EtcdListenPeerPort,
-		ETCDStorageClass:       ko.ETCDStorageClass,
+		ETCDStorageClass:       kubeNestConfiguration.KubeInKubeConfig.ETCDStorageClass,
 		ETCDStorageSize:        resourceQuantity.String(),
+		VirtualControllerLabel: vclabel,
 		IPV6First:              IPV6FirstFlag,
 	})
 	if err != nil {

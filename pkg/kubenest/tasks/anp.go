@@ -16,7 +16,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 
-	ko "github.com/kosmos.io/kosmos/cmd/kubenest/operator/app/options"
+	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/manifest/controlplane/apiserver"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/util"
@@ -80,7 +80,7 @@ func runAnpServer(r workflow.RunData) error {
 		Name:            name,
 		ProxyServerPort: portMap[constants.ApiServerNetworkProxyServerPortKey],
 		SvcName:         fmt.Sprintf("%s-konnectivity-server.%s.svc.cluster.local", name, namespace),
-		AnpMode:         kubeNestOpt.AnpMode,
+		AnpMode:         kubeNestOpt.KubeInKubeConfig.AnpMode,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to parse egress_selector_configuration config map template, err: %w", err)
@@ -147,7 +147,7 @@ func uninstallAnp(r workflow.RunData) error {
 	klog.V(2).InfoS("[VirtualClusterAnp] Successfully uninstalled virtual cluster anp component", "virtual cluster", klog.KObj(data))
 	return util.ForEachObjectInYAML(context.TODO(), vcClient, []byte(anpManifest), "", actionFunc)
 }
-func installAnpServer(client clientset.Interface, name, namespace string, portMap map[string]int32, kubeNestOpt *ko.KubeNestOptions) error {
+func installAnpServer(client clientset.Interface, name, namespace string, portMap map[string]int32, kubeNestConfiguration *v1alpha1.KubeNestConfiguration) error {
 	imageRepository, imageVersion := util.GetImageMessage()
 	clusterIp, err := util.GetEtcdServiceClusterIp(namespace, name+constants.EtcdSuffix, client)
 	if err != nil {
@@ -186,7 +186,7 @@ func installAnpServer(client clientset.Interface, name, namespace string, portMa
 		ServiceSubnet:             constants.ApiServerServiceSubnet,
 		VirtualClusterCertsSecret: fmt.Sprintf("%s-%s", name, "cert"),
 		EtcdCertsSecret:           fmt.Sprintf("%s-%s", name, "etcd-cert"),
-		Replicas:                  kubeNestOpt.ApiServerReplicas,
+		Replicas:                  kubeNestConfiguration.KubeInKubeConfig.ApiServerReplicas,
 		EtcdListenClientPort:      constants.ApiServerEtcdListenClientPort,
 		ClusterPort:               portMap[constants.ApiServerPortKey],
 		AgentPort:                 portMap[constants.ApiServerNetworkProxyAgentPortKey],
@@ -195,8 +195,8 @@ func installAnpServer(client clientset.Interface, name, namespace string, portMa
 		AdminPort:                 portMap[constants.ApiServerNetworkProxyAdminPortKey],
 		KubeconfigSecret:          fmt.Sprintf("%s-%s", name, "admin-config-clusterip"),
 		Name:                      name,
-		AnpMode:                   kubeNestOpt.AnpMode,
-		AdmissionPlugins:          kubeNestOpt.AdmissionPlugins,
+		AnpMode:                   kubeNestConfiguration.KubeInKubeConfig.AnpMode,
+		AdmissionPlugins:          kubeNestConfiguration.KubeInKubeConfig.AdmissionPlugins,
 		IPV6First:                 IPV6FirstFlag,
 	})
 	if err != nil {
@@ -234,7 +234,7 @@ func installAnpAgent(data InitData) error {
 	return util.ForEachObjectInYAML(context.TODO(), vcClient, []byte(anpAgentManifestBytes), "", actionFunc)
 }
 
-func getAnpAgentManifest(client clientset.Interface, name string, namespace string, portMap map[string]int32, kubeNestOpt *ko.KubeNestOptions) (string, dynamic.Interface, error) {
+func getAnpAgentManifest(client clientset.Interface, name string, namespace string, portMap map[string]int32, kubeNestConfiguration *v1alpha1.KubeNestConfiguration) (string, dynamic.Interface, error) {
 	imageRepository, imageVersion := util.GetImageMessage()
 	// get apiServer hostIp
 	proxyServerHost, err := getDeploymentPodIPs(client, namespace, fmt.Sprintf("%s-%s", name, "apiserver"))
@@ -256,7 +256,7 @@ func getAnpAgentManifest(client clientset.Interface, name string, namespace stri
 		Version:         imageVersion,
 		AgentPort:       portMap[constants.ApiServerNetworkProxyAgentPortKey],
 		ProxyServerHost: proxyServerHost,
-		AnpMode:         kubeNestOpt.AnpMode,
+		AnpMode:         kubeNestConfiguration.KubeInKubeConfig.AnpMode,
 		AgentCertName:   fmt.Sprintf("%s-%s", name, "cert"),
 	})
 	if err != nil {

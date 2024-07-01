@@ -54,7 +54,7 @@ func runComponentSubTask(component string) func(r workflow.RunData) error {
 			data.GetName(),
 			data.GetNamespace(),
 			data.RemoteClient(),
-			kubeNestOpt.ClusterCIDR,
+			kubeNestOpt.KubeInKubeConfig.ClusterCIDR,
 		)
 		if err != nil {
 			return fmt.Errorf("failed to apply component %s, err: %w", component, err)

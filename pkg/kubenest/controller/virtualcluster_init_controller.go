@@ -31,7 +31,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/kosmos.io/kosmos/cmd/kubenest/operator/app/options"
 	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
@@ -45,7 +44,7 @@ type VirtualClusterInitController struct {
 	RootClientSet   kubernetes.Interface
 	KosmosClient    versioned.Interface
 	lock            sync.Mutex
-	KubeNestOptions *options.KubeNestOptions
+	KubeNestOptions *v1alpha1.KubeNestConfiguration
 }
 
 type NodePool struct {
@@ -267,7 +266,7 @@ func (c *VirtualClusterInitController) removeFinalizer(virtualCluster *v1alpha1.
 }
 
 // createVirtualCluster assign work nodes, create control plane and create compoennts from manifests
-func (c *VirtualClusterInitController) createVirtualCluster(virtualCluster *v1alpha1.VirtualCluster, kubeNestOptions *options.KubeNestOptions) error {
+func (c *VirtualClusterInitController) createVirtualCluster(virtualCluster *v1alpha1.VirtualCluster, kubeNestOptions *v1alpha1.KubeNestConfiguration) error {
 	klog.V(2).Infof("Reconciling virtual cluster", "name", virtualCluster.Name)
 
 	//Assign host port
