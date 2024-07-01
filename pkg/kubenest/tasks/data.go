@@ -25,4 +25,5 @@ type InitData interface {
 	DynamicClient() *dynamic.DynamicClient
 	KubeNestOpt() *ko.KubeNestOptions
 	PluginOptions() map[string]string
+	GetUseTenantCoreDnsFlag() bool
 }
