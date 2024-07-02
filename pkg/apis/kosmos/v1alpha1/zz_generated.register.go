@@ -56,6 +56,7 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&DistributionPolicyList{},
 		&GlobalNode{},
 		&GlobalNodeList{},
+		&KubeNestConfiguration{},
 		&NodeConfig{},
 		&NodeConfigList{},
 		&PodConvertPolicy{},

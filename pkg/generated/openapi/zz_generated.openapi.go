@@ -45,6 +45,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.DistributionPolicy":                 schema_pkg_apis_kosmos_v1alpha1_DistributionPolicy(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.DistributionPolicyList":             schema_pkg_apis_kosmos_v1alpha1_DistributionPolicyList(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.DistributionSpec":                   schema_pkg_apis_kosmos_v1alpha1_DistributionSpec(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.EtcdCluster":                        schema_pkg_apis_kosmos_v1alpha1_EtcdCluster(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Fdb":                                schema_pkg_apis_kosmos_v1alpha1_Fdb(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.GlobalNode":                         schema_pkg_apis_kosmos_v1alpha1_GlobalNode(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.GlobalNodeList":                     schema_pkg_apis_kosmos_v1alpha1_GlobalNodeList(ref),
@@ -53,6 +54,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.HostAliasesConverter":               schema_pkg_apis_kosmos_v1alpha1_HostAliasesConverter(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.HostPath":                           schema_pkg_apis_kosmos_v1alpha1_HostPath(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Iptables":                           schema_pkg_apis_kosmos_v1alpha1_Iptables(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.KosmosKubeConfig":                   schema_pkg_apis_kosmos_v1alpha1_KosmosKubeConfig(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.KubeInKubeConfig":                   schema_pkg_apis_kosmos_v1alpha1_KubeInKubeConfig(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.KubeNestConfiguration":              schema_pkg_apis_kosmos_v1alpha1_KubeNestConfiguration(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.LeafModel":                          schema_pkg_apis_kosmos_v1alpha1_LeafModel(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.LeafNodeItem":                       schema_pkg_apis_kosmos_v1alpha1_LeafNodeItem(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NICNodeNames":                       schema_pkg_apis_kosmos_v1alpha1_NICNodeNames(ref),
@@ -1590,6 +1594,16 @@ func schema_pkg_apis_kosmos_v1alpha1_DistributionSpec(ref common.ReferenceCallba
 	}
 }
 
+func schema_pkg_apis_kosmos_v1alpha1_EtcdCluster(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+			},
+		},
+	}
+}
+
 func schema_pkg_apis_kosmos_v1alpha1_Fdb(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -1884,6 +1898,132 @@ func schema_pkg_apis_kosmos_v1alpha1_Iptables(ref common.ReferenceCallback) comm
 				Required: []string{"table", "chain", "rule"},
 			},
 		},
+	}
+}
+
+func schema_pkg_apis_kosmos_v1alpha1_KosmosKubeConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"allowNodeOwnbyMulticluster": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AllowNodeOwnbyMulticluster indicates whether to allow nodes to be owned by multiple clusters.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_kosmos_v1alpha1_KubeInKubeConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"forceDestroy": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
+					"anpMode": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"admissionPlugins": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
+					"apiServerReplicas": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"integer"},
+							Format: "int32",
+						},
+					},
+					"clusterCIDR": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"etcdStorageClass": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"etcdUnitSize": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_kosmos_v1alpha1_KubeNestConfiguration(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "KubeNestConfiguration defines the configuration for KubeNest",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"kubeNestType": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"kosmosKubeConfig": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.KosmosKubeConfig"),
+						},
+					},
+					"kubeInKubeConfig": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.KubeInKubeConfig"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.KosmosKubeConfig", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.KubeInKubeConfig", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 

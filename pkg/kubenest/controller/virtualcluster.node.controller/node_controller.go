@@ -23,7 +23,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/kosmos.io/kosmos/cmd/kubenest/operator/app/options"
 	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
@@ -39,17 +38,17 @@ type NodeController struct {
 	RootClientSet kubernetes.Interface
 	EventRecorder record.EventRecorder
 	KosmosClient  versioned.Interface
-	Options       *options.KubeNestOptions
+	Options       *v1alpha1.KubeNestConfiguration
 	sem           chan struct{}
 }
 
-func NewNodeController(client client.Client, RootClientSet kubernetes.Interface, EventRecorder record.EventRecorder, KosmosClient versioned.Interface, Options *options.KubeNestOptions) *NodeController {
+func NewNodeController(client client.Client, RootClientSet kubernetes.Interface, EventRecorder record.EventRecorder, KosmosClient versioned.Interface, options *v1alpha1.KubeNestConfiguration) *NodeController {
 	r := NodeController{
 		Client:        client,
 		RootClientSet: RootClientSet,
 		EventRecorder: EventRecorder,
 		KosmosClient:  KosmosClient,
-		Options:       Options,
+		Options:       options,
 		sem:           make(chan struct{}, env.GetNodeTaskMaxGoroutines()),
 	}
 	return &r
@@ -308,7 +307,6 @@ func (r *NodeController) cleanGlobalNode(ctx context.Context, nodeInfos []v1alph
 			HostClient:     r.Client,
 			HostK8sClient:  r.RootClientSet,
 			Opt:            r.Options,
-			// VirtualK8sClient: _,
 		})
 	})
 }

@@ -14,6 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
+	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -41,12 +42,12 @@ import (
 type KosmosJoinController struct {
 	client.Client
 	EventRecorder              record.EventRecorder
-	KubeconfigPath             string
+	KubeConfig                 *restclient.Config
 	KubeconfigStream           []byte
 	AllowNodeOwnbyMulticluster bool
 }
 
-var nodeOwnerMap map[string]string = make(map[string]string)
+var nodeOwnerMap = make(map[string]string)
 var mu sync.Mutex
 var once sync.Once
 
@@ -571,11 +572,6 @@ func (c *KosmosJoinController) SetupWithManager(mgr manager.Manager) error {
 		// skip reservedNS
 		return obj.GetNamespace() != utils.ReservedNS
 	}
-	kubeconfigStream, err := os.ReadFile(c.KubeconfigPath)
-	if err != nil {
-		return fmt.Errorf("read kubeconfig file failed: %v", err)
-	}
-	c.KubeconfigStream = kubeconfigStream
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(constants.KosmosJoinControllerName).

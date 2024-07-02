@@ -3,17 +3,24 @@ package app
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/client-go/kubernetes"
+	clientset "k8s.io/client-go/kubernetes"
+	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	cliflag "k8s.io/component-base/cli/flag"
 	"k8s.io/klog/v2"
+	kubeschedulerscheme "k8s.io/kubernetes/pkg/scheduler/apis/config/scheme"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
+	"github.com/kosmos.io/kosmos/cmd/kubenest/operator/app/config"
 	"github.com/kosmos.io/kosmos/cmd/kubenest/operator/app/options"
+	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/controller"
@@ -32,10 +39,7 @@ func NewVirtualClusterOperatorCommand(ctx context.Context) *cobra.Command {
 		Use:  "virtual-cluster-operator",
 		Long: `create virtual kubernetes control plane with VirtualCluster`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if errs := opts.Validate(); len(errs) != 0 {
-				return errs.ToAggregate()
-			}
-			if err := run(ctx, opts); err != nil {
+			if err := runCommand(ctx, opts); err != nil {
 				return err
 			}
 			return nil
@@ -54,6 +58,129 @@ func NewVirtualClusterOperatorCommand(ctx context.Context) *cobra.Command {
 	cmd.Flags().AddFlagSet(logsFlagSet)
 
 	return cmd
+}
+
+func runCommand(ctx context.Context, opts *options.Options) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	kc, err := SetupConfig(opts)
+	if err != nil {
+		return err
+	}
+	return run(ctx, kc)
+}
+
+func SetupConfig(opts *options.Options) (*config.Config, error) {
+	c := &config.Config{}
+
+	var koc v1alpha1.KubeNestConfiguration
+	if len(opts.ConfigFile) != 0 {
+		ko, err := loadConfig(opts.ConfigFile)
+		if err != nil {
+			return nil, err
+		}
+		koc = *ko
+	} else {
+		ko := &v1alpha1.KubeNestConfiguration{}
+		ko.KubeNestType = v1alpha1.KubeInKube
+		ko.KosmosKubeConfig.AllowNodeOwnbyMulticluster = false
+		ko.KubeInKubeConfig.ForceDestroy = opts.DeprecatedOptions.KubeInKubeConfig.ForceDestroy
+		ko.KubeInKubeConfig.ETCDUnitSize = opts.DeprecatedOptions.KubeInKubeConfig.ETCDUnitSize
+		ko.KubeInKubeConfig.ETCDStorageClass = opts.DeprecatedOptions.KubeInKubeConfig.ETCDStorageClass
+		ko.KubeInKubeConfig.AdmissionPlugins = opts.DeprecatedOptions.KubeInKubeConfig.AdmissionPlugins
+		ko.KubeInKubeConfig.AnpMode = opts.DeprecatedOptions.KubeInKubeConfig.AnpMode
+		ko.KubeInKubeConfig.ApiServerReplicas = opts.DeprecatedOptions.KubeInKubeConfig.ApiServerReplicas
+		ko.KubeInKubeConfig.ClusterCIDR = opts.DeprecatedOptions.KubeInKubeConfig.ClusterCIDR
+
+		koc = *ko
+	}
+
+	fillInForDefault(c, koc)
+	printKubeNestConfiguration(koc)
+
+	kubeconfigStream, err := os.ReadFile(opts.KubernetesOptions.KubeConfig)
+	if err != nil {
+		return nil, fmt.Errorf("read kubeconfig file failed: %v", err)
+	}
+
+	// Prepare kube config.
+	kubeConfig, err := createKubeConfig(opts)
+	if err != nil {
+		return nil, err
+	}
+
+	// Prepare kube clients.
+	client, err := createClients(kubeConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	c.KubeconfigStream = kubeconfigStream
+	c.RestConfig = kubeConfig
+	c.Client = client
+	c.LeaderElection = opts.LeaderElection
+	c.KubeNestOptions = koc
+
+	return c, nil
+}
+
+// TODO
+func printKubeNestConfiguration(koc v1alpha1.KubeNestConfiguration) {
+
+}
+
+// TODO
+func fillInForDefault(c *config.Config, koc v1alpha1.KubeNestConfiguration) {
+
+}
+
+func loadConfig(file string) (*v1alpha1.KubeNestConfiguration, error) {
+	data, err := os.ReadFile(file)
+	if err != nil {
+		return nil, err
+	}
+	// The UniversalDecoder runs defaulting and returns the internal type by default.
+	obj, gvk, err := kubeschedulerscheme.Codecs.UniversalDecoder().Decode(data, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	if cfgObj, ok := obj.(*v1alpha1.KubeNestConfiguration); ok {
+		return cfgObj, nil
+	}
+	return nil, fmt.Errorf("couldn't decode as KubeNestConfiguration, got %s: ", gvk)
+}
+
+// createClients creates a kube client and an event client from the given kubeConfig
+func createClients(kubeConfig *restclient.Config) (clientset.Interface, error) {
+	client, err := clientset.NewForConfig(kubeConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	return client, nil
+}
+
+// createKubeConfig creates a kubeConfig from the given config and masterOverride.
+func createKubeConfig(opts *options.Options) (*restclient.Config, error) {
+	if len(opts.KubernetesOptions.KubeConfig) == 0 && len(opts.KubernetesOptions.Master) == 0 {
+		klog.Warning("Neither --kubeconfig nor --master was specified. Using default API client. This might not work.")
+	}
+
+	// This creates a client, first loading any specified kubeconfig
+	// file, and then overriding the Master flag, if non-empty.
+	kubeConfig, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+		&clientcmd.ClientConfigLoadingRules{ExplicitPath: opts.KubernetesOptions.KubeConfig},
+		&clientcmd.ConfigOverrides{ClusterInfo: clientcmdapi.Cluster{Server: opts.KubernetesOptions.Master}}).ClientConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	kubeConfig.DisableCompression = true
+	kubeConfig.QPS = opts.KubernetesOptions.QPS
+	kubeConfig.Burst = opts.KubernetesOptions.Burst
+
+	return kubeConfig, nil
 }
 
 func startEndPointsControllers(mgr manager.Manager) error {
@@ -87,36 +214,30 @@ func startEndPointsControllers(mgr manager.Manager) error {
 	return nil
 }
 
-func run(ctx context.Context, opts *options.Options) error {
-	config, err := clientcmd.BuildConfigFromFlags(opts.KubernetesOptions.Master, opts.KubernetesOptions.KubeConfig)
-	if err != nil {
-		panic(err)
-	}
-	config.QPS, config.Burst = opts.KubernetesOptions.QPS, opts.KubernetesOptions.Burst
-
+func run(ctx context.Context, config *config.Config) error {
 	newscheme := scheme.NewSchema()
-	err = apiextensionsv1.AddToScheme(newscheme)
+	err := apiextensionsv1.AddToScheme(newscheme)
 	if err != nil {
 		panic(err)
 	}
 
-	mgr, err := controllerruntime.NewManager(config, controllerruntime.Options{
+	mgr, err := controllerruntime.NewManager(config.RestConfig, controllerruntime.Options{
 		Logger:                  klog.Background(),
 		Scheme:                  newscheme,
-		LeaderElection:          opts.LeaderElection.LeaderElect,
-		LeaderElectionID:        opts.LeaderElection.ResourceName,
-		LeaderElectionNamespace: opts.LeaderElection.ResourceNamespace,
+		LeaderElection:          config.LeaderElection.LeaderElect,
+		LeaderElectionID:        config.LeaderElection.ResourceName,
+		LeaderElectionNamespace: config.LeaderElection.ResourceNamespace,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to build controller manager: %v", err)
 	}
 
-	hostKubeClient, err := kubernetes.NewForConfig(config)
+	hostKubeClient, err := kubernetes.NewForConfig(config.RestConfig)
 	if err != nil {
 		return fmt.Errorf("could not create clientset: %v", err)
 	}
 
-	kosmosClient, err := versioned.NewForConfig(config)
+	kosmosClient, err := versioned.NewForConfig(config.RestConfig)
 	if err != nil {
 		return fmt.Errorf("could not create clientset: %v", err)
 	}
@@ -127,7 +248,7 @@ func run(ctx context.Context, opts *options.Options) error {
 		EventRecorder:   mgr.GetEventRecorderFor(constants.InitControllerName),
 		RootClientSet:   hostKubeClient,
 		KosmosClient:    kosmosClient,
-		KubeNestOptions: &opts.KubeNestOptions,
+		KubeNestOptions: &config.KubeNestOptions,
 	}
 	if err = VirtualClusterInitController.SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("error starting %s: %v", constants.InitControllerName, err)
@@ -153,19 +274,20 @@ func run(ctx context.Context, opts *options.Options) error {
 		hostKubeClient,
 		mgr.GetEventRecorderFor(constants.NodeControllerName),
 		kosmosClient,
-		&opts.KubeNestOptions,
+		&config.KubeNestOptions,
 	)
 
 	if err = VirtualClusterNodeController.SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("error starting %s: %v", constants.NodeControllerName, err)
 	}
 
-	if opts.KosmosJoinController {
+	if config.KubeNestOptions.KubeNestType == v1alpha1.KosmosKube {
 		KosmosJoinController := kosmos.KosmosJoinController{
 			Client:                     mgr.GetClient(),
 			EventRecorder:              mgr.GetEventRecorderFor(constants.KosmosJoinControllerName),
-			KubeconfigPath:             opts.KubernetesOptions.KubeConfig,
-			AllowNodeOwnbyMulticluster: opts.AllowNodeOwnbyMulticluster,
+			KubeConfig:                 config.RestConfig,
+			KubeconfigStream:           config.KubeconfigStream,
+			AllowNodeOwnbyMulticluster: config.KubeNestOptions.KosmosKubeConfig.AllowNodeOwnbyMulticluster,
 		}
 		if err = KosmosJoinController.SetupWithManager(mgr); err != nil {
 			return fmt.Errorf("error starting %s: %v", constants.KosmosJoinControllerName, err)

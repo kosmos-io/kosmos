@@ -17,7 +17,6 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/kosmos.io/kosmos/cmd/kubenest/operator/app/options"
 	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
 	env "github.com/kosmos.io/kosmos/pkg/kubenest/controller/virtualcluster.node.controller/env"
@@ -34,7 +33,7 @@ type TaskOpt struct {
 	HostK8sClient    kubernetes.Interface
 	VirtualK8sClient kubernetes.Interface
 
-	Opt    *options.KubeNestOptions
+	Opt    *v1alpha1.KubeNestConfiguration
 	logger *PrefixedLogger
 }
 
@@ -100,7 +99,7 @@ func NewDrainHostNodeTask() Task {
 		Retry: true,
 		Skip: func(ctx context.Context, opt TaskOpt) bool {
 			if opt.Opt != nil {
-				return opt.Opt.ForceDestroy
+				return opt.Opt.KubeInKubeConfig.ForceDestroy
 			}
 			return false
 		},
@@ -129,7 +128,7 @@ func NewDrainVirtualNodeTask() Task {
 		// ErrorIgnore: true,
 		Skip: func(ctx context.Context, opt TaskOpt) bool {
 			if opt.Opt != nil {
-				return opt.Opt.ForceDestroy
+				return opt.Opt.KubeInKubeConfig.ForceDestroy
 			}
 			return false
 		},
