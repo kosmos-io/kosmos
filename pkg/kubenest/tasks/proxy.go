@@ -78,7 +78,7 @@ func runVirtualClusterProxy(r workflow.RunData) error {
 	err = controlplane.EnsureVirtualClusterProxy(
 		virtualClient,
 		kubeconfigString,
-		kubeNestOpt.ClusterCIDR,
+		kubeNestOpt.KubeInKubeConfig.ClusterCIDR,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to install virtual cluster proxy component, err: %w", err)

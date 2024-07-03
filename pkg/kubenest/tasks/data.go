@@ -4,7 +4,6 @@ import (
 	"k8s.io/client-go/dynamic"
 	clientset "k8s.io/client-go/kubernetes"
 
-	ko "github.com/kosmos.io/kosmos/cmd/kubenest/operator/app/options"
 	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/util/cert"
@@ -24,6 +23,6 @@ type InitData interface {
 	HostPort() int32
 	HostPortMap() map[string]int32
 	DynamicClient() *dynamic.DynamicClient
-	KubeNestOpt() *ko.KubeNestOptions
+	KubeNestOpt() *v1alpha1.KubeNestConfiguration
 	PluginOptions() map[string]string
 }
