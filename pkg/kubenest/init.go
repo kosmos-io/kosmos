@@ -39,6 +39,8 @@ type initData struct {
 	hostPortMap           map[string]int32
 	kubeNestOptions       *ko.KubeNestOptions
 	virtualCluster        *v1alpha1.VirtualCluster
+	ETCDStorageClass      string
+	ETCDUnitSize          string
 }
 
 type InitOptions struct {
@@ -187,6 +189,8 @@ func newRunData(opt *InitOptions) (*initData, error) {
 		hostPortMap:           opt.virtualCluster.Status.PortMap,
 		kubeNestOptions:       opt.KubeNestOptions,
 		virtualCluster:        opt.virtualCluster,
+		ETCDUnitSize:          opt.KubeNestOptions.ETCDUnitSize,
+		ETCDStorageClass:      opt.KubeNestOptions.ETCDStorageClass,
 	}, nil
 }
 
@@ -238,8 +242,8 @@ func (i initData) DataDir() string {
 	return i.virtualClusterDataDir
 }
 
-func (i initData) VirtualClusterVersion() string {
-	return i.virtualClusterVersion.String()
+func (i initData) VirtualCluster() *v1alpha1.VirtualCluster {
+	return i.virtualCluster
 }
 
 func (i initData) ExternalIP() string {

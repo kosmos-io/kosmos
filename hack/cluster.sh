@@ -10,7 +10,7 @@ ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 REUSE=${REUSE:-false}
 VERSION=${VERSION:-latest}
 
-CN_ZONE=${CN_ZONE:-false}
+CN_ZONE=${CN_ZONE:-true}
 source "$(dirname "${BASH_SOURCE[0]}")/util.sh"
 
 # default cert and key for node server https
@@ -22,6 +22,33 @@ if [ $REUSE == true ]; then
 fi
 
 source "${ROOT}/hack/util.sh"
+
+# pull e2e test image
+function prepare_test_image() {
+  if [ "${CN_ZONE}" == false ]; then
+    docker pull bitpoke/mysql-operator-orchestrator:v0.6.3
+    docker pull bitpoke/mysql-operator:v0.6.3
+    docker pull bitpoke/mysql-operator-sidecar-5.7:v0.6.3
+    docker pull nginx
+    docker pull percona:5.7
+    docker pull prom/mysqld-exporter:v0.13.0
+  else
+#    todo add bitpoke to m.daocloud.io's Whitelist
+    docker pull bitpoke/mysql-operator-orchestrator:v0.6.3
+    docker pull bitpoke/mysql-operator:v0.6.3
+    docker pull bitpoke/mysql-operator-sidecar-5.7:v0.6.3
+    docker pull docker.m.daocloud.io/nginx
+    docker pull docker.m.daocloud.io/percona:5.7
+    docker pull docker.m.daocloud.io/prom/mysqld-exporter:v0.13.0
+
+    docker tag docker.m.daocloud.io/bitpoke/mysql-operator-orchestrator:v0.6.3 bitpoke/mysql-operator-orchestrator:v0.6.3
+    docker tag docker.m.daocloud.io/bitpoke/mysql-operator:v0.6.3 bitpoke/mysql-operator:v0.6.3
+    docker tag docker.m.daocloud.io/bitpoke/mysql-operator-sidecar-5.7:v0.6.3 bitpoke/mysql-operator-sidecar-5.7:v0.6.3
+    docker tag docker.m.daocloud.io/nginx nginx
+    docker tag docker.m.daocloud.io/percona:5.7 percona:5.7
+    docker tag docker.m.daocloud.io/prom/mysqld-exporter:v0.13.0 prom/mysqld-exporter:v0.13.0
+  fi
+}
 
 # prepare e2e cluster
 function prepare_e2e_cluster() {

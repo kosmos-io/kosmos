@@ -6,17 +6,21 @@ import (
 
 	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/component-base/cli/flag"
+	"k8s.io/klog"
 
+	ko "github.com/kosmos.io/kosmos/cmd/kubenest/operator/app/options"
+	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/manifest/controlplane/etcd"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/util"
 )
 
-func EnsureVirtualClusterEtcd(client clientset.Interface, name, namespace string) error {
-	if err := installEtcd(client, name, namespace); err != nil {
+func EnsureVirtualClusterEtcd(client clientset.Interface, name, namespace string, ko *ko.KubeNestOptions, vc *v1alpha1.VirtualCluster) error {
+	if err := installEtcd(client, name, namespace, ko, vc); err != nil {
 		return err
 	}
 	return nil
@@ -30,8 +34,17 @@ func DeleteVirtualClusterEtcd(client clientset.Interface, name, namespace string
 	return nil
 }
 
-func installEtcd(client clientset.Interface, name, namespace string) error {
+func installEtcd(client clientset.Interface, name, namespace string, ko *ko.KubeNestOptions, vc *v1alpha1.VirtualCluster) error {
 	imageRepository, imageVersion := util.GetImageMessage()
+
+	nodeCount := getNodeCountFromPromotePolicy(vc)
+	resourceQuantity, err := resource.ParseQuantity(ko.ETCDUnitSize)
+	if err != nil {
+		klog.Errorf("Failed to parse quantity %s: %v", ko.ETCDUnitSize, err)
+		return err
+	}
+	resourceQuantity.Set(resourceQuantity.Value() * int64(nodeCount))
+
 	initialClusters := make([]string, constants.EtcdReplicas)
 	for index := range initialClusters {
 		memberName := fmt.Sprintf("%s-%d", fmt.Sprintf("%s-%s", name, "etcd"), index)
@@ -58,6 +71,7 @@ func installEtcd(client clientset.Interface, name, namespace string) error {
 		CertsSecretName, EtcdPeerServiceName                                                                   string
 		InitialCluster, EtcdDataVolumeName, EtcdCipherSuites                                                   string
 		Replicas, EtcdListenClientPort, EtcdListenPeerPort                                                     int32
+		ETCDStorageClass, ETCDStorageSize                                                                      string
 		IPV6First                                                                                              bool
 	}{
 		StatefulSetName:        fmt.Sprintf("%s-%s", name, "etcd"),
@@ -74,6 +88,8 @@ func installEtcd(client clientset.Interface, name, namespace string) error {
 		Replicas:               constants.EtcdReplicas,
 		EtcdListenClientPort:   constants.EtcdListenClientPort,
 		EtcdListenPeerPort:     constants.EtcdListenPeerPort,
+		ETCDStorageClass:       ko.ETCDStorageClass,
+		ETCDStorageSize:        resourceQuantity.String(),
 		IPV6First:              IPV6FirstFlag,
 	})
 	if err != nil {
@@ -90,4 +106,12 @@ func installEtcd(client clientset.Interface, name, namespace string) error {
 	}
 
 	return nil
+}
+
+func getNodeCountFromPromotePolicy(vc *v1alpha1.VirtualCluster) int32 {
+	var nodeCount int32
+	for _, policy := range vc.Spec.PromotePolicies {
+		nodeCount = nodeCount + policy.NodeCount
+	}
+	return nodeCount
 }
