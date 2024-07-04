@@ -271,21 +271,22 @@ func handleScript(conn *websocket.Conn, params url.Values, command []string) {
 func execCmd(conn *websocket.Conn, command string, args []string) {
 	// #nosec G204
 	cmd := exec.Command(command, args...)
+	log.Infof("Executing command: %s, %v", command, args)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		log.Warnf("Error obtaining command output pipe: %v", err)
 	}
 	defer stdout.Close()
 
-	if err := cmd.Start(); err != nil {
-		errStr := strings.ToLower(err.Error())
-		log.Warnf("Error starting command: %v, %s", err, errStr)
-		if strings.Contains(errStr, "no such file") {
-			exitCode := 127
-			_ = conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, fmt.Sprintf("%d", exitCode)))
-		}
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		log.Warnf("Error obtaining command error pipe: %v", err)
 	}
+	defer stderr.Close()
 
+	// Channel for signaling command completion
+	doneCh := make(chan struct{})
+	defer close(doneCh)
 	// processOutput
 	go func() {
 		scanner := bufio.NewScanner(stdout)
@@ -294,7 +295,23 @@ func execCmd(conn *websocket.Conn, command string, args []string) {
 			log.Warnf("%s", data)
 			_ = conn.WriteMessage(websocket.TextMessage, data)
 		}
+		scanner = bufio.NewScanner(stderr)
+		for scanner.Scan() {
+			data := scanner.Bytes()
+			log.Warnf("%s", data)
+			_ = conn.WriteMessage(websocket.TextMessage, data)
+		}
+		doneCh <- struct{}{}
 	}()
+	if err := cmd.Start(); err != nil {
+		errStr := strings.ToLower(err.Error())
+		log.Warnf("Error starting command: %v, %s", err, errStr)
+		_ = conn.WriteMessage(websocket.TextMessage, []byte(errStr))
+		if strings.Contains(errStr, "no such file") {
+			exitCode := 127
+			_ = conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, fmt.Sprintf("%d", exitCode)))
+		}
+	}
 
 	// Wait for the command to finish
 	if err := cmd.Wait(); err != nil {
@@ -303,6 +320,7 @@ func execCmd(conn *websocket.Conn, command string, args []string) {
 			log.Warnf("Command : %s exited with non-zero status: %v", command, exitError)
 		}
 	}
+	<-doneCh
 	exitCode := cmd.ProcessState.ExitCode()
 	log.Infof("Command : %s finished with exit code %d", command, exitCode)
 	_ = conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, fmt.Sprintf("%d", exitCode)))
