@@ -123,6 +123,10 @@ PATH_KUBELET_CONF=$PATH_KUBELET_CONF
 # name for config file of kubelet
 KUBELET_CONFIG_NAME=$KUBELET_CONFIG_NAME
 HOST_CORE_DNS=$HOST_CORE_DNS
+# kubeadm switch
+USE_KUBEADM=true
+# Generate kubelet.conf TIMEOUT
+KUBELET_CONF_TIMEOUT=30
 
 function GenerateKubeadmConfig() {
     echo \"---
