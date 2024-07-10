@@ -121,3 +121,17 @@ type VirtualClusterList struct {
 	metav1.ListMeta `json:"metadata"`
 	Items           []VirtualCluster `json:"items"`
 }
+
+const UseTenantCoreDns = "kosmos-io/use-tenant-core-dns"
+
+func (v *VirtualCluster) UseTenantCoreDns() bool {
+	// default: false
+	ans := v.GetAnnotations()
+	if ans == nil {
+		return false
+	}
+	if value, ok := ans[UseTenantCoreDns]; ok {
+		return value == "true"
+	}
+	return false
+}

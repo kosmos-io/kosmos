@@ -89,6 +89,10 @@ func applyComponentsManifests(r workflow.RunData) error {
 	}
 
 	for _, component := range components {
+		if !data.GetUseTenantCoreDnsFlag() && component.Name == constants.TenantCoreDnsComponentName {
+			klog.V(2).Infof("Deploy component %s skipped", component.Name)
+			continue
+		}
 		klog.V(2).Infof("Deploy component %s", component.Name)
 		err = applyTemplatedManifests(component.Name, dynamicClient, component.Path, templatedMapping)
 		if err != nil {
