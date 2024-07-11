@@ -9,6 +9,7 @@ import (
 const (
 	InitControllerName               = "virtual-cluster-init-controller"
 	NodeControllerName               = "virtual-cluster-node-controller"
+	PluginControllerName             = "virtual-cluster-plugin-controller"
 	GlobalNodeControllerName         = "global-node-controller"
 	KosmosJoinControllerName         = "kosmos-join-controller"
 	KosmosNs                         = "kosmos-system"

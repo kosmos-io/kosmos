@@ -1,0 +1,27 @@
+---
+image:
+    repository: registry.k8s.io/dns/k8s-dns-node-cache
+    version: 1.23.1
+    pullPolicy: IfNotPresent
+---
+config:
+  domain: xxx.xxx
+  kubeDNS: xxx.xxx.xxx
+  localDNS: xxx.xxx.xxx
+  clusterDNS: xxx.xxx.xxx
+---
+tolerations:
+  - key: CriticalAddonsOnly
+    operator: Exists
+  - effect: NoExecute
+    operator: Exists
+  - effect: NoSchedule
+    operator: Exists
+---
+resources:
+  requests:
+    cpu: 25m
+    memory: 5Mi
+---
+nodeSelector: {}
+affinity: {}
