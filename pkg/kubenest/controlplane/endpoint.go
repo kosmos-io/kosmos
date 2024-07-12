@@ -33,7 +33,7 @@ func EnsureApiServerExternalEndPoint(dynamicClient dynamic.Interface) error {
 }
 
 func installApiServerExternalEndpointInVirtualCluster(dynamicClient dynamic.Interface) error {
-	klog.Info("begin to get kubernetes endpoint")
+	klog.V(4).Info("begin to get kubernetes endpoint")
 	kubeEndpointUnstructured, err := dynamicClient.Resource(schema.GroupVersionResource{
 		Group:    "",
 		Version:  "v1",
@@ -74,7 +74,7 @@ func installApiServerExternalEndpointInVirtualCluster(dynamicClient dynamic.Inte
 			klog.Error("create api-server-external-service endpoint failed", err)
 			return errors.Wrap(err, "failed to create api-server-external-service endpoint")
 		} else {
-			klog.Info("success create api-server-external-service endpoint:", createResult)
+			klog.V(4).Info("success create api-server-external-service endpoint:", createResult)
 		}
 	} else {
 		return errors.New("kubernetes endpoint does not exist")
@@ -110,7 +110,7 @@ func installApiServerExternalServiceInVirtualCluster(dynamicClient dynamic.Inter
 }
 
 func getEndPointPort(dynamicClient dynamic.Interface) (int32, error) {
-	klog.Info("begin to get Endpoints ports...")
+	klog.V(4).Info("begin to get Endpoints ports...")
 	endpointsRes := dynamicClient.Resource(schema.GroupVersionResource{
 		Group:    "",
 		Version:  "v1",
@@ -153,6 +153,6 @@ func getEndPointPort(dynamicClient dynamic.Interface) (int32, error) {
 		return 0, fmt.Errorf("port field not found or error parsing it")
 	}
 
-	klog.Infof("The port number was successfully obtained: %d", portNum)
+	klog.V(4).Infof("The port number was successfully obtained: %d", portNum)
 	return int32(portNum), nil
 }
