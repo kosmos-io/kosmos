@@ -4,7 +4,12 @@ function check_port {
     local ip=$1
     local port=$2
 
-    if timeout 1 curl -s --connect-timeout 3 $ip:$port >/dev/null; then
+    # Check if the IP address is IPv6, then enclose it in square brackets
+    if [[ $ip =~ .*:.* ]]; then
+         ip="[$ip]"
+    fi
+
+    if timeout 1 curl -s --connect-timeout 3 "${ip}:${port}" >/dev/null; then
         return 0
     else
         return 1

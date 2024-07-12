@@ -89,6 +89,65 @@ function afterRevert() {
     fi
 }
 
+function get_ca_certificate() {
+     local output_file="$PATH_KUBERNETES_PKI/ca.crt"
+     local kubeconfig_data=$(curl -sS --insecure "https://$JOIN_HOST/api/v1/namespaces/kube-public/configmaps/cluster-info" 2>/dev/null | \
+                             grep -oP 'certificate-authority-data:\s*\K.*(?=server:[^[:space:]]*?)' | \
+                             sed -e 's/^certificate-authority-data://' -e 's/[[:space:]]//g' -e 's/\\n$//g')
+
+     # verify the kubeconfig data is not empty
+     if [ -z "$kubeconfig_data" ]; then
+       echo "Failed to extract certificate-authority-data."
+       return 1
+     fi
+
+     # Base64 decoded and written to a file
+     echo "$kubeconfig_data" | base64 --decode > "$output_file"
+
+     # check that the file was created successfully
+     if [ -f "$output_file" ]; then
+         echo "certificate-authority-data saved to $output_file"
+     else
+         echo "Failed to save certificate-authority-data to $output_file"
+      return 1
+     fi
+}
+
+function create_kubelet_bootstrap_config() {
+   # Checks if the parameters are provided
+ if [ -z "$JOIN_HOST" ] || [ -z "$JOIN_TOKEN" ]; then
+     echo "Please provide server and token as parameters."
+     return 1
+ fi
+
+ # Define file contents
+ cat << EOF > bootstrap-kubelet.conf
+apiVersion: v1
+kind: Config
+clusters:
+- cluster:
+    certificate-authority: $PATH_KUBERNETES_PKI/ca.crt
+    server: https://$JOIN_HOST
+  name: kubernetes
+contexts:
+- context:
+    cluster: kubernetes
+    user: kubelet-bootstrap
+  name: kubelet-bootstrap-context
+current-context: kubelet-bootstrap-context
+preferences: {}
+users:
+- name: kubelet-bootstrap
+  user:
+    token: $JOIN_TOKEN
+EOF
+
+ # copy the file to the /etc/kubernetes directory
+ cp bootstrap-kubelet.conf $PATH_KUBERNETES
+
+ echo "the file bootstrap-kubelet.conf has stored in $PATH_KUBERNETES directory."
+}
+
 function revert() {
     echo "exec(1/5): update kubeadm.cfg..."
     if [ ! -f "$PATH_KUBEADM_CONFIG/kubeadm.cfg" ]; then
@@ -117,9 +176,22 @@ function revert() {
 
 
     echo "exec(4/5): execute join cmd...."
-    kubeadm join --config "$PATH_FILE_TMP/kubeadm.cfg.current"
-    if [ $? -ne 0 ]; then
-        exit 1
+    if [ "$USE_KUBEADM" = "true" ]; then
+       echo "use kubeadm to join node to host"
+       kubeadm join --config "$PATH_FILE_TMP/kubeadm.cfg.current"
+       if [ $? -ne 0 ]; then
+          exit 1
+       fi
+    else
+       echo "NONONO use kubeadm to join node to host"
+       get_ca_certificate $JOIN_HOST
+       create_kubelet_bootstrap_config $JOIN_HOST $JOIN_TOKEN
+       if [ -f "${PATH_FILE_TMP}/kubeadm-flags.env.origin" ]; then
+          cp "${PATH_FILE_TMP}/kubeadm-flags.env.origin" "${PATH_KUBELET_LIB}" && \
+          mv "${PATH_KUBELET_LIB}/kubeadm-flags.env.origin" "${PATH_KUBELET_LIB}/kubeadm-flags.env"
+       else
+          cp "${PATH_FILE_TMP}/kubeadm-flags.env" "${PATH_KUBELET_LIB}"
+       fi
     fi
 
     echo "exec(5/5): restart cotnainerd...."
@@ -128,6 +200,24 @@ function revert() {
         exit 1
     fi
 
+    if [ "$USE_KUBEADM" = "false" ]; then
+           systemctl start kubelet
+           elapsed_time=0
+
+           while [ $elapsed_time -lt $KUBELET_CONF_TIMEOUT ]; do
+             if [ -f "/etc/kubernetes/kubelet.conf" ]; then
+                rm -f "/etc/kubernetes/bootstrap-kubelet.conf"
+                echo "Deleted bootstrap-kubelet.conf file as kubelet.conf exists."
+                break
+             fi
+             sleep 2
+             elapsed_time=$((elapsed_time + 2))
+           done
+
+           if [ $elapsed_time -ge $KUBELET_CONF_TIMEOUT ]; then
+              echo "Timeout: kubelet.conf was not generated within $KUBELET_CONF_TIMEOUT seconds. Continuing script execution."
+           fi
+        fi
     afterRevert
     if [ $? -ne 0 ]; then
         exit 1
@@ -219,6 +309,10 @@ function check() {
     fi
     
     echo "check(2/2): copy  kubeadm-flags.env  to create $PATH_FILE_TMP , remove args[cloud-provider] and taints"
+    # Since this function is used both to detach nodes, we need to make sure we haven't copied kubeadm-flags.env before
+    if [ ! -f "${PATH_FILE_TMP}/kubeadm-flags.env.origin" ]; then
+       cp "$PATH_KUBELET_LIB/kubeadm-flags.env" "${PATH_FILE_TMP}/kubeadm-flags.env.origin"
+    fi
     sed -e "s| --cloud-provider=external | |g" -e "w ${PATH_FILE_TMP}/kubeadm-flags.env" "$PATH_KUBELET_LIB/kubeadm-flags.env"
     sed -i "s| --register-with-taints=node.kosmos.io/unschedulable:NoSchedule||g" "${PATH_FILE_TMP}/kubeadm-flags.env"
     if [ $? -ne 0 ]; then
