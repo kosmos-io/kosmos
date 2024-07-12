@@ -1,0 +1,44 @@
+apiVersion: v1
+data:
+  backup: |+
+    vrrp_instance VI_1 {
+        state BACKUP
+        interface __IFNAME__
+        virtual_router_id 51
+        priority 90
+        advert_int 1
+        authentication {
+            auth_type PASS
+            auth_pass XXXXXX
+        }
+        virtual_ipaddress {
+            {{ .Vip }}
+        }
+        track_interface {
+            __IFNAME__
+        }
+    }
+
+  master: |+
+    vrrp_instance VI_1 {
+        state MASTER
+        interface __IFNAME__
+        virtual_router_id 51
+        priority 100
+        advert_int 1
+        authentication {
+            auth_type PASS
+            auth_pass XXXXXX
+        }
+        virtual_ipaddress {
+            {{ .Vip }}
+        }
+        track_interface {
+            __IFNAME__
+        }
+    }
+
+kind: ConfigMap
+metadata:
+  name: keepalived-config
+  namespace: kube-system

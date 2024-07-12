@@ -105,6 +105,17 @@ const (
 	ApiServerNetworkProxyAdminPortKey  = "apiserver-network-proxy-admin-port"
 	VirtualClusterPortNum              = 5
 
+	// vip
+	VipPoolConfigMapName        = "kosmos-vip-pool"
+	VipPoolKey                  = "vip-config.yaml"
+	VcVipStatusKey              = "vip-key"
+	VipKeepAlivedNodeLabelKey   = "kosmos.io/keepalived-node"
+	VipKeepAlivedNodeLabelValue = "true"
+	VipKeepAlivedNodeRoleKey    = "kosmos.io/keepalived-role"
+	VipKeepAlivedNodeRoleMaster = "master"
+	VipKeepalivedNodeRoleBackup = "backup"
+	VipKeepAlivedReplicas       = 3
+
 	ManifestComponentsConfigMap = "components-manifest-cm"
 
 	WaitAllPodsRunningTimeoutSeconds = 1800

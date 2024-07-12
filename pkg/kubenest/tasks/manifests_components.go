@@ -59,7 +59,7 @@ func applyComponentsManifests(r workflow.RunData) error {
 	if !ok {
 		return errors.New("Virtual cluster manifests-components task invoked with an invalid data struct")
 	}
-
+	keepalivedReplicas := constants.VipKeepAlivedReplicas
 	secret, err := data.RemoteClient().CoreV1().Secrets(data.GetNamespace()).Get(context.TODO(),
 		fmt.Sprintf("%s-%s", data.GetName(), constants.AdminConfig), metav1.GetOptions{})
 	if err != nil {
@@ -83,10 +83,18 @@ func applyComponentsManifests(r workflow.RunData) error {
 	templatedMapping["KUBE_PROXY_KUBECONFIG"] = string(secret.Data[constants.KubeConfig])
 	imageRepository, _ := util.GetImageMessage()
 	templatedMapping["ImageRepository"] = imageRepository
-
+	if data.VipMap() != nil && data.VipMap()[constants.VcVipStatusKey] != "" {
+		templatedMapping["Vip"] = data.VipMap()[constants.VcVipStatusKey]
+	}
+	// use min replicas
+	nodeCount := data.VirtualCluster().Spec.PromotePolicies[0].NodeCount
+	if nodeCount < constants.VipKeepAlivedReplicas {
+		keepalivedReplicas = int(nodeCount)
+	}
 	for k, v := range data.PluginOptions() {
 		templatedMapping[k] = v
 	}
+	templatedMapping["KeepalivedReplicas"] = keepalivedReplicas
 
 	for _, component := range components {
 		klog.V(2).Infof("Deploy component %s", component.Name)

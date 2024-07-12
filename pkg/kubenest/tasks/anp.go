@@ -311,7 +311,7 @@ func getVcDynamicClient(client clientset.Interface, name, namespace string) (dyn
 	}
 	return dynamicClient, nil
 }
-func getVcClientset(client clientset.Interface, name, namespace string) (clientset.Interface, error) {
+func GetVcClientset(client clientset.Interface, name, namespace string) (clientset.Interface, error) {
 	secret, err := client.CoreV1().Secrets(namespace).Get(context.TODO(),
 		fmt.Sprintf("%s-%s", name, constants.AdminConfig), metav1.GetOptions{})
 	if err != nil {
@@ -346,7 +346,7 @@ func runUploadProxyAgentCert(r workflow.RunData) error {
 			certsData[c.CertName()] = c.CertData()
 		}
 	}
-	vcClient, err := getVcClientset(data.RemoteClient(), name, namespace)
+	vcClient, err := GetVcClientset(data.RemoteClient(), name, namespace)
 	if err != nil {
 		return fmt.Errorf("failed to get virtual cluster client, err: %w", err)
 	}

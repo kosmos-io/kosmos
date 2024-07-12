@@ -1,0 +1,11 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kosmos-vip-pool
+  namespace: kosmos-system
+data:
+  vip-config.yaml: |
+    # can be use for vc, the ip formate is 192.168.0.1 and 192.168.0.2-192.168.0.10
+    vipPool:
+      - 192.168.0.1-192.168.0.10

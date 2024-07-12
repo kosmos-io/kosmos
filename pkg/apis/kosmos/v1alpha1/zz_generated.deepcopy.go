@@ -1974,6 +1974,13 @@ func (in *VirtualClusterStatus) DeepCopyInto(out *VirtualClusterStatus) {
 			(*out)[key] = val
 		}
 	}
+	if in.VipMap != nil {
+		in, out := &in.VipMap, &out.VipMap
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	return
 }
 
