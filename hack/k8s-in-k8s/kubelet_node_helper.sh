@@ -176,7 +176,11 @@ function revert() {
 
 
     echo "exec(4/5): execute join cmd...."
-    if [ "$USE_KUBEADM" = "true" ]; then
+    if [ -z "$USE_KUBEADM" ]; then
+      # if "USE_KUBEADM is not set, default set to true"
+      export USE_KUBEADM=true
+    fi
+    if [ "$USE_KUBEADM" = true ]; then
        echo "use kubeadm to join node to host"
        kubeadm join --config "$PATH_FILE_TMP/kubeadm.cfg.current"
        if [ $? -ne 0 ]; then
@@ -200,13 +204,13 @@ function revert() {
         exit 1
     fi
 
-    if [ "$USE_KUBEADM" = "false" ]; then
+    if [ "$USE_KUBEADM" = false ]; then
            systemctl start kubelet
            elapsed_time=0
 
            while [ $elapsed_time -lt $KUBELET_CONF_TIMEOUT ]; do
-             if [ -f "/etc/kubernetes/kubelet.conf" ]; then
-                rm -f "/etc/kubernetes/bootstrap-kubelet.conf"
+             if [ -f "${PATH_KUBERNETES}/${KUBELET_KUBE_CONFIG_NAME}" ]; then
+                rm -f "${PATH_KUBERNETES}/bootstrap-kubelet.conf"
                 echo "Deleted bootstrap-kubelet.conf file as kubelet.conf exists."
                 break
              fi
@@ -311,7 +315,7 @@ function check() {
     echo "check(2/2): copy  kubeadm-flags.env  to create $PATH_FILE_TMP , remove args[cloud-provider] and taints"
     # Since this function is used both to detach nodes, we need to make sure we haven't copied kubeadm-flags.env before
     if [ ! -f "${PATH_FILE_TMP}/kubeadm-flags.env.origin" ]; then
-       cp "$PATH_KUBELET_LIB/kubeadm-flags.env" "${PATH_FILE_TMP}/kubeadm-flags.env.origin"
+       cp "${PATH_KUBELET_LIB}/kubeadm-flags.env" "${PATH_FILE_TMP}/kubeadm-flags.env.origin"
     fi
     sed -e "s| --cloud-provider=external | |g" -e "w ${PATH_FILE_TMP}/kubeadm-flags.env" "$PATH_KUBELET_LIB/kubeadm-flags.env"
     sed -i "s| --register-with-taints=node.kosmos.io/unschedulable:NoSchedule||g" "${PATH_FILE_TMP}/kubeadm-flags.env"

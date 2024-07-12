@@ -57,12 +57,12 @@ func (e *ApiServerExternalSyncController) SyncApiServerExternalEPS(ctx context.C
 	kubeEndpoints, err := k8sClient.CoreV1().Endpoints(constants.DefaultNs).Get(ctx, "kubernetes", metav1.GetOptions{})
 	if err != nil {
 		klog.Errorf("Error getting endpoints: %v", err)
-		return fmt.Errorf("failed to get endpoints for kubernetes service: %v", err)
+		return err
 	} else {
-		klog.Infof("Endpoints for service 'kubernetes': %v", kubeEndpoints)
+		klog.V(4).Infof("Endpoints for service 'kubernetes': %v", kubeEndpoints)
 		for _, subset := range kubeEndpoints.Subsets {
 			for _, address := range subset.Addresses {
-				klog.Infof("IP: %s", address.IP)
+				klog.V(4).Infof("IP: %s", address.IP)
 			}
 		}
 	}
@@ -72,39 +72,42 @@ func (e *ApiServerExternalSyncController) SyncApiServerExternalEPS(ctx context.C
 	}
 
 	if kubeEndpoints.Subsets[0].Addresses == nil || len(kubeEndpoints.Subsets[0].Addresses) == 0 {
-		return fmt.Errorf("eps %s Addresses length is nil", "kubernetes")
+		klog.Errorf("eps %s Addresses length is nil", "kubernetes")
+		return err
 	}
 
 	apiServerExternalEndpoints, err := k8sClient.CoreV1().Endpoints(constants.DefaultNs).Get(ctx, constants.ApiServerExternalService, metav1.GetOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
-		return fmt.Errorf("failed to get endpoints for %s : %v", constants.ApiServerExternalService, err)
+		klog.Errorf("failed to get endpoints for %s : %v", constants.ApiServerExternalService, err)
+		return err
 	}
 
 	updateEPS := apiServerExternalEndpoints.DeepCopy()
 
 	if apiServerExternalEndpoints != nil {
-		klog.Infof("apiServerExternalEndpoints: %v", apiServerExternalEndpoints)
+		klog.V(4).Infof("apiServerExternalEndpoints: %v", apiServerExternalEndpoints)
 	} else {
-		klog.Info("apiServerExternalEndpoints is nil")
+		klog.V(4).Info("apiServerExternalEndpoints is nil")
 	}
 
 	if updateEPS != nil {
-		klog.Infof("updateEPS: %v", updateEPS)
+		klog.V(4).Infof("updateEPS: %v", updateEPS)
 	} else {
-		klog.Info("updateEPS is nil")
+		klog.V(4).Info("updateEPS is nil")
 	}
 
 	if len(updateEPS.Subsets) == 1 && len(updateEPS.Subsets[0].Addresses) == 1 {
 		ip := kubeEndpoints.Subsets[0].Addresses[0].IP
-		klog.Infof("IP address: %s", ip)
+		klog.V(4).Infof("IP address: %s", ip)
 		updateEPS.Subsets[0].Addresses[0].IP = ip
 
 		if _, err := k8sClient.CoreV1().Endpoints(constants.DefaultNs).Update(ctx, updateEPS, metav1.UpdateOptions{}); err != nil {
-			return fmt.Errorf("failed to update endpoints for api-server-external-service: %v", err)
+			klog.Errorf("failed to update endpoints for api-server-external-service: %v", err)
+			return err
 		}
 	} else {
 		klog.ErrorS(err, "Unexpected format of endpoints for api-server-external-service", "endpoint_data", updateEPS)
-		return fmt.Errorf("unexpected format of endpoints for api-server-external-service")
+		return err
 	}
 
 	return nil
@@ -137,7 +140,7 @@ func (e *ApiServerExternalSyncController) Reconcile(ctx context.Context, request
 		return reconcile.Result{}, nil
 	}
 
-	if targetVirtualCluster.Status.Phase != v1alpha1.AllNodeReady && targetVirtualCluster.Status.Phase != v1alpha1.Completed {
+	if targetVirtualCluster.Status.Phase != v1alpha1.Initialized {
 		return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
 	}
 
