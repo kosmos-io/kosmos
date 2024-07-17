@@ -30,10 +30,11 @@ type ExectorReturn struct {
 	Reason  string
 	LastLog string
 	Text    string
+	Code    int
 }
 
 func (r *ExectorReturn) String() string {
-	return fmt.Sprintf("%d, %s, %s", r.Status, r.Reason, r.LastLog)
+	return fmt.Sprintf("%d, %s, %s, %d", r.Status, r.Reason, r.LastLog, r.Code)
 }
 
 type Exector interface {
@@ -98,7 +99,7 @@ func (h *ExectorHelper) DoExector(stopCh <-chan struct{}, exector Exector) *Exec
 func (h *ExectorHelper) DoExectorReal(stopCh <-chan struct{}, exector Exector) *ExectorReturn {
 	// default is error
 	result := &ExectorReturn{
-		FAILED, "init exector return status", "", "",
+		FAILED, "init exector return status", "", "", 0,
 	}
 
 	// nolint
@@ -133,6 +134,7 @@ func (h *ExectorHelper) DoExectorReal(stopCh <-chan struct{}, exector Exector) *
 						result.Reason = "command not found"
 						result.Text = cerr.Text
 					}
+					result.Code = cerr.Code
 				} else {
 					result.Reason = err.Error()
 				}
