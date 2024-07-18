@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -118,6 +119,8 @@ func Start(addr, certFile, keyFile, user, password string) error {
 			handleScript(conn, queryParams, []string{"sh"})
 		case strings.HasPrefix(r.URL.Path, "/tty"):
 			handleTty(conn, queryParams)
+		case strings.HasPrefix(r.URL.Path, "/check"):
+			handleCheck(conn, queryParams)
 		default:
 			_ = conn.WriteMessage(websocket.TextMessage, []byte("Invalid path"))
 		}
@@ -139,6 +142,25 @@ func Start(addr, certFile, keyFile, user, password string) error {
 		log.Errorf("failed to start server %v", err)
 	}
 	return err
+}
+
+func handleCheck(conn *websocket.Conn, params url.Values) {
+	port := params.Get("port")
+	if len(port) == 0 {
+		log.Errorf("port is required")
+		return
+	}
+	log.Infof("Check port %s", port)
+	address := fmt.Sprintf(":%s", port)
+	listener, err := net.Listen("tcp", address)
+	if err != nil {
+		log.Infof("port not avalible %s %v", address, err)
+		_ = conn.WriteMessage(websocket.BinaryMessage, []byte("1"))
+		return
+	}
+	defer listener.Close()
+	log.Infof("port avalible %s", address)
+	_ = conn.WriteMessage(websocket.BinaryMessage, []byte("0"))
 }
 
 func handleTty(conn *websocket.Conn, queryParams url.Values) {
