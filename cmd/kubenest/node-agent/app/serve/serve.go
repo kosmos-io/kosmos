@@ -1,5 +1,4 @@
-// main.go
-package main
+package serve
 
 import (
 	"bufio"
@@ -7,67 +6,65 @@ import (
 	"crypto/tls"
 	"encoding/base64"
 	"errors"
-	"flag"
 	"fmt"
 	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
+	"github.com/creack/pty"
 	"github.com/gorilla/websocket"
-	"github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+
+	"github.com/kosmos.io/kosmos/cmd/kubenest/node-agent/app/logger"
 )
 
 var (
-	addr     = flag.String("addr", ":5678", "websocket service address")
-	certFile = flag.String("cert", "cert.pem", "SSL certificate file")
-	keyFile  = flag.String("key", "key.pem", "SSL key file")
-	user     = flag.String("user", "", "Username for authentication")
-	password = flag.String("password", "", "Password for authentication")
-	log      = logrus.New()
+	ServeCmd = &cobra.Command{
+		Use:   "serve",
+		Short: "Start a WebSocket server",
+		RunE:  serveCmdRun,
+	}
+
+	certFile string // SSL certificate file
+	keyFile  string // SSL key file
+	addr     string // server listen address
+	log      = logger.GetLogger()
 )
 
-var upgrader = websocket.Upgrader{} // use default options
+var upgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+	CheckOrigin: func(r *http.Request) bool {
+		return true
+	},
+} // use default options
 
 func init() {
-	log.Out = os.Stdout
-
-	file, err := os.OpenFile("app.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
-	if err == nil {
-		log.Out = file
-	} else {
-		log.Info("Failed to log to file, using default stderr")
-	}
-	log.SetLevel(logrus.InfoLevel)
+	// setup flags
+	ServeCmd.PersistentFlags().StringVarP(&addr, "addr", "a", ":5678", "websocket service address")
+	ServeCmd.PersistentFlags().StringVarP(&certFile, "cert", "c", "cert.pem", "SSL certificate file")
+	ServeCmd.PersistentFlags().StringVarP(&keyFile, "key", "k", "key.pem", "SSL key file")
 }
-func main() {
-	flag.Parse()
-	if *user == "" {
-		_user := os.Getenv("WEB_USER")
-		if _user != "" {
-			*user = _user
-		}
-	}
 
-	if *password == "" {
-		_password := os.Getenv("WEB_PASS")
-		if _password != "" {
-			*password = _password
-		}
+func serveCmdRun(cmd *cobra.Command, args []string) error {
+	user := viper.GetString("WEB_USER")
+	password := viper.GetString("WEB_PASS")
+	if len(user) == 0 || len(password) == 0 {
+		log.Errorf("-user and -password are required %s %s", user, password)
+		return errors.New("-user and -password are required")
 	}
-	if len(*user) == 0 || len(*password) == 0 {
-		flag.Usage()
-		log.Errorf("-user and -password are required %s %s", *user, *password)
-		return
-	}
-	start(*addr, *certFile, *keyFile, *user, *password)
+	return Start(addr, certFile, keyFile, user, password)
 }
 
 // start server
-func start(addr, certFile, keyFile, user, password string) {
+func Start(addr, certFile, keyFile, user, password string) error {
 	passwordHash := sha256.Sum256([]byte(password))
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -119,6 +116,8 @@ func start(addr, certFile, keyFile, user, password string) {
 			handleScript(conn, queryParams, []string{"python3", "-u"})
 		case strings.HasPrefix(r.URL.Path, "/sh"):
 			handleScript(conn, queryParams, []string{"sh"})
+		case strings.HasPrefix(r.URL.Path, "/tty"):
+			handleTty(conn, queryParams)
 		default:
 			_ = conn.WriteMessage(websocket.TextMessage, []byte("Invalid path"))
 		}
@@ -135,8 +134,93 @@ func start(addr, certFile, keyFile, user, password string) {
 		TLSConfig:         tlsConfig,
 		ReadHeaderTimeout: 10 * time.Second,
 	}
+	err := server.ListenAndServeTLS("", "")
+	if err != nil {
+		log.Errorf("failed to start server %v", err)
+	}
+	return err
+}
 
-	log.Errorf("failed to start server %v", server.ListenAndServeTLS("", ""))
+func handleTty(conn *websocket.Conn, queryParams url.Values) {
+	entrypoint := queryParams.Get("command")
+	if len(entrypoint) == 0 {
+		log.Errorf("command is required")
+		return
+	}
+	log.Infof("Executing command %s", entrypoint)
+	cmd := exec.Command(entrypoint)
+	ptmx, err := pty.Start(cmd)
+	if err != nil {
+		log.Errorf("failed to start command %v", err)
+		return
+	}
+	defer func() {
+		_ = ptmx.Close()
+	}()
+	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, syscall.SIGWINCH)
+	go func() {
+		for range ch {
+			if err := pty.InheritSize(os.Stdin, ptmx); err != nil {
+				log.Errorf("error resizing pty: %s", err)
+			}
+		}
+	}()
+	ch <- syscall.SIGWINCH                        // Initial resize.
+	defer func() { signal.Stop(ch); close(ch) }() // Cleanup signals when done.
+	done := make(chan struct{})
+	// Use a goroutine to copy PTY output to WebSocket
+	go func() {
+		buf := make([]byte, 1024)
+		for {
+			n, err := ptmx.Read(buf)
+			if err != nil {
+				log.Errorf("PTY read error: %v", err)
+				break
+			}
+			log.Printf("Received message: %s", buf[:n])
+			if err := conn.WriteMessage(websocket.BinaryMessage, buf[:n]); err != nil {
+				log.Errorf("WebSocket write error: %v", err)
+				break
+			}
+		}
+		done <- struct{}{}
+	}()
+	// echo off
+	//ptmx.Write([]byte("stty -echo\n"))
+	// Set stdin in raw mode.
+	//oldState, err := term.MakeRaw(int(ptmx.Fd()))
+	//if err != nil {
+	//	panic(err)
+	//}
+	//defer func() { _ = term.Restore(int(ptmx.Fd()), oldState) }() // Best effort.
+
+	// Disable Bracketed Paste Mode in bash shell
+	//	_, err = ptmx.Write([]byte("printf '\\e[?2004l'\n"))
+	//	if err != nil {
+	//		log.Fatal(err)
+	//	}
+
+	// Use a goroutine to copy WebSocket input to PTY
+	go func() {
+		for {
+			_, message, err := conn.ReadMessage()
+			if err != nil {
+				log.Printf("read from websocket failed: %v, %s", err, string(message))
+				break
+			}
+			log.Printf("Received message: %s", message)    // Debugging line
+			if _, err := ptmx.Write(message); err != nil { // Ensure newline character for commands
+				log.Printf("PTY write error: %v", err)
+				break
+			}
+		}
+		// Signal the done channel when this goroutine finishes
+		done <- struct{}{}
+	}()
+
+	// Wait for the done channel to be closed
+	<-done
 }
 
 func handleUpload(conn *websocket.Conn, params url.Values) {
@@ -271,21 +355,22 @@ func handleScript(conn *websocket.Conn, params url.Values, command []string) {
 func execCmd(conn *websocket.Conn, command string, args []string) {
 	// #nosec G204
 	cmd := exec.Command(command, args...)
+	log.Infof("Executing command: %s, %v", command, args)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		log.Warnf("Error obtaining command output pipe: %v", err)
 	}
 	defer stdout.Close()
 
-	if err := cmd.Start(); err != nil {
-		errStr := strings.ToLower(err.Error())
-		log.Warnf("Error starting command: %v, %s", err, errStr)
-		if strings.Contains(errStr, "no such file") {
-			exitCode := 127
-			_ = conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, fmt.Sprintf("%d", exitCode)))
-		}
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		log.Warnf("Error obtaining command error pipe: %v", err)
 	}
+	defer stderr.Close()
 
+	// Channel for signaling command completion
+	doneCh := make(chan struct{})
+	defer close(doneCh)
 	// processOutput
 	go func() {
 		scanner := bufio.NewScanner(stdout)
@@ -294,7 +379,23 @@ func execCmd(conn *websocket.Conn, command string, args []string) {
 			log.Warnf("%s", data)
 			_ = conn.WriteMessage(websocket.TextMessage, data)
 		}
+		scanner = bufio.NewScanner(stderr)
+		for scanner.Scan() {
+			data := scanner.Bytes()
+			log.Warnf("%s", data)
+			_ = conn.WriteMessage(websocket.TextMessage, data)
+		}
+		doneCh <- struct{}{}
 	}()
+	if err := cmd.Start(); err != nil {
+		errStr := strings.ToLower(err.Error())
+		log.Warnf("Error starting command: %v, %s", err, errStr)
+		_ = conn.WriteMessage(websocket.TextMessage, []byte(errStr))
+		if strings.Contains(errStr, "no such file") {
+			exitCode := 127
+			_ = conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, fmt.Sprintf("%d", exitCode)))
+		}
+	}
 
 	// Wait for the command to finish
 	if err := cmd.Wait(); err != nil {
@@ -303,6 +404,7 @@ func execCmd(conn *websocket.Conn, command string, args []string) {
 			log.Warnf("Command : %s exited with non-zero status: %v", command, exitError)
 		}
 	}
+	<-doneCh
 	exitCode := cmd.ProcessState.ExitCode()
 	log.Infof("Command : %s finished with exit code %d", command, exitCode)
 	_ = conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, fmt.Sprintf("%d", exitCode)))
