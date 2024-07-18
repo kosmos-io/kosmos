@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/gorilla/websocket"
@@ -51,6 +52,12 @@ var (
 		Long:  "execute command on remote server use pyt",
 		RunE:  cmdTtyRun,
 	}
+	checkCmd = &cobra.Command{
+		Use:   "check",
+		Short: "Check the port is open or not",
+		Long:  "Check the port can be assign or not",
+		RunE:  cmdCheckRun,
+	}
 	wg sync.WaitGroup
 
 	wsAddr    []string // websocket client connect address list
@@ -59,6 +66,35 @@ var (
 	params    []string // New slice to hold multiple command parameters
 	operation string   // operation for client to execute
 )
+
+func cmdCheckRun(cmd *cobra.Command, args []string) error {
+	if len(params) != 1 {
+		log.Errorf("port list is required and port list size must not be greater than 1")
+		return fmt.Errorf("port list is required and port list size must not be greater than 1")
+	}
+	auth, err := getAuth(cmd)
+	if err != nil {
+		return err
+	}
+	headers := http.Header{
+		"Authorization": {"Basic " + auth},
+	}
+	for _, addr := range wsAddr {
+		wg.Add(1)
+		go func(addr string) {
+			defer wg.Done()
+			wsURL := fmt.Sprintf("wss://%s/check/?port=%s", addr, params[0])
+			fmt.Println("Checking port:", wsURL)
+			err := connectAndHandleMessages(wsURL, headers)
+			if err != nil {
+				log.Errorf("failed to check port: %v on %s: %v\n", err, addr, strings.Join(params, "&"))
+			}
+		}(addr)
+	}
+	wg.Wait()
+	return nil
+}
+
 var uniqueValuesMap = make(map[string]bool)
 var dialer = websocket.DefaultDialer
 
@@ -91,6 +127,9 @@ func init() {
 	shCmd.Flags().StringVarP(&operation, "operation", "o", "", "Operation to perform")
 	_ = shCmd.MarkFlagRequired("addr")
 
+	checkCmd.Flags().StringArrayVarP(&params, "param", "r", []string{}, "Command parameters")
+	_ = checkCmd.MarkFlagRequired("addr")
+
 	uploadCmd.Flags().StringVarP(&fileName, "name", "n", "", "Name of the file to upload")
 	uploadCmd.Flags().StringVarP(&filePath, "path", "f", "", "Path to the file to upload")
 	// avoid can't show subcommand help and execute subcommand
@@ -105,6 +144,7 @@ func init() {
 	ClientCmd.AddCommand(shCmd)
 	ClientCmd.AddCommand(uploadCmd)
 	ClientCmd.AddCommand(ttyCmd)
+	ClientCmd.AddCommand(checkCmd)
 }
 
 func cmdTtyRun(cmd *cobra.Command, args []string) error {
@@ -247,7 +287,7 @@ func executeWebSocketCommand(auth string) error {
 	if len(params) > 1 {
 		paramsStr := "args="
 		for _, param := range params {
-			paramsStr += param + "&&args="
+			paramsStr += url.QueryEscape(param) + "&&args="
 		}
 		paramsStr = paramsStr[:len(paramsStr)-7]
 		cmdStr = fmt.Sprintf("command=%s&&%s", operation, paramsStr)
