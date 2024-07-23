@@ -155,12 +155,13 @@ func handleCheck(conn *websocket.Conn, params url.Values) {
 	listener, err := net.Listen("tcp", address)
 	if err != nil {
 		log.Infof("port not avalible %s %v", address, err)
-		_ = conn.WriteMessage(websocket.BinaryMessage, []byte("1"))
+		_ = conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, fmt.Sprintf("%d", 1)))
 		return
 	}
 	defer listener.Close()
 	log.Infof("port avalible %s", address)
-	_ = conn.WriteMessage(websocket.BinaryMessage, []byte("0"))
+	// _ = conn.WriteMessage(websocket.BinaryMessage, []byte("0"))
+	_ = conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, fmt.Sprintf("%d", 0)))
 }
 
 func handleTty(conn *websocket.Conn, queryParams url.Values) {
