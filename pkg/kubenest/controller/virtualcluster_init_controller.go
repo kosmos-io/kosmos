@@ -10,6 +10,7 @@ import (
 
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -32,7 +33,10 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
+	env "github.com/kosmos.io/kosmos/pkg/kubenest/controller/virtualcluster.node.controller/env"
+	"github.com/kosmos.io/kosmos/pkg/kubenest/controller/virtualcluster.node.controller/exector"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/util"
+	apiclient "github.com/kosmos.io/kosmos/pkg/kubenest/util/api-client"
 )
 
 type VirtualClusterInitController struct {
@@ -488,12 +492,13 @@ func GetHostPortPoolFromConfigMap(client kubernetes.Interface, ns, cmName, dataK
 	return &hostPool, nil
 }
 
-func (c *VirtualClusterInitController) isPortAllocated(port int32) bool {
+// Return false to indicate that the port is not occupied
+func (c *VirtualClusterInitController) isPortAllocated(port int32, hostAddress []string) bool {
 	vcList := &v1alpha1.VirtualClusterList{}
 	err := c.List(context.Background(), vcList)
 	if err != nil {
 		klog.Errorf("list virtual cluster error: %v", err)
-		return false
+		return true
 	}
 
 	for _, vc := range vcList.Items {
@@ -511,7 +516,84 @@ func (c *VirtualClusterInitController) isPortAllocated(port int32) bool {
 		}
 	}
 
-	return false
+	ret, err := checkPortOnHostWithAddresses(port, hostAddress)
+	if err != nil {
+		klog.Errorf("check port on host error: %v", err)
+		return true
+	}
+	return ret
+}
+
+// Return false to indicate that the port is not occupied
+func checkPortOnHostWithAddresses(port int32, hostAddress []string) (bool, error) {
+	for _, addr := range hostAddress {
+		flag, err := CheckPortOnHost(addr, port)
+		if err != nil {
+			return false, err
+		}
+		if flag {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func findAddress(node corev1.Node) (string, error) {
+	for _, addr := range node.Status.Addresses {
+		if addr.Type == corev1.NodeInternalIP {
+			return addr.Address, nil
+		}
+	}
+	return "", fmt.Errorf("cannot find internal IP address in node addresses, node name: %s", node.GetName())
+}
+
+// Return false to indicate that the port is not occupied
+func CheckPortOnHost(addr string, port int32) (bool, error) {
+	hostExectorHelper := exector.NewExectorHelper(addr, "")
+	checkCmd := &exector.CheckExector{
+		Port: fmt.Sprintf("%d", port),
+	}
+
+	var ret *exector.ExectorReturn
+	err := apiclient.TryRunCommand(func() error {
+		ret = hostExectorHelper.DoExector(context.TODO().Done(), checkCmd)
+		if ret.Code != 1000 {
+			return fmt.Errorf("chekc port failed, err: %s", ret.String())
+		}
+		return nil
+	}, 3)
+
+	if err != nil {
+		klog.Errorf("check port on host error! addr:%s, port %d, err: %s", addr, port, err.Error())
+		return true, err
+	}
+
+	if ret.Status != exector.SUCCESS {
+		return true, fmt.Errorf("pod[%d] is occupied", port)
+	} else {
+		return false, nil
+	}
+}
+
+func (c *VirtualClusterInitController) findHostAddresses() ([]string, error) {
+	nodes, err := c.RootClientSet.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{
+		LabelSelector: env.GetControlPlaneLabel(),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	ret := []string{}
+
+	for _, node := range nodes.Items {
+		addr, err := findAddress(node)
+		if err != nil {
+			return nil, err
+		}
+
+		ret = append(ret, addr)
+	}
+	return ret, nil
 }
 
 // AllocateHostPort allocate host port for virtual cluster
@@ -526,11 +608,20 @@ func (c *VirtualClusterInitController) AllocateHostPort(virtualCluster *v1alpha1
 	if err != nil {
 		return 0, err
 	}
+
+	hostAddress, err := c.findHostAddresses()
+	if err != nil {
+		return 0, err
+	}
+
 	ports := func() []int32 {
 		ports := make([]int32, 0)
 		for _, p := range hostPool.PortsPool {
-			if !c.isPortAllocated(p) {
+			if !c.isPortAllocated(p, hostAddress) {
 				ports = append(ports, p)
+				if len(ports) > constants.VirtualClusterPortNum {
+					break
+				}
 			}
 		}
 		return ports
