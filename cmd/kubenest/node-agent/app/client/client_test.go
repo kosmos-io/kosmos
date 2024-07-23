@@ -1,9 +1,7 @@
-package main
+package client
 
 import (
-	"bufio"
 	"crypto/tls"
-	"encoding/base64"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -13,11 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gorilla/websocket"
+	"github.com/kosmos.io/kosmos/cmd/kubenest/node-agent/app/serve"
 )
-
-// create dialer
-var dialer = *websocket.DefaultDialer
 
 // test addr user pass
 var testAddr, username, pass string
@@ -37,17 +32,19 @@ func init() {
 	username = os.Getenv("WEB_USER")
 	pass = os.Getenv("WEB_PASS")
 	testAddr = "127.0.0.1:5678"
+
 	headers = http.Header{
-		"Authorization": {"Basic " + basicAuth(username, pass)},
+		"Authorization": {"Basic " + BasicAuth(username, pass)},
 	}
-	go start(":5678", "cert.pem", "key.pem", username, pass)
+	go func() {
+		err := serve.Start(":5678", "cert.pem", "key.pem", username, pass)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}()
 	time.Sleep(10 * time.Second)
 }
-func wsRespClose(resp *http.Response) {
-	if resp != nil && resp.Body != nil {
-		_ = resp.Body.Close()
-	}
-}
+
 func TestCmd(t *testing.T) {
 	fmt.Println("Command test")
 	command := url.QueryEscape("ls -l")
@@ -105,64 +102,4 @@ func TestPyScript(t *testing.T) {
 	defer ws.Close()
 	sendFile(ws, filepath.Join(parentDir, "count.py"))
 	handleMessages(ws)
-}
-
-func basicAuth(username, password string) string {
-	auth := username + ":" + password
-	return base64.StdEncoding.EncodeToString([]byte(auth))
-}
-
-func handleMessages(ws *websocket.Conn) {
-	defer ws.Close()
-	for {
-		_, message, err := ws.ReadMessage()
-		if err != nil {
-			log.Println("Read message end :", err)
-			return
-		}
-		fmt.Printf("Received message: %s\n", message)
-	}
-}
-
-func sendFile(ws *websocket.Conn, filePath string) {
-	//if file not exists, close connection
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		log.Printf("File not exists: %v", err)
-		err := ws.WriteMessage(websocket.BinaryMessage, []byte("EOF"))
-		if err != nil {
-			log.Printf("Write message error: %v", err)
-		}
-		return
-	}
-
-	file, err := os.Open(filePath)
-	if err != nil {
-		log.Printf("File open error: %v", err)
-	}
-	defer file.Close()
-	// 指定每次读取的数据块大小
-	bufferSize := 1024 // 例如每次读取 1024 字节
-	buffer := make([]byte, bufferSize)
-
-	reader := bufio.NewReader(file)
-	for {
-		n, err := reader.Read(buffer)
-		if err != nil {
-			// check if EOF
-			if err.Error() == "EOF" {
-				break
-			}
-			log.Printf("failed to read file %v:", err)
-			return
-		}
-		dataToSend := buffer[:n]
-
-		_ = ws.WriteMessage(websocket.BinaryMessage, dataToSend)
-	}
-
-	err = ws.WriteMessage(websocket.BinaryMessage, []byte("EOF"))
-	log.Printf("send EOF ----")
-	if err != nil {
-		log.Printf("Write message error: %v", err)
-	}
 }
