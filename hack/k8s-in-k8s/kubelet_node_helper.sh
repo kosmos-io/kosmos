@@ -8,7 +8,6 @@ LOG_NAME=${2:-kubelet}
 JOIN_HOST=$2
 JOIN_TOKEN=$3
 JOIN_CA_HASH=$4
-CHECK_PORT=$2
 
 function unjoin() {
     # before unjoin, you need delete node by kubectl
@@ -331,13 +330,6 @@ function version() {
     echo "$SCRIPT_VERSION"
 }
 
-function port() {
-    echo "check port(1/1): use netstat check port :$CHECK_PORT"
-    output=$(netstat -ant | awk '{print $4}' | grep ":$CHECK_PORT" | wc -l)
-    # Do not modify the fixed format
-    echo "port:$CHECK_PORT/$output"
-}
-
 # See how we were called.
 case "$1" in
     unjoin)
@@ -345,9 +337,6 @@ case "$1" in
     ;;
     join)
     join
-    ;;
-    port)
-    port
     ;;
     health)
     health
@@ -365,6 +354,6 @@ case "$1" in
     version
     ;;
     *)
-    echo $"usage: $0 unjoin|join|health|log|check|version|revert|port"
+    echo $"usage: $0 unjoin|join|health|log|check|version|revert"
     exit 1
 esac

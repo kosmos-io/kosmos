@@ -31,3 +31,8 @@ kube-config
 __debug_bin*
 
 ignore_dir
+
+cmd/kubenest/node-agent/app.log
+cmd/kubenest/node-agent/cert.pem
+cmd/kubenest/node-agent/key.pem
+cmd/kubenest/node-agent/agent.env

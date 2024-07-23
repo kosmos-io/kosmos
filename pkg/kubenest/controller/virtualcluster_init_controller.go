@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"sort"
-	"strings"
 	"sync"
 	"time"
 
@@ -694,14 +693,14 @@ func findAddress(node corev1.Node) (string, error) {
 // Return false to indicate that the port is not occupied
 func CheckPortOnHost(addr string, port int32) (bool, error) {
 	hostExectorHelper := exector.NewExectorHelper(addr, "")
-	joinCmdStrCmd := &exector.CMDExector{
-		Cmd: fmt.Sprintf("bash %s port %d", env.GetExectorShellName(), port),
+	checkCmd := &exector.CheckExector{
+		Port: fmt.Sprintf("%d", port),
 	}
 
 	var ret *exector.ExectorReturn
 	err := apiclient.TryRunCommand(func() error {
-		ret = hostExectorHelper.DoExector(context.TODO().Done(), joinCmdStrCmd)
-		if ret.Status != exector.SUCCESS {
+		ret = hostExectorHelper.DoExector(context.TODO().Done(), checkCmd)
+		if ret.Code != 1000 {
 			return fmt.Errorf("chekc port failed, err: %s", ret.String())
 		}
 		return nil
@@ -711,9 +710,12 @@ func CheckPortOnHost(addr string, port int32) (bool, error) {
 		klog.Errorf("check port on host error! addr:%s, port %d, err: %s", addr, port, err.Error())
 		return true, err
 	}
-	klog.V(4).Infof("check port on host, addr: %s, port %d, result: %s", addr, port, ret.String())
 
-	return !strings.HasSuffix(ret.LastLog, fmt.Sprintf("port:%d/0", port)), nil
+	if ret.Status != exector.SUCCESS {
+		return true, fmt.Errorf("pod[%d] is occupied", port)
+	} else {
+		return false, nil
+	}
 }
 
 func (c *VirtualClusterInitController) findHostAddresses() ([]string, error) {
