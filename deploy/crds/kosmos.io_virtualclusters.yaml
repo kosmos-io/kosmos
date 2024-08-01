@@ -47,6 +47,12 @@ spec:
                 description: ExternalIP is the external ip of the virtual kubernetes's
                   control plane
                 type: string
+              externalIps:
+                description: ExternalIps is the external ips of the virtual kubernetes's
+                  control plane
+                items:
+                  type: string
+                type: array
               kubeconfig:
                 description: Kubeconfig is the kubeconfig of the virtual kubernetes's
                   control plane
