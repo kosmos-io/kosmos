@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	corev1 "k8s.io/api/core/v1"
 )
 
 func ContainsString(arr []string, s string) bool {
@@ -41,4 +43,17 @@ func GenerateAddrStr(addr string, port string) string {
 		return fmt.Sprintf("[%s]:%s", addr, port)
 	}
 	return fmt.Sprintf("%s:%s", addr, port)
+}
+
+func IPFamilyGenerator(apiServerServiceSubnet string) []corev1.IPFamily {
+	ipNetStrArray := strings.Split(apiServerServiceSubnet, ",")
+	ipFamilies := []corev1.IPFamily{}
+	for _, ipstr := range ipNetStrArray {
+		if IsIPv6(ipstr) {
+			ipFamilies = append(ipFamilies, corev1.IPv6Protocol)
+		} else {
+			ipFamilies = append(ipFamilies, corev1.IPv4Protocol)
+		}
+	}
+	return ipFamilies
 }
