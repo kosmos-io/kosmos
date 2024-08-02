@@ -17,6 +17,7 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/kubenest/manifest/controlplane/coredns/host"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/manifest/controlplane/etcd"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/util"
+	"github.com/kosmos.io/kosmos/pkg/utils"
 )
 
 func EnsureVirtualClusterService(client clientset.Interface, name, namespace string, portMap map[string]int32) error {
@@ -49,14 +50,17 @@ func DeleteVirtualClusterService(client clientset.Interface, name, namespace str
 }
 
 func createServerService(client clientset.Interface, name, namespace string, portMap map[string]int32) error {
+	ipFamilies := utils.IPFamilyGenerator(constants.ApiServerServiceSubnet)
 	apiserverServiceBytes, err := util.ParseTemplate(apiserver.ApiserverService, struct {
 		ServiceName, Namespace, ServiceType string
 		ServicePort                         int32
+		IPFamilies                          []corev1.IPFamily
 	}{
 		ServiceName: fmt.Sprintf("%s-%s", name, "apiserver"),
 		Namespace:   namespace,
 		ServiceType: constants.ApiServerServiceType,
 		ServicePort: portMap[constants.ApiServerPortKey],
+		IPFamilies:  ipFamilies,
 	})
 	if err != nil {
 		return fmt.Errorf("error when parsing virtualClusterApiserver serive template: %w", err)
