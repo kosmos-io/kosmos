@@ -60,7 +60,7 @@ var (
 	}
 	wg sync.WaitGroup
 
-	wsAddr    []string // websocket client connect address list
+	WsAddr    []string // websocket client connect address list
 	filePath  string   // the server path to save upload file
 	fileName  string   // local file to upload
 	params    []string // New slice to hold multiple command parameters
@@ -79,7 +79,7 @@ func cmdCheckRun(cmd *cobra.Command, args []string) error {
 	headers := http.Header{
 		"Authorization": {"Basic " + auth},
 	}
-	for _, addr := range wsAddr {
+	for _, addr := range WsAddr {
 		wg.Add(1)
 		go func(addr string) {
 			defer wg.Done()
@@ -106,15 +106,11 @@ func init() {
 	// #nosec G402
 	dialer.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 
-	ClientCmd.PersistentFlags().StringSliceVarP(&wsAddr, "addr", "a", []string{}, "WebSocket address (e.g., host1:port1,host2:port2)")
-	err := ClientCmd.MarkPersistentFlagRequired("addr")
-	if err != nil {
-		return
-	}
+	ClientCmd.PersistentFlags().StringSliceVarP(&WsAddr, "addr", "a", []string{}, "WebSocket address (e.g., host1:port1,host2:port2)")
 
 	// PreRunE check param
 	ClientCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
-		for _, value := range wsAddr {
+		for _, value := range WsAddr {
 			if _, exists := uniqueValuesMap[value]; exists {
 				return errors.New("duplicate values are not allowed")
 			}
@@ -137,7 +133,7 @@ func init() {
 	_ = uploadCmd.MarkFlagRequired("path")
 
 	ttyCmd.Flags().StringVarP(&operation, "operation", "o", "", "Operation to perform")
-	err = ttyCmd.MarkFlagRequired("operation") // Ensure 'operation' flag is required for ttyCmd
+	err := ttyCmd.MarkFlagRequired("operation") // Ensure 'operation' flag is required for ttyCmd
 	if err != nil {
 		return
 	}
@@ -157,7 +153,7 @@ func cmdTtyRun(cmd *cobra.Command, args []string) error {
 	}
 	cmdStr := fmt.Sprintf("command=%s", operation)
 	// execute one every wsAddr
-	for _, addr := range wsAddr {
+	for _, addr := range WsAddr {
 		wsURL := fmt.Sprintf("wss://%s/tty/?%s", addr, cmdStr)
 		fmt.Println("Executing tty:", cmdStr, "on", addr)
 		err := connectTty(wsURL, headers)
@@ -294,7 +290,7 @@ func executeWebSocketCommand(auth string) error {
 	}
 
 	// execute one every wsAddr
-	for _, addr := range wsAddr {
+	for _, addr := range WsAddr {
 		wg.Add(1)
 		go func(addr string) {
 			defer wg.Done()
@@ -314,7 +310,7 @@ func uploadFile(filePath, fileName, auth string) error {
 	headers := http.Header{
 		"Authorization": {"Basic " + auth},
 	}
-	for _, addr := range wsAddr {
+	for _, addr := range WsAddr {
 		wg.Add(1)
 		go func(addr string) {
 			defer wg.Done()
