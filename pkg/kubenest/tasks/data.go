@@ -21,6 +21,7 @@ type InitData interface {
 	DataDir() string
 	VirtualCluster() *v1alpha1.VirtualCluster
 	ExternalIP() string
+	ExternalIPs() []string
 	HostPort() int32
 	HostPortMap() map[string]int32
 	DynamicClient() *dynamic.DynamicClient

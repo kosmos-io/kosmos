@@ -53,6 +53,10 @@ type VirtualClusterSpec struct {
 	// +optional
 	ExternalIP string `json:"externalIP,omitempty"`
 
+	// ExternalIps is the external ips of the virtual kubernetes's control plane
+	// +optional
+	ExternalIps []string `json:"externalIps,omitempty"`
+
 	// PromotePolicies definites the policies for promote to the kubernetes's control plane
 	// +required
 	PromotePolicies []PromotePolicy `json:"promotePolicies,omitempty"`

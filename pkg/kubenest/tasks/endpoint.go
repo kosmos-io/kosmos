@@ -3,10 +3,9 @@ package tasks
 import (
 	"context"
 	"fmt"
-
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 
@@ -54,12 +53,13 @@ func runEndPointInVirtualClusterTask(r workflow.RunData) error {
 	if err != nil {
 		return err
 	}
-	dynamicClient, err := dynamic.NewForConfig(config)
+
+	kubeClient, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		return err
 	}
 
-	err = controlplane.EnsureApiServerExternalEndPoint(dynamicClient)
+	err = controlplane.EnsureApiServerExternalEndPoint(kubeClient)
 	if err != nil {
 		return err
 	}

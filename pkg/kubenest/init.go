@@ -35,6 +35,7 @@ type initData struct {
 	virtualClusterDataDir string
 	privateRegistry       string
 	externalIP            string
+	externalIps           []string
 	hostPort              int32
 	hostPortMap           map[string]int32
 	kubeNestOptions       *ko.KubeNestOptions
@@ -185,6 +186,7 @@ func newRunData(opt *InitOptions) (*initData, error) {
 		privateRegistry:       utils.DefaultImageRepository,
 		CertStore:             cert.NewCertStore(),
 		externalIP:            opt.virtualCluster.Spec.ExternalIP,
+		externalIps:           opt.virtualCluster.Spec.ExternalIps,
 		hostPort:              opt.virtualCluster.Status.Port,
 		hostPortMap:           opt.virtualCluster.Status.PortMap,
 		kubeNestOptions:       opt.KubeNestOptions,
@@ -249,6 +251,8 @@ func (i initData) VirtualCluster() *v1alpha1.VirtualCluster {
 func (i initData) ExternalIP() string {
 	return i.externalIP
 }
+
+func (i initData) ExternalIPs() []string { return i.externalIps }
 
 func (i initData) HostPort() int32 {
 	return i.hostPort
