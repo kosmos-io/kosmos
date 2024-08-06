@@ -2,6 +2,7 @@ package app
 
 import (
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -33,6 +34,7 @@ func initConfig() {
 	currentDir, _ := os.Getwd()
 	viper.AddConfigPath(currentDir)
 	viper.AddConfigPath("/srv/node-agent/agent.env")
+	viper.SetConfigType("toml")
 	// If a agent.env file is found, read it in.
 	if err := viper.ReadInConfig(); err != nil {
 		log.Warnf("Load config file error, %s", err)
@@ -46,8 +48,27 @@ func initConfig() {
 	}
 }
 
+func initWebSocketAddr() {
+	err := viper.BindPFlag("ADDR", client.ClientCmd.PersistentFlags().Lookup("addr"))
+	if err != nil {
+		log.Fatalf("Failed to bind flag: %v", err)
+		return
+	}
+	err = viper.BindEnv("ADDR", "ADDR")
+	if err != nil {
+		log.Fatalf("Failed to bind env: %v", err)
+		return
+	}
+	// Initialize addr value from viper
+	log.Infof(strings.Join(viper.AllKeys(), ","))
+	if viper.Get("addr") != nil {
+		client.WsAddr = viper.GetStringSlice("addr")
+		log.Infof("addr: %v", client.WsAddr)
+	}
+}
+
 func init() {
-	cobra.OnInitialize(initConfig)
+	cobra.OnInitialize(initConfig, initWebSocketAddr)
 
 	RootCmd.PersistentFlags().StringVarP(&user, "user", "u", "", "Username for authentication")
 	RootCmd.PersistentFlags().StringVarP(&password, "password", "p", "", "Password for authentication")
