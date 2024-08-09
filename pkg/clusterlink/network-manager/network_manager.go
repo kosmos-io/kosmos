@@ -28,6 +28,10 @@ func ExcludeInvalidItems(clusters []v1alpha1.Cluster, clusterNodes []v1alpha1.Cl
 			klog.Infof("the cluster %s's ClusterLinkOptions is empty, will exclude.", c.Name)
 			continue
 		}
+		if !c.Spec.ClusterLinkOptions.Enable {
+			klog.Infof("the cluster %s's ClusterLinkOptions is enable, will exclude.", c.Name)
+			continue
+		}
 		clustersMap[c.Name] = c
 		cs = append(cs, c)
 	}
