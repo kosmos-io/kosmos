@@ -34,6 +34,7 @@ import (
 	podcontrollers "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/pod"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/pv"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/pvc"
+	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/svc"
 	leafUtils "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/utils"
 	kosmosversioned "github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/scheme"
@@ -250,6 +251,7 @@ func (c *ClusterController) setupControllers(
 		Clientset:     leafClientset,
 		KosmosClient:  leafKosmosClient,
 		ClusterName:   cluster.Name,
+		IPFamilyType:  cluster.Spec.ClusterLinkOptions.IPFamily,
 		// TODO: define node options
 		Namespace:            "",
 		IgnoreLabels:         strings.Split("", ","),
@@ -278,11 +280,12 @@ func (c *ClusterController) setupControllers(
 
 	if c.Options.MultiClusterService {
 		serviceImportController := &mcs.ServiceImportController{
-			LeafClient:          mgr.GetClient(),
-			LeafKosmosClient:    leafKosmosClient,
-			EventRecorder:       mgr.GetEventRecorderFor(mcs.LeafServiceImportControllerName),
-			Logger:              mgr.GetLogger(),
-			LeafNodeName:        cluster.Name,
+			LeafClient:       mgr.GetClient(),
+			LeafKosmosClient: leafKosmosClient,
+			EventRecorder:    mgr.GetEventRecorderFor(mcs.LeafServiceImportControllerName),
+			Logger:           mgr.GetLogger(),
+			LeafNodeName:     cluster.Name,
+			// todo Null pointer exception ?
 			IPFamilyType:        cluster.Spec.ClusterLinkOptions.IPFamily,
 			RootResourceManager: c.RootResourceManager,
 			ReservedNamespaces:  c.Options.ReservedNamespaces,
@@ -291,6 +294,29 @@ func (c *ClusterController) setupControllers(
 		}
 		if err := serviceImportController.AddController(mgr); err != nil {
 			return fmt.Errorf("error starting %s: %v", mcs.LeafServiceImportControllerName, err)
+		}
+	}
+
+	if c.Options.DirectClusterService {
+		simpleSyncServiceController := &svc.SimpleSyncServiceController{
+			RootClient:          c.Root,
+			GlobalLeafManager:   c.GlobalLeafManager,
+			AutoCreateMCSPrefix: c.Options.AutoCreateMCSPrefix,
+			ReservedNamespaces:  c.Options.ReservedNamespaces,
+		}
+		if err := simpleSyncServiceController.SetupWithManager(mgr); err != nil {
+			return fmt.Errorf("error starting %s: %v", svc.SimpleSyncServiceControllerName, err)
+		}
+
+		simpleSyncEpsController := &svc.SimpleSyncEPSController{
+			RootClient:          c.Root,
+			GlobalLeafManager:   c.GlobalLeafManager,
+			AutoCreateMCSPrefix: c.Options.AutoCreateMCSPrefix,
+			ReservedNamespaces:  c.Options.ReservedNamespaces,
+			BackoffOptions:      c.Options.BackoffOpts,
+		}
+		if err := simpleSyncEpsController.SetupWithManager(mgr); err != nil {
+			return fmt.Errorf("error starting %s: %v", svc.SimpleSyncEPSControllerName, err)
 		}
 	}
 

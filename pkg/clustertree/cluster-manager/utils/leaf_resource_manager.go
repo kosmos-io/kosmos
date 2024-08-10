@@ -43,6 +43,7 @@ type LeafResource struct {
 	ClusterName          string
 	Namespace            string
 	IgnoreLabels         []string
+	IPFamilyType         kosmosv1alpha1.IPFamilyType
 	EnableServiceAccount bool
 	Nodes                []ClusterNode
 	RestConfig           *rest.Config

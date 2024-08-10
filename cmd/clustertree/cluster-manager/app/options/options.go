@@ -25,11 +25,12 @@ const (
 )
 
 type Options struct {
-	LeaderElection      componentbaseconfig.LeaderElectionConfiguration
-	KubernetesOptions   KubernetesOptions
-	ListenPort          int32
-	DaemonSetController bool
-	MultiClusterService bool
+	LeaderElection       componentbaseconfig.LeaderElectionConfiguration
+	KubernetesOptions    KubernetesOptions
+	ListenPort           int32
+	DaemonSetController  bool
+	MultiClusterService  bool
+	DirectClusterService bool
 
 	// If MultiClusterService is disabled, the clustertree will rewrite the dnsPolicy configuration for pods deployed in
 	// the leaf clusters, directing them to the root cluster's CoreDNS, thus facilitating access to services across all
@@ -88,6 +89,7 @@ func (o *Options) AddFlags(flags *pflag.FlagSet) {
 	flags.Int32Var(&o.ListenPort, "listen-port", 10250, "Listen port for requests from the kube-apiserver.")
 	flags.BoolVar(&o.DaemonSetController, "daemonset-controller", false, "Turn on or off daemonset controller.")
 	flags.BoolVar(&o.MultiClusterService, "multi-cluster-service", false, "Turn on or off mcs support.")
+	flags.BoolVar(&o.DirectClusterService, "direct-cluster-service", false, "Turn on or off direct cluster service.")
 	flags.StringVar(&o.RootCoreDNSServiceNamespace, "root-coredns-service-namespace", CoreDNSServiceNamespace, "The namespace of the CoreDNS service in the root cluster, used to locate the CoreDNS service when MultiClusterService is disabled.")
 	flags.StringVar(&o.RootCoreDNSServiceName, "root-coredns-service-name", CoreDNSServiceName, "The name of the CoreDNS service in the root cluster, used to locate the CoreDNS service when MultiClusterService is disabled.")
 	flags.BoolVar(&o.OnewayStorageControllers, "oneway-storage-controllers", false, "Turn on or off oneway storage controllers.")
