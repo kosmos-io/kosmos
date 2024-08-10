@@ -11,7 +11,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/strings/slices"
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -277,8 +276,8 @@ func (c *SimpleSyncServiceController) generateService(service *corev1.Service, r
 }
 
 func (c *SimpleSyncServiceController) createOrUpdateServiceInClient(service *corev1.Service, leafManger *clustertreeutils.LeafResource) error {
-	oldService := &corev1.Service{}
-	if err := leafManger.Client.Get(context.TODO(), types.NamespacedName{Namespace: service.Namespace, Name: service.Name}, oldService); err != nil {
+	oldService, err := leafManger.Clientset.CoreV1().Services(service.Namespace).Get(context.TODO(), service.Name, metav1.GetOptions{})
+	if err != nil {
 		if apierrors.IsNotFound(err) {
 			if err = leafManger.Client.Create(context.TODO(), service); err != nil {
 				klog.Errorf("Create serviceImport service(%s/%s) in client cluster %s failed, Error: %v", service.Namespace, service.Name, leafManger.ClusterName, err)
