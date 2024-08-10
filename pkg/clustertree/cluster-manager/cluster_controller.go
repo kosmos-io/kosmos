@@ -234,7 +234,9 @@ func (c *ClusterController) clearClusterControllers(cluster *kosmosv1alpha1.Clus
 	delete(c.ManagerCancelFuncs, cluster.Name)
 	delete(c.ControllerManagers, cluster.Name)
 
+	actualClusterName := leafUtils.GetActualClusterName(cluster)
 	c.GlobalLeafResourceManager.RemoveLeafResource(cluster.Name)
+	c.GlobalLeafClientManager.RemoveLeafClientResource(actualClusterName)
 }
 
 func (c *ClusterController) setupControllers(
@@ -252,6 +254,7 @@ func (c *ClusterController) setupControllers(
 		Namespace:            "",
 		IgnoreLabels:         strings.Split("", ","),
 		EnableServiceAccount: true,
+		IPFamilyType:         cluster.Spec.ClusterLinkOptions.IPFamily,
 	}, nodes)
 
 	c.GlobalLeafClientManager.AddLeafClientResource(&leafUtils.LeafClientResource{
@@ -283,11 +286,12 @@ func (c *ClusterController) setupControllers(
 
 	if c.Options.MultiClusterService {
 		serviceImportController := &mcs.ServiceImportController{
-			LeafClient:          mgr.GetClient(),
-			LeafKosmosClient:    leafKosmosClient,
-			EventRecorder:       mgr.GetEventRecorderFor(mcs.LeafServiceImportControllerName),
-			Logger:              mgr.GetLogger(),
-			LeafNodeName:        cluster.Name,
+			LeafClient:       mgr.GetClient(),
+			LeafKosmosClient: leafKosmosClient,
+			EventRecorder:    mgr.GetEventRecorderFor(mcs.LeafServiceImportControllerName),
+			Logger:           mgr.GetLogger(),
+			LeafNodeName:     cluster.Name,
+			// todo Null pointer exception ?
 			IPFamilyType:        cluster.Spec.ClusterLinkOptions.IPFamily,
 			RootResourceManager: c.RootResourceManager,
 			ReservedNamespaces:  c.Options.ReservedNamespaces,
