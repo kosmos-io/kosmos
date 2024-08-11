@@ -244,6 +244,7 @@ func (h ClassificationHandler) CreateRootNode(ctx context.Context, listenPort in
 	if h.leafMode == ALL {
 		nodeNameInRoot := fmt.Sprintf("%s%s", utils.KosmosNodePrefix, cluster.Name)
 		nodeInRoot, err := createNode(ctx, h.RootClientset, cluster.Name, nodeNameInRoot, gitVersion, listenPort)
+		nodeInRoot.Annotations[nodeMode] = "one2cluster"
 		if err != nil {
 			return nil, nil, err
 		}
@@ -265,6 +266,10 @@ func (h ClassificationHandler) CreateRootNode(ctx context.Context, listenPort in
 			if err != nil {
 				return nil, nil, err
 			}
+			if h.leafMode == Party {
+				nodeInRoot.Annotations[nodeMode] = "one2party"
+			}
+
 			nodes = append(nodes, nodeInRoot)
 			leafNodeSelectors[nodeNameInRoot] = leafModel.NodeSelector
 		}
