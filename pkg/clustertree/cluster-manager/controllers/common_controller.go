@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -40,7 +41,8 @@ type SyncResourcesReconciler struct {
 
 	client.Client
 
-	GlobalLeafManager leafUtils.LeafResourceManager
+	GlobalLeafManager       leafUtils.LeafResourceManager
+	GlobalLeafClientManager leafUtils.LeafClientResourceManager
 }
 
 func (r *SyncResourcesReconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
@@ -65,7 +67,13 @@ func (r *SyncResourcesReconciler) Reconcile(ctx context.Context, request reconci
 				klog.Errorf("get lr(cluster: %s) err: %v", cluster, err)
 				return reconcile.Result{RequeueAfter: SyncResourcesRequeueTime}, nil
 			}
-			if err = r.SyncResource(ctx, request, lr); err != nil {
+			lcr, err := r.leafClientResource(lr)
+			if err != nil {
+				klog.Errorf("Failed to get leaf client resource %v", lr.Cluster.Name)
+				return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
+			}
+
+			if err = r.SyncResource(ctx, request, lcr); err != nil {
 				klog.Errorf("sync resource %s error: %v", request.NamespacedName, err)
 				return reconcile.Result{RequeueAfter: SyncResourcesRequeueTime}, nil
 			}
@@ -114,7 +122,7 @@ func (r *SyncResourcesReconciler) SetupWithManager(mgr manager.Manager, gvr sche
 	return nil
 }
 
-func (r *SyncResourcesReconciler) SyncResource(ctx context.Context, request reconcile.Request, lr *leafUtils.LeafResource) error {
+func (r *SyncResourcesReconciler) SyncResource(ctx context.Context, request reconcile.Request, lr *leafUtils.LeafClientResource) error {
 	klog.V(4).Infof("Started sync resource processing, ns: %s, name: %s", request.Namespace, request.Name)
 
 	deleteSecretInClient := false
@@ -190,4 +198,13 @@ func (r *SyncResourcesReconciler) SyncResource(ctx context.Context, request reco
 		return err
 	}
 	return nil
+}
+
+func (r *SyncResourcesReconciler) leafClientResource(lr *leafUtils.LeafResource) (*leafUtils.LeafClientResource, error) {
+	actualClusterName := leafUtils.GetActualClusterName(lr.Cluster)
+	lcr, err := r.GlobalLeafClientManager.GetLeafResource(actualClusterName)
+	if err != nil {
+		return nil, fmt.Errorf("get leaf client resource err: %v", err)
+	}
+	return lcr, nil
 }

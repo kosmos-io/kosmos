@@ -2,6 +2,7 @@ package pv
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -32,9 +33,10 @@ const (
 )
 
 type OnewayPVController struct {
-	Root              client.Client
-	RootDynamic       dynamic.Interface
-	GlobalLeafManager leafUtils.LeafResourceManager
+	Root                    client.Client
+	RootDynamic             dynamic.Interface
+	GlobalLeafManager       leafUtils.LeafResourceManager
+	GlobalLeafClientManager leafUtils.LeafClientResourceManager
 }
 
 func (c *OnewayPVController) SetupWithManager(mgr manager.Manager) error {
@@ -120,34 +122,39 @@ func (c *OnewayPVController) Reconcile(ctx context.Context, request reconcile.Re
 		return reconcile.Result{RequeueAfter: requeueTime}, nil
 	}
 
-	if pvErr != nil && errors.IsNotFound(pvErr) ||
-		!pv.DeletionTimestamp.IsZero() {
-		return c.clearLeafPV(ctx, leaf, pv)
+	lcr, err := c.leafClientResource(leaf)
+	if err != nil {
+		klog.Errorf("Failed to get leaf client resource %v", leaf.Cluster.Name)
+		return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
 	}
 
-	return c.ensureLeafPV(ctx, leaf, pv)
+	if pvErr != nil && errors.IsNotFound(pvErr) ||
+		!pv.DeletionTimestamp.IsZero() {
+		return c.clearLeafPV(ctx, leaf, lcr, pv)
+	}
+
+	return c.ensureLeafPV(ctx, leaf, lcr, pv)
 }
 
-func (c *OnewayPVController) clearLeafPV(ctx context.Context, leaf *leafUtils.LeafResource, pv *corev1.PersistentVolume) (reconcile.Result, error) {
-	err := leaf.Clientset.CoreV1().PersistentVolumes().Delete(ctx, pv.Name, metav1.DeleteOptions{})
+func (c *OnewayPVController) clearLeafPV(ctx context.Context, leaf *leafUtils.LeafResource, leafClient *leafUtils.LeafClientResource, pv *corev1.PersistentVolume) (reconcile.Result, error) {
+	err := leafClient.Clientset.CoreV1().PersistentVolumes().Delete(ctx, pv.Name, metav1.DeleteOptions{})
 	if err != nil && !errors.IsNotFound(err) {
-		klog.Errorf("delete pv %s in %s cluster failed, error: %v", pv.Name, leaf.ClusterName, err)
+		klog.Errorf("delete pv %s in %s cluster failed, error: %v", pv.Name, leaf.Cluster.Name, err)
 		return reconcile.Result{RequeueAfter: requeueTime}, nil
 	}
 	return reconcile.Result{}, nil
 }
 
-func (c *OnewayPVController) ensureLeafPV(ctx context.Context, leaf *leafUtils.LeafResource, pv *corev1.PersistentVolume) (reconcile.Result, error) {
-	clusterName := leaf.ClusterName
+func (c *OnewayPVController) ensureLeafPV(ctx context.Context, leaf *leafUtils.LeafResource, leafClient *leafUtils.LeafClientResource, pv *corev1.PersistentVolume) (reconcile.Result, error) {
+	clusterName := leaf.Cluster.Name
 	newPV := pv.DeepCopy()
-
 	pvc := &corev1.PersistentVolumeClaim{}
-	err := leaf.Client.Get(ctx, types.NamespacedName{
+	err := leafClient.Client.Get(ctx, types.NamespacedName{
 		Namespace: newPV.Spec.ClaimRef.Namespace,
 		Name:      newPV.Spec.ClaimRef.Name,
 	}, pvc)
 	if err != nil {
-		klog.Errorf("get pvc from cluster %s error: %v, will requeue", leaf.ClusterName, err)
+		klog.Errorf("get pvc from cluster %s error: %v, will requeue", leaf.Cluster.Name, err)
 		return reconcile.Result{RequeueAfter: quickRequeueTime}, nil
 	}
 
@@ -155,16 +162,16 @@ func (c *OnewayPVController) ensureLeafPV(ctx context.Context, leaf *leafUtils.L
 	newPV.Spec.ClaimRef.UID = pvc.UID
 
 	anno := newPV.GetAnnotations()
-	anno = utils.AddResourceClusters(anno, leaf.ClusterName)
+	anno = utils.AddResourceClusters(anno, leaf.Cluster.Name)
 	anno[utils.KosmosGlobalLabel] = "true"
 	newPV.SetAnnotations(anno)
 
 	oldPV := &corev1.PersistentVolume{}
-	err = leaf.Client.Get(ctx, types.NamespacedName{
+	err = leafClient.Client.Get(ctx, types.NamespacedName{
 		Name: newPV.Name,
 	}, oldPV)
 	if err != nil && !errors.IsNotFound(err) {
-		klog.Errorf("get pv from cluster %s error: %v, will requeue", leaf.ClusterName, err)
+		klog.Errorf("get pv from cluster %s error: %v, will requeue", leaf.Cluster.Name, err)
 		return reconcile.Result{RequeueAfter: requeueTime}, nil
 	}
 
@@ -172,7 +179,7 @@ func (c *OnewayPVController) ensureLeafPV(ctx context.Context, leaf *leafUtils.L
 	if err != nil && errors.IsNotFound(err) {
 		newPV.UID = ""
 		newPV.ResourceVersion = ""
-		if err = leaf.Client.Create(ctx, newPV); err != nil && !errors.IsAlreadyExists(err) {
+		if err = leafClient.Client.Create(ctx, newPV); err != nil && !errors.IsAlreadyExists(err) {
 			klog.Errorf("create pv to cluster %s error: %v, will requeue", clusterName, err)
 			return reconcile.Result{RequeueAfter: requeueTime}, nil
 		}
@@ -190,10 +197,19 @@ func (c *OnewayPVController) ensureLeafPV(ctx context.Context, leaf *leafUtils.L
 		klog.Errorf("patch pv error: %v", err)
 		return reconcile.Result{}, err
 	}
-	_, err = leaf.Clientset.CoreV1().PersistentVolumes().Patch(ctx, newPV.Name, types.MergePatchType, patch, metav1.PatchOptions{})
+	_, err = leafClient.Clientset.CoreV1().PersistentVolumes().Patch(ctx, newPV.Name, types.MergePatchType, patch, metav1.PatchOptions{})
 	if err != nil {
-		klog.Errorf("patch pv %s to %s cluster failed, error: %v", newPV.Name, leaf.ClusterName, err)
+		klog.Errorf("patch pv %s to %s cluster failed, error: %v", newPV.Name, leaf.Cluster.Name, err)
 		return reconcile.Result{RequeueAfter: requeueTime}, nil
 	}
 	return reconcile.Result{}, nil
+}
+
+func (c *OnewayPVController) leafClientResource(lr *leafUtils.LeafResource) (*leafUtils.LeafClientResource, error) {
+	actualClusterName := leafUtils.GetActualClusterName(lr.Cluster)
+	lcr, err := c.GlobalLeafClientManager.GetLeafResource(actualClusterName)
+	if err != nil {
+		return nil, fmt.Errorf("get leaf client resource err: %v", err)
+	}
+	return lcr, nil
 }
