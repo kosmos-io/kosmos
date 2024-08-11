@@ -34,11 +34,12 @@ const AutoCreateMCSControllerName = "auto-mcs-controller"
 
 // AutoCreateMCSController watches services in root cluster and auto create serviceExport and serviceImport in leaf cluster
 type AutoCreateMCSController struct {
-	RootClient        client.Client
-	RootKosmosClient  kosmosversioned.Interface
-	EventRecorder     record.EventRecorder
-	Logger            logr.Logger
-	GlobalLeafManager clustertreeutils.LeafResourceManager
+	RootClient              client.Client
+	RootKosmosClient        kosmosversioned.Interface
+	EventRecorder           record.EventRecorder
+	Logger                  logr.Logger
+	GlobalLeafManager       clustertreeutils.LeafResourceManager
+	GlobalLeafClientManager clustertreeutils.LeafClientResourceManager
 	// AutoCreateMCSPrefix are the prefix of the namespace for service to auto create in leaf cluster
 	AutoCreateMCSPrefix []string
 	// ReservedNamespaces are the protected namespaces to prevent Kosmos for deleting system resources
@@ -225,11 +226,13 @@ func (c *AutoCreateMCSController) cleanUpMcsResources(namespace string, name str
 			continue
 		}
 
-		leafManager, err := c.GlobalLeafManager.GetLeafResource(cluster.Name)
+		actualClusterName := clustertreeutils.GetActualClusterName(newCluster)
+		leafManager, err := c.GlobalLeafClientManager.GetLeafResource(actualClusterName)
 		if err != nil {
 			klog.Errorf("get leafManager for cluster %s failed,Error: %v", cluster.Name, err)
 			return err
 		}
+
 		if err = leafManager.KosmosClient.MulticlusterV1alpha1().ServiceImports(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{}); err != nil {
 			if !apierrors.IsNotFound(err) {
 				klog.Errorf("Delete serviceImport in leaf cluster failed %s/%s, Error: %v", namespace, name, err)
@@ -262,9 +265,10 @@ func (c *AutoCreateMCSController) autoCreateMcsResources(service *corev1.Service
 			continue
 		}
 
-		leafManager, err := c.GlobalLeafManager.GetLeafResource(cluster.Name)
+		actualClusterName := clustertreeutils.GetActualClusterName(newCluster)
+		leafManager, err := c.GlobalLeafClientManager.GetLeafResource(actualClusterName)
 		if err != nil {
-			klog.Errorf("get leafManager for cluster %s failed,Error: %v", cluster.Name, err)
+			klog.Errorf("get leafClientManager for cluster %s failed,Error: %v", cluster.Name, err)
 			return err
 		}
 

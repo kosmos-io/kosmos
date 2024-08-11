@@ -118,7 +118,8 @@ func leaderElectionRun(ctx context.Context, opts *options.Options) error {
 }
 
 func run(ctx context.Context, opts *options.Options) error {
-	globalleafManager := leafUtils.GetGlobalLeafResourceManager()
+	globalLeafResourceManager := leafUtils.GetGlobalLeafResourceManager()
+	globalLeafClientManager := leafUtils.GetGlobalLeafClientResourceManager()
 
 	config, err := clientcmd.BuildConfigFromFlags(opts.KubernetesOptions.Master, opts.KubernetesOptions.KubeConfig)
 	if err != nil {
@@ -163,13 +164,14 @@ func run(ctx context.Context, opts *options.Options) error {
 
 	// add cluster controller
 	clusterController := clusterManager.ClusterController{
-		Root:                mgr.GetClient(),
-		RootDynamic:         dynamicClient,
-		RootClientset:       rootClient,
-		EventRecorder:       mgr.GetEventRecorderFor(clusterManager.ControllerName),
-		Options:             opts,
-		RootResourceManager: rootResourceManager,
-		GlobalLeafManager:   globalleafManager,
+		Root:                      mgr.GetClient(),
+		RootDynamic:               dynamicClient,
+		RootClientset:             rootClient,
+		EventRecorder:             mgr.GetEventRecorderFor(clusterManager.ControllerName),
+		Options:                   opts,
+		RootResourceManager:       rootResourceManager,
+		GlobalLeafResourceManager: globalLeafResourceManager,
+		GlobalLeafClientManager:   globalLeafClientManager,
 	}
 	if err = clusterController.SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("error starting %s: %v", clusterManager.ControllerName, err)
@@ -191,13 +193,14 @@ func run(ctx context.Context, opts *options.Options) error {
 
 		// add auto create mcs resources controller
 		autoCreateMCSController := mcs.AutoCreateMCSController{
-			RootClient:          mgr.GetClient(),
-			EventRecorder:       mgr.GetEventRecorderFor(mcs.AutoCreateMCSControllerName),
-			Logger:              mgr.GetLogger(),
-			AutoCreateMCSPrefix: opts.AutoCreateMCSPrefix,
-			RootKosmosClient:    rootKosmosClient,
-			GlobalLeafManager:   globalleafManager,
-			ReservedNamespaces:  opts.ReservedNamespaces,
+			RootClient:              mgr.GetClient(),
+			EventRecorder:           mgr.GetEventRecorderFor(mcs.AutoCreateMCSControllerName),
+			Logger:                  mgr.GetLogger(),
+			AutoCreateMCSPrefix:     opts.AutoCreateMCSPrefix,
+			RootKosmosClient:        rootKosmosClient,
+			GlobalLeafManager:       globalLeafResourceManager,
+			GlobalLeafClientManager: globalLeafClientManager,
+			ReservedNamespaces:      opts.ReservedNamespaces,
 		}
 		if err = autoCreateMCSController.SetupWithManager(mgr); err != nil {
 			return fmt.Errorf("error starting %s: %v", mcs.AutoCreateMCSControllerName, err)
@@ -217,7 +220,9 @@ func run(ctx context.Context, opts *options.Options) error {
 
 	// init rootPodController
 	rootPodReconciler := podcontrollers.RootPodReconciler{
-		GlobalLeafManager: globalleafManager,
+		GlobalLeafManager:       globalLeafResourceManager,
+		GlobalLeafClientManager: globalLeafClientManager,
+
 		RootClient:        mgr.GetClient(),
 		DynamicRootClient: dynamicClient,
 		Options:           opts,
@@ -227,16 +232,18 @@ func run(ctx context.Context, opts *options.Options) error {
 	}
 
 	rootPVCController := pvc.RootPVCController{
-		RootClient:        mgr.GetClient(),
-		GlobalLeafManager: globalleafManager,
+		RootClient:              mgr.GetClient(),
+		GlobalLeafManager:       globalLeafResourceManager,
+		GlobalLeafClientManager: globalLeafClientManager,
 	}
 	if err := rootPVCController.SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("error starting root pvc controller %v", err)
 	}
 
 	rootPVController := pv.RootPVController{
-		RootClient:        mgr.GetClient(),
-		GlobalLeafManager: globalleafManager,
+		RootClient:              mgr.GetClient(),
+		GlobalLeafManager:       globalLeafResourceManager,
+		GlobalLeafClientManager: globalLeafClientManager,
 	}
 	if err := rootPVController.SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("error starting root pv controller %v", err)
@@ -244,18 +251,20 @@ func run(ctx context.Context, opts *options.Options) error {
 
 	if len(os.Getenv("USE-ONEWAY-STORAGE")) > 0 {
 		onewayPVController := pv.OnewayPVController{
-			Root:              mgr.GetClient(),
-			RootDynamic:       dynamicClient,
-			GlobalLeafManager: globalleafManager,
+			Root:                    mgr.GetClient(),
+			RootDynamic:             dynamicClient,
+			GlobalLeafManager:       globalLeafResourceManager,
+			GlobalLeafClientManager: globalLeafClientManager,
 		}
 		if err := onewayPVController.SetupWithManager(mgr); err != nil {
 			return fmt.Errorf("error starting oneway pv controller %v", err)
 		}
 
 		onewayPVCController := pvc.OnewayPVCController{
-			Root:              mgr.GetClient(),
-			RootDynamic:       dynamicClient,
-			GlobalLeafManager: globalleafManager,
+			Root:                    mgr.GetClient(),
+			RootDynamic:             dynamicClient,
+			GlobalLeafManager:       globalLeafResourceManager,
+			GlobalLeafClientManager: globalLeafClientManager,
 		}
 		if err := onewayPVCController.SetupWithManager(mgr); err != nil {
 			return fmt.Errorf("error starting oneway pvc controller %v", err)
@@ -265,10 +274,11 @@ func run(ctx context.Context, opts *options.Options) error {
 	// init commonController
 	for i, gvr := range controllers.SYNC_GVRS {
 		commonController := controllers.SyncResourcesReconciler{
-			GlobalLeafManager:    globalleafManager,
-			GroupVersionResource: gvr,
-			Object:               controllers.SYNC_OBJS[i],
-			DynamicRootClient:    dynamicClient,
+			GlobalLeafManager:       globalLeafResourceManager,
+			GlobalLeafClientManager: globalLeafClientManager,
+			GroupVersionResource:    gvr,
+			Object:                  controllers.SYNC_OBJS[i],
+			DynamicRootClient:       dynamicClient,
 			// DynamicLeafClient:    clientDynamic,
 			ControllerName: "async-controller-" + gvr.Resource,
 			// Namespace:            cluster.Spec.Namespace,
@@ -286,8 +296,9 @@ func run(ctx context.Context, opts *options.Options) error {
 	}()
 
 	nodeServer := nodeserver.NodeServer{
-		RootClient:        mgr.GetClient(),
-		GlobalLeafManager: globalleafManager,
+		RootClient:              mgr.GetClient(),
+		GlobalLeafManager:       globalLeafResourceManager,
+		GlobalLeafClientManager: globalLeafClientManager,
 	}
 	go func() {
 		if err := nodeServer.Start(ctx, opts); err != nil {

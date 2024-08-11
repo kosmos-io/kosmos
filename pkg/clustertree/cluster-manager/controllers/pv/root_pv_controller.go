@@ -2,6 +2,7 @@ package pv
 
 import (
 	"context"
+	"fmt"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -26,8 +27,9 @@ const (
 )
 
 type RootPVController struct {
-	RootClient        client.Client
-	GlobalLeafManager leafUtils.LeafResourceManager
+	RootClient              client.Client
+	GlobalLeafManager       leafUtils.LeafResourceManager
+	GlobalLeafClientManager leafUtils.LeafClientResourceManager
 }
 
 func (r *RootPVController) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
@@ -86,7 +88,13 @@ func (r *RootPVController) SetupWithManager(mgr manager.Manager) error {
 					return false
 				}
 
-				if err = lr.Clientset.CoreV1().PersistentVolumes().Delete(context.TODO(), deleteEvent.Object.GetName(),
+				lcr, err := r.leafClientResource(lr)
+				if err != nil {
+					klog.Warningf("get leaf client resource failed, %v", err)
+					return false
+				}
+
+				if err = lcr.Clientset.CoreV1().PersistentVolumes().Delete(context.TODO(), deleteEvent.Object.GetName(),
 					metav1.DeleteOptions{}); err != nil {
 					if !errors.IsNotFound(err) {
 						klog.Errorf("delete pv from leaf cluster failed, %q, error: %v", deleteEvent.Object.GetName(), err)
@@ -115,7 +123,13 @@ func (r *RootPVController) cleanupPv(pv *v1.PersistentVolume) (reconcile.Result,
 		return reconcile.Result{}, nil
 	}
 
-	if err = lr.Clientset.CoreV1().PersistentVolumes().Delete(context.TODO(), pv.GetName(),
+	lcr, err := r.leafClientResource(lr)
+	if err != nil {
+		klog.Errorf("Failed to get leaf client resource %v", lr.Cluster.Name)
+		return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
+	}
+
+	if err = lcr.Clientset.CoreV1().PersistentVolumes().Delete(context.TODO(), pv.GetName(),
 		metav1.DeleteOptions{}); err != nil {
 		if !errors.IsNotFound(err) {
 			klog.Errorf("delete pv from leaf cluster failed, %q, error: %v", pv.GetName(), err)
@@ -123,4 +137,13 @@ func (r *RootPVController) cleanupPv(pv *v1.PersistentVolume) (reconcile.Result,
 		}
 	}
 	return reconcile.Result{}, nil
+}
+
+func (r *RootPVController) leafClientResource(lr *leafUtils.LeafResource) (*leafUtils.LeafClientResource, error) {
+	actualClusterName := leafUtils.GetActualClusterName(lr.Cluster)
+	lcr, err := r.GlobalLeafClientManager.GetLeafResource(actualClusterName)
+	if err != nil {
+		return nil, fmt.Errorf("get leaf client resource err: %v", err)
+	}
+	return lcr, nil
 }
