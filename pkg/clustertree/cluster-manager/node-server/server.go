@@ -39,8 +39,9 @@ func DefaultServerCiphers() []uint16 {
 }
 
 type NodeServer struct {
-	RootClient        client.Client
-	GlobalLeafManager leafUtils.LeafResourceManager
+	RootClient              client.Client
+	GlobalLeafManager       leafUtils.LeafResourceManager
+	GlobalLeafClientManager leafUtils.LeafClientResourceManager
 }
 
 type HttpConfig struct {
@@ -49,25 +50,31 @@ type HttpConfig struct {
 	tlsConfig  *tls.Config
 }
 
-func (n *NodeServer) getClient(ctx context.Context, namespace string, podName string) (kubernetes.Interface, *rest.Config, error) {
+func (s *NodeServer) getClient(ctx context.Context, namespace string, podName string) (kubernetes.Interface, *rest.Config, error) {
 	nsname := types.NamespacedName{
 		Namespace: namespace,
 		Name:      podName,
 	}
 
 	rootPod := &corev1.Pod{}
-	if err := n.RootClient.Get(ctx, nsname, rootPod); err != nil {
+	if err := s.RootClient.Get(ctx, nsname, rootPod); err != nil {
 		return nil, nil, err
 	}
 
 	nodeName := rootPod.Spec.NodeName
 
-	lr, err := n.GlobalLeafManager.GetLeafResourceByNodeName(nodeName)
+	lr, err := s.GlobalLeafManager.GetLeafResourceByNodeName(nodeName)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return lr.Clientset, lr.RestConfig, nil
+	actualClusterName := leafUtils.GetActualClusterName(lr.Cluster)
+	lcr, err := s.GlobalLeafClientManager.GetLeafResource(actualClusterName)
+	if err != nil {
+		return nil, nil, fmt.Errorf("get leaf client resource err: %v", err)
+	}
+
+	return lcr.Clientset, lcr.RestConfig, nil
 }
 
 func (s *NodeServer) RunHTTP(ctx context.Context, httpConfig HttpConfig) (func(), error) {

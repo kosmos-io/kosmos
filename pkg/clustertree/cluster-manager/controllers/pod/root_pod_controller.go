@@ -30,6 +30,7 @@ import (
 	"github.com/kosmos.io/kosmos/cmd/clustertree/cluster-manager/app/options"
 	kosmosv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/extensions/daemonset"
+	clustertreeutils "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/utils"
 	leafUtils "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/utils"
 	"github.com/kosmos.io/kosmos/pkg/utils"
 	"github.com/kosmos.io/kosmos/pkg/utils/convertpolicy"
@@ -48,7 +49,8 @@ type RootPodReconciler struct {
 	DynamicRootClient  dynamic.Interface
 	envResourceManager utils.EnvResourceManager
 
-	GlobalLeafManager leafUtils.LeafResourceManager
+	GlobalLeafManager       leafUtils.LeafResourceManager
+	GlobalLeafClientManager clustertreeutils.LeafClientResourceManager
 
 	Options *options.Options
 }
@@ -195,8 +197,14 @@ func (r *RootPodReconciler) Reconcile(ctx context.Context, request reconcile.Req
 		return reconcile.Result{}, nil
 	}
 
+	lcr, err := r.leafClientResource(lr)
+	if err != nil {
+		klog.Errorf("Failed to get leaf client resource %v", lr.Cluster.Name)
+		return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
+	}
+
 	leafPod := &corev1.Pod{}
-	err = lr.Client.Get(ctx, request.NamespacedName, leafPod)
+	err = lcr.Client.Get(ctx, request.NamespacedName, leafPod)
 
 	// create pod in leaf
 	if err != nil {
@@ -295,7 +303,7 @@ func (r *RootPodReconciler) createStorageInLeafCluster(ctx context.Context, lr *
 			return fmt.Errorf("could not get resource gvr(%v) %s from root cluster: %v", gvr, rname, err)
 		}
 		rootannotations := rootobj.GetAnnotations()
-		rootannotations = utils.AddResourceClusters(rootannotations, lr.ClusterName)
+		rootannotations = utils.AddResourceClusters(rootannotations, lr.Cluster.Name)
 
 		rootobj.SetAnnotations(rootannotations)
 
@@ -312,7 +320,12 @@ func (r *RootPodReconciler) createStorageInLeafCluster(ctx context.Context, lr *
 			return err
 		}
 
-		_, err = lr.DynamicClient.Resource(gvr).Namespace(ns).Get(ctx, unstructuredObj.GetName(), metav1.GetOptions{})
+		lcr, err := r.leafClientResource(lr)
+		if err != nil {
+			return fmt.Errorf("failed to get leaf client resource: %v", err)
+		}
+
+		_, err = lcr.DynamicClient.Resource(gvr).Namespace(ns).Get(ctx, unstructuredObj.GetName(), metav1.GetOptions{})
 		if err == nil {
 			// already existed, so skip
 			continue
@@ -323,7 +336,7 @@ func (r *RootPodReconciler) createStorageInLeafCluster(ctx context.Context, lr *
 				return err
 			}
 
-			_, err = lr.DynamicClient.Resource(gvr).Namespace(ns).Create(ctx, unstructuredObj, metav1.CreateOptions{})
+			_, err = lcr.DynamicClient.Resource(gvr).Namespace(ns).Create(ctx, unstructuredObj, metav1.CreateOptions{})
 			if err != nil {
 				if errors.IsAlreadyExists(err) {
 					continue
@@ -372,8 +385,15 @@ func (r *RootPodReconciler) createSATokenInLeafCluster(ctx context.Context, lr *
 		Namespace: ns,
 		Name:      rootSecretName,
 	}
+
+	lcr, err := r.leafClientResource(lr)
+	if err != nil {
+		// wait for leaf resource init
+		return "", fmt.Errorf("failed to get leaf resource: %v", err)
+	}
+
 	clientSecret := &corev1.Secret{}
-	err = lr.Client.Get(ctx, csKey, clientSecret)
+	err = lcr.Client.Get(ctx, csKey, clientSecret)
 	if err != nil && !errors.IsNotFound(err) {
 		return "", fmt.Errorf("could not check secret %s in member cluster: %v", csKey.Name, err)
 	}
@@ -457,9 +477,15 @@ func (r *RootPodReconciler) createConfigMapInLeafCluster(ctx context.Context, lr
 		Name:      memberConfigmapKeyName,
 	}
 
+	lcr, err := r.leafClientResource(lr)
+	if err != nil {
+		// wait for leaf resource init
+		return "", fmt.Errorf("failed to get leaf resource: %v", err)
+	}
+
 	memberConfigMap := &corev1.ConfigMap{}
 
-	err := lr.Client.Get(ctx, configmapKey, memberConfigMap)
+	err = lcr.Client.Get(ctx, configmapKey, memberConfigMap)
 	if err != nil && !errors.IsNotFound(err) {
 		return "", fmt.Errorf("could not check configmap %s in member cluster: %v", configmapKey.Name, err)
 	}
@@ -498,9 +524,13 @@ func (r *RootPodReconciler) createSecretInLeafCluster(ctx context.Context, lr *l
 		Name:      secretName,
 	}
 
-	memberSecret := &corev1.Secret{}
+	lcr, err := r.leafClientResource(lr)
+	if err != nil {
+		return "", fmt.Errorf("could not get leaf resource for cluster %s: %v", lr.Cluster.Name, err)
+	}
 
-	err := lr.Client.Get(ctx, secretKey, memberSecret)
+	memberSecret := &corev1.Secret{}
+	err = lcr.Client.Get(ctx, secretKey, memberSecret)
 	if err != nil && !errors.IsNotFound(err) {
 		return "", fmt.Errorf("could not check secret %s in member cluster: %v", secretKey.Name, err)
 	}
@@ -657,7 +687,13 @@ func (r *RootPodReconciler) createServiceAccountInLeafCluster(ctx context.Contex
 			Name:      accountName,
 		}
 
-		err := lr.Client.Get(ctx, saKey, sa)
+		lcr, err := r.leafClientResource(lr)
+		if err != nil {
+			klog.Errorf("GetLeafResource err: %v", err)
+			return err
+		}
+
+		err = lcr.Client.Get(ctx, saKey, sa)
 		if err != nil || sa == nil {
 			klog.V(4).Infof("Get serviceAccount [%v] err: [%v]]", sa, err)
 			sa = &corev1.ServiceAccount{
@@ -666,7 +702,7 @@ func (r *RootPodReconciler) createServiceAccountInLeafCluster(ctx context.Contex
 					Namespace: ns,
 				},
 			}
-			err := lr.Client.Create(ctx, sa)
+			err := lcr.Client.Create(ctx, sa)
 			klog.Infof("Create serviceAccount [%v] err: [%v]", sa, err)
 			if err != nil {
 				if errors.IsAlreadyExists(err) {
@@ -691,8 +727,13 @@ func (r *RootPodReconciler) createServiceAccountInLeafCluster(ctx context.Contex
 		secret.Type = corev1.SecretTypeOpaque
 	}
 
-	err := lr.Client.Create(ctx, secret)
+	lcr, err := r.leafClientResource(lr)
+	if err != nil {
+		klog.Errorf("Failed to get leaf client resource %v", lr.Cluster.Name)
+		return err
+	}
 
+	err = lcr.Client.Create(ctx, secret)
 	if err != nil {
 		if errors.IsAlreadyExists(err) {
 			return nil
@@ -703,7 +744,7 @@ func (r *RootPodReconciler) createServiceAccountInLeafCluster(ctx context.Contex
 	// the secret-token cannot be mounted to the default-sa of the leaf cluster
 	if accountName != utils.DefaultServiceAccountName {
 		saCopy := sa.DeepCopy()
-		err := updateServiceAccountObjectReferenceRetry(ctx, saCopy, lr, secret.Name)
+		err := updateServiceAccountObjectReferenceRetry(ctx, saCopy, lcr, secret.Name)
 		if err != nil {
 			klog.Errorf("update serviceAccount [%v] err: [%v]]", saCopy, err)
 			return err
@@ -713,10 +754,20 @@ func (r *RootPodReconciler) createServiceAccountInLeafCluster(ctx context.Contex
 	return nil
 }
 
+func (r *RootPodReconciler) leafClientResource(lr *leafUtils.LeafResource) (*leafUtils.LeafClientResource, error) {
+	actualClusterName := leafUtils.GetActualClusterName(lr.Cluster)
+	lcr, err := r.GlobalLeafClientManager.GetLeafResource(actualClusterName)
+	if err != nil {
+		return nil, fmt.Errorf("get leaf client resource err: %v", err)
+	}
+	return lcr, nil
+}
+
 // nolint:dupl
-func updateServiceAccountObjectReferenceRetry(ctx context.Context, saCopy *corev1.ServiceAccount, lr *leafUtils.LeafResource, secretName string) error {
+func updateServiceAccountObjectReferenceRetry(ctx context.Context, saCopy *corev1.ServiceAccount, lr *leafUtils.LeafClientResource, secretName string) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		saCopy.Secrets = []corev1.ObjectReference{{Name: secretName}}
+
 		err := lr.Client.Update(ctx, saCopy)
 		if err == nil {
 			return nil
@@ -887,12 +938,18 @@ func (r *RootPodReconciler) CreatePodInLeafCluster(ctx context.Context, lr *leaf
 		klog.Errorf("Converting pod error: %v", err)
 	}
 
+	lcr, err := r.leafClientResource(lr)
+	if err != nil {
+		klog.Errorf("Failed to get leaf client resource %v", lr.Cluster.Name)
+		return err
+	}
+
 	// create ns
 	ns := &corev1.Namespace{}
 	nsKey := types.NamespacedName{
 		Name: basicPod.Namespace,
 	}
-	if err := lr.Client.Get(ctx, nsKey, ns); err != nil {
+	if err := lcr.Client.Get(ctx, nsKey, ns); err != nil {
 		if !errors.IsNotFound(err) {
 			// cannot get ns in root cluster, retry
 			return err
@@ -904,7 +961,7 @@ func (r *RootPodReconciler) CreatePodInLeafCluster(ctx context.Context, lr *leaf
 			},
 		}
 
-		if createErr := lr.Client.Create(ctx, ns); createErr != nil {
+		if createErr := lcr.Client.Create(ctx, ns); createErr != nil {
 			if !errors.IsAlreadyExists(createErr) {
 				klog.V(4).Infof("Namespace %s create failed error: %v", basicPod.Namespace, createErr)
 				return err
@@ -930,7 +987,7 @@ func (r *RootPodReconciler) CreatePodInLeafCluster(ctx context.Context, lr *leaf
 
 	klog.V(4).Infof("Creating pod %+v", basicPod)
 
-	err = lr.Client.Create(ctx, basicPod)
+	err = lcr.Client.Create(ctx, basicPod)
 	if err != nil {
 		return fmt.Errorf("could not create pod: %v", err)
 	}
@@ -971,7 +1028,13 @@ func (r *RootPodReconciler) UpdatePodInLeafCluster(ctx context.Context, lr *leaf
 
 	klog.V(5).Infof("Updating pod %+v", podCopy)
 
-	err := lr.Client.Update(ctx, podCopy)
+	lcr, err := r.leafClientResource(lr)
+	if err != nil {
+		klog.Errorf("Failed to get leaf client resource %v", lr.Cluster.Name)
+		return fmt.Errorf("could not get leaf client resource: %v", err)
+	}
+
+	err = lcr.Client.Update(ctx, podCopy)
 	if err != nil {
 		return fmt.Errorf("could not update pod: %v", err)
 	}
@@ -987,7 +1050,13 @@ func (r *RootPodReconciler) DeletePodInLeafCluster(ctx context.Context, lr *leaf
 		return DeletePodInRootCluster(ctx, rootnamespacedname, r.Client)
 	}
 
-	err := lr.Client.Get(ctx, rootnamespacedname, leafPod)
+	lcr, err := r.leafClientResource(lr)
+	if err != nil {
+		klog.Errorf("Failed to get leaf client resource %v", lr.Cluster.Name)
+		return fmt.Errorf("could not get leaf client resource: %v", err)
+	}
+
+	err = lcr.Client.Get(ctx, rootnamespacedname, leafPod)
 
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -1005,7 +1074,7 @@ func (r *RootPodReconciler) DeletePodInLeafCluster(ctx context.Context, lr *leaf
 	}
 
 	deleteOption := NewLeafDeleteOption(leafPod)
-	err = lr.Client.Delete(ctx, leafPod, deleteOption)
+	err = lcr.Client.Delete(ctx, leafPod, deleteOption)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			klog.V(4).Infof("Tried to delete pod %s/%s, but it did not exist in the cluster", leafPod.Namespace, leafPod.Name)

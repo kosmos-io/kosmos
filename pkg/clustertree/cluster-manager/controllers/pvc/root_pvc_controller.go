@@ -2,6 +2,7 @@ package pvc
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 
 	v1 "k8s.io/api/core/v1"
@@ -28,8 +29,9 @@ const (
 )
 
 type RootPVCController struct {
-	RootClient        client.Client
-	GlobalLeafManager leafUtils.LeafResourceManager
+	RootClient              client.Client
+	GlobalLeafManager       leafUtils.LeafResourceManager
+	GlobalLeafClientManager leafUtils.LeafClientResourceManager
 }
 
 func (r *RootPVCController) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
@@ -62,8 +64,14 @@ func (r *RootPVCController) Reconcile(ctx context.Context, request reconcile.Req
 		return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
 	}
 
+	lcr, err := r.leafClientResource(lr)
+	if err != nil {
+		klog.Errorf("Failed to get leaf client resource %v", lr.Cluster.Name)
+		return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
+	}
+
 	pvcOld := &v1.PersistentVolumeClaim{}
-	err = lr.Client.Get(ctx, request.NamespacedName, pvcOld)
+	err = lcr.Client.Get(ctx, request.NamespacedName, pvcOld)
 	if err != nil {
 		if !errors.IsNotFound(err) {
 			klog.Warningf("get pvc from leaf cluster failed, error: %v", err)
@@ -92,7 +100,8 @@ func (r *RootPVCController) Reconcile(ctx context.Context, request reconcile.Req
 		klog.Errorf("patch pvc error: %v", err)
 		return reconcile.Result{}, err
 	}
-	_, err = lr.Clientset.CoreV1().PersistentVolumeClaims(pvc.Namespace).Patch(ctx,
+
+	_, err = lcr.Clientset.CoreV1().PersistentVolumeClaims(pvc.Namespace).Patch(ctx,
 		pvc.Name, mergetypes.MergePatchType, patch, metav1.PatchOptions{})
 	if err != nil && !errors.IsNotFound(err) {
 		klog.Errorf("patch pvc namespace: %q, name: %q from root cluster failed, error: %v",
@@ -139,11 +148,26 @@ func (r *RootPVCController) cleanupPvc(pvc *v1.PersistentVolumeClaim) (reconcile
 		return reconcile.Result{}, nil
 	}
 
-	if err = lr.Clientset.CoreV1().PersistentVolumeClaims(pvc.GetNamespace()).Delete(context.TODO(), pvc.GetName(), metav1.DeleteOptions{}); err != nil {
+	lcr, err := r.leafClientResource(lr)
+	if err != nil {
+		klog.Errorf("Failed to get leaf client resource %v", lr.Cluster.Name)
+		return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
+	}
+
+	if err = lcr.Clientset.CoreV1().PersistentVolumeClaims(pvc.GetNamespace()).Delete(context.TODO(), pvc.GetName(), metav1.DeleteOptions{}); err != nil {
 		if !errors.IsNotFound(err) {
 			klog.Errorf("delete pvc from leaf cluster failed, %q: %q, error: %v", pvc.GetNamespace(), pvc.GetName(), err)
 			return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, err
 		}
 	}
 	return reconcile.Result{}, nil
+}
+
+func (r *RootPVCController) leafClientResource(lr *leafUtils.LeafResource) (*leafUtils.LeafClientResource, error) {
+	actualClusterName := leafUtils.GetActualClusterName(lr.Cluster)
+	lcr, err := r.GlobalLeafClientManager.GetLeafResource(actualClusterName)
+	if err != nil {
+		return nil, fmt.Errorf("get leaf client resource err: %v", err)
+	}
+	return lcr, nil
 }
