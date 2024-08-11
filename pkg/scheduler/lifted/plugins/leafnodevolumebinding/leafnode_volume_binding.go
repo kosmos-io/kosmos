@@ -42,6 +42,7 @@ import (
 
 const (
 	stateKey framework.StateKey = Name
+	nodeMode                    = "leafNodeMode"
 )
 
 // the state is initialized in PreFilter phase. because we save the pointer in
@@ -197,13 +198,20 @@ func (pl *VolumeBinding) Filter(_ context.Context, cs *framework.CycleState, pod
 		return framework.NewStatus(framework.Error, "node not found")
 	}
 
-	if helpers.HasLeafNodeTaint(node) {
-		return nil
-	}
-
 	state, err := getStateData(cs)
 	if err != nil {
 		return framework.AsStatus(err)
+	}
+
+	if helpers.HasLeafNodeTaint(node) {
+		if cluster, ok := node.Annotations[nodeMode]; ok && cluster == "one2cluster" {
+			klog.V(5).InfoS("This is one2cluster ", "pod", klog.KObj(pod), "node", klog.KObj(node))
+			return nil
+		} else {
+			if len(state.boundClaims) <= 0 {
+				return nil
+			}
+		}
 	}
 
 	if state.skip {

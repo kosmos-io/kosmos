@@ -24,7 +24,8 @@ var (
 type LeafMode int
 
 const (
-	ALL LeafMode = iota
+	nodeMode          = "leafNodeMode"
+	ALL      LeafMode = iota
 	Node
 	Party
 )
