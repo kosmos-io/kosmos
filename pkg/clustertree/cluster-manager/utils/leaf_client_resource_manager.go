@@ -33,6 +33,8 @@ type LeafClientResourceManager interface {
 	RemoveLeafClientResource(actualClusterName string)
 
 	GetLeafResource(actualClusterName string) (*LeafClientResource, error)
+
+	ListActualClusters() []string
 }
 
 type leafClientResourceManager struct {
@@ -61,6 +63,21 @@ func (cr *leafClientResourceManager) AddLeafClientResource(lcr *LeafClientResour
 	if _, exists := cr.clientResourceMap[actualClusterName]; !exists {
 		cr.clientResourceMap[actualClusterName] = lcr
 	}
+}
+
+func (cr *leafClientResourceManager) ListActualClusters() []string {
+	cr.leafClientResourceManagersLock.Lock()
+	defer cr.leafClientResourceManagersLock.Unlock()
+
+	keys := make([]string, 0)
+	for k := range cr.clientResourceMap {
+		if len(k) == 0 {
+			continue
+		}
+
+		keys = append(keys, k)
+	}
+	return keys
 }
 
 func (cr *leafClientResourceManager) RemoveLeafClientResource(actualClusterName string) {
