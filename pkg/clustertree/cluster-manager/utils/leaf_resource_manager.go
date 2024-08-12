@@ -6,13 +6,8 @@ import (
 	"sync"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	kosmosv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
-	kosmosversioned "github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/utils"
 )
 
@@ -37,20 +32,15 @@ type ClusterNode struct {
 }
 
 type LeafResource struct {
-	Client               client.Client
-	DynamicClient        dynamic.Interface
-	Clientset            kubernetes.Interface
-	KosmosClient         kosmosversioned.Interface
-	ClusterName          string
+	Cluster              *kosmosv1alpha1.Cluster
 	Namespace            string
 	IgnoreLabels         []string
 	EnableServiceAccount bool
 	Nodes                []ClusterNode
-	RestConfig           *rest.Config
 }
 
 type LeafResourceManager interface {
-	AddLeafResource(lr *LeafResource, cluster *kosmosv1alpha1.Cluster, node []*corev1.Node)
+	AddLeafResource(lr *LeafResource, node []*corev1.Node)
 	RemoveLeafResource(clusterName string)
 	// get leafresource by cluster name
 	GetLeafResource(clusterName string) (*LeafResource, error)
@@ -95,13 +85,13 @@ func getClusterNode(clusternodes []ClusterNode, target string) *ClusterNode {
 	return nil
 }
 
-func (l *leafResourceManager) AddLeafResource(lptr *LeafResource, cluster *kosmosv1alpha1.Cluster, nodes []*corev1.Node) {
+func (l *leafResourceManager) AddLeafResource(lptr *LeafResource, nodes []*corev1.Node) {
 	l.leafResourceManagersLock.Lock()
 	defer l.leafResourceManagersLock.Unlock()
 
-	clusterName := cluster.Name
+	clusterName := lptr.Cluster.Name
 
-	leafModels := cluster.Spec.ClusterTreeOptions.LeafModels
+	leafModels := lptr.Cluster.Spec.ClusterTreeOptions.LeafModels
 
 	clusterNodes := []ClusterNode{}
 	for i, n := range nodes {
