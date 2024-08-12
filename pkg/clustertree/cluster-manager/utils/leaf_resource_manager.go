@@ -35,6 +35,7 @@ type LeafResource struct {
 	Cluster              *kosmosv1alpha1.Cluster
 	Namespace            string
 	IgnoreLabels         []string
+	IPFamilyType         kosmosv1alpha1.IPFamilyType
 	EnableServiceAccount bool
 	Nodes                []ClusterNode
 }

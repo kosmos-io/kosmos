@@ -24,6 +24,7 @@ import (
 	podcontrollers "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/pod"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/pv"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/pvc"
+	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/svc"
 	nodeserver "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/node-server"
 	leafUtils "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/utils"
 	"github.com/kosmos.io/kosmos/pkg/scheme"
@@ -289,6 +290,31 @@ func run(ctx context.Context, opts *options.Options) error {
 		}
 	}
 
+	// init direct sync service and endpointslice controller
+	if opts.DirectClusterService {
+		simpleSyncServiceController := &svc.SimpleSyncServiceController{
+			RootClient:              mgr.GetClient(),
+			GlobalLeafManager:       globalLeafResourceManager,
+			GlobalLeafClientManager: globalLeafClientManager,
+			AutoCreateMCSPrefix:     opts.AutoCreateMCSPrefix,
+			ReservedNamespaces:      opts.ReservedNamespaces,
+		}
+		if err := simpleSyncServiceController.SetupWithManager(mgr); err != nil {
+			return fmt.Errorf("error starting %s: %v", svc.SimpleSyncServiceControllerName, err)
+		}
+
+		simpleSyncEpsController := &svc.SimpleSyncEPSController{
+			RootClient:              mgr.GetClient(),
+			GlobalLeafManager:       globalLeafResourceManager,
+			GlobalLeafClientManager: globalLeafClientManager,
+			AutoCreateMCSPrefix:     opts.AutoCreateMCSPrefix,
+			ReservedNamespaces:      opts.ReservedNamespaces,
+			BackoffOptions:          opts.BackoffOpts,
+		}
+		if err := simpleSyncEpsController.SetupWithManager(mgr); err != nil {
+			return fmt.Errorf("error starting %s: %v", svc.SimpleSyncEPSControllerName, err)
+		}
+	}
 	go func() {
 		if err = mgr.Start(ctx); err != nil {
 			klog.Errorf("failed to start controller manager: %v", err)
