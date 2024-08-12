@@ -236,7 +236,7 @@ func (c *ClusterController) clearClusterControllers(cluster *kosmosv1alpha1.Clus
 
 	actualClusterName := leafUtils.GetActualClusterName(cluster)
 	c.GlobalLeafResourceManager.RemoveLeafResource(cluster.Name)
-	c.GlobalLeafResourceManager.RemoveLeafResource(actualClusterName)
+	c.GlobalLeafClientManager.RemoveLeafClientResource(actualClusterName)
 }
 
 func (c *ClusterController) setupControllers(
