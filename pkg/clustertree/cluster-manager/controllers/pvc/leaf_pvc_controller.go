@@ -104,10 +104,19 @@ func (l *LeafPVCController) Reconcile(ctx context.Context, request reconcile.Req
 		klog.Errorf("patch pvc error: %v", err)
 		return reconcile.Result{}, err
 	}
-	_, err = l.RootClientSet.CoreV1().PersistentVolumeClaims(rootPVC.Namespace).Patch(ctx,
+	updatedRootPvc, err := l.RootClientSet.CoreV1().PersistentVolumeClaims(rootPVC.Namespace).Patch(ctx,
 		rootPVC.Name, mergetypes.MergePatchType, patch, metav1.PatchOptions{})
 	if err != nil {
 		klog.Errorf("patch pvc namespace: %q, name: %q to root cluster failed, error: %v",
+			request.NamespacedName.Namespace, request.NamespacedName.Name, err)
+		return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
+	}
+
+	updatedRootPvc.Status = pvcCopy.Status
+	updatedRootPvc.ResourceVersion = "0"
+	err = l.RootClient.Status().Update(ctx, updatedRootPvc)
+	if err != nil {
+		klog.Errorf("update pvc status namespace: %q, name: %q to root cluster failed, error: %v",
 			request.NamespacedName.Namespace, request.NamespacedName.Name, err)
 		return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
 	}

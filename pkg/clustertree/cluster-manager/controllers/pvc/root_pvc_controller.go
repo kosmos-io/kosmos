@@ -88,8 +88,6 @@ func (r *RootPVCController) Reconcile(ctx context.Context, request reconcile.Req
 	if reflect.DeepEqual(pvcOld.Spec.Resources.Requests, pvc.Spec.Resources.Requests) {
 		return reconcile.Result{}, nil
 	}
-	pvcOld.Spec.Resources.Requests = pvc.Spec.Resources.Requests
-	pvc.Spec = pvcOld.Spec
 
 	pvc.Annotations = pvcOld.Annotations
 	pvc.ObjectMeta.UID = pvcOld.ObjectMeta.UID
