@@ -181,7 +181,7 @@ func (c *SimpleSyncEPSController) createNamespace(client client.Client, namespac
 
 // nolint:dupl
 func (c *SimpleSyncEPSController) cleanUpEpsInLeafCluster(namespace string, name string) error {
-	clusters := c.GlobalLeafManager.ListClusters()
+	clusters := c.GlobalLeafClientManager.ListActualClusters()
 	var errs []string
 	for _, cluster := range clusters {
 		leafClient, err := c.GlobalLeafManager.GetLeafResource(cluster)

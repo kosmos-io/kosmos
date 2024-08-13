@@ -192,7 +192,7 @@ func (c *SimpleSyncServiceController) cleanUpServiceInLeafCluster(namespace stri
 }
 
 func (c *SimpleSyncServiceController) syncServiceInLeafCluster(service *corev1.Service) error {
-	clusters := c.GlobalLeafManager.ListClusters()
+	clusters := c.GlobalLeafClientManager.ListActualClusters()
 	errsChan := make(chan string, len(clusters))
 	var wg sync.WaitGroup
 	for _, cluster := range clusters {
