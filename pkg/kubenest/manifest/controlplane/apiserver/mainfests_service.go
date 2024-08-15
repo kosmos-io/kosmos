@@ -11,6 +11,10 @@ metadata:
   name: {{ .ServiceName }}
   namespace: {{ .Namespace }}
 spec:
+  ipFamilies:
+  {{- range .IPFamilies }}
+  - {{ . }}
+  {{- end }}
   ports:
   - name: client
     port: {{ .ServicePort }}
