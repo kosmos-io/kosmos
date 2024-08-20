@@ -17,6 +17,7 @@ const (
 	DefaultImageRepositoryEnv        = "IMAGE_REPOSITIRY"
 	DefaultImageVersionEnv           = "IMAGE_VERSION"
 	DefaultCoreDnsImageTagEnv        = "COREDNS_IMAGE_TAG"
+	DefaultVirtualControllerLabelEnv = "VIRTUAL_CONTROLLER_LABEL"
 	VirtualClusterFinalizerName      = "kosmos.io/virtual-cluster-finalizer"
 	ServiceType                      = "NodePort"
 	EtcdServiceType                  = "ClusterIP"
@@ -26,7 +27,6 @@ const (
 	Label                            = "virtualCluster-app"
 	ComponentBeReadyTimeout          = 300 * time.Second
 	ComponentBeDeletedTimeout        = 300 * time.Second
-	DefauleVirtualControllerLabelEnv = "VIRTUAL_CONTROLLER_LABEL"
 
 	// CertificateBlockType is a possible value for pem.Block.Type.
 	CertificateBlockType           = "CERTIFICATE"

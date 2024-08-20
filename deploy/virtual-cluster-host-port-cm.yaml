@@ -1,0 +1,22 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kosmos-hostports
+  namespace: kosmos-system
+data:
+  config.yaml: |
+    # ports allocate for virtual cluster api server,from 33001, increment by 1 for each virtual cluster.Be careful not to use ports that are already in use
+    portsPool:
+      - 33001
+      - 33002
+      - 33003
+      - 33004
+      - 33005
+      - 33006
+      - 33007
+      - 33008
+      - 33009
+      - 33010
+    # when port is allocate from pool,it will be used for virtual cluster api server,and the port will be released after virtual cluster is deleted
+    clusterPorts:
