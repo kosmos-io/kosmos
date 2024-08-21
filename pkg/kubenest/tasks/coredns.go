@@ -4,17 +4,23 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/pkg/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/dynamic"
+	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
-	"github.com/kosmos.io/kosmos/pkg/kubenest/controlplane/coredns"
+	"github.com/kosmos.io/kosmos/pkg/kubenest/util"
+	apiclient "github.com/kosmos.io/kosmos/pkg/kubenest/util/api-client"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/workflow"
 )
 
@@ -64,6 +70,28 @@ func UninstallCoreDNSTask() workflow.Task {
 	}
 }
 
+func getCoreDnsHostComponentsConfig(client clientset.Interface, keyName string) ([]ComponentConfig, error) {
+	cm, err := client.CoreV1().ConfigMaps(constants.KosmosNs).Get(context.Background(), constants.ManifestComponentsConfigMap, metav1.GetOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	yamlData, ok := cm.Data[keyName]
+	if !ok {
+		return nil, errors.Wrap(err, "Read manifests components config error")
+	}
+
+	var components []ComponentConfig
+	err = yaml.Unmarshal([]byte(yamlData), &components)
+	if err != nil {
+		return nil, errors.Wrap(err, "Unmarshal manifests component config error")
+	}
+	return components, nil
+}
+
 // in host
 func runCoreDnsHostTask(r workflow.RunData) error {
 	data, ok := r.(InitData)
@@ -71,17 +99,31 @@ func runCoreDnsHostTask(r workflow.RunData) error {
 		return errors.New("Virtual cluster manifests-components task invoked with an invalid data struct")
 	}
 
-	err := coredns.EnsureHostCoreDns(
-		data.RemoteClient(),
-		data.GetName(),
-		data.GetNamespace(),
-	)
+	dynamicClient := data.DynamicClient()
 
+	components, err := getCoreDnsHostComponentsConfig(data.RemoteClient(), constants.HostCoreDnsComponents)
 	if err != nil {
-		return fmt.Errorf("failed to install core-dns in host, err: %w", err)
+		return err
 	}
 
-	klog.V(2).InfoS("[VirtualClusterCoreDns] Successfully installed core-dns in host", "core-dns", klog.KObj(data))
+	imageRepository, _ := util.GetImageMessage()
+
+	for _, component := range components {
+		klog.V(2).Infof("Deploy component %s", component.Name)
+
+		templatedMapping := map[string]interface{}{
+			"Namespace":       data.GetNamespace(),
+			"Name":            data.GetName(),
+			"ImageRepository": imageRepository,
+		}
+		for k, v := range data.PluginOptions() {
+			templatedMapping[k] = v
+		}
+		err = applyYMLTemplate(dynamicClient, component.Path, templatedMapping)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -91,14 +133,27 @@ func uninstallCorednsHostTask(r workflow.RunData) error {
 		return errors.New("Virtual cluster manifests-components task invoked with an invalid data struct")
 	}
 
-	err := coredns.DeleteCoreDnsDeployment(
-		data.RemoteClient(),
-		data.GetName(),
-		data.GetNamespace(),
-	)
+	dynamicClient := data.DynamicClient()
 
+	components, err := getCoreDnsHostComponentsConfig(data.RemoteClient(), constants.HostCoreDnsComponents)
 	if err != nil {
 		return err
+	}
+
+	imageRepository, _ := util.GetImageMessage()
+
+	for _, component := range components {
+		klog.V(2).Infof("Delete component %s", component.Name)
+
+		templatedMapping := map[string]interface{}{
+			"Namespace":       data.GetNamespace(),
+			"Name":            data.GetName(),
+			"ImageRepository": imageRepository,
+		}
+		err = deleteYMLTemplate(dynamicClient, component.Path, templatedMapping)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -150,6 +205,11 @@ func runCoreDnsVirtualTask(r workflow.RunData) error {
 		return err
 	}
 
+	components, err := getCoreDnsHostComponentsConfig(data.RemoteClient(), constants.VirtualCoreDnsComponents)
+	if err != nil {
+		return err
+	}
+
 	kubesvc, err := data.RemoteClient().CoreV1().Services(data.GetNamespace()).Get(context.TODO(), constants.KubeDNSSVCName, metav1.GetOptions{})
 	if err != nil {
 		return err
@@ -175,22 +235,98 @@ func runCoreDnsVirtualTask(r workflow.RunData) error {
 		return fmt.Errorf("get master node ip from env failed")
 	}
 
-	templatedMapping := map[string]interface{}{
-		"Namespace":       data.GetNamespace(),
-		"Name":            data.GetName(),
-		"DNSPort":         DNSPort,
-		"DNSTCPPort":      DNSTCPPort,
-		"MetricsPort":     MetricsPort,
-		"HostNodeAddress": HostNodeAddress,
-	}
-	for k, v := range data.PluginOptions() {
-		templatedMapping[k] = v
-	}
+	for _, component := range components {
+		klog.V(2).Infof("Deploy component %s", component.Name)
 
-	err = coredns.EnsureVirtualClusterCoreDns(dynamicClient, templatedMapping)
+		templatedMapping := map[string]interface{}{
+			"Namespace":       data.GetNamespace(),
+			"Name":            data.GetName(),
+			"DNSPort":         DNSPort,
+			"DNSTCPPort":      DNSTCPPort,
+			"MetricsPort":     MetricsPort,
+			"HostNodeAddress": HostNodeAddress,
+		}
+		for k, v := range data.PluginOptions() {
+			templatedMapping[k] = v
+		}
+		err = applyYMLTemplate(dynamicClient, component.Path, templatedMapping)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// nolint:dupl
+func applyYMLTemplate(dynamicClient dynamic.Interface, manifestGlob string, templateMapping map[string]interface{}) error {
+	manifests, err := filepath.Glob(manifestGlob)
+	klog.V(2).Infof("Component Manifests %s", manifestGlob)
 	if err != nil {
 		return err
 	}
+	if manifests == nil {
+		return errors.Errorf("No matching file for pattern %v", manifestGlob)
+	}
+	for _, manifest := range manifests {
+		klog.V(2).Infof("Applying %s", manifest)
+		var obj unstructured.Unstructured
+		bytesData, err := os.ReadFile(manifest)
+		if err != nil {
+			return errors.Wrapf(err, "Read file %s error", manifest)
+		}
 
+		templateBytes, err := util.ParseTemplate(string(bytesData), templateMapping)
+		if err != nil {
+			return errors.Wrapf(err, "Parse template %s error", manifest)
+		}
+
+		err = yaml.Unmarshal([]byte(templateBytes), &obj)
+		if err != nil {
+			return errors.Wrapf(err, "Unmarshal manifest bytes data error")
+		}
+
+		err = apiclient.TryRunCommand(func() error {
+			return util.ApplyObject(dynamicClient, &obj)
+		}, 3)
+		if err != nil {
+			return errors.Wrapf(err, "Create object error")
+		}
+	}
+	return nil
+}
+
+// nolint:dupl
+func deleteYMLTemplate(dynamicClient dynamic.Interface, manifestGlob string, templateMapping map[string]interface{}) error {
+	manifests, err := filepath.Glob(manifestGlob)
+	klog.V(2).Infof("Component Manifests %s", manifestGlob)
+	if err != nil {
+		return err
+	}
+	if manifests == nil {
+		return errors.Errorf("No matching file for pattern %v", manifestGlob)
+	}
+	for _, manifest := range manifests {
+		klog.V(2).Infof("Deleting %s", manifest)
+		var obj unstructured.Unstructured
+		bytesData, err := os.ReadFile(manifest)
+		if err != nil {
+			return errors.Wrapf(err, "Read file %s error", manifest)
+		}
+
+		templateBytes, err := util.ParseTemplate(string(bytesData), templateMapping)
+		if err != nil {
+			return errors.Wrapf(err, "Parse template %s error", manifest)
+		}
+
+		err = yaml.Unmarshal([]byte(templateBytes), &obj)
+		if err != nil {
+			return errors.Wrapf(err, "Unmarshal manifest bytes data error")
+		}
+
+		err = util.DeleteObject(dynamicClient, obj.GetNamespace(), obj.GetName(), &obj)
+		if err != nil {
+			return errors.Wrapf(err, "Delete object error")
+		}
+	}
 	return nil
 }

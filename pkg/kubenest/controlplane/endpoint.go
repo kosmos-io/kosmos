@@ -6,12 +6,10 @@ import (
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/yaml"
-	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
@@ -19,72 +17,66 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/kubenest/util"
 )
 
-func EnsureApiServerExternalEndPoint(dynamicClient dynamic.Interface) error {
-	err := installApiServerExternalEndpointInVirtualCluster(dynamicClient)
+func EnsureApiServerExternalEndPoint(kubeClient kubernetes.Interface) error {
+	err := CreateOrUpdateApiServerExternalEndpoint(kubeClient)
 	if err != nil {
 		return err
 	}
 
-	err = installApiServerExternalServiceInVirtualCluster(dynamicClient)
+	err = CreateOrUpdateApiServerExternalService(kubeClient)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func installApiServerExternalEndpointInVirtualCluster(dynamicClient dynamic.Interface) error {
+func CreateOrUpdateApiServerExternalEndpoint(kubeClient kubernetes.Interface) error {
 	klog.V(4).Info("begin to get kubernetes endpoint")
-	kubeEndpointUnstructured, err := dynamicClient.Resource(schema.GroupVersionResource{
-		Group:    "",
-		Version:  "v1",
-		Resource: "endpoints",
-	}).Namespace(constants.DefaultNs).Get(context.TODO(), "kubernetes", metav1.GetOptions{})
+	kubeEndpoint, err := kubeClient.CoreV1().Endpoints(constants.DefaultNs).Get(context.TODO(), "kubernetes", metav1.GetOptions{})
 	if err != nil {
 		klog.Error("get Kubernetes endpoint failed", err)
 		return errors.Wrap(err, "failed to get kubernetes endpoint")
 	}
-	klog.V(4).Info("the Kubernetes endpoint is：", kubeEndpointUnstructured)
+	klog.V(4).Info("the Kubernetes endpoint is：", kubeEndpoint)
 
-	if kubeEndpointUnstructured != nil {
-		kubeEndpoint := &corev1.Endpoints{}
-		err := runtime.DefaultUnstructuredConverter.FromUnstructured(kubeEndpointUnstructured.Object, kubeEndpoint)
-		if err != nil {
-			klog.Error("switch Kubernetes endpoint to typed object failed", err)
-			return errors.Wrap(err, "failed to convert kubernetes endpoint to typed object")
-		}
+	newEndpoint := kubeEndpoint.DeepCopy()
+	newEndpoint.Name = constants.ApiServerExternalService
+	newEndpoint.Namespace = constants.DefaultNs
+	newEndpoint.ResourceVersion = ""
 
-		newEndpoint := kubeEndpoint.DeepCopy()
-		newEndpoint.Name = constants.ApiServerExternalService
-		newEndpoint.Namespace = constants.DefaultNs
-		newEndpoint.ResourceVersion = ""
-		newEndpointUnstructuredObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(newEndpoint)
-		if err != nil {
-			klog.Error("switch new endpoint to unstructured object failed", err)
-			return errors.Wrap(err, "failed to convert new endpoint to unstructured object")
-		}
-		klog.V(4).Info("after switch the Endpoint unstructured is：", newEndpointUnstructuredObj)
-
-		newEndpointUnstructured := &unstructured.Unstructured{Object: newEndpointUnstructuredObj}
-		createResult, err := dynamicClient.Resource(schema.GroupVersionResource{
-			Group:    "",
-			Version:  "v1",
-			Resource: "endpoints",
-		}).Namespace(constants.DefaultNs).Create(context.TODO(), newEndpointUnstructured, metav1.CreateOptions{})
-		if err != nil {
+	// Try to create the endpoint
+	_, err = kubeClient.CoreV1().Endpoints(constants.DefaultNs).Create(context.TODO(), newEndpoint, metav1.CreateOptions{})
+	if err != nil {
+		if !apierrors.IsAlreadyExists(err) {
 			klog.Error("create api-server-external-service endpoint failed", err)
 			return errors.Wrap(err, "failed to create api-server-external-service endpoint")
+		}
+
+		// Endpoint already exists, retrieve it
+		existingEndpoint, err := kubeClient.CoreV1().Endpoints(constants.DefaultNs).Get(context.TODO(), constants.ApiServerExternalService, metav1.GetOptions{})
+		if err != nil {
+			klog.Error("get existing api-server-external-service endpoint failed", err)
+			return errors.Wrap(err, "failed to get existing api-server-external-service endpoint")
+		}
+
+		// Update the existing endpoint
+		newEndpoint.SetResourceVersion(existingEndpoint.ResourceVersion)
+		_, err = kubeClient.CoreV1().Endpoints(constants.DefaultNs).Update(context.TODO(), newEndpoint, metav1.UpdateOptions{})
+		if err != nil {
+			klog.Error("update api-server-external-service endpoint failed", err)
+			return errors.Wrap(err, "failed to update api-server-external-service endpoint")
 		} else {
-			klog.V(4).Info("success create api-server-external-service endpoint:", createResult)
+			klog.V(4).Info("successfully updated api-server-external-service endpoint")
 		}
 	} else {
-		return errors.New("kubernetes endpoint does not exist")
+		klog.V(4).Info("successfully created api-server-external-service endpoint")
 	}
 
 	return nil
 }
 
-func installApiServerExternalServiceInVirtualCluster(dynamicClient dynamic.Interface) error {
-	port, err := getEndPointPort(dynamicClient)
+func CreateOrUpdateApiServerExternalService(kubeClient kubernetes.Interface) error {
+	port, err := getEndPointPort(kubeClient)
 	if err != nil {
 		return fmt.Errorf("error when getEndPointPort: %w", err)
 	}
@@ -97,62 +89,58 @@ func installApiServerExternalServiceInVirtualCluster(dynamicClient dynamic.Inter
 		return fmt.Errorf("error when parsing api-server-external-serive template: %w", err)
 	}
 
-	var obj unstructured.Unstructured
-	if err := yaml.Unmarshal([]byte(apiServerExternalServiceBytes), &obj); err != nil {
-		return fmt.Errorf("err when decoding api-server-external service in virtual cluster: %w", err)
+	var svc corev1.Service
+	if err := yaml.Unmarshal([]byte(apiServerExternalServiceBytes), &svc); err != nil {
+		return fmt.Errorf("err when decoding api-server-external-service in virtual cluster: %w", err)
 	}
 
-	err = util.CreateObject(dynamicClient, "default", "api-server-external-service", &obj)
+	// Try to create the service
+	_, err = kubeClient.CoreV1().Services(constants.DefaultNs).Create(context.TODO(), &svc, metav1.CreateOptions{})
 	if err != nil {
-		return fmt.Errorf("error when creating api-server-external service in virtual cluster err: %w", err)
+		if !apierrors.IsAlreadyExists(err) {
+			return fmt.Errorf("failed to create api-server-external-service service: %w", err)
+		}
+
+		// Service already exists, retrieve it
+		existingSvc, err := kubeClient.CoreV1().Services(constants.DefaultNs).Get(context.TODO(), constants.ApiServerExternalService, metav1.GetOptions{})
+		if err != nil {
+			return fmt.Errorf("failed to get existing api-server-external-service service: %w", err)
+		}
+
+		// Update the existing service
+		svc.ResourceVersion = existingSvc.ResourceVersion
+		_, err = kubeClient.CoreV1().Services(constants.DefaultNs).Update(context.TODO(), &svc, metav1.UpdateOptions{})
+		if err != nil {
+			return fmt.Errorf("failed to update api-server-external-service service: %w", err)
+		}
+		klog.V(4).Info("successfully updated api-server-external-service service")
+	} else {
+		klog.V(4).Info("successfully created api-server-external-service service")
 	}
+
 	return nil
 }
 
-func getEndPointPort(dynamicClient dynamic.Interface) (int32, error) {
+func getEndPointPort(kubeClient kubernetes.Interface) (int32, error) {
 	klog.V(4).Info("begin to get Endpoints ports...")
-	endpointsRes := dynamicClient.Resource(schema.GroupVersionResource{
-		Group:    "",
-		Version:  "v1",
-		Resource: "endpoints",
-	}).Namespace(constants.DefaultNs)
-
-	endpointsRaw, err := endpointsRes.Get(context.TODO(), constants.ApiServerExternalService, metav1.GetOptions{})
+	endpoints, err := kubeClient.CoreV1().Endpoints(constants.DefaultNs).Get(context.TODO(), constants.ApiServerExternalService, metav1.GetOptions{})
 	if err != nil {
 		klog.Errorf("get Endpoints failed: %v", err)
 		return 0, err
 	}
 
-	subsets, found, err := unstructured.NestedSlice(endpointsRaw.Object, "subsets")
-	if !found || err != nil {
-		klog.Errorf("The subsets field was not found or parsing error occurred: %v", err)
-		return 0, fmt.Errorf("subsets field not found or error parsing it")
-	}
-
-	if len(subsets) == 0 {
+	if len(endpoints.Subsets) == 0 {
 		klog.Errorf("subsets is empty")
 		return 0, fmt.Errorf("No subsets found in the endpoints")
 	}
 
-	subset := subsets[0].(map[string]interface{})
-	ports, found, err := unstructured.NestedSlice(subset, "ports")
-	if !found || err != nil {
-		klog.Errorf("ports field not found or parsing error: %v", err)
-		return 0, fmt.Errorf("ports field not found or error parsing it")
-	}
-
-	if len(ports) == 0 {
+	subset := endpoints.Subsets[0]
+	if len(subset.Ports) == 0 {
 		klog.Errorf("Port not found in the endpoint")
 		return 0, fmt.Errorf("No ports found in the endpoint")
 	}
 
-	port := ports[0].(map[string]interface{})
-	portNum, found, err := unstructured.NestedInt64(port, "port")
-	if !found || err != nil {
-		klog.Errorf("ports field not found or parsing error: %v", err)
-		return 0, fmt.Errorf("port field not found or error parsing it")
-	}
-
-	klog.V(4).Infof("The port number was successfully obtained: %d", portNum)
-	return int32(portNum), nil
+	port := subset.Ports[0].Port
+	klog.V(4).Infof("The port number was successfully obtained: %d", port)
+	return port, nil
 }

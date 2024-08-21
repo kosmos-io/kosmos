@@ -27,11 +27,9 @@ const (
 
 // +genclient
 // +kubebuilder:resource:scope=Namespaced,shortName=vc
-// +kubebuilder:subresource:status
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:printcolumn:name="STATUS",type=string,JSONPath=`.status.phase`
 // +kubebuilder:printcolumn:name="UPDATE-TIME",type=string,JSONPath=`.status.updateTime`
-
 type VirtualCluster struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -53,6 +51,10 @@ type VirtualClusterSpec struct {
 	// ExternalIP is the external ip of the virtual kubernetes's control plane
 	// +optional
 	ExternalIP string `json:"externalIP,omitempty"`
+
+	// ExternalIps is the external ips of the virtual kubernetes's control plane
+	// +optional
+	ExternalIps []string `json:"externalIps,omitempty"`
 
 	// PromotePolicies definites the policies for promote to the kubernetes's control plane
 	// +required

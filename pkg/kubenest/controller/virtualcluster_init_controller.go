@@ -122,6 +122,7 @@ func (c *VirtualClusterInitController) Reconcile(ctx context.Context, request re
 			klog.Errorf("Error update virtualcluster %s status, err: %v", updatedCluster.Name, err)
 			return reconcile.Result{RequeueAfter: RequeueTime}, errors.Wrapf(err, "Error update virtualcluster %s status", updatedCluster.Name)
 		}
+
 		err = c.createVirtualCluster(updatedCluster, c.KubeNestOptions)
 		if err != nil {
 			klog.Errorf("Failed to create virtualcluster %s. err: %s", updatedCluster.Name, err.Error())
@@ -322,6 +323,10 @@ func (c *VirtualClusterInitController) assignWorkNodes(virtualCluster *v1alpha1.
 		return fmt.Errorf("list global nodes: %w", err)
 	}
 	allNodeInfos := make([]v1alpha1.NodeInfo, 0)
+	globalNodes := globalNodeList.Items
+	sort.Slice(globalNodes, func(i, j int) bool {
+		return globalNodes[i].Name < globalNodes[j].Name
+	})
 	for _, policy := range virtualCluster.Spec.PromotePolicies {
 		globalNodes, err := retrieveGlobalNodesWithLabelSelector(globalNodeList.Items, policy.LabelSelector)
 		if err != nil {
