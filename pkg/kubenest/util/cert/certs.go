@@ -44,6 +44,7 @@ type AltNamesMutatorConfig struct {
 	ClusterIps       []string
 	ExternalIP       string
 	ExternalIPs      []string
+	VipMap           map[string]string
 }
 
 func (config *CertConfig) defaultPublicKeyAlgorithm() {
@@ -288,6 +289,11 @@ func apiServerAltNamesMutator(cfg *AltNamesMutatorConfig) (*certutil.AltNames, e
 		}
 	}
 
+	if len(cfg.VipMap) > 0 {
+		for _, vip := range cfg.VipMap {
+			appendSANsToAltNames(altNames, []string{vip})
+		}
+	}
 	if len(cfg.ClusterIps) > 0 {
 		for _, clusterIp := range cfg.ClusterIps {
 			appendSANsToAltNames(altNames, []string{clusterIp})

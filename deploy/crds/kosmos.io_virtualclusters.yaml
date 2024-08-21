@@ -53,6 +53,43 @@ spec:
                 items:
                   type: string
                 type: array
+              kubeInKubeConfig:
+                description: KubeInKubeConfig is the external config of virtual cluster
+                properties:
+                  admissionPlugins:
+                    type: boolean
+                  anpMode:
+                    type: string
+                  apiServerReplicas:
+                    type: integer
+                  clusterCIDR:
+                    type: string
+                  etcdStorageClass:
+                    type: string
+                  etcdUnitSize:
+                    type: string
+                  forceDestroy:
+                    description: todo Group according to the parameters of apiserver,
+                      etcd, coredns, etc. ForceDestroy indicates whether to force
+                      destroy the cluster.
+                    type: boolean
+                  tenantEntrypoint:
+                    description: TenantEntrypoint TenantEntrypoint `yaml:"tenantEntrypoint"
+                      json:"tenantEntrypoint,omitempty"`
+                    properties:
+                      externalIps:
+                        description: ExternalIP is the external ip of the tenant entrypoint.
+                        items:
+                          type: string
+                        type: array
+                      externalVips:
+                        description: ExternalVips is the external vips of the tenant
+                          entrypoint.
+                        items:
+                          type: string
+                        type: array
+                    type: object
+                type: object
               kubeconfig:
                 description: Kubeconfig is the kubeconfig of the virtual kubernetes's
                   control plane
@@ -208,6 +245,10 @@ spec:
               updateTime:
                 format: date-time
                 type: string
+              vipMap:
+                additionalProperties:
+                  type: string
+                type: object
             type: object
         required:
         - spec

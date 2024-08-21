@@ -36,14 +36,21 @@ type KosmosKubeConfig struct {
 
 type KubeInKubeConfig struct {
 	// todo Group according to the parameters of apiserver, etcd, coredns, etc.
-
-	ForceDestroy      bool   `yaml:"forceDestroy" json:"forceDestroy,omitempty"`
-	AnpMode           string `yaml:"anpMode" json:"anpMode,omitempty"`
-	AdmissionPlugins  bool   `yaml:"admissionPlugins" json:"admissionPlugins,omitempty"`
-	ApiServerReplicas int    `yaml:"apiServerReplicas" json:"apiServerReplicas,omitempty"`
-	ClusterCIDR       string `yaml:"clusterCIDR" json:"clusterCIDR,omitempty"`
-	ETCDStorageClass  string `yaml:"etcdStorageClass" json:"etcdStorageClass,omitempty"`
-	ETCDUnitSize      string `yaml:"etcdUnitSize" json:"etcdUnitSize,omitempty"`
+	// ForceDestroy indicates whether to force destroy the cluster.
+	// +optional
+	ForceDestroy bool `yaml:"forceDestroy" json:"forceDestroy,omitempty"`
+	// +optional
+	AnpMode string `yaml:"anpMode" json:"anpMode,omitempty"`
+	// +optional
+	AdmissionPlugins bool `yaml:"admissionPlugins" json:"admissionPlugins,omitempty"`
+	// +optional
+	ApiServerReplicas int `yaml:"apiServerReplicas" json:"apiServerReplicas,omitempty"`
+	// +optional
+	ClusterCIDR string `yaml:"clusterCIDR" json:"clusterCIDR,omitempty"`
+	// +optional
+	ETCDStorageClass string `yaml:"etcdStorageClass" json:"etcdStorageClass,omitempty"`
+	// +optional
+	ETCDUnitSize string `yaml:"etcdUnitSize" json:"etcdUnitSize,omitempty"`
 
 	//// Etcd contains the configuration for the etcd statefulset.
 	//Etcd EtcdCluster `yaml:"etcd" json:"etcd,omitempty"`
@@ -62,4 +69,18 @@ type KubeInKubeConfig struct {
 	//
 	//// Registry contains the configuration for the registry in kubernetes cluster.
 	//Registry RegistryConfig `yaml:"registry" json:"registry,omitempty"`
+
+	//TenantEntrypoint TenantEntrypoint `yaml:"tenantEntrypoint" json:"tenantEntrypoint,omitempty"`
+	// +optional
+	TenantEntrypoint TenantEntrypoint `yaml:"tenantEntrypoint" json:"tenantEntrypoint,omitempty"`
+}
+
+// TenantEntrypoint contains the configuration for the tenant entrypoint.
+type TenantEntrypoint struct {
+	// ExternalIP is the external ip of the tenant entrypoint.
+	// +optional
+	ExternalIps []string `json:"externalIps,omitempty"`
+	// ExternalVips is the external vips of the tenant entrypoint.
+	// +optional
+	ExternalVips []string `json:"externalVips,omitempty"`
 }

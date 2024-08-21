@@ -35,6 +35,7 @@ type initData struct {
 	privateRegistry       string
 	externalIP            string
 	externalIps           []string
+	vipMap                map[string]string
 	hostPort              int32
 	hostPortMap           map[string]int32
 	kubeNestOptions       *v1alpha1.KubeNestConfiguration
@@ -67,7 +68,7 @@ func NewInitPhase(opts *InitOptions) *workflow.Phase {
 	initPhase.AppendTask(tasks.NewCheckControlPlaneTask())
 	initPhase.AppendTask(tasks.NewAnpTask())
 	// create proxy
-	initPhase.AppendTask(tasks.NewVirtualClusterProxyTask())
+	//initPhase.AppendTask(tasks.NewVirtualClusterProxyTask())
 	// create core-dns
 	initPhase.AppendTask(tasks.NewCoreDNSTask())
 	// add server
@@ -188,8 +189,10 @@ func newRunData(opt *InitOptions) (*initData, error) {
 		privateRegistry:       utils.DefaultImageRepository,
 		CertStore:             cert.NewCertStore(),
 		externalIP:            opt.virtualCluster.Spec.ExternalIP,
+		externalIps:           opt.virtualCluster.Spec.ExternalIps,
 		hostPort:              opt.virtualCluster.Status.Port,
 		hostPortMap:           opt.virtualCluster.Status.PortMap,
+		vipMap:                opt.virtualCluster.Status.VipMap,
 		kubeNestOptions:       opt.KubeNestOptions,
 		virtualCluster:        opt.virtualCluster,
 		ETCDUnitSize:          opt.KubeNestOptions.KubeInKubeConfig.ETCDUnitSize,
@@ -255,6 +258,9 @@ func (i initData) ExternalIP() string {
 
 func (i initData) ExternalIPs() []string { return i.externalIps }
 
+func (i initData) VipMap() map[string]string {
+	return i.vipMap
+}
 func (i initData) HostPort() int32 {
 	return i.hostPort
 }
