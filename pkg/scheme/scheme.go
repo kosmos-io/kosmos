@@ -2,14 +2,20 @@ package scheme
 
 import (
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/client-go/kubernetes/scheme"
 	mcsv1alpha1 "sigs.k8s.io/mcs-api/pkg/apis/v1alpha1"
 
 	kosmosv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 )
 
-// aggregatedScheme aggregates Kubernetes and extended schemes.
-var aggregatedScheme = runtime.NewScheme()
+var (
+	// aggregatedScheme aggregates Kubernetes and extended schemes.
+	aggregatedScheme = runtime.NewScheme()
+
+	// Codecs provides access to encoding and decoding for the scheme.
+	Codecs = serializer.NewCodecFactory(aggregatedScheme, serializer.EnableStrict)
+)
 
 func init() {
 	err := scheme.AddToScheme(aggregatedScheme) // add Kubernetes schemes

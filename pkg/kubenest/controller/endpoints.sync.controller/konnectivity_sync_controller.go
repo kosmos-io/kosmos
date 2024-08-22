@@ -68,6 +68,11 @@ func (e *KonnectivityController) SyncVirtualClusterEPS(ctx context.Context, k8sC
 		return fmt.Errorf("virtualcluster eps %s has no ports", constants.KonnectivityServerSuffix)
 	}
 
+	// fix bug: https://github.com/kosmos-io/kosmos/issues/683
+	if len(eps.Subsets) == 0 {
+		return fmt.Errorf("eps %s has no subsets", eps.Name)
+	}
+
 	// only sync the port of the konnectivity-server endpoints
 	targetPort := virtualEndPoints.Subsets[0].Ports[0].Port
 	updateEPS := virtualEndPoints.DeepCopy()

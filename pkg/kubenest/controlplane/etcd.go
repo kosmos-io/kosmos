@@ -77,6 +77,7 @@ func installEtcd(client clientset.Interface, name, namespace string, kubeNestCon
 		Namespace:              namespace,
 		ImageRepository:        imageRepository,
 		Version:                imageVersion,
+		VirtualControllerLabel: vclabel,
 		EtcdClientService:      fmt.Sprintf("%s-%s", name, "etcd-client"),
 		CertsSecretName:        fmt.Sprintf("%s-%s", name, "etcd-cert"),
 		EtcdPeerServiceName:    fmt.Sprintf("%s-%s", name, "etcd"),
@@ -88,7 +89,6 @@ func installEtcd(client clientset.Interface, name, namespace string, kubeNestCon
 		EtcdListenPeerPort:     constants.EtcdListenPeerPort,
 		ETCDStorageClass:       kubeNestConfiguration.KubeInKubeConfig.ETCDStorageClass,
 		ETCDStorageSize:        resourceQuantity.String(),
-		VirtualControllerLabel: vclabel,
 		IPV6First:              IPV6FirstFlag,
 	})
 	if err != nil {

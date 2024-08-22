@@ -27,11 +27,9 @@ const (
 
 // +genclient
 // +kubebuilder:resource:scope=Namespaced,shortName=vc
-// +kubebuilder:subresource:status
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:printcolumn:name="STATUS",type=string,JSONPath=`.status.phase`
 // +kubebuilder:printcolumn:name="UPDATE-TIME",type=string,JSONPath=`.status.updateTime`
-
 type VirtualCluster struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -54,14 +52,13 @@ type VirtualClusterSpec struct {
 	// +optional
 	ExternalIP string `json:"externalIP,omitempty"`
 
-	// ExternalPort is the port number for the external IP of the virtual kubernetes's control plane
-	// +optional
-	ExternalPort int32 `json:"externalPort,omitempty"`
-
 	// ExternalIps is the external ips of the virtual kubernetes's control plane
 	// +optional
 	ExternalIps []string `json:"externalIps,omitempty"`
 
+	// KubeInKubeConfig is the external config of virtual cluster
+	// +optional
+	KubeInKubeConfig KubeInKubeConfig `json:"kubeInKubeConfig,omitempty"`
 	// PromotePolicies definites the policies for promote to the kubernetes's control plane
 	// +required
 	PromotePolicies []PromotePolicy `json:"promotePolicies,omitempty"`
@@ -145,6 +142,8 @@ type VirtualClusterStatus struct {
 	Port int32 `json:"port,omitempty"`
 	// +optional
 	PortMap map[string]int32 `json:"portMap,omitempty"`
+	// +optional
+	VipMap map[string]string `json:"vipMap,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

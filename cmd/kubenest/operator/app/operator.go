@@ -14,7 +14,6 @@ import (
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	cliflag "k8s.io/component-base/cli/flag"
 	"k8s.io/klog/v2"
-	kubeschedulerscheme "k8s.io/kubernetes/pkg/scheduler/apis/config/scheme"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
@@ -141,7 +140,7 @@ func loadConfig(file string) (*v1alpha1.KubeNestConfiguration, error) {
 		return nil, err
 	}
 	// The UniversalDecoder runs defaulting and returns the internal type by default.
-	obj, gvk, err := kubeschedulerscheme.Codecs.UniversalDecoder().Decode(data, nil, nil)
+	obj, gvk, err := scheme.Codecs.UniversalDecoder().Decode(data, nil, nil)
 	if err != nil {
 		return nil, err
 	}
