@@ -85,6 +85,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ShadowDaemonSet":                    schema_pkg_apis_kosmos_v1alpha1_ShadowDaemonSet(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ShadowDaemonSetList":                schema_pkg_apis_kosmos_v1alpha1_ShadowDaemonSetList(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Storage":                            schema_pkg_apis_kosmos_v1alpha1_Storage(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.TenantEntrypoint":                   schema_pkg_apis_kosmos_v1alpha1_TenantEntrypoint(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.TolerationConverter":                schema_pkg_apis_kosmos_v1alpha1_TolerationConverter(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.TopologySpreadConstraintsConverter": schema_pkg_apis_kosmos_v1alpha1_TopologySpreadConstraintsConverter(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.VirtualCluster":                     schema_pkg_apis_kosmos_v1alpha1_VirtualCluster(ref),
@@ -1928,8 +1929,9 @@ func schema_pkg_apis_kosmos_v1alpha1_KubeInKubeConfig(ref common.ReferenceCallba
 				Properties: map[string]spec.Schema{
 					"forceDestroy": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"boolean"},
-							Format: "",
+							Description: "todo Group according to the parameters of apiserver, etcd, coredns, etc. ForceDestroy indicates whether to force destroy the cluster.",
+							Type:        []string{"boolean"},
+							Format:      "",
 						},
 					},
 					"anpMode": {
@@ -1968,9 +1970,18 @@ func schema_pkg_apis_kosmos_v1alpha1_KubeInKubeConfig(ref common.ReferenceCallba
 							Format: "",
 						},
 					},
+					"tenantEntrypoint": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TenantEntrypoint TenantEntrypoint `yaml:\"tenantEntrypoint\" json:\"tenantEntrypoint,omitempty\"`",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.TenantEntrypoint"),
+						},
+					},
 				},
 			},
 		},
+		Dependencies: []string{
+			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.TenantEntrypoint"},
 	}
 }
 
@@ -3061,6 +3072,49 @@ func schema_pkg_apis_kosmos_v1alpha1_Storage(ref common.ReferenceCallback) commo
 	}
 }
 
+func schema_pkg_apis_kosmos_v1alpha1_TenantEntrypoint(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "TenantEntrypoint contains the configuration for the tenant entrypoint.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"externalIps": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ExternalIP is the external ip of the tenant entrypoint.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"externalVips": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ExternalVips is the external vips of the tenant entrypoint.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 func schema_pkg_apis_kosmos_v1alpha1_TolerationConverter(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -3382,6 +3436,13 @@ func schema_pkg_apis_kosmos_v1alpha1_VirtualClusterSpec(ref common.ReferenceCall
 							},
 						},
 					},
+					"kubeInKubeConfig": {
+						SchemaProps: spec.SchemaProps{
+							Description: "KubeInKubeConfig is the external config of virtual cluster",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.KubeInKubeConfig"),
+						},
+					},
 					"promotePolicies": {
 						SchemaProps: spec.SchemaProps{
 							Description: "PromotePolicies definites the policies for promote to the kubernetes's control plane",
@@ -3428,7 +3489,7 @@ func schema_pkg_apis_kosmos_v1alpha1_VirtualClusterSpec(ref common.ReferenceCall
 			},
 		},
 		Dependencies: []string{
-			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PluginOptions", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PluginSet", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PromotePolicy", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PromoteResources"},
+			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.KubeInKubeConfig", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PluginOptions", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PluginSet", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PromotePolicy", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PromoteResources"},
 	}
 }
 
@@ -3472,6 +3533,21 @@ func schema_pkg_apis_kosmos_v1alpha1_VirtualClusterStatus(ref common.ReferenceCa
 										Default: 0,
 										Type:    []string{"integer"},
 										Format:  "int32",
+									},
+								},
+							},
+						},
+					},
+					"vipMap": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
 									},
 								},
 							},

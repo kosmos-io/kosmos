@@ -56,6 +56,9 @@ type VirtualClusterSpec struct {
 	// +optional
 	ExternalIps []string `json:"externalIps,omitempty"`
 
+	// KubeInKubeConfig is the external config of virtual cluster
+	// +optional
+	KubeInKubeConfig KubeInKubeConfig `json:"kubeInKubeConfig,omitempty"`
 	// PromotePolicies definites the policies for promote to the kubernetes's control plane
 	// +required
 	PromotePolicies []PromotePolicy `json:"promotePolicies,omitempty"`
@@ -139,6 +142,8 @@ type VirtualClusterStatus struct {
 	Port int32 `json:"port,omitempty"`
 	// +optional
 	PortMap map[string]int32 `json:"portMap,omitempty"`
+	// +optional
+	VipMap map[string]string `json:"vipMap,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
