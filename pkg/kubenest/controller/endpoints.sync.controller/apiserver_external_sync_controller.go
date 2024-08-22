@@ -8,6 +8,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
@@ -17,9 +18,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
@@ -50,7 +53,28 @@ func (e *ApiServerExternalSyncController) SetupWithManager(mgr manager.Manager) 
 				UpdateFunc: func(updateEvent event.UpdateEvent) bool { return skipEvent(updateEvent.ObjectNew) },
 				DeleteFunc: func(deleteEvent event.DeleteEvent) bool { return false },
 			})).
+		Watches(&source.Kind{Type: &v1alpha1.VirtualCluster{}}, handler.EnqueueRequestsFromMapFunc(e.newVirtualClusterMapFunc())).
 		Complete(e)
+}
+
+func (e *ApiServerExternalSyncController) newVirtualClusterMapFunc() handler.MapFunc {
+	return func(a client.Object) []reconcile.Request {
+		var requests []reconcile.Request
+		vcluster := a.(*v1alpha1.VirtualCluster)
+
+		// Join the Reconcile queue only if the status of the vcluster is Completed
+		if vcluster.Status.Phase == v1alpha1.Completed {
+			klog.V(4).Infof("api-server-external-sync-controller: virtualcluster change to completed: %s", vcluster.Name)
+			// Add the vcluster to the Reconcile queue
+			requests = append(requests, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      vcluster.Name,
+					Namespace: vcluster.Namespace,
+				},
+			})
+		}
+		return requests
+	}
 }
 
 func (e *ApiServerExternalSyncController) SyncApiServerExternalEPS(ctx context.Context, k8sClient kubernetes.Interface) error {
@@ -140,8 +164,8 @@ func (e *ApiServerExternalSyncController) Reconcile(ctx context.Context, request
 		return reconcile.Result{}, nil
 	}
 
-	if targetVirtualCluster.Status.Phase != v1alpha1.Initialized {
-		return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
+	if targetVirtualCluster.Status.Phase != v1alpha1.Completed {
+		return reconcile.Result{}, nil
 	}
 
 	k8sClient, err := util.GenerateKubeclient(&targetVirtualCluster)

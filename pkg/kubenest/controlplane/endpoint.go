@@ -44,6 +44,16 @@ func CreateOrUpdateApiServerExternalEndpoint(kubeClient kubernetes.Interface) er
 	newEndpoint.Namespace = constants.DefaultNs
 	newEndpoint.ResourceVersion = ""
 
+	// Reconstruct the Ports without the 'name' field
+	for i := range newEndpoint.Subsets {
+		for j := range newEndpoint.Subsets[i].Ports {
+			newEndpoint.Subsets[i].Ports[j] = corev1.EndpointPort{
+				Port:     newEndpoint.Subsets[i].Ports[j].Port,
+				Protocol: newEndpoint.Subsets[i].Ports[j].Protocol,
+			}
+		}
+	}
+
 	// Try to create the endpoint
 	_, err = kubeClient.CoreV1().Endpoints(constants.DefaultNs).Create(context.TODO(), newEndpoint, metav1.CreateOptions{})
 	if err != nil {
