@@ -654,15 +654,6 @@ func (c *VirtualClusterInitController) ensureAllPodsRunning(virtualCluster *v1al
 	return nil
 }
 
-func mapContains(big map[string]string, small map[string]string) bool {
-	for k, v := range small {
-		if bigV, ok := big[k]; !ok || bigV != v {
-			return false
-		}
-	}
-	return true
-}
-
 func GetHostPortPoolFromConfigMap(client kubernetes.Interface, ns, cmName, dataKey string) (*HostPortPool, error) {
 	hostPorts, err := client.CoreV1().ConfigMaps(ns).Get(context.TODO(), cmName, metav1.GetOptions{})
 	if err != nil {

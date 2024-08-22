@@ -422,3 +422,48 @@ func ForEachObjectInYAML(
 		}
 	}
 }
+
+func ReplaceObject(dynamicClient dynamic.Interface, obj *unstructured.Unstructured) error {
+	gvk := obj.GroupVersionKind()
+	gvr, _ := meta.UnsafeGuessKindToResource(gvk)
+	namespace := obj.GetNamespace()
+	name := obj.GetName()
+
+	klog.V(2).Infof("Replace %s, name: %s, namespace: %s", gvr.String(), name, namespace)
+
+	resourceClient := dynamicClient.Resource(gvr).Namespace(namespace)
+
+	// Get the existing resource
+	_, err := resourceClient.Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		if kerrors.IsNotFound(err) {
+			// If not found, create the resource
+			_, err = resourceClient.Create(context.TODO(), obj, metav1.CreateOptions{})
+			if err != nil {
+				return err
+			}
+			klog.V(2).Infof("Created %s %s in namespace %s", gvr.String(), name, namespace)
+			return nil
+		}
+		return err
+	}
+
+	// If found, delete the existing resource
+	err = resourceClient.Delete(context.TODO(), name, metav1.DeleteOptions{})
+	if err != nil {
+		klog.V(2).Infof("Failed to delete existing %s %s: %v", gvr.String(), name, err)
+		return fmt.Errorf("failed to delete existing %s %s: %v", gvr.String(), name, err)
+	}
+
+	klog.V(2).Infof("Deleted existing %s %s in namespace %s", gvr.String(), name, namespace)
+
+	// Create the resource with the new object
+	_, err = resourceClient.Create(context.TODO(), obj, metav1.CreateOptions{})
+	if err != nil {
+		klog.V(2).Infof("Failed to create %s %s: %v", gvr.String(), name, err)
+		return fmt.Errorf("failed to create %s %s: %v", gvr.String(), name, err)
+	}
+
+	klog.V(2).Infof("Replaced %s %s in namespace %s", gvr.String(), name, namespace)
+	return nil
+}

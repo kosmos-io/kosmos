@@ -228,7 +228,7 @@ func installAnpAgent(data InitData) error {
 	actionFunc := func(ctx context.Context, c dynamic.Interface, u *unstructured.Unstructured) error {
 		// create the object
 		return apiclient.TryRunCommand(func() error {
-			return util.ApplyObject(vcClient, u)
+			return util.ReplaceObject(vcClient, u)
 		}, 3)
 	}
 	return util.ForEachObjectInYAML(context.TODO(), vcClient, []byte(anpAgentManifestBytes), "", actionFunc)

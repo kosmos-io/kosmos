@@ -79,6 +79,14 @@ func (r *GlobalNodeController) SetupWithManager(mgr manager.Manager) error {
 				return false
 			},
 		})).
+		Watches(&source.Kind{Type: &v1alpha1.GlobalNode{}}, handler.EnqueueRequestsFromMapFunc(func(a client.Object) []reconcile.Request {
+			gn := a.(*v1alpha1.GlobalNode)
+			return []reconcile.Request{
+				{NamespacedName: types.NamespacedName{
+					Name: gn.Name,
+				}},
+			}
+		})).
 		// Watches(&source.Kind{Type: &v1.Node{}}, handler.EnqueueRequestsFromMapFunc(r.newNodeMapFunc())).
 		Watches(&source.Kind{Type: &v1alpha1.VirtualCluster{}}, handler.EnqueueRequestsFromMapFunc(r.newVirtualClusterMapFunc())).
 		Complete(r)
@@ -132,7 +140,7 @@ func (r *GlobalNodeController) SyncTaint(ctx context.Context, globalNode *v1alph
 				return nil
 			}
 
-			if err := util.DrainNode(ctx, targetNode.Name, r.RootClientSet, &targetNode, env.GetDrainWaitSeconds()); err != nil {
+			if err := util.DrainNode(ctx, targetNode.Name, r.RootClientSet, &targetNode, env.GetDrainWaitSeconds(), true); err != nil {
 				return err
 			}
 			return nil
