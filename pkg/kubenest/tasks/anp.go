@@ -177,7 +177,7 @@ func installAnpServer(client clientset.Interface, name, namespace string, portMa
 		AdmissionPlugins                                                                               bool
 		IPV6First                                                                                      bool
 	}{
-		DeploymentName:            fmt.Sprintf("%s-%s", name, "apiserver"),
+		DeploymentName:            fmt.Sprintf("%s-%s", name, "apiserver-anp"),
 		Namespace:                 namespace,
 		ImageRepository:           imageRepository,
 		Version:                   imageVersion,
@@ -188,7 +188,6 @@ func installAnpServer(client clientset.Interface, name, namespace string, portMa
 		EtcdCertsSecret:           fmt.Sprintf("%s-%s", name, "etcd-cert"),
 		Replicas:                  kubeNestConfiguration.KubeInKubeConfig.ApiServerReplicas,
 		EtcdListenClientPort:      constants.ApiServerEtcdListenClientPort,
-		ClusterPort:               portMap[constants.ApiServerPortKey],
 		AgentPort:                 portMap[constants.ApiServerNetworkProxyAgentPortKey],
 		ServerPort:                portMap[constants.ApiServerNetworkProxyServerPortKey],
 		HealthPort:                portMap[constants.ApiServerNetworkProxyHealthPortKey],
