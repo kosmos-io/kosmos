@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"github.com/kosmos.io/kosmos/pkg/kubenest/tasks"
 	"sort"
 	"sync"
 	"time"
+
+	"github.com/kosmos.io/kosmos/pkg/kubenest/tasks"
 
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
@@ -828,7 +829,7 @@ func (c *VirtualClusterInitController) AllocateHostPort(virtualCluster *v1alpha1
 		return false
 	}
 
-	if virtualCluster.Spec.ExternalPort != 0 && !isPortInPool(virtualCluster.Spec.ExternalPort) {
+	if virtualCluster.Spec.KubeInKubeConfig.ExternalPort != 0 && !isPortInPool(virtualCluster.Spec.KubeInKubeConfig.ExternalPort) {
 		return 0, fmt.Errorf("ExternalPort is not in host pool")
 	}
 
@@ -840,9 +841,9 @@ func (c *VirtualClusterInitController) AllocateHostPort(virtualCluster *v1alpha1
 	// 准备端口分配列表
 	ports := func() []int32 {
 		ports := make([]int32, 0)
-		if virtualCluster.Spec.ExternalPort != 0 && !c.isPortAllocated(virtualCluster.Spec.ExternalPort, hostAddress) {
-			ports = append(ports, virtualCluster.Spec.ExternalPort)
-		} else if virtualCluster.Spec.ExternalPort != 0 && c.isPortAllocated(virtualCluster.Spec.ExternalPort, hostAddress) {
+		if virtualCluster.Spec.KubeInKubeConfig.ExternalPort != 0 && !c.isPortAllocated(virtualCluster.Spec.KubeInKubeConfig.ExternalPort, hostAddress) {
+			ports = append(ports, virtualCluster.Spec.KubeInKubeConfig.ExternalPort)
+		} else if virtualCluster.Spec.KubeInKubeConfig.ExternalPort != 0 && c.isPortAllocated(virtualCluster.Spec.KubeInKubeConfig.ExternalPort, hostAddress) {
 			return nil
 		}
 		for _, p := range hostPool.PortsPool {

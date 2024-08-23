@@ -46,15 +46,15 @@ func AllocateHostPortTemplate(virtualCluster *v1alpha1.VirtualCluster, usedPorts
 	// 准备端口分配列表
 
 	//判断ExternalPort是否在主机端口池里面
-	if virtualCluster.Spec.ExternalPort != 0 && !isPortInPool(virtualCluster.Spec.ExternalPort) {
+	if virtualCluster.Spec.KubeInKubeConfig.ExternalPort != 0 && !isPortInPool(virtualCluster.Spec.KubeInKubeConfig.ExternalPort) {
 		return nil, nil
 	}
 
 	ports := func() []int32 {
 		ports := make([]int32, 0)
-		if virtualCluster.Spec.ExternalPort != 0 && !isPortAllocated(virtualCluster.Spec.ExternalPort, usedPorts) {
-			ports = append(ports, virtualCluster.Spec.ExternalPort)
-		} else if isPortAllocated(virtualCluster.Spec.ExternalPort, usedPorts) {
+		if virtualCluster.Spec.KubeInKubeConfig.ExternalPort != 0 && !isPortAllocated(virtualCluster.Spec.KubeInKubeConfig.ExternalPort, usedPorts) {
+			ports = append(ports, virtualCluster.Spec.KubeInKubeConfig.ExternalPort)
+		} else if isPortAllocated(virtualCluster.Spec.KubeInKubeConfig.ExternalPort, usedPorts) {
 			return nil
 		}
 		for _, p := range hostPoolPorts {
@@ -172,7 +172,7 @@ func TestVirtualClusterInitController_AllocateHostPort(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			virtualClusterTest := &v1alpha1.VirtualCluster{}
-			virtualClusterTest.Spec.ExternalPort = tt.args.externalPort
+			virtualClusterTest.Spec.KubeInKubeConfig.ExternalPort = tt.args.externalPort
 			got, _ := AllocateHostPortTemplate(virtualClusterTest, tt.args.usedPorts, tt.args.ports...)
 			// if (err != nil) != tt.wantErr {
 			// 	t.Errorf("VirtualClusterInitController.AllocateHostPort() error = %v, wantErr %v", err, tt.wantErr)

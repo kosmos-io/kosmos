@@ -51,6 +51,8 @@ type KubeInKubeConfig struct {
 	ETCDStorageClass string `yaml:"etcdStorageClass" json:"etcdStorageClass,omitempty"`
 	// +optional
 	ETCDUnitSize string `yaml:"etcdUnitSize" json:"etcdUnitSize,omitempty"`
+	// +optional
+	ExternalPort int32 `json:"externalPort,omitempty"`
 
 	//// Etcd contains the configuration for the etcd statefulset.
 	//Etcd EtcdCluster `yaml:"etcd" json:"etcd,omitempty"`
