@@ -61,6 +61,7 @@ func CreateOrUpdateApiServerExternalEndpoint(kubeClient kubernetes.Interface) er
 
 		// Update the existing endpoint
 		newEndpoint.SetResourceVersion(existingEndpoint.ResourceVersion)
+		newEndpoint.SetUID(existingEndpoint.UID)
 		_, err = kubeClient.CoreV1().Endpoints(constants.DefaultNs).Update(context.TODO(), newEndpoint, metav1.UpdateOptions{})
 		if err != nil {
 			klog.Error("update api-server-external-service endpoint failed", err)
@@ -93,31 +94,17 @@ func CreateOrUpdateApiServerExternalService(kubeClient kubernetes.Interface) err
 	if err := yaml.Unmarshal([]byte(apiServerExternalServiceBytes), &svc); err != nil {
 		return fmt.Errorf("err when decoding api-server-external-service in virtual cluster: %w", err)
 	}
-
-	// Try to create the service
-	_, err = kubeClient.CoreV1().Services(constants.DefaultNs).Create(context.TODO(), &svc, metav1.CreateOptions{})
+	_, err = kubeClient.CoreV1().Services(constants.DefaultNs).Get(context.TODO(), constants.ApiServerExternalService, metav1.GetOptions{})
 	if err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			return fmt.Errorf("failed to create api-server-external-service service: %w", err)
+		if !apierrors.IsNotFound(err) {
+			// Try to create the service
+			_, err = kubeClient.CoreV1().Services(constants.DefaultNs).Create(context.TODO(), &svc, metav1.CreateOptions{})
+			if err != nil {
+				return fmt.Errorf("error when creating api-server-external-service: %w", err)
+			}
 		}
-
-		// Service already exists, retrieve it
-		existingSvc, err := kubeClient.CoreV1().Services(constants.DefaultNs).Get(context.TODO(), constants.ApiServerExternalService, metav1.GetOptions{})
-		if err != nil {
-			return fmt.Errorf("failed to get existing api-server-external-service service: %w", err)
-		}
-
-		// Update the existing service
-		svc.ResourceVersion = existingSvc.ResourceVersion
-		_, err = kubeClient.CoreV1().Services(constants.DefaultNs).Update(context.TODO(), &svc, metav1.UpdateOptions{})
-		if err != nil {
-			return fmt.Errorf("failed to update api-server-external-service service: %w", err)
-		}
-		klog.V(4).Info("successfully updated api-server-external-service service")
-	} else {
-		klog.V(4).Info("successfully created api-server-external-service service")
 	}
-
+	klog.V(4).Info("successfully created api-server-external-service service")
 	return nil
 }
 

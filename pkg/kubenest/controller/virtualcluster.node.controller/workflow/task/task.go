@@ -112,7 +112,8 @@ func NewDrainHostNodeTask() Task {
 				return nil, fmt.Errorf("get node %s failed: %s", to.NodeInfo.Name, err)
 			}
 
-			if err := util.DrainNode(ctx, targetNode.Name, to.HostK8sClient, targetNode, env.GetDrainWaitSeconds()); err != nil {
+			if err := util.DrainNode(ctx, targetNode.Name, to.HostK8sClient, targetNode, env.GetDrainWaitSeconds(), true); err != nil {
+				klog.Warningf("drain node %s failed: %s, will force delete node", to.NodeInfo.Name, err)
 				return nil, err
 			}
 			return nil, nil
@@ -125,13 +126,6 @@ func NewDrainVirtualNodeTask() Task {
 	return Task{
 		Name:  "drain virtual-control-plane node",
 		Retry: true,
-		// ErrorIgnore: true,
-		Skip: func(ctx context.Context, opt TaskOpt) bool {
-			if opt.Opt != nil {
-				return opt.Opt.KubeInKubeConfig.ForceDestroy
-			}
-			return false
-		},
 		Run: func(ctx context.Context, to TaskOpt, _ interface{}) (interface{}, error) {
 			targetNode, err := to.VirtualK8sClient.CoreV1().Nodes().Get(ctx, to.NodeInfo.Name, metav1.GetOptions{})
 			if err != nil {
@@ -141,8 +135,9 @@ func NewDrainVirtualNodeTask() Task {
 				return nil, fmt.Errorf("get node %s failed: %s", to.NodeInfo.Name, err)
 			}
 
-			if err := util.DrainNode(ctx, targetNode.Name, to.HostK8sClient, targetNode, env.GetDrainWaitSeconds()); err != nil {
-				return nil, err
+			if err := util.DrainNode(ctx, targetNode.Name, to.VirtualK8sClient, targetNode, env.GetDrainWaitSeconds(), false); err != nil {
+				klog.Warningf("drain node %s failed: %s, will force delete node", to.NodeInfo.Name, err)
+				return nil, nil
 			}
 			return nil, nil
 		},

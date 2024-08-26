@@ -206,15 +206,6 @@ func SecureRandomInt(n int) (int, error) {
 	return int(randInt.Int64()), nil
 }
 
-func MapContains(big map[string]string, small map[string]string) bool {
-	for k, v := range small {
-		if bigV, ok := big[k]; !ok || bigV != v {
-			return false
-		}
-	}
-	return true
-}
-
 func IsIPAvailable(ips, vipPool []string) (string, error) {
 	for _, ip := range ips {
 		if b, err := IsIPInRange(ip, vipPool); b && err == nil {

@@ -22,7 +22,7 @@ func IsNodeReady(conditions []v1.NodeCondition) bool {
 }
 
 // DrainNode cordons and drains a node.
-func DrainNode(ctx context.Context, nodeName string, client kubernetes.Interface, node *v1.Node, drainWaitSeconds int) error {
+func DrainNode(ctx context.Context, nodeName string, client kubernetes.Interface, node *v1.Node, drainWaitSeconds int, isHostCluster bool) error {
 	if client == nil {
 		return fmt.Errorf("K8sClient not set")
 	}
@@ -40,6 +40,7 @@ func DrainNode(ctx context.Context, nodeName string, client kubernetes.Interface
 		IgnoreAllDaemonSets: true,
 		Out:                 os.Stdout,
 		ErrOut:              os.Stdout,
+		DisableEviction:     !isHostCluster,
 		// We want to proceed even when pods are using emptyDir volumes
 		DeleteEmptyDirData: true,
 		Timeout:            time.Duration(drainWaitSeconds) * time.Second,
