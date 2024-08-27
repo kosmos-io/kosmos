@@ -120,7 +120,7 @@ func (c *VirtualClusterInitController) Reconcile(ctx context.Context, request re
 	}
 
 	switch originalCluster.Status.Phase {
-	case "":
+	case "", v1alpha1.Pending:
 		//create request
 		updatedCluster.Status.Phase = v1alpha1.Preparing
 		err := c.Update(updatedCluster)
