@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"github.com/kosmos.io/kosmos/pkg/kubenest/tasks"
 	"sort"
 	"sync"
 	"time"
@@ -16,6 +15,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -38,9 +38,10 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
 	env "github.com/kosmos.io/kosmos/pkg/kubenest/controller/virtualcluster.node.controller/env"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/controller/virtualcluster.node.controller/exector"
+	"github.com/kosmos.io/kosmos/pkg/kubenest/tasks"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/util"
 	apiclient "github.com/kosmos.io/kosmos/pkg/kubenest/util/api-client"
-	cs "k8s.io/client-go/kubernetes"
+	"github.com/kosmos.io/kosmos/pkg/utils"
 )
 
 type VirtualClusterInitController struct {
@@ -72,6 +73,13 @@ const (
 	VirtualClusterControllerFinalizer = "kosmos.io/virtualcluster-controller"
 	RequeueTime                       = 10 * time.Second
 )
+
+var nameMap = map[string]int{
+	"agentport":  1,
+	"serverport": 2,
+	"healthport": 3,
+	"adminport":  4,
+}
 
 func (c *VirtualClusterInitController) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
 	startTime := time.Now()
@@ -298,7 +306,7 @@ func (c *VirtualClusterInitController) createVirtualCluster(virtualCluster *v1al
 	klog.V(2).Infof("Reconciling virtual cluster", "name", virtualCluster.Name)
 
 	//Assign host port
-	_, err := c.AllocateHostPort(virtualCluster)
+	_, err := c.AllocateHostPort(virtualCluster, kubeNestOptions)
 	if err != nil {
 		return errors.Wrap(err, "Error in assign host port!")
 	}
@@ -796,28 +804,132 @@ func (c *VirtualClusterInitController) findHostAddresses() ([]string, error) {
 	return ret, nil
 }
 
-// AllocateHostPort allocate host port for virtual cluster
-// #nosec G602
-func (c *VirtualClusterInitController) AllocateHostPort(virtualCluster *v1alpha1.VirtualCluster) (int32, error) {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-	if len(virtualCluster.Status.PortMap) > 0 || virtualCluster.Status.Port != 0 {
-		return 0, nil
-	}
-	hostPool, err := GetHostPortPoolFromConfigMap(c.RootClientSet, constants.KosmosNs, constants.HostPortsCMName, constants.HostPortsCMDataName)
+func (c *VirtualClusterInitController) GetHostPortNextFunc(virtualCluster *v1alpha1.VirtualCluster) (func() (int32, error), error) {
+	var hostPool *HostPortPool
+	var err error
+	type nextfunc func() (int32, error)
+	var next nextfunc
+	hostPool, err = GetHostPortPoolFromConfigMap(c.RootClientSet, constants.KosmosNs, constants.HostPortsCMName, constants.HostPortsCMDataName)
 	if err != nil {
 		klog.Errorf("get host port pool error: %v", err)
-		return 0, err
+		return nil, err
+	}
+	next = func() nextfunc {
+		i := 0
+		return func() (int32, error) {
+			if i >= len(hostPool.PortsPool) {
+				return 0, fmt.Errorf("no available ports")
+			}
+			port := hostPool.PortsPool[i]
+			i++
+			return port, nil
+		}
+	}()
+	// }
+	return next, nil
+}
+
+func createApiAnpAgentSvc(name, namespace string, nameMap map[string]int) *corev1.Service {
+	apiAnpAgentSvc := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      util.GetKonnectivityApiServerName(name),
+			Namespace: namespace,
+		},
+		Spec: corev1.ServiceSpec{
+			Type: corev1.ServiceTypeNodePort,
+			Ports: func() []corev1.ServicePort {
+				ret := []corev1.ServicePort{}
+				for k, v := range nameMap {
+					ret = append(ret, corev1.ServicePort{
+						Port:     8080 + int32(v),
+						Protocol: corev1.ProtocolTCP,
+						TargetPort: intstr.IntOrString{
+							IntVal: 8080 + int32(v),
+						},
+						Name: k,
+					})
+				}
+				return ret
+			}(),
+		},
+	}
+	return apiAnpAgentSvc
+}
+
+func (c *VirtualClusterInitController) GetNodePorts(client kubernetes.Interface, virtualCluster *v1alpha1.VirtualCluster) ([]int32, error) {
+	ports := make([]int32, 5)
+	ipFamilies := utils.IPFamilyGenerator(constants.ApiServerServiceSubnet)
+	name := virtualCluster.GetName()
+	namespace := virtualCluster.GetNamespace()
+	apiSvc := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      util.GetApiServerName(name),
+			Namespace: namespace,
+		},
+		Spec: corev1.ServiceSpec{
+			Type: corev1.ServiceTypeNodePort,
+			Ports: []corev1.ServicePort{
+				{
+					Port:     30007, // just for get node port
+					Protocol: corev1.ProtocolTCP,
+					TargetPort: intstr.IntOrString{
+						IntVal: 8080, // just for get node port
+					},
+					Name: "client",
+				},
+			},
+			IPFamilies: ipFamilies,
+		},
+	}
+	err := util.CreateOrUpdateService(client, apiSvc)
+	if err != nil {
+		return nil, fmt.Errorf("can not create api svc for allocate port, error: %s", err)
+	}
+
+	createdApiSvc, err := client.CoreV1().Services(namespace).Get(context.TODO(), apiSvc.GetName(), metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("can not get api svc for allocate port, error: %s", err)
+	}
+	nodePort := createdApiSvc.Spec.Ports[0].NodePort
+	ports[0] = nodePort
+
+	apiAnpAgentSvc := createApiAnpAgentSvc(name, namespace, nameMap)
+	err = util.CreateOrUpdateService(client, apiAnpAgentSvc)
+	if err != nil {
+		return nil, fmt.Errorf("can not create anp svc for allocate port, error: %s", err)
+	}
+
+	createdAnpSvc, err := client.CoreV1().Services(namespace).Get(context.TODO(), apiAnpAgentSvc.GetName(), metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("can not get api svc for allocate port, error: %s", err)
+	}
+
+	for _, port := range createdAnpSvc.Spec.Ports {
+		v, ok := nameMap[port.Name]
+		if ok {
+			ports[v] = port.NodePort
+		} else {
+			return nil, fmt.Errorf("can not get node port for %s", port.Name)
+		}
+	}
+
+	return ports, nil
+}
+
+func (c *VirtualClusterInitController) GetHostNetworkPorts(virtualCluster *v1alpha1.VirtualCluster) ([]int32, error) {
+	next, err := c.GetHostPortNextFunc(virtualCluster)
+	if err != nil {
+		return nil, err
 	}
 
 	hostAddress, err := c.findHostAddresses()
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
 	ports := func() []int32 {
 		ports := make([]int32, 0)
-		for _, p := range hostPool.PortsPool {
+		for p, err := next(); err == nil; p, err = next() {
 			if !c.isPortAllocated(p, hostAddress) {
 				ports = append(ports, p)
 				if len(ports) > constants.VirtualClusterPortNum {
@@ -827,6 +939,32 @@ func (c *VirtualClusterInitController) AllocateHostPort(virtualCluster *v1alpha1
 		}
 		return ports
 	}()
+
+	return ports, nil
+}
+
+// AllocateHostPort allocate host port for virtual cluster
+// #nosec G602
+func (c *VirtualClusterInitController) AllocateHostPort(virtualCluster *v1alpha1.VirtualCluster, kubeNestOptions *v1alpha1.KubeNestConfiguration) (int32, error) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	if len(virtualCluster.Status.PortMap) > 0 || virtualCluster.Status.Port != 0 {
+		return 0, nil
+	}
+
+	var ports []int32
+	var err error
+
+	if virtualCluster.Spec.KubeInKubeConfig != nil && virtualCluster.Spec.KubeInKubeConfig.ApiServerServiceType == v1alpha1.NodePort {
+		ports, err = c.GetNodePorts(c.RootClientSet, virtualCluster)
+	} else {
+		ports, err = c.GetHostNetworkPorts(virtualCluster)
+	}
+
+	if err != nil {
+		return 0, err
+	}
+
 	if len(ports) < constants.VirtualClusterPortNum {
 		klog.Errorf("no available ports to allocate")
 		return 0, fmt.Errorf("no available ports to allocate")
@@ -889,7 +1027,7 @@ func (c *VirtualClusterInitController) AllocateVip(virtualCluster *v1alpha1.Virt
 	return err
 }
 
-func (c *VirtualClusterInitController) labelNode(client cs.Interface) (reps int, err error) {
+func (c *VirtualClusterInitController) labelNode(client kubernetes.Interface) (reps int, err error) {
 	replicas := constants.VipKeepAlivedReplicas
 	nodes, err := client.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {

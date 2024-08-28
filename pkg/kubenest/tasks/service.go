@@ -45,6 +45,8 @@ func runVirtualClusterService(r workflow.RunData) error {
 		data.GetName(),
 		data.GetNamespace(),
 		data.HostPortMap(),
+		data.KubeNestOpt(),
+		data.VirtualCluster(),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to install virtual cluster service , err: %w", err)

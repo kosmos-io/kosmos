@@ -1965,7 +1965,11 @@ func (in *VirtualClusterSpec) DeepCopyInto(out *VirtualClusterSpec) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
-	in.KubeInKubeConfig.DeepCopyInto(&out.KubeInKubeConfig)
+	if in.KubeInKubeConfig != nil {
+		in, out := &in.KubeInKubeConfig, &out.KubeInKubeConfig
+		*out = new(KubeInKubeConfig)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.PromotePolicies != nil {
 		in, out := &in.PromotePolicies, &out.PromotePolicies
 		*out = make([]PromotePolicy, len(*in))

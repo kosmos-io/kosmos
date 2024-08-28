@@ -192,7 +192,7 @@ func runCoreDnsVirtualTask(r workflow.RunData) error {
 	}
 
 	secret, err := data.RemoteClient().CoreV1().Secrets(data.GetNamespace()).Get(context.TODO(),
-		fmt.Sprintf("%s-%s", data.GetName(), constants.AdminConfig), metav1.GetOptions{})
+		util.GetAdminConfigSecretName(data.GetName()), metav1.GetOptions{})
 	if err != nil {
 		return errors.Wrap(err, "Get virtualcluster kubeconfig secret error")
 	}

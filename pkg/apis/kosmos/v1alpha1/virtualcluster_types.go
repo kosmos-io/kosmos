@@ -58,7 +58,7 @@ type VirtualClusterSpec struct {
 
 	// KubeInKubeConfig is the external config of virtual cluster
 	// +optional
-	KubeInKubeConfig KubeInKubeConfig `json:"kubeInKubeConfig,omitempty"`
+	KubeInKubeConfig *KubeInKubeConfig `json:"kubeInKubeConfig,omitempty"`
 	// PromotePolicies definites the policies for promote to the kubernetes's control plane
 	// +required
 	PromotePolicies []PromotePolicy `json:"promotePolicies,omitempty"`

@@ -137,8 +137,8 @@ func getKubeControllerManagerManifest(name, namespace, clusterCIDR string) (*app
 		ImageRepository:           imageRepository,
 		Version:                   imageVersion,
 		VirtualControllerLabel:    vclabel,
-		VirtualClusterCertsSecret: fmt.Sprintf("%s-%s", name, "cert"),
-		KubeconfigSecret:          fmt.Sprintf("%s-%s", name, "admin-config-clusterip"),
+		VirtualClusterCertsSecret: util.GetCertName(name),
+		KubeconfigSecret:          util.GetAdminConfigClusterIPSecretName(name),
 		ServiceSubnet:             constants.ApiServerServiceSubnet,
 		PodSubnet:                 podSubnet,
 		Replicas:                  constants.KubeControllerReplicas,
@@ -189,7 +189,7 @@ func getVirtualClusterSchedulerManifest(name, namespace string) (*appsv1.Deploym
 		ImageRepository:        imageRepository,
 		VirtualControllerLabel: vclabel,
 		Version:                imageVersion,
-		KubeconfigSecret:       fmt.Sprintf("%s-%s", name, "admin-config-clusterip"),
+		KubeconfigSecret:       util.GetAdminConfigClusterIPSecretName(name),
 		Replicas:               constants.VirtualClusterSchedulerReplicas,
 	})
 	if err != nil {

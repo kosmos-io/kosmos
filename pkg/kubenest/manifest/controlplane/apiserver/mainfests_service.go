@@ -20,6 +20,9 @@ spec:
     port: {{ .ServicePort }}
     protocol: TCP
     targetPort: {{ .ServicePort }}
+    {{ if .UseApiServerNodePort }}
+    nodePort: {{ .ServicePort }}
+    {{ end }}
   selector:
     virtualCluster-app: apiserver
   type: {{ .ServiceType }}

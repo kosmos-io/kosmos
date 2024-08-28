@@ -12,6 +12,7 @@ import (
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 
+	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/manifest/controlplane/apiserver"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/manifest/controlplane/coredns/host"
@@ -20,8 +21,8 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/utils"
 )
 
-func EnsureVirtualClusterService(client clientset.Interface, name, namespace string, portMap map[string]int32) error {
-	if err := createServerService(client, name, namespace, portMap); err != nil {
+func EnsureVirtualClusterService(client clientset.Interface, name, namespace string, portMap map[string]int32, kubeNestOpt *v1alpha1.KubeNestConfiguration, vc *v1alpha1.VirtualCluster) error {
+	if err := createServerService(client, name, namespace, portMap, kubeNestOpt, vc); err != nil {
 		return fmt.Errorf("failed to create virtual cluster apiserver-service, err: %w", err)
 	}
 	return nil
@@ -29,10 +30,12 @@ func EnsureVirtualClusterService(client clientset.Interface, name, namespace str
 
 func DeleteVirtualClusterService(client clientset.Interface, name, namespace string) error {
 	services := []string{
-		fmt.Sprintf("%s-%s", name, "apiserver"),
-		fmt.Sprintf("%s-%s", name, "etcd"),
-		fmt.Sprintf("%s-%s", name, "etcd-client"),
+		util.GetApiServerName(name),
+		util.GetEtcdServerName(name),
+		util.GetEtcdClientServerName(name),
 		"kube-dns",
+		util.GetKonnectivityServerName(name),
+		util.GetKonnectivityApiServerName(name),
 	}
 	for _, service := range services {
 		err := client.CoreV1().Services(namespace).Delete(context.TODO(), service, metav1.DeleteOptions{})
@@ -49,18 +52,20 @@ func DeleteVirtualClusterService(client clientset.Interface, name, namespace str
 	return nil
 }
 
-func createServerService(client clientset.Interface, name, namespace string, portMap map[string]int32) error {
+func createServerService(client clientset.Interface, name, namespace string, portMap map[string]int32, _ *v1alpha1.KubeNestConfiguration, vc *v1alpha1.VirtualCluster) error {
 	ipFamilies := utils.IPFamilyGenerator(constants.ApiServerServiceSubnet)
 	apiserverServiceBytes, err := util.ParseTemplate(apiserver.ApiserverService, struct {
 		ServiceName, Namespace, ServiceType string
 		ServicePort                         int32
 		IPFamilies                          []corev1.IPFamily
+		UseApiServerNodePort                bool
 	}{
-		ServiceName: fmt.Sprintf("%s-%s", name, "apiserver"),
-		Namespace:   namespace,
-		ServiceType: constants.ApiServerServiceType,
-		ServicePort: portMap[constants.ApiServerPortKey],
-		IPFamilies:  ipFamilies,
+		ServiceName:          util.GetApiServerName(name),
+		Namespace:            namespace,
+		ServiceType:          constants.ApiServerServiceType,
+		ServicePort:          portMap[constants.ApiServerPortKey],
+		IPFamilies:           ipFamilies,
+		UseApiServerNodePort: vc.Spec.KubeInKubeConfig != nil && vc.Spec.KubeInKubeConfig.ApiServerServiceType == v1alpha1.NodePort,
 	})
 	if err != nil {
 		return fmt.Errorf("error when parsing virtualClusterApiserver serive template: %w", err)
@@ -69,7 +74,7 @@ func createServerService(client clientset.Interface, name, namespace string, por
 		ServiceName, Namespace string
 		ProxyServerPort        int32
 	}{
-		ServiceName:     fmt.Sprintf("%s-%s", name, "konnectivity-server"),
+		ServiceName:     util.GetKonnectivityServerName(name),
 		Namespace:       namespace,
 		ProxyServerPort: portMap[constants.ApiServerNetworkProxyServerPortKey],
 	})
@@ -81,7 +86,7 @@ func createServerService(client clientset.Interface, name, namespace string, por
 	if err := yaml.Unmarshal([]byte(apiserverServiceBytes), apiserverService); err != nil {
 		return fmt.Errorf("error when decoding virtual cluster apiserver service: %w", err)
 	}
-	if err := createOrUpdateService(client, apiserverService); err != nil {
+	if err := util.CreateOrUpdateService(client, apiserverService); err != nil {
 		return fmt.Errorf("err when creating virtual cluster apiserver service for %s, err: %w", apiserverService.Name, err)
 	}
 
@@ -89,7 +94,7 @@ func createServerService(client clientset.Interface, name, namespace string, por
 	if err := yaml.Unmarshal([]byte(anpServiceBytes), anpService); err != nil {
 		return fmt.Errorf("error when decoding virtual cluster anp service: %w", err)
 	}
-	if err := createOrUpdateService(client, anpService); err != nil {
+	if err := util.CreateOrUpdateService(client, anpService); err != nil {
 		return fmt.Errorf("err when creating virtual cluster anp service for %s, err: %w", anpService.Name, err)
 	}
 
@@ -97,7 +102,7 @@ func createServerService(client clientset.Interface, name, namespace string, por
 		ServiceName, Namespace                   string
 		EtcdListenClientPort, EtcdListenPeerPort int32
 	}{
-		ServiceName:          fmt.Sprintf("%s-%s", name, "etcd"),
+		ServiceName:          util.GetEtcdServerName(name),
 		Namespace:            namespace,
 		EtcdListenClientPort: constants.EtcdListenClientPort,
 		EtcdListenPeerPort:   constants.EtcdListenPeerPort,
@@ -111,7 +116,7 @@ func createServerService(client clientset.Interface, name, namespace string, por
 		return fmt.Errorf("error when decoding Etcd client service: %w", err)
 	}
 
-	if err := createOrUpdateService(client, etcdPeerService); err != nil {
+	if err := util.CreateOrUpdateService(client, etcdPeerService); err != nil {
 		return fmt.Errorf("error when creating etcd client service, err: %w", err)
 	}
 
@@ -120,7 +125,7 @@ func createServerService(client clientset.Interface, name, namespace string, por
 		ServiceName, Namespace string
 		EtcdListenClientPort   int32
 	}{
-		ServiceName:          fmt.Sprintf("%s-%s", name, "etcd-client"),
+		ServiceName:          util.GetEtcdClientServerName(name),
 		Namespace:            namespace,
 		EtcdListenClientPort: constants.EtcdListenClientPort,
 	})
@@ -133,7 +138,7 @@ func createServerService(client clientset.Interface, name, namespace string, por
 		return fmt.Errorf("err when decoding Etcd client service: %w", err)
 	}
 
-	if err := createOrUpdateService(client, etcdClientService); err != nil {
+	if err := util.CreateOrUpdateService(client, etcdClientService); err != nil {
 		return fmt.Errorf("err when creating etcd client service, err: %w", err)
 	}
 
@@ -152,31 +157,9 @@ func createServerService(client clientset.Interface, name, namespace string, por
 		return fmt.Errorf("err when decoding core-dns service: %w", err)
 	}
 
-	if err := createOrUpdateService(client, coreDnsService); err != nil {
+	if err := util.CreateOrUpdateService(client, coreDnsService); err != nil {
 		return fmt.Errorf("err when creating core-dns service, err: %w", err)
 	}
 
-	return nil
-}
-
-func createOrUpdateService(client clientset.Interface, service *corev1.Service) error {
-	_, err := client.CoreV1().Services(service.GetNamespace()).Create(context.TODO(), service, metav1.CreateOptions{})
-	if err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			return errors.Wrapf(err, "Failed to create service %s/%s", service.GetName(), service.GetNamespace())
-		}
-
-		older, err := client.CoreV1().Services(service.GetNamespace()).Get(context.TODO(), service.GetName(), metav1.GetOptions{})
-		if err != nil {
-			return err
-		}
-
-		service.ResourceVersion = older.ResourceVersion
-		if _, err := client.CoreV1().Services(service.GetNamespace()).Update(context.TODO(), service, metav1.UpdateOptions{}); err != nil {
-			return fmt.Errorf("unable to update Service: %v", err)
-		}
-	}
-
-	klog.V(5).InfoS("Successfully created or updated service", "service", service.GetName())
 	return nil
 }

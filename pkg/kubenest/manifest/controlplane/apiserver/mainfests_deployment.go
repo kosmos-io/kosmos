@@ -21,7 +21,9 @@ spec:
         virtualCluster-app: apiserver
     spec:
       automountServiceAccountToken: false
+      {{ if not .UseApiServerNodePort }}
       hostNetwork: true
+      {{ end }}
       dnsPolicy: ClusterFirstWithHostNet
       tolerations:
       - key: {{ .VirtualControllerLabel }}
@@ -50,11 +52,19 @@ spec:
         image:  {{ .ImageRepository }}/kube-apiserver:{{ .Version }}
         imagePullPolicy: IfNotPresent
         env:
-          - name: PODIP
-            valueFrom:
-              fieldRef:
-                apiVersion: v1
-                fieldPath: status.podIP
+        {{ if .UseApiServerNodePort }}
+        - name: HOSTIP
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: status.hostIP
+        {{ else}}
+        - name: PODIP
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: status.podIP
+        {{ end }}
         command:
         - kube-apiserver
         - --allow-privileged=true
@@ -93,7 +103,11 @@ spec:
         - --max-requests-inflight=1500
         - --max-mutating-requests-inflight=500
         - --v=4
+        {{ if .UseApiServerNodePort }}
+        - --advertise-address=$(HOSTIP)
+        {{ else }}
         - --advertise-address=$(PODIP)
+        {{ end }}
         {{ if not .AdmissionPlugins }}
         - --disable-admission-plugins=License
         {{ end }}
@@ -161,7 +175,9 @@ spec:
         virtualCluster-anp: apiserver-anp
     spec:
       automountServiceAccountToken: false
+      {{ if not .UseApiServerNodePort }}
       hostNetwork: true
+      {{ end }}
       dnsPolicy: ClusterFirstWithHostNet
       tolerations:
       - key: {{ .VirtualControllerLabel }}
@@ -190,11 +206,19 @@ spec:
         image:  {{ .ImageRepository }}/kube-apiserver:{{ .Version }}
         imagePullPolicy: IfNotPresent
         env:
-          - name: PODIP
-            valueFrom:
-              fieldRef:
-                apiVersion: v1
-                fieldPath: status.podIP
+        {{ if .UseApiServerNodePort }}
+        - name: HOSTIP
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: status.hostIP
+        {{ else}}
+        - name: PODIP
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: status.podIP
+        {{ end }}
         command:
         - kube-apiserver
         - --allow-privileged=true
@@ -233,7 +257,11 @@ spec:
         - --max-requests-inflight=1500
         - --max-mutating-requests-inflight=500
         - --v=4
+        {{ if .UseApiServerNodePort }}
+        - --advertise-address=$(HOSTIP)
+        {{ else }}
         - --advertise-address=$(PODIP)
+        {{ end }}
         - --egress-selector-config-file=/etc/kubernetes/konnectivity-server-config/{{ .Namespace }}/{{ .Name }}/egress_selector_configuration.yaml
         {{ if not .AdmissionPlugins }}
         - --disable-admission-plugins=License
@@ -372,6 +400,34 @@ spec:
         configMap:
           name: kas-proxy-files
 `
+	ApiserverAnpAgentService = `
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .SVCName }}
+  namespace: {{ .Namespace }}
+spec:
+  ports:
+  - port: {{ .ServerPort }}
+    name: serverport
+    targetPort: {{ .ServerPort }}
+    nodePort: {{ .ServerPort }}
+  - port: {{ .AgentPort }}
+    name: agentport
+    targetPort: {{ .AgentPort }}
+    nodePort: {{ .AgentPort }}
+  - port: {{ .HealthPort }}
+    name: healthport
+    targetPort: {{ .HealthPort }}
+    nodePort: {{ .HealthPort }}
+  - port: {{ .AdminPort }}
+    name: adminport
+    targetPort: {{ .AdminPort }}
+    nodePort: {{ .AdminPort }}
+  selector:
+    virtualCluster-app: apiserver
+  type: NodePort
+  `
 	AnpAgentManifest = `
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding

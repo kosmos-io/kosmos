@@ -143,8 +143,8 @@ func VirtualClusterFrontProxyClient() *CertConfig {
 }
 
 func etcdServerAltNamesMutator(cfg *AltNamesMutatorConfig) (*certutil.AltNames, error) {
-	etcdClientServiceDNS := fmt.Sprintf("%s.%s.svc.cluster.local", fmt.Sprintf("%s-%s", cfg.Name, "etcd-client"), cfg.Namespace)
-	etcdPeerServiceDNS := fmt.Sprintf("*.%s.%s.svc.cluster.local", fmt.Sprintf("%s-%s", cfg.Name, "etcd"), cfg.Namespace)
+	etcdClientServiceDNS := fmt.Sprintf("%s.%s.svc.cluster.local", util.GetEtcdClientServerName(cfg.Name), cfg.Namespace)
+	etcdPeerServiceDNS := fmt.Sprintf("*.%s.%s.svc.cluster.local", util.GetEtcdServerName(cfg.Name), cfg.Namespace)
 
 	altNames := &certutil.AltNames{
 		DNSNames: []string{"localhost", etcdClientServiceDNS, etcdPeerServiceDNS},

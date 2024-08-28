@@ -14,22 +14,22 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/kubenest/util"
 )
 
-func EnsureVirtualClusterAPIServer(client clientset.Interface, name, namespace string, portMap map[string]int32, kubeNestConfiguration *v1alpha1.KubeNestConfiguration) error {
-	if err := installAPIServer(client, name, namespace, portMap, kubeNestConfiguration); err != nil {
+func EnsureVirtualClusterAPIServer(client clientset.Interface, name, namespace string, portMap map[string]int32, kubeNestConfiguration *v1alpha1.KubeNestConfiguration, vc *v1alpha1.VirtualCluster) error {
+	if err := installAPIServer(client, name, namespace, portMap, kubeNestConfiguration, vc); err != nil {
 		return fmt.Errorf("failed to install virtual cluster apiserver, err: %w", err)
 	}
 	return nil
 }
 
 func DeleteVirtualClusterAPIServer(client clientset.Interface, name, namespace string) error {
-	deployName := fmt.Sprintf("%s-%s", name, "apiserver")
+	deployName := util.GetApiServerName(name)
 	if err := util.DeleteDeployment(client, deployName, namespace); err != nil {
 		return errors.Wrapf(err, "Failed to delete deployment %s/%s", deployName, namespace)
 	}
 	return nil
 }
 
-func installAPIServer(client clientset.Interface, name, namespace string, portMap map[string]int32, kubeNestConfiguration *v1alpha1.KubeNestConfiguration) error {
+func installAPIServer(client clientset.Interface, name, namespace string, portMap map[string]int32, kubeNestConfiguration *v1alpha1.KubeNestConfiguration, vc *v1alpha1.VirtualCluster) error {
 	imageRepository, imageVersion := util.GetImageMessage()
 	clusterIp, err := util.GetEtcdServiceClusterIp(namespace, name+constants.EtcdSuffix, client)
 	if err != nil {
@@ -51,21 +51,23 @@ func installAPIServer(client clientset.Interface, name, namespace string, portMa
 		ClusterPort                                                                                    int32
 		AdmissionPlugins                                                                               bool
 		IPV6First                                                                                      bool
+		UseApiServerNodePort                                                                           bool
 	}{
-		DeploymentName:            fmt.Sprintf("%s-%s", name, "apiserver"),
+		DeploymentName:            util.GetApiServerName(name),
 		Namespace:                 namespace,
 		ImageRepository:           imageRepository,
 		Version:                   imageVersion,
 		VirtualControllerLabel:    vclabel,
 		EtcdClientService:         clusterIp,
 		ServiceSubnet:             constants.ApiServerServiceSubnet,
-		VirtualClusterCertsSecret: fmt.Sprintf("%s-%s", name, "cert"),
-		EtcdCertsSecret:           fmt.Sprintf("%s-%s", name, "etcd-cert"),
+		VirtualClusterCertsSecret: util.GetCertName(name),
+		EtcdCertsSecret:           util.GetEtcdCertName(name),
 		Replicas:                  kubeNestConfiguration.KubeInKubeConfig.ApiServerReplicas,
 		EtcdListenClientPort:      constants.ApiServerEtcdListenClientPort,
 		ClusterPort:               portMap[constants.ApiServerPortKey],
 		IPV6First:                 IPV6FirstFlag,
 		AdmissionPlugins:          kubeNestConfiguration.KubeInKubeConfig.AdmissionPlugins,
+		UseApiServerNodePort:      vc.Spec.KubeInKubeConfig != nil && vc.Spec.KubeInKubeConfig.ApiServerServiceType == v1alpha1.NodePort,
 	})
 	if err != nil {
 		return fmt.Errorf("error when parsing virtual cluster apiserver deployment template: %w", err)

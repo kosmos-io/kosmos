@@ -62,6 +62,12 @@ spec:
                     type: string
                   apiServerReplicas:
                     type: integer
+                  apiServerServiceType:
+                    default: hostNetwork
+                    enum:
+                    - nodePort
+                    - hostNetwork
+                    type: string
                   clusterCIDR:
                     type: string
                   etcdStorageClass:
