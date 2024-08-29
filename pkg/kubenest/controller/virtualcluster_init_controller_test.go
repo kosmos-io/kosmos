@@ -33,28 +33,29 @@ func TestCreateApiAnpServer(t *testing.T) {
 	if len(apiAnpAgentSvc.Spec.Ports) != 4 {
 		t.Fatalf("apiAnpAgentSvc.Spec.Ports len != 4")
 	}
-	if apiAnpAgentSvc.Spec.Ports[0].Name != "agentport" {
-		t.Fatalf("apiAnpAgentSvc.Spec.Ports[0].Name != agentport")
+	ports := make([]int32, 5)
+	for _, port := range apiAnpAgentSvc.Spec.Ports {
+		v, ok := nameMap[port.Name]
+		if ok {
+			ports[v] = port.Port
+		} else {
+			t.Fatalf("can not get node port for %s", port.Name)
+		}
 	}
-	if apiAnpAgentSvc.Spec.Ports[0].Port != 8081 {
+
+	if ports[1] != 8081 {
 		t.Fatalf("apiAnpAgentSvc.Spec.Ports[0].Port != 8081")
 	}
-	if apiAnpAgentSvc.Spec.Ports[1].Name != "serverport" {
-		t.Fatalf("apiAnpAgentSvc.Spec.Ports[1].Name != serverport")
-	}
-	if apiAnpAgentSvc.Spec.Ports[1].Port != 8082 {
+
+	if ports[2] != 8082 {
 		t.Fatalf("apiAnpAgentSvc.Spec.Ports[1].Port != 8082")
 	}
-	if apiAnpAgentSvc.Spec.Ports[2].Name != "healthport" {
-		t.Fatalf("apiAnpAgentSvc.Spec.Ports[2].Name != healthport")
-	}
-	if apiAnpAgentSvc.Spec.Ports[2].Port != 8083 {
+
+	if ports[3] != 8083 {
 		t.Fatalf("apiAnpAgentSvc.Spec.Ports[2].Port != 8083")
 	}
-	if apiAnpAgentSvc.Spec.Ports[3].Name != "adminport" {
-		t.Fatalf("apiAnpAgentSvc.Spec.Ports[3].Name != adminport")
-	}
-	if apiAnpAgentSvc.Spec.Ports[3].Port != 8084 {
-		t.Fatalf("apiAnpAgentSvc.Spec.Ports[3].Port != 8084")
+
+	if ports[4] != 8084 {
+		t.Fatalf("apiAnpAgentSvc.Spec.Ports[2].Port != 8084")
 	}
 }

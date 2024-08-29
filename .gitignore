@@ -37,3 +37,5 @@ cmd/kubenest/node-agent/key.pem
 cmd/kubenest/node-agent/agent.env
 hack/k8s-in-k8s/nodes.txt
 develop
+
+cmd/kubenest/node-agent/app/client/app.log

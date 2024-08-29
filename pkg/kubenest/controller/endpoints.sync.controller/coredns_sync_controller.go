@@ -151,6 +151,10 @@ func (e *CoreDNSController) Reconcile(ctx context.Context, request reconcile.Req
 		return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
 	}
 
+	if targetVirtualCluster.Spec.KubeInKubeConfig != nil && targetVirtualCluster.Spec.KubeInKubeConfig.UseTenantDns {
+		return reconcile.Result{}, nil
+	}
+
 	// Get the corresponding svc
 	var kubesvc v1.Service
 	if err := e.Get(ctx, request.NamespacedName, &kubesvc); err != nil {

@@ -28,6 +28,7 @@ func NewCoreDNSTask() workflow.Task {
 	return workflow.Task{
 		Name:        "coreDns",
 		Run:         runCoreDns,
+		Skip:        skipCoreDns,
 		RunSubTasks: true,
 		Tasks: []workflow.Task{
 			{
@@ -44,6 +45,19 @@ func NewCoreDNSTask() workflow.Task {
 			},
 		},
 	}
+}
+
+func skipCoreDns(d workflow.RunData) (bool, error) {
+	data, ok := d.(InitData)
+	if !ok {
+		return false, errors.New("coreDns task invoked with an invalid data struct")
+	}
+
+	vc := data.VirtualCluster()
+	if vc.Spec.KubeInKubeConfig != nil && vc.Spec.KubeInKubeConfig.UseTenantDns {
+		return true, nil
+	}
+	return false, nil
 }
 
 func runCoreDns(r workflow.RunData) error {

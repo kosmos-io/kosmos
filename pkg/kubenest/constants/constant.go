@@ -124,9 +124,10 @@ const (
 	// core-dns
 	KubeDNSSVCName = "kube-dns"
 	// nolint
-	HostCoreDnsComponents    = "host-core-dns-components"
-	VirtualCoreDnsComponents = "virtual-core-dns-components"
-	PrometheusRuleManifest   = "prometheus-rules"
+	HostCoreDnsComponents      = "host-core-dns-components"
+	VirtualCoreDnsComponents   = "virtual-core-dns-components"
+	PrometheusRuleManifest     = "prometheus-rules"
+	TenantCoreDnsComponentName = "core-dns-tenant"
 
 	StateLabelKey = "kosmos-io/state"
 

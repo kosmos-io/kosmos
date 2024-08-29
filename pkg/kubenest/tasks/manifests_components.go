@@ -29,6 +29,11 @@ type ComponentConfig struct {
 	Path string `json:"path" yaml:"path"`
 }
 
+type SkipComponentCondition struct {
+	Condition     bool
+	ComponentName string
+}
+
 func NewComponentsFromManifestsTask() workflow.Task {
 	return workflow.Task{
 		Name:        "manifests-components",
@@ -51,6 +56,14 @@ func runComponentsFromManifests(r workflow.RunData) error {
 
 	klog.V(4).InfoS("[manifests-components] Running manifests-components task", "virtual cluster", klog.KObj(data))
 	return nil
+}
+
+func getSkipComponentsForVirtualCluster(condition []*SkipComponentCondition) map[string]bool {
+	skipComponents := map[string]bool{}
+	for _, c := range condition {
+		skipComponents[c.ComponentName] = c.Condition
+	}
+	return skipComponents
 }
 
 func applyComponentsManifests(r workflow.RunData) error {
@@ -96,10 +109,24 @@ func applyComponentsManifests(r workflow.RunData) error {
 		templatedMapping["KeepalivedReplicas"] = keepalivedReplicas
 	}
 
+	UseTenantDns := data.VirtualCluster().Spec.KubeInKubeConfig != nil && data.VirtualCluster().Spec.KubeInKubeConfig.UseTenantDns
+
+	skipComponents := getSkipComponentsForVirtualCluster([]*SkipComponentCondition{
+		{
+			// skip coredns component if tenant dns is enabled
+			Condition:     !UseTenantDns,
+			ComponentName: constants.TenantCoreDnsComponentName,
+		}, {
+			// skip keepalived component if vip is not enabled
+			Condition:     !keepalivedEnable,
+			ComponentName: constants.VipKeepalivedComponentName,
+		},
+	})
+
 	for _, component := range components {
 		klog.V(2).Infof("Deploy component %s", component.Name)
-		// skip keepalived component if vip is not enabled
-		if !keepalivedEnable && component.Name == constants.VipKeepalivedComponentName {
+		if v, ok := skipComponents[component.Name]; ok && v {
+			klog.V(2).Infof("Deploy component %s skipped", component.Name)
 			continue
 		}
 		err = applyTemplatedManifests(component.Name, dynamicClient, component.Path, templatedMapping)

@@ -5,6 +5,7 @@ data:
       {"name": "kube-proxy", "path": "/kosmos/manifest/kube-proxy/*.yaml"},
       {"name": "calico", "path": "/kosmos/manifest/calico/*.yaml"},
       {"name": "keepalived", "path": "/kosmos/manifest/keepalived/*.yaml"},
+      {"name": "core-dns-tenant", "path": "/kosmos/manifest/core-dns/tenant/*.yaml"},
     ]
   host-core-dns-components: |
     [
