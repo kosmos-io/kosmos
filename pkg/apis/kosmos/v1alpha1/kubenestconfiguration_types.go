@@ -11,6 +11,13 @@ const (
 	KosmosKube KubeNestType = "Kosmos in kube"
 )
 
+type ApiServerServiceType string
+
+const (
+	HostNetwork ApiServerServiceType = "hostNetwork"
+	NodePort    ApiServerServiceType = "nodePort"
+)
+
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // KubeNestConfiguration defines the configuration for KubeNest
@@ -73,6 +80,11 @@ type KubeInKubeConfig struct {
 	//TenantEntrypoint TenantEntrypoint `yaml:"tenantEntrypoint" json:"tenantEntrypoint,omitempty"`
 	// +optional
 	TenantEntrypoint TenantEntrypoint `yaml:"tenantEntrypoint" json:"tenantEntrypoint,omitempty"`
+
+	// +kubebuilder:validation:Enum=nodePort;hostNetwork
+	// +kubebuilder:default=hostNetwork
+	// +optional
+	ApiServerServiceType ApiServerServiceType `yaml:"apiServerServiceType" json:"apiServerServiceType,omitempty"`
 }
 
 // TenantEntrypoint contains the configuration for the tenant entrypoint.

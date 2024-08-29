@@ -13,6 +13,7 @@ import (
 
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/controlplane"
+	"github.com/kosmos.io/kosmos/pkg/kubenest/util"
 	apiclient "github.com/kosmos.io/kosmos/pkg/kubenest/util/api-client"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/workflow"
 )
@@ -59,7 +60,7 @@ func runVirtualClusterProxy(r workflow.RunData) error {
 
 	// Get the kubeconfig of virtual cluster and put it into the cm of kube-proxy
 	secret, err := data.RemoteClient().CoreV1().Secrets(data.GetNamespace()).Get(context.TODO(),
-		fmt.Sprintf("%s-%s", data.GetName(), constants.AdminConfig), metav1.GetOptions{})
+		util.GetAdminConfigSecretName(data.GetName()), metav1.GetOptions{})
 	if err != nil {
 		return errors.Wrap(err, "Get virtualcluster kubeconfig secret error")
 	}
@@ -126,7 +127,7 @@ func uninstallVirtualClusterProxy(r workflow.RunData) error {
 	}
 
 	secret, err := data.RemoteClient().CoreV1().Secrets(data.GetNamespace()).Get(context.TODO(),
-		fmt.Sprintf("%s-%s", data.GetName(), constants.AdminConfig), metav1.GetOptions{})
+		util.GetAdminConfigSecretName(data.GetName()), metav1.GetOptions{})
 	if err != nil {
 		return errors.Wrap(err, "Get virtualcluster kubeconfig secret error")
 	}

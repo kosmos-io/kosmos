@@ -26,7 +26,7 @@ func EnsureVirtualClusterEtcd(client clientset.Interface, name, namespace string
 }
 
 func DeleteVirtualClusterEtcd(client clientset.Interface, name, namespace string) error {
-	sts := fmt.Sprintf("%s-%s", name, "etcd")
+	sts := util.GetEtcdServerName(name)
 	if err := util.DeleteStatefulSet(client, sts, namespace); err != nil {
 		return errors.Wrapf(err, "Failed to delete statefulset %s/%s", sts, namespace)
 	}
@@ -46,11 +46,11 @@ func installEtcd(client clientset.Interface, name, namespace string, kubeNestCon
 
 	initialClusters := make([]string, constants.EtcdReplicas)
 	for index := range initialClusters {
-		memberName := fmt.Sprintf("%s-%d", fmt.Sprintf("%s-%s", name, "etcd"), index)
+		memberName := fmt.Sprintf("%s-%d", util.GetEtcdServerName(name), index)
 		// build etcd member cluster peer url
 		memberPeerURL := fmt.Sprintf("http://%s.%s.%s.svc.cluster.local:%v",
 			memberName,
-			fmt.Sprintf("%s-%s", name, "etcd"),
+			util.GetEtcdServerName(name),
 			namespace,
 			constants.EtcdListenPeerPort,
 		)
@@ -73,14 +73,14 @@ func installEtcd(client clientset.Interface, name, namespace string, kubeNestCon
 		ETCDStorageClass, ETCDStorageSize                                                                      string
 		IPV6First                                                                                              bool
 	}{
-		StatefulSetName:        fmt.Sprintf("%s-%s", name, "etcd"),
+		StatefulSetName:        util.GetEtcdServerName(name),
 		Namespace:              namespace,
 		ImageRepository:        imageRepository,
 		Version:                imageVersion,
 		VirtualControllerLabel: vclabel,
-		EtcdClientService:      fmt.Sprintf("%s-%s", name, "etcd-client"),
-		CertsSecretName:        fmt.Sprintf("%s-%s", name, "etcd-cert"),
-		EtcdPeerServiceName:    fmt.Sprintf("%s-%s", name, "etcd"),
+		EtcdClientService:      util.GetEtcdClientServerName(name),
+		CertsSecretName:        util.GetEtcdCertName(name),
+		EtcdPeerServiceName:    util.GetEtcdServerName(name),
 		EtcdDataVolumeName:     constants.EtcdDataVolumeName,
 		InitialCluster:         strings.Join(initialClusters, ","),
 		EtcdCipherSuites:       strings.Join(flag.PreferredTLSCipherNames(), ","),

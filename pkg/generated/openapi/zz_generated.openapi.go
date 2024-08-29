@@ -1977,6 +1977,12 @@ func schema_pkg_apis_kosmos_v1alpha1_KubeInKubeConfig(ref common.ReferenceCallba
 							Ref:         ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.TenantEntrypoint"),
 						},
 					},
+					"apiServerServiceType": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
 				},
 			},
 		},
@@ -3439,7 +3445,6 @@ func schema_pkg_apis_kosmos_v1alpha1_VirtualClusterSpec(ref common.ReferenceCall
 					"kubeInKubeConfig": {
 						SchemaProps: spec.SchemaProps{
 							Description: "KubeInKubeConfig is the external config of virtual cluster",
-							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.KubeInKubeConfig"),
 						},
 					},

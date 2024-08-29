@@ -8,6 +8,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 
+	"github.com/kosmos.io/kosmos/pkg/kubenest/util"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/util/cert"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/workflow"
 )
@@ -37,7 +38,7 @@ func skipCerts(d workflow.RunData) (bool, error) {
 		return false, errors.New("certs task invoked with an invalid data struct")
 	}
 
-	secretName := fmt.Sprintf("%s-%s", data.GetName(), "cert")
+	secretName := util.GetCertName(data.GetName())
 	secret, err := data.RemoteClient().CoreV1().Secrets(data.GetNamespace()).Get(context.TODO(), secretName, metav1.GetOptions{})
 	if err != nil {
 		return false, nil

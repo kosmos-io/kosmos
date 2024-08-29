@@ -100,7 +100,7 @@ func runUploadVirtualClusterCert(r workflow.RunData) error {
 
 	err := createOrUpdateSecret(data.RemoteClient(), &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-%s", data.GetName(), "cert"),
+			Name:      util.GetCertName(data.GetName()),
 			Namespace: data.GetNamespace(),
 			Labels:    VirtualClusterControllerLabel,
 		},
@@ -127,7 +127,7 @@ func runUploadEtcdCert(r workflow.RunData) error {
 	err := createOrUpdateSecret(data.RemoteClient(), &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: data.GetNamespace(),
-			Name:      fmt.Sprintf("%s-%s", data.GetName(), "etcd-cert"),
+			Name:      util.GetEtcdCertName(data.GetName()),
 			Labels:    VirtualClusterControllerLabel,
 		},
 
@@ -172,7 +172,7 @@ func runUploadAdminKubeconfig(r workflow.RunData) error {
 	}
 
 	var controlplaneIpEndpoint, clusterIPEndpoint string
-	service, err := data.RemoteClient().CoreV1().Services(data.GetNamespace()).Get(context.TODO(), fmt.Sprintf("%s-%s", data.GetName(), "apiserver"), metav1.GetOptions{})
+	service, err := data.RemoteClient().CoreV1().Services(data.GetNamespace()).Get(context.TODO(), util.GetApiServerName(data.GetName()), metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -204,7 +204,7 @@ func runUploadAdminKubeconfig(r workflow.RunData) error {
 	err = createOrUpdateSecret(data.RemoteClient(), &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: data.GetNamespace(),
-			Name:      fmt.Sprintf("%s-%s", data.GetName(), "admin-config"),
+			Name:      util.GetAdminConfigSecretName(data.GetName()),
 			Labels:    VirtualClusterControllerLabel,
 		},
 		Data: map[string][]byte{"kubeconfig": controlplaneIpConfigBytes},
@@ -216,7 +216,7 @@ func runUploadAdminKubeconfig(r workflow.RunData) error {
 	err = createOrUpdateSecret(data.RemoteClient(), &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: data.GetNamespace(),
-			Name:      fmt.Sprintf("%s-%s", data.GetName(), "admin-config-clusterip"),
+			Name:      util.GetAdminConfigClusterIPSecretName(data.GetName()),
 			Labels:    VirtualClusterControllerLabel,
 		},
 		Data: map[string][]byte{"kubeconfig": clusterIPConfigBytes},
@@ -301,10 +301,10 @@ func deleteSecrets(r workflow.RunData) error {
 	}
 
 	secrets := []string{
-		fmt.Sprintf("%s-%s", data.GetName(), "cert"),
-		fmt.Sprintf("%s-%s", data.GetName(), "etcd-cert"),
-		fmt.Sprintf("%s-%s", data.GetName(), "admin-config"),
-		fmt.Sprintf("%s-%s", data.GetName(), "admin-config-clusterip"),
+		util.GetCertName(data.GetName()),
+		util.GetEtcdCertName(data.GetName()),
+		util.GetAdminConfigSecretName(data.GetName()),
+		util.GetAdminConfigClusterIPSecretName(data.GetName()),
 	}
 	for _, secret := range secrets {
 		err := data.RemoteClient().CoreV1().Secrets(data.GetNamespace()).Delete(context.TODO(), secret, metav1.DeleteOptions{})

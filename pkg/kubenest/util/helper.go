@@ -24,6 +24,23 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+func CreateOrUpdateService(client clientset.Interface, svc *v1.Service) error {
+	_, err := client.CoreV1().Services(svc.GetNamespace()).Update(context.TODO(), svc, metav1.UpdateOptions{})
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return err
+		}
+
+		_, err := client.CoreV1().Services(svc.GetNamespace()).Create(context.TODO(), svc, metav1.CreateOptions{})
+		if err != nil {
+			return err
+		}
+	}
+
+	klog.V(5).InfoS("Successfully created or updated svc", "svc", svc.GetName())
+	return nil
+}
+
 func CreateOrUpdateDeployment(client clientset.Interface, deployment *appsv1.Deployment) error {
 	_, err := client.AppsV1().Deployments(deployment.GetNamespace()).Create(context.TODO(), deployment, metav1.CreateOptions{})
 	if err != nil {

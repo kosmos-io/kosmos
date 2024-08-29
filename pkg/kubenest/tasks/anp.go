@@ -8,6 +8,7 @@ import (
 	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/yaml"
@@ -95,7 +96,7 @@ func runAnpServer(r workflow.RunData) error {
 	if err != nil {
 		return fmt.Errorf("failed to create egress_selector_configuration config map, err: %w", err)
 	}
-	err = installAnpServer(data.RemoteClient(), name, namespace, portMap, kubeNestOpt)
+	err = installAnpServer(data.RemoteClient(), name, namespace, portMap, kubeNestOpt, data.VirtualCluster())
 	if err != nil {
 		return fmt.Errorf("failed to install virtual cluster anp component, err: %w", err)
 	}
@@ -131,23 +132,18 @@ func uninstallAnp(r workflow.RunData) error {
 	if !ok {
 		return errors.New("Virtual cluster anp task invoked with an invalid data struct")
 	}
-	name, namespace := data.GetName(), data.GetNamespace()
 	client := data.RemoteClient()
-	portMap := data.HostPortMap()
-	kubeNestOpt := data.KubeNestOpt()
-	anpManifest, vcClient, err := getAnpAgentManifest(client, name, namespace, portMap, kubeNestOpt)
+	namespace := data.GetNamespace()
+	name := "kas-proxy-files"
+	err := client.CoreV1().ConfigMaps(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to uninstall anp agent when get anp manifest, err: %w", err)
+		if !apierrors.IsNotFound(err) {
+			return errors.Wrapf(err, "Failed to delete service %s/%s", name, namespace)
+		}
 	}
-	actionFunc := func(ctx context.Context, c dynamic.Interface, u *unstructured.Unstructured) error {
-		// create the object
-		return util.DeleteObject(vcClient, u.GetNamespace(), u.GetName(), u)
-	}
-
-	klog.V(2).InfoS("[VirtualClusterAnp] Successfully uninstalled virtual cluster anp component", "virtual cluster", klog.KObj(data))
-	return util.ForEachObjectInYAML(context.TODO(), vcClient, []byte(anpManifest), "", actionFunc)
+	return nil
 }
-func installAnpServer(client clientset.Interface, name, namespace string, portMap map[string]int32, kubeNestConfiguration *v1alpha1.KubeNestConfiguration) error {
+func installAnpServer(client clientset.Interface, name, namespace string, portMap map[string]int32, kubeNestConfiguration *v1alpha1.KubeNestConfiguration, vc *v1alpha1.VirtualCluster) error {
 	imageRepository, imageVersion := util.GetImageMessage()
 	clusterIp, err := util.GetEtcdServiceClusterIp(namespace, name+constants.EtcdSuffix, client)
 	if err != nil {
@@ -176,16 +172,17 @@ func installAnpServer(client clientset.Interface, name, namespace string, portMa
 		AnpMode                                                                                        string
 		AdmissionPlugins                                                                               bool
 		IPV6First                                                                                      bool
+		UseApiServerNodePort                                                                           bool
 	}{
-		DeploymentName:            fmt.Sprintf("%s-%s", name, "apiserver"),
+		DeploymentName:            util.GetApiServerName(name),
 		Namespace:                 namespace,
 		ImageRepository:           imageRepository,
 		Version:                   imageVersion,
 		VirtualControllerLabel:    vclabel,
 		EtcdClientService:         clusterIp,
 		ServiceSubnet:             constants.ApiServerServiceSubnet,
-		VirtualClusterCertsSecret: fmt.Sprintf("%s-%s", name, "cert"),
-		EtcdCertsSecret:           fmt.Sprintf("%s-%s", name, "etcd-cert"),
+		VirtualClusterCertsSecret: util.GetCertName(name),
+		EtcdCertsSecret:           util.GetEtcdCertName(name),
 		Replicas:                  kubeNestConfiguration.KubeInKubeConfig.ApiServerReplicas,
 		EtcdListenClientPort:      constants.ApiServerEtcdListenClientPort,
 		ClusterPort:               portMap[constants.ApiServerPortKey],
@@ -193,11 +190,12 @@ func installAnpServer(client clientset.Interface, name, namespace string, portMa
 		ServerPort:                portMap[constants.ApiServerNetworkProxyServerPortKey],
 		HealthPort:                portMap[constants.ApiServerNetworkProxyHealthPortKey],
 		AdminPort:                 portMap[constants.ApiServerNetworkProxyAdminPortKey],
-		KubeconfigSecret:          fmt.Sprintf("%s-%s", name, "admin-config-clusterip"),
+		KubeconfigSecret:          util.GetAdminConfigClusterIPSecretName(name),
 		Name:                      name,
 		AnpMode:                   kubeNestConfiguration.KubeInKubeConfig.AnpMode,
 		AdmissionPlugins:          kubeNestConfiguration.KubeInKubeConfig.AdmissionPlugins,
 		IPV6First:                 IPV6FirstFlag,
+		UseApiServerNodePort:      vc.Spec.KubeInKubeConfig != nil && vc.Spec.KubeInKubeConfig.ApiServerServiceType == v1alpha1.NodePort,
 	})
 	if err != nil {
 		return fmt.Errorf("error when parsing virtual cluster apiserver deployment template: %w", err)
@@ -212,6 +210,38 @@ func installAnpServer(client clientset.Interface, name, namespace string, portMa
 	if err := util.CreateOrUpdateDeployment(client, apiserverDeployment); err != nil {
 		return fmt.Errorf("error when creating deployment for %s, err: %w", apiserverDeployment.Name, err)
 	}
+
+	if vc.Spec.KubeInKubeConfig != nil && vc.Spec.KubeInKubeConfig.ApiServerServiceType == v1alpha1.NodePort {
+		apiserverServiceBytes, err := util.ParseTemplate(apiserver.ApiserverAnpAgentService, struct {
+			SVCName, Namespace string
+			ClusterPort        int32
+			AgentPort          int32
+			ServerPort         int32
+			HealthPort         int32
+			AdminPort          int32
+		}{
+			SVCName:     util.GetKonnectivityApiServerName(name),
+			Namespace:   namespace,
+			ClusterPort: portMap[constants.ApiServerPortKey],
+			AgentPort:   portMap[constants.ApiServerNetworkProxyAgentPortKey],
+			ServerPort:  portMap[constants.ApiServerNetworkProxyServerPortKey],
+			HealthPort:  portMap[constants.ApiServerNetworkProxyHealthPortKey],
+			AdminPort:   portMap[constants.ApiServerNetworkProxyAdminPortKey],
+		})
+		if err != nil {
+			return fmt.Errorf("error when parsing virtual cluster apiserver svc template: %w", err)
+		}
+		klog.V(4).InfoS("[anp] apply anp server svc", "anp sever svc deploy", apiserverServiceBytes)
+
+		apiserverSvc := &v1.Service{}
+		if err := yaml.Unmarshal([]byte(apiserverServiceBytes), apiserverSvc); err != nil {
+			return fmt.Errorf("error when decoding virtual cluster apiserver svc: %w", err)
+		}
+
+		if err := util.CreateOrUpdateService(client, apiserverSvc); err != nil {
+			return fmt.Errorf("error when creating svc for %s, err: %w", apiserverSvc.Name, err)
+		}
+	}
 	return nil
 }
 
@@ -221,7 +251,7 @@ func installAnpAgent(data InitData) error {
 	namespace := data.GetNamespace()
 	portMap := data.HostPortMap()
 	kubeNestOpt := data.KubeNestOpt()
-	anpAgentManifestBytes, vcClient, err2 := getAnpAgentManifest(client, name, namespace, portMap, kubeNestOpt)
+	anpAgentManifestBytes, vcClient, err2 := getAnpAgentManifest(client, name, namespace, portMap, kubeNestOpt, data.VirtualCluster())
 	if err2 != nil {
 		return err2
 	}
@@ -234,10 +264,17 @@ func installAnpAgent(data InitData) error {
 	return util.ForEachObjectInYAML(context.TODO(), vcClient, []byte(anpAgentManifestBytes), "", actionFunc)
 }
 
-func getAnpAgentManifest(client clientset.Interface, name string, namespace string, portMap map[string]int32, kubeNestConfiguration *v1alpha1.KubeNestConfiguration) (string, dynamic.Interface, error) {
+func getAnpAgentManifest(client clientset.Interface, name string, namespace string, portMap map[string]int32, kubeNestConfiguration *v1alpha1.KubeNestConfiguration, vc *v1alpha1.VirtualCluster) (string, dynamic.Interface, error) {
 	imageRepository, imageVersion := util.GetImageMessage()
 	// get apiServer hostIp
-	proxyServerHost, err := getDeploymentPodIPs(client, namespace, fmt.Sprintf("%s-%s", name, "apiserver"))
+	var proxyServerHost []string
+	var err error
+	if vc.Spec.KubeInKubeConfig != nil && vc.Spec.KubeInKubeConfig.ApiServerServiceType == v1alpha1.NodePort {
+		proxyServerHost, err = getDeploymentHostIPs(client, namespace, util.GetApiServerName(name))
+	} else {
+		proxyServerHost, err = getDeploymentPodIPs(client, namespace, util.GetApiServerName(name))
+	}
+
 	if err != nil {
 		klog.Warningf("Failed to get apiserver hostIp, err: %v", err)
 		// ignore if can't get the hostIp when uninstall  the deployment
@@ -257,7 +294,7 @@ func getAnpAgentManifest(client clientset.Interface, name string, namespace stri
 		AgentPort:       portMap[constants.ApiServerNetworkProxyAgentPortKey],
 		ProxyServerHost: proxyServerHost,
 		AnpMode:         kubeNestConfiguration.KubeInKubeConfig.AnpMode,
-		AgentCertName:   fmt.Sprintf("%s-%s", name, "cert"),
+		AgentCertName:   util.GetCertName(name),
 	})
 	if err != nil {
 		return "", nil, fmt.Errorf("error when parsing virtual cluster apiserver deployment template: %w", err)
@@ -295,9 +332,33 @@ func getDeploymentPodIPs(clientset clientset.Interface, namespace, deploymentNam
 	return podIPs, nil
 }
 
+func getDeploymentHostIPs(clientset clientset.Interface, namespace, deploymentName string) ([]string, error) {
+	deployment, err := clientset.AppsV1().Deployments(namespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("error getting deployment: %v", err)
+	}
+
+	labelSelector := metav1.FormatLabelSelector(deployment.Spec.Selector)
+	listOptions := metav1.ListOptions{LabelSelector: labelSelector}
+
+	pods, err := clientset.CoreV1().Pods(namespace).List(context.TODO(), listOptions)
+	if err != nil {
+		return nil, fmt.Errorf("error listing pods: %v", err)
+	}
+
+	var podIPs []string
+	for _, pod := range pods.Items {
+		if pod.Status.Phase == v1.PodRunning {
+			podIPs = append(podIPs, pod.Status.HostIP)
+		}
+	}
+
+	return podIPs, nil
+}
+
 func getVcDynamicClient(client clientset.Interface, name, namespace string) (dynamic.Interface, error) {
 	secret, err := client.CoreV1().Secrets(namespace).Get(context.TODO(),
-		fmt.Sprintf("%s-%s", name, constants.AdminConfig), metav1.GetOptions{})
+		util.GetAdminConfigSecretName(name), metav1.GetOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, "Get virtualcluster kubeconfig secret error")
 	}
@@ -313,7 +374,7 @@ func getVcDynamicClient(client clientset.Interface, name, namespace string) (dyn
 }
 func GetVcClientset(client clientset.Interface, name, namespace string) (clientset.Interface, error) {
 	secret, err := client.CoreV1().Secrets(namespace).Get(context.TODO(),
-		fmt.Sprintf("%s-%s", name, constants.AdminConfig), metav1.GetOptions{})
+		util.GetAdminConfigSecretName(name), metav1.GetOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, "Get virtualcluster kubeconfig secret error")
 	}
@@ -352,7 +413,7 @@ func runUploadProxyAgentCert(r workflow.RunData) error {
 	}
 	err = createOrUpdateSecret(vcClient, &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-%s", data.GetName(), "cert"),
+			Name:      util.GetCertName(data.GetName()),
 			Namespace: "kube-system",
 			Labels:    VirtualClusterControllerLabel,
 		},
