@@ -41,3 +41,7 @@ func GetAdminConfigSecretName(name string) string {
 func GetAdminConfigClusterIPSecretName(name string) string {
 	return fmt.Sprintf("%s-%s", name, "admin-config-clusterip")
 }
+
+func GetAPIServerAnpName(name string) string {
+	return fmt.Sprintf("%s-%s", name, "apiserver-anp")
+}

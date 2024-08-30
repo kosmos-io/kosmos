@@ -36,6 +36,10 @@ spec:
               - matchExpressions:
                 - key: {{ .VirtualControllerLabel }}
                   operator: Exists
+                - key: kubernetes.io/hostname
+                  operator: In
+                  values:
+                    - kubenest-control-plane
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
           - weight: 100
@@ -156,7 +160,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    virtualCluster-app: apiserver
     virtualCluster-anp: apiserver-anp
     app.kubernetes.io/managed-by: virtual-cluster-controller
   name: {{ .DeploymentName }}
@@ -167,11 +170,10 @@ spec:
     type: Recreate
   selector:
     matchLabels:
-      virtualCluster-app: apiserver
+      virtualCluster-anp: apiserver-anp
   template:
     metadata:
       labels:
-        virtualCluster-app: apiserver
         virtualCluster-anp: apiserver-anp
     spec:
       automountServiceAccountToken: false
@@ -190,6 +192,10 @@ spec:
               - matchExpressions:
                 - key: {{ .VirtualControllerLabel }}
                   operator: Exists
+                - key: kubernetes.io/hostname
+                  operator: In
+                  values:
+                    - kubenest-control-plane
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
           - weight: 100
@@ -202,107 +208,6 @@ spec:
                   - apiserver
               topologyKey: kubernetes.io/hostname
       containers:
-      - name: kube-apiserver
-        image:  {{ .ImageRepository }}/kube-apiserver:{{ .Version }}
-        imagePullPolicy: IfNotPresent
-        env:
-        {{ if .UseApiServerNodePort }}
-        - name: HOSTIP
-          valueFrom:
-            fieldRef:
-              apiVersion: v1
-              fieldPath: status.hostIP
-        {{ else}}
-        - name: PODIP
-          valueFrom:
-            fieldRef:
-              apiVersion: v1
-              fieldPath: status.podIP
-        {{ end }}
-        command:
-        - kube-apiserver
-        - --allow-privileged=true
-        - --authorization-mode=Node,RBAC
-        - --client-ca-file=/etc/virtualcluster/pki/ca.crt
-        - --enable-admission-plugins=NodeRestriction
-        - --enable-bootstrap-token-auth=true
-        - --etcd-cafile=/etc/etcd/pki/etcd-ca.crt
-        - --etcd-certfile=/etc/etcd/pki/etcd-client.crt
-        - --etcd-keyfile=/etc/etcd/pki/etcd-client.key
-        #- --etcd-servers=https://{{ .EtcdClientService }}.{{ .Namespace }}.svc.cluster.local:{{ .EtcdListenClientPort }}
-        {{ if .IPV6First }}
-        - --etcd-servers=https://[{{ .EtcdClientService }}]:{{ .EtcdListenClientPort }}
-        {{ else }}
-        - --etcd-servers=https://{{ .EtcdClientService }}:{{ .EtcdListenClientPort }}
-        {{ end }}
-        - '--bind-address=::'
-        - --kubelet-client-certificate=/etc/virtualcluster/pki/virtualCluster.crt
-        - --kubelet-client-key=/etc/virtualcluster/pki/virtualCluster.key
-        - --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname
-        - --secure-port={{ .ClusterPort }}
-        - --service-account-issuer=https://kubernetes.default.svc.cluster.local
-        - --service-account-key-file=/etc/virtualcluster/pki/virtualCluster.key
-        - --service-account-signing-key-file=/etc/virtualcluster/pki/virtualCluster.key
-        - --service-cluster-ip-range={{ .ServiceSubnet }}
-        - --proxy-client-cert-file=/etc/virtualcluster/pki/front-proxy-client.crt
-        - --proxy-client-key-file=/etc/virtualcluster/pki/front-proxy-client.key
-        - --requestheader-allowed-names=front-proxy-client
-        - --requestheader-client-ca-file=/etc/virtualcluster/pki/front-proxy-ca.crt
-        - --requestheader-extra-headers-prefix=X-Remote-Extra-
-        - --requestheader-group-headers=X-Remote-Group
-        - --requestheader-username-headers=X-Remote-User
-        - --tls-cert-file=/etc/virtualcluster/pki/apiserver.crt
-        - --tls-private-key-file=/etc/virtualcluster/pki/apiserver.key
-        - --tls-min-version=VersionTLS13
-        - --max-requests-inflight=1500
-        - --max-mutating-requests-inflight=500
-        - --v=4
-        {{ if .UseApiServerNodePort }}
-        - --advertise-address=$(HOSTIP)
-        {{ else }}
-        - --advertise-address=$(PODIP)
-        {{ end }}
-        - --egress-selector-config-file=/etc/kubernetes/konnectivity-server-config/{{ .Namespace }}/{{ .Name }}/egress_selector_configuration.yaml
-        {{ if not .AdmissionPlugins }}
-        - --disable-admission-plugins=License
-        {{ end }}
-        livenessProbe:
-          failureThreshold: 8
-          httpGet:
-            path: /livez
-            port: {{ .ClusterPort }}
-            scheme: HTTPS
-          initialDelaySeconds: 10
-          periodSeconds: 10
-          successThreshold: 1
-          timeoutSeconds: 15
-        readinessProbe:
-          failureThreshold: 3
-          httpGet:
-            path: /readyz
-            port: {{ .ClusterPort }}
-            scheme: HTTPS
-          initialDelaySeconds: 10
-          periodSeconds: 10
-          successThreshold: 1
-          timeoutSeconds: 15
-        ports:
-        - containerPort: {{ .ClusterPort }}
-          name: http
-          protocol: TCP
-        volumeMounts:
-        - mountPath: /etc/virtualcluster/pki
-          name: apiserver-cert
-          readOnly: true
-        - mountPath: /etc/etcd/pki
-          name: etcd-cert
-          readOnly: true
-        - mountPath: /etc/kubernetes/konnectivity-server/{{ .Namespace }}/{{ .Name }}
-          readOnly: false
-          name: konnectivity-uds
-        - name: kas-proxy
-          mountPath: /etc/kubernetes/konnectivity-server-config/{{ .Namespace }}/{{ .Name }}/egress_selector_configuration.yaml
-          subPath: egress_selector_configuration.yaml
       - name: konnectivity-server-container
         image: {{ .ImageRepository }}/kas-network-proxy-server:{{ .Version }}
         resources:

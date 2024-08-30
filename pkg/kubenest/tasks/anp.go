@@ -174,7 +174,7 @@ func installAnpServer(client clientset.Interface, name, namespace string, portMa
 		IPV6First                                                                                      bool
 		UseApiServerNodePort                                                                           bool
 	}{
-		DeploymentName:            util.GetApiServerName(name),
+		DeploymentName:            util.GetAPIServerAnpName(name),
 		Namespace:                 namespace,
 		ImageRepository:           imageRepository,
 		Version:                   imageVersion,
