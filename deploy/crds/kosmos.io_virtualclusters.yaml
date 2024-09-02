@@ -95,6 +95,9 @@ spec:
                           type: string
                         type: array
                     type: object
+                  useTenantDns:
+                    default: false
+                    type: boolean
                 type: object
               kubeconfig:
                 description: Kubeconfig is the kubeconfig of the virtual kubernetes's

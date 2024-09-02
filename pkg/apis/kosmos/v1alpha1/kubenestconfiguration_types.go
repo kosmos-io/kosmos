@@ -85,6 +85,10 @@ type KubeInKubeConfig struct {
 	// +kubebuilder:default=hostNetwork
 	// +optional
 	ApiServerServiceType ApiServerServiceType `yaml:"apiServerServiceType" json:"apiServerServiceType,omitempty"`
+
+	// +kubebuilder:default=false
+	// +optional
+	UseTenantDns bool `yaml:"useTenantDns" json:"useTenantDns,omitempty"`
 }
 
 // TenantEntrypoint contains the configuration for the tenant entrypoint.

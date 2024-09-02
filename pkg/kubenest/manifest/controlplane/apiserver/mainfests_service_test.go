@@ -18,12 +18,14 @@ func ParseServerTemplate(apiServerServiceSubnet string) (*corev1.Service, error)
 		ServiceName, Namespace, ServiceType string
 		ServicePort                         int32
 		IPFamilies                          []corev1.IPFamily
+		UseApiServerNodePort                bool
 	}{
-		ServiceName: fmt.Sprintf("%s-%s", "test", "apiserver"),
-		Namespace:   "test-namespace",
-		ServiceType: constants.ApiServerServiceType,
-		ServicePort: 40010,
-		IPFamilies:  ipFamilies,
+		ServiceName:          fmt.Sprintf("%s-%s", "test", "apiserver"),
+		Namespace:            "test-namespace",
+		ServiceType:          constants.ApiServerServiceType,
+		ServicePort:          40010,
+		IPFamilies:           ipFamilies,
+		UseApiServerNodePort: false,
 	})
 
 	if err != nil {
