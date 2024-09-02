@@ -128,5 +128,14 @@ func ResolveServiceCIDRs(pod *corev1.Pod) ([]string, error) {
 			}
 		}
 	}
+
+	for i, cidr := range serviceCIDRS {
+		ipNetStr, err := utils.FormatCIDR(cidr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to format service cidr %s, pod name is %s, err: %s", cidr, pod.Name, err.Error())
+		}
+		serviceCIDRS[i] = ipNetStr
+	}
+
 	return serviceCIDRS, nil
 }
