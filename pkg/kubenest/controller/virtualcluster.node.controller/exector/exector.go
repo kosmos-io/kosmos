@@ -43,8 +43,9 @@ type Exector interface {
 }
 
 type ExectorHelper struct {
-	Token string
-	Addr  string
+	Token          string
+	Addr           string
+	AutoUpdateFile bool
 }
 
 func (h *ExectorHelper) createWebsocketConnection(opt WebSocketOption) (*websocket.Conn, *http.Response, error) {
@@ -65,7 +66,7 @@ type WebSocketOption struct {
 
 func (h *ExectorHelper) DoExector(stopCh <-chan struct{}, exector Exector) *ExectorReturn {
 	ret := h.DoExectorReal(stopCh, exector)
-	if ret.Text == NotFoundText {
+	if ret.Text == NotFoundText && h.AutoUpdateFile {
 		// try to update shell script
 		srcEnvFile := env.GetExectorShellEnvPath()
 		klog.V(4).Infof("exector: src file path %s", srcEnvFile)
@@ -177,7 +178,24 @@ func NewExectorHelper(addr string, port string) *ExectorHelper {
 
 	token := env.GetExectorToken()
 	return &ExectorHelper{
-		Token: token,
-		Addr:  utils.GenerateAddrStr(addr, exectorPort),
+		Token:          token,
+		Addr:           utils.GenerateAddrStr(addr, exectorPort),
+		AutoUpdateFile: true,
+	}
+}
+
+func NewExectorHelperForHccn(addr string, port string) *ExectorHelper {
+	var exectorPort string
+	if len(port) == 0 {
+		exectorPort = env.GetExectorPort()
+	} else {
+		exectorPort = port
+	}
+
+	token := env.GetExectorToken()
+	return &ExectorHelper{
+		Token:          token,
+		Addr:           utils.GenerateAddrStr(addr, exectorPort),
+		AutoUpdateFile: false,
 	}
 }
