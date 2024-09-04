@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -21,6 +22,7 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/clusterlink/controllers/node"
 	"github.com/kosmos.io/kosmos/pkg/clusterlink/network"
 	kosmosv1alpha1lister "github.com/kosmos.io/kosmos/pkg/generated/listers/kosmos/v1alpha1"
+	"github.com/kosmos.io/kosmos/pkg/utils"
 )
 
 const (
@@ -93,6 +95,20 @@ func (r *Reconciler) logResult(nodeConfigSyncStatus networkmanager.NodeConfigSyn
 	}
 }
 
+func formatNodeConfig(nodeConfig *kosmosv1alpha1.NodeConfig) (*kosmosv1alpha1.NodeConfig, error) {
+	nodeConfigCopy := nodeConfig.DeepCopy()
+
+	for i, route := range nodeConfigCopy.Spec.Routes {
+		ipNetStr, err := utils.FormatCIDR(route.CIDR)
+		if err != nil {
+			return nil, fmt.Errorf("failed to format nodeconfig route cidr, err: %s", err.Error())
+		}
+		nodeConfigCopy.Spec.Routes[i].CIDR = ipNetStr
+	}
+
+	return nodeConfigCopy, nil
+}
+
 func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
 	klog.Infof("============ agent starts to reconcile %s ============", request.NamespacedName)
 
@@ -109,6 +125,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 		return reconcile.Result{RequeueAfter: RequeueTime}, nil
 	}
 
+	reconcileNodeCopy, err := formatNodeConfig(&reconcileNode)
+	if err != nil {
+		klog.Errorf("format nodeconfig %s error: %v", request.NamespacedName, err)
+		return reconcile.Result{RequeueAfter: RequeueTime}, nil
+	}
+
 	localCluster, err := r.ClusterLister.Get(r.ClusterName)
 	if err != nil {
 		klog.Errorf("could not get local cluster, clusterNode: %s, err: %v", r.NodeName, err)
@@ -118,7 +140,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 	r.NetworkManager.UpdateConfig(localCluster)
 
 	r.DebounceFunc(func() {
-		nodeConfigSyncStatus := r.NetworkManager.UpdateFromCRD(&reconcileNode)
+		nodeConfigSyncStatus := r.NetworkManager.UpdateFromCRD(reconcileNodeCopy)
 		r.logResult(nodeConfigSyncStatus)
 	})
 

@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"strings"
 
@@ -56,4 +57,12 @@ func IPFamilyGenerator(apiServerServiceSubnet string) []corev1.IPFamily {
 		}
 	}
 	return ipFamilies
+}
+
+func FormatCIDR(cidr string) (string, error) {
+	_, ipNet, err := net.ParseCIDR(cidr)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse  cidr %s, err: %s", cidr, err.Error())
+	}
+	return ipNet.String(), nil
 }
