@@ -746,15 +746,6 @@ func checkPortOnHostWithAddresses(port int32, hostAddress []string) (bool, error
 	return false, nil
 }
 
-func findAddress(node corev1.Node) (string, error) {
-	for _, addr := range node.Status.Addresses {
-		if addr.Type == corev1.NodeInternalIP {
-			return addr.Address, nil
-		}
-	}
-	return "", fmt.Errorf("cannot find internal IP address in node addresses, node name: %s", node.GetName())
-}
-
 // Return false to indicate that the port is not occupied
 func CheckPortOnHost(addr string, port int32) (bool, error) {
 	hostExectorHelper := exector.NewExectorHelper(addr, "")
@@ -794,7 +785,7 @@ func (c *VirtualClusterInitController) findHostAddresses() ([]string, error) {
 	ret := []string{}
 
 	for _, node := range nodes.Items {
-		addr, err := findAddress(node)
+		addr, err := utils.FindFirstNodeIPAddress(node, corev1.NodeExternalIP)
 		if err != nil {
 			return nil, err
 		}

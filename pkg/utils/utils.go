@@ -2,11 +2,11 @@ package utils
 
 import (
 	"fmt"
-	"net"
 	"os"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
+	netutils "k8s.io/utils/net"
 )
 
 func ContainsString(arr []string, s string) bool {
@@ -60,7 +60,7 @@ func IPFamilyGenerator(apiServerServiceSubnet string) []corev1.IPFamily {
 }
 
 func FormatCIDR(cidr string) (string, error) {
-	_, ipNet, err := net.ParseCIDR(cidr)
+	_, ipNet, err := netutils.ParseCIDRSloppy(cidr)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse  cidr %s, err: %s", cidr, err.Error())
 	}
