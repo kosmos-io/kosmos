@@ -231,12 +231,11 @@ func (r *GlobalNodeController) Reconcile(ctx context.Context, request reconcile.
 			}
 			globalNode.Name = request.Name
 			globalNode.Spec.State = v1alpha1.NodeReserved
-			for _, a := range rootNode.Status.Addresses {
-				if a.Type == v1.NodeInternalIP {
-					globalNode.Spec.NodeIP = a.Address
-					break
-				}
+			firstNodeIP, err := utils.FindFirstNodeIPAddress(*rootNode, v1.NodeInternalIP)
+			if err != nil {
+				klog.Errorf("get first node ip address err: %s %s", v1.NodeInternalIP, err.Error())
 			}
+			globalNode.Spec.NodeIP = firstNodeIP
 			if _, err = r.KosmosClient.KosmosV1alpha1().GlobalNodes().Create(ctx, &globalNode, metav1.CreateOptions{}); err != nil {
 				klog.Errorf("global-node-controller: can not create global node: %s", globalNode.Name)
 				return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil

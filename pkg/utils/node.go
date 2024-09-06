@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"fmt"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -102,3 +104,22 @@ func NodeReady(node *corev1.Node) bool {
 //		n.Status.Conditions[i].LastHeartbeatTime = now
 //	}
 //}
+
+func FindFirstNodeIPAddress(node corev1.Node, nodeAddressType corev1.NodeAddressType) (string, error) {
+	for _, addr := range node.Status.Addresses {
+		if addr.Type == nodeAddressType {
+			return addr.Address, nil
+		}
+	}
+	return "", fmt.Errorf("cannot find internal IP address in node addresses, node name: %s", node.GetName())
+}
+
+func FindNodeIPsAddress(node corev1.Node, nodeAddressType corev1.NodeAddressType) ([]string, error) {
+	ips := []string{}
+	for _, addr := range node.Status.Addresses {
+		if addr.Type == nodeAddressType {
+			ips = append(ips, addr.Address)
+		}
+	}
+	return ips, fmt.Errorf("cannot find internal IP address in node addresses, node name: %s", node.GetName())
+}

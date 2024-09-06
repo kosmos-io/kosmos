@@ -10,6 +10,7 @@ import (
 	netutils "k8s.io/utils/net"
 
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
+	"github.com/kosmos.io/kosmos/pkg/utils"
 )
 
 func GetAPIServiceIP(clientset clientset.Interface) (string, error) {
@@ -19,8 +20,8 @@ func GetAPIServiceIP(clientset clientset.Interface) (string, error) {
 	}
 
 	var (
-		masterLabel       = labels.Set{"node-role.kubernetes.io/master": ""}
-		controlplaneLabel = labels.Set{"node-role.kubernetes.io/control-plane": ""}
+		masterLabel       = labels.Set{utils.LabelNodeRoleOldControlPlane: ""}
+		controlplaneLabel = labels.Set{utils.LabelNodeRoleControlPlane: ""}
 	)
 	// first, select the master node as the IP of APIServer. if there is
 	// no master nodes, randomly select a worker node.

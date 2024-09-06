@@ -9,7 +9,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
-	clientset "k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -30,7 +29,7 @@ func createKubeConfig() (*restclient.Config, error) {
 	return kubeConfig, nil
 }
 
-func prepare() (clientset.Interface, error) {
+func prepare() (kubernetes.Interface, error) {
 	// Prepare kube config.
 	kubeConfig, err := createKubeConfig()
 	if err != nil {
