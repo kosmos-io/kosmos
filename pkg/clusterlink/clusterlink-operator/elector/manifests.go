@@ -39,6 +39,8 @@ spec:
             - matchExpressions:
               - key: kosmos.io/exclude
                 operator: DoesNotExist
+              - key: node-role.kubernetes.io/master
+                operator: Exists
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
           - labelSelector:
@@ -92,6 +94,9 @@ spec:
       - key: "key"
         operator: "Equal"
         value: "value"
+        effect: "NoSchedule"
+      - key: "node-role.kubernetes.io/master"
+        operator: "Exists"
         effect: "NoSchedule"
       volumes:
       - name: proxy-config

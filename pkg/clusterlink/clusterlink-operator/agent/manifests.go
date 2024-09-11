@@ -29,6 +29,12 @@ spec:
             - matchExpressions:
               - key: kosmos.io/exclude
                 operator: DoesNotExist
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                app: clusterlink-agent
+            topologyKey: kubernetes.io/hostname
       dnsPolicy: ClusterFirstWithHostNet
       containers:
       - name: clusterlink-agent

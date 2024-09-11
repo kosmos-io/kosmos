@@ -28,6 +28,14 @@ spec:
             - matchExpressions:
               - key: kosmos.io/exclude
                 operator: DoesNotExist
+              - key: node-role.kubernetes.io/master
+                operator: Exists
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: clusterlink-floater
+              topologyKey: kubernetes.io/hostname
       containers:
       - name: floater
         image: {{ .ImageRepository }}/clusterlink-floater:v{{ .Version }}

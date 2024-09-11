@@ -19,11 +19,48 @@ spec:
       labels:
         app: clusterlink-network-manager
     spec:
+      tolerations:
+      - key: "node-role.kubernetes.io/master"
+        operator: "Exists"
+        effect: "NoSchedule"
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: node-role.kubernetes.io/master
+                    operator: Exists
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: clusterlink-network-manager
+              topologyKey: kubernetes.io/hostname
       serviceAccountName: clusterlink-network-manager
       containers:
         - name: manager
           image: {{ .ImageRepository }}/clusterlink-network-manager:{{ .Version }}
           imagePullPolicy: IfNotPresent
+          livenessProbe:
+            exec:
+              command:
+              - cat
+              - /proc/1/cmdline
+            failureThreshold: 30
+            initialDelaySeconds: 3
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 3
+          readinessProbe:
+            exec:
+              command:
+              - cat
+              - /proc/1/cmdline
+            failureThreshold: 30
+            initialDelaySeconds: 3
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
           command:
             - clusterlink-network-manager
             - --v=4
@@ -54,8 +91,18 @@ spec:
       labels:
         app: operator
     spec:
+      tolerations:
+      - key: "node-role.kubernetes.io/master"
+        operator: "Exists"
+        effect: "NoSchedule"
       serviceAccountName: clusterlink-operator
       affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: node-role.kubernetes.io/master
+                    operator: Exists
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
             - labelSelector:
@@ -71,6 +118,26 @@ spec:
       - name: operator
         image: {{ .ImageRepository }}/clusterlink-operator:{{ .Version }}
         imagePullPolicy: IfNotPresent
+        livenessProbe:
+          exec:
+            command:
+            - cat
+            - /proc/1/cmdline
+          failureThreshold: 30
+          initialDelaySeconds: 3
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 3
+        readinessProbe:
+          exec:
+            command:
+            - cat
+            - /proc/1/cmdline
+          failureThreshold: 30
+          initialDelaySeconds: 3
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 5
         command:
           - clusterlink-operator
           - --controlpanelconfig=/etc/clusterlink-operator/kubeconfig
@@ -115,11 +182,49 @@ spec:
       labels:
         app: clustertree-cluster-manager
     spec:
+      tolerations:
+      - key: "node-role.kubernetes.io/master"
+        operator: "Exists"
+        effect: "NoSchedule"
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: node-role.kubernetes.io/master
+                    operator: Exists
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: clustertree-cluster-manager
+              topologyKey: kubernetes.io/hostname
       serviceAccountName: clustertree
       containers:
         - name: manager
           image: {{ .ImageRepository }}/clustertree-cluster-manager:{{ .Version }}
           imagePullPolicy: IfNotPresent
+          livenessProbe:
+            exec:
+              command:
+              - cat
+              - /proc/1/cmdline
+            failureThreshold: 30
+            initialDelaySeconds: 3
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 3
+          name: manager
+          readinessProbe:
+            exec:
+              command:
+              - cat
+              - /proc/1/cmdline
+            failureThreshold: 30
+            initialDelaySeconds: 3
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
           env:
             - name: APISERVER_CERT_LOCATION
               value: /etc/cluster-tree/cert/cert.pem
@@ -280,6 +385,23 @@ spec:
       labels:
         app: scheduler
     spec:
+      tolerations:
+      - key: "node-role.kubernetes.io/master"
+        operator: "Exists"
+        effect: "NoSchedule"
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: node-role.kubernetes.io/master
+                    operator: Exists
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: scheduler
+              topologyKey: kubernetes.io/hostname
       volumes:
         - name: scheduler-config
           configMap:
@@ -293,6 +415,26 @@ spec:
         - name: kosmos-scheduler
           image: {{ .ImageRepository }}/scheduler:{{ .Version }}
           imagePullPolicy: IfNotPresent
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /healthz
+              port: 10259
+              scheme: HTTPS
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          name: kosmos-scheduler
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /healthz
+              port: 10259
+              scheme: HTTPS
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
           command:
             - scheduler
             - --config=/etc/kubernetes/kube-scheduler/scheduler-config.yaml
