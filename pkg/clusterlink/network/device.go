@@ -1,3 +1,4 @@
+// nolint:typecheck
 package network
 
 import (
@@ -53,7 +54,7 @@ func getIfaceIPByName(name string) (*IfaceInfo, error) {
 	return devIface, nil
 }
 
-func createNewVxlanIface(name string, addrIPWithMask *netlink.Addr, vxlanId int, vxlanPort int, hardwareAddr net.HardwareAddr, rIface *IfaceInfo, deviceIP string, vtepDevIndex int) error {
+func createNewVxlanIface(name string, addrIPWithMask *netlink.Addr, vxlanID int, vxlanPort int, hardwareAddr net.HardwareAddr, rIface *IfaceInfo, deviceIP string, vtepDevIndex int) error {
 	// srcAddr := rIface.ip
 
 	klog.Infof("name %v  ------------------------- %v", name, deviceIP)
@@ -65,7 +66,7 @@ func createNewVxlanIface(name string, addrIPWithMask *netlink.Addr, vxlanId int,
 			HardwareAddr: hardwareAddr,
 		},
 		SrcAddr:      net.ParseIP(deviceIP),
-		VxlanId:      vxlanId,
+		VxlanId:      vxlanID,
 		Port:         vxlanPort,
 		Learning:     false,
 		VtepDevIndex: vtepDevIndex,
@@ -104,6 +105,7 @@ func createNewVxlanIface(name string, addrIPWithMask *netlink.Addr, vxlanId int,
 }
 
 // load device info from environment
+// nolint:revive
 func loadDevices() ([]clusterlinkv1alpha1.Device, error) {
 	ret := []clusterlinkv1alpha1.Device{}
 
@@ -112,9 +114,8 @@ func loadDevices() ([]clusterlinkv1alpha1.Device, error) {
 		if err != nil {
 			if errors.As(err, &netlink.LinkNotFoundError{}) {
 				continue
-			} else {
-				return nil, err
 			}
+			return nil, err
 		}
 
 		if vxlanIface.Type() != (&netlink.Vxlan{}).Type() {
@@ -229,11 +230,7 @@ func addDevice(d clusterlinkv1alpha1.Device) error {
 		return err
 	}
 
-	if err := updateDeviceConfig(d.Name, family); err != nil {
-		return err
-	}
-
-	return nil
+	return updateDeviceConfig(d.Name, family)
 }
 
 func deleteDevice(d clusterlinkv1alpha1.Device) error {
@@ -257,14 +254,14 @@ func deleteDevice(d clusterlinkv1alpha1.Device) error {
 
 func updateDeviceConfig(name string, ipFamily int) error {
 	if ipFamily == netlink.FAMILY_V6 {
-		if err := UpdateDefaultIp6tablesBehavior(name); err != nil {
+		if err := UpdateDefaultIP6tablesBehavior(name); err != nil {
 			return err
 		}
 		if err := EnableDisableIPV6ByIFaceNmae(name); err != nil {
 			return err
 		}
 	} else {
-		if err := UpdateDefaultIp4tablesBehavior(name); err != nil {
+		if err := UpdateDefaultIP4tablesBehavior(name); err != nil {
 			return err
 		}
 
@@ -280,7 +277,7 @@ func UpdateDefaultIptablesAndKernalConfig(name string, ipFamily int) error {
 
 	// ipv6
 	if ipFamily == netlink.FAMILY_V6 {
-		if err := UpdateDefaultIp6tablesBehavior(name); err != nil {
+		if err := UpdateDefaultIP6tablesBehavior(name); err != nil {
 			return err
 		}
 		if err := EnableDisableIPV6ByIFaceNmae(name); err != nil {
@@ -289,7 +286,7 @@ func UpdateDefaultIptablesAndKernalConfig(name string, ipFamily int) error {
 	}
 
 	if ipFamily == netlink.FAMILY_V4 {
-		if err := UpdateDefaultIp4tablesBehavior(name); err != nil {
+		if err := UpdateDefaultIP4tablesBehavior(name); err != nil {
 			return err
 		}
 		if err := EnableLooseModeByIFaceNmae(name); err != nil {
@@ -307,7 +304,7 @@ func UpdateDefaultIptablesAndKernalConfig(name string, ipFamily int) error {
 			if len(nicName) == 0 {
 				continue
 			}
-			if err := UpdateDefaultIp4tablesBehavior(nicName); err != nil {
+			if err := UpdateDefaultIP4tablesBehavior(nicName); err != nil {
 				klog.Errorf("Try to add iptables rule for %s: %v", nicName, err)
 			}
 

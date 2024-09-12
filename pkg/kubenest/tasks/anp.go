@@ -79,7 +79,7 @@ func runAnpServer(r workflow.RunData) error {
 	}{
 		Namespace:       namespace,
 		Name:            name,
-		ProxyServerPort: portMap[constants.ApiServerNetworkProxyServerPortKey],
+		ProxyServerPort: portMap[constants.APIServerNetworkProxyServerPortKey],
 		SvcName:         fmt.Sprintf("%s-konnectivity-server.%s.svc.cluster.local", name, namespace),
 		AnpMode:         kubeNestOpt.KubeInKubeConfig.AnpMode,
 	})
@@ -145,12 +145,12 @@ func uninstallAnp(r workflow.RunData) error {
 }
 func installAnpServer(client clientset.Interface, name, namespace string, portMap map[string]int32, kubeNestConfiguration *v1alpha1.KubeNestConfiguration, vc *v1alpha1.VirtualCluster) error {
 	imageRepository, imageVersion := util.GetImageMessage()
-	clusterIp, err := util.GetEtcdServiceClusterIp(namespace, name+constants.EtcdSuffix, client)
+	clusterIP, err := util.GetEtcdServiceClusterIP(namespace, name+constants.EtcdSuffix, client)
 	if err != nil {
 		return nil
 	}
 
-	IPV6FirstFlag, err := util.IPV6First(constants.ApiServerServiceSubnet)
+	IPV6FirstFlag, err := util.IPV6First(constants.APIServerServiceSubnet)
 	if err != nil {
 		return err
 	}
@@ -172,30 +172,30 @@ func installAnpServer(client clientset.Interface, name, namespace string, portMa
 		AnpMode                                                                                        string
 		AdmissionPlugins                                                                               bool
 		IPV6First                                                                                      bool
-		UseApiServerNodePort                                                                           bool
+		UseAPIServerNodePort                                                                           bool
 	}{
-		DeploymentName:            util.GetApiServerName(name),
+		DeploymentName:            util.GetAPIServerName(name),
 		Namespace:                 namespace,
 		ImageRepository:           imageRepository,
 		Version:                   imageVersion,
 		VirtualControllerLabel:    vclabel,
-		EtcdClientService:         clusterIp,
-		ServiceSubnet:             constants.ApiServerServiceSubnet,
+		EtcdClientService:         clusterIP,
+		ServiceSubnet:             constants.APIServerServiceSubnet,
 		VirtualClusterCertsSecret: util.GetCertName(name),
 		EtcdCertsSecret:           util.GetEtcdCertName(name),
-		Replicas:                  kubeNestConfiguration.KubeInKubeConfig.ApiServerReplicas,
-		EtcdListenClientPort:      constants.ApiServerEtcdListenClientPort,
-		ClusterPort:               portMap[constants.ApiServerPortKey],
-		AgentPort:                 portMap[constants.ApiServerNetworkProxyAgentPortKey],
-		ServerPort:                portMap[constants.ApiServerNetworkProxyServerPortKey],
-		HealthPort:                portMap[constants.ApiServerNetworkProxyHealthPortKey],
-		AdminPort:                 portMap[constants.ApiServerNetworkProxyAdminPortKey],
+		Replicas:                  kubeNestConfiguration.KubeInKubeConfig.APIServerReplicas,
+		EtcdListenClientPort:      constants.APIServerEtcdListenClientPort,
+		ClusterPort:               portMap[constants.APIServerPortKey],
+		AgentPort:                 portMap[constants.APIServerNetworkProxyAgentPortKey],
+		ServerPort:                portMap[constants.APIServerNetworkProxyServerPortKey],
+		HealthPort:                portMap[constants.APIServerNetworkProxyHealthPortKey],
+		AdminPort:                 portMap[constants.APIServerNetworkProxyAdminPortKey],
 		KubeconfigSecret:          util.GetAdminConfigClusterIPSecretName(name),
 		Name:                      name,
 		AnpMode:                   kubeNestConfiguration.KubeInKubeConfig.AnpMode,
 		AdmissionPlugins:          kubeNestConfiguration.KubeInKubeConfig.AdmissionPlugins,
 		IPV6First:                 IPV6FirstFlag,
-		UseApiServerNodePort:      vc.Spec.KubeInKubeConfig != nil && vc.Spec.KubeInKubeConfig.ApiServerServiceType == v1alpha1.NodePort,
+		UseAPIServerNodePort:      vc.Spec.KubeInKubeConfig != nil && vc.Spec.KubeInKubeConfig.APIServerServiceType == v1alpha1.NodePort,
 	})
 	if err != nil {
 		return fmt.Errorf("error when parsing virtual cluster apiserver deployment template: %w", err)
@@ -211,7 +211,7 @@ func installAnpServer(client clientset.Interface, name, namespace string, portMa
 		return fmt.Errorf("error when creating deployment for %s, err: %w", apiserverDeployment.Name, err)
 	}
 
-	if vc.Spec.KubeInKubeConfig != nil && vc.Spec.KubeInKubeConfig.ApiServerServiceType == v1alpha1.NodePort {
+	if vc.Spec.KubeInKubeConfig != nil && vc.Spec.KubeInKubeConfig.APIServerServiceType == v1alpha1.NodePort {
 		apiserverServiceBytes, err := util.ParseTemplate(apiserver.ApiserverAnpAgentService, struct {
 			SVCName, Namespace string
 			ClusterPort        int32
@@ -220,13 +220,13 @@ func installAnpServer(client clientset.Interface, name, namespace string, portMa
 			HealthPort         int32
 			AdminPort          int32
 		}{
-			SVCName:     util.GetKonnectivityApiServerName(name),
+			SVCName:     util.GetKonnectivityAPIServerName(name),
 			Namespace:   namespace,
-			ClusterPort: portMap[constants.ApiServerPortKey],
-			AgentPort:   portMap[constants.ApiServerNetworkProxyAgentPortKey],
-			ServerPort:  portMap[constants.ApiServerNetworkProxyServerPortKey],
-			HealthPort:  portMap[constants.ApiServerNetworkProxyHealthPortKey],
-			AdminPort:   portMap[constants.ApiServerNetworkProxyAdminPortKey],
+			ClusterPort: portMap[constants.APIServerPortKey],
+			AgentPort:   portMap[constants.APIServerNetworkProxyAgentPortKey],
+			ServerPort:  portMap[constants.APIServerNetworkProxyServerPortKey],
+			HealthPort:  portMap[constants.APIServerNetworkProxyHealthPortKey],
+			AdminPort:   portMap[constants.APIServerNetworkProxyAdminPortKey],
 		})
 		if err != nil {
 			return fmt.Errorf("error when parsing virtual cluster apiserver svc template: %w", err)
@@ -269,10 +269,10 @@ func getAnpAgentManifest(client clientset.Interface, name string, namespace stri
 	// get apiServer hostIp
 	var proxyServerHost []string
 	var err error
-	if vc.Spec.KubeInKubeConfig != nil && vc.Spec.KubeInKubeConfig.ApiServerServiceType == v1alpha1.NodePort {
-		proxyServerHost, err = getDeploymentHostIPs(client, namespace, util.GetApiServerName(name))
+	if vc.Spec.KubeInKubeConfig != nil && vc.Spec.KubeInKubeConfig.APIServerServiceType == v1alpha1.NodePort {
+		proxyServerHost, err = getDeploymentHostIPs(client, namespace, util.GetAPIServerName(name))
 	} else {
-		proxyServerHost, err = getDeploymentPodIPs(client, namespace, util.GetApiServerName(name))
+		proxyServerHost, err = getDeploymentPodIPs(client, namespace, util.GetAPIServerName(name))
 	}
 
 	if err != nil {
@@ -291,7 +291,7 @@ func getAnpAgentManifest(client clientset.Interface, name string, namespace stri
 	}{
 		ImageRepository: imageRepository,
 		Version:         imageVersion,
-		AgentPort:       portMap[constants.ApiServerNetworkProxyAgentPortKey],
+		AgentPort:       portMap[constants.APIServerNetworkProxyAgentPortKey],
 		ProxyServerHost: proxyServerHost,
 		AnpMode:         kubeNestConfiguration.KubeInKubeConfig.AnpMode,
 		AgentCertName:   util.GetCertName(name),

@@ -16,7 +16,7 @@ const (
 	DefaultNs                        = "default"
 	DefaultImageRepositoryEnv        = "IMAGE_REPOSITIRY"
 	DefaultImageVersionEnv           = "IMAGE_VERSION"
-	DefaultCoreDnsImageTagEnv        = "COREDNS_IMAGE_TAG"
+	DefaultCoreDNSImageTagEnv        = "COREDNS_IMAGE_TAG"
 	DefaultVirtualControllerLabelEnv = "VIRTUAL_CONTROLLER_LABEL"
 	VirtualClusterFinalizerName      = "kosmos.io/virtual-cluster-finalizer"
 	ServiceType                      = "NodePort"
@@ -46,12 +46,12 @@ const (
 	ProxyServerCertAndKeyName      = "proxy-server"
 
 	//controlplane apiserver
-	ApiServer                     = "apiserver"
-	ApiServerAnp                  = "apiserver-anp"
-	ApiServerEtcdListenClientPort = 2379
-	ApiServerServiceType          = "NodePort"
-	// APICallRetryInterval defines how long kubeadm should wait before retrying a failed API operation
-	ApiServerCallRetryInterval = 100 * time.Millisecond
+	APIServer                     = "apiserver"
+	APIServerAnp                  = "apiserver-anp"
+	APIServerEtcdListenClientPort = 2379
+	APIServerServiceType          = "NodePort"
+	// APIServerCallRetryInterval defines how long kubeadm should wait before retrying a failed API operation
+	APIServerCallRetryInterval = 100 * time.Millisecond
 	APIServerSVCPortName       = "client"
 
 	//install kube-proxy in virtualCluster
@@ -98,11 +98,11 @@ const (
 	//host_port_manager
 	HostPortsCMName                    = "kosmos-hostports"
 	HostPortsCMDataName                = "config.yaml"
-	ApiServerPortKey                   = "apiserver-port"
-	ApiServerNetworkProxyAgentPortKey  = "apiserver-network-proxy-agent-port"
-	ApiServerNetworkProxyServerPortKey = "apiserver-network-proxy-server-port"
-	ApiServerNetworkProxyHealthPortKey = "apiserver-network-proxy-health-port"
-	ApiServerNetworkProxyAdminPortKey  = "apiserver-network-proxy-admin-port"
+	APIServerPortKey                   = "apiserver-port"
+	APIServerNetworkProxyAgentPortKey  = "apiserver-network-proxy-agent-port"
+	APIServerNetworkProxyServerPortKey = "apiserver-network-proxy-server-port"
+	APIServerNetworkProxyHealthPortKey = "apiserver-network-proxy-health-port"
+	APIServerNetworkProxyAdminPortKey  = "apiserver-network-proxy-admin-port"
 	VirtualClusterPortNum              = 5
 
 	// vip
@@ -125,25 +125,25 @@ const (
 	KubeDNSSVCName = "kube-dns"
 	// nolint
 	HostCoreDnsComponents      = "host-core-dns-components"
-	VirtualCoreDnsComponents   = "virtual-core-dns-components"
+	VirtualCoreDNSComponents   = "virtual-core-dns-components"
 	PrometheusRuleManifest     = "prometheus-rules"
-	TenantCoreDnsComponentName = "core-dns-tenant"
+	TenantCoreDNSComponentName = "core-dns-tenant"
 
 	StateLabelKey = "kosmos-io/state"
 
 	KonnectivityServerSuffix = "konnectivity-server"
 
 	//in virtual cluster
-	ApiServerExternalService = "api-server-external-service"
+	APIServerExternalService = "api-server-external-service"
 )
 
 type Action string
 
-var ApiServerServiceSubnet string
+var APIServerServiceSubnet string
 var KubeControllerManagerPodSubnet string
 
 func init() {
-	ApiServerServiceSubnet = utils.GetEnvWithDefaultValue("SERVICE_SUBNET", "10.237.6.0/18")
+	APIServerServiceSubnet = utils.GetEnvWithDefaultValue("SERVICE_SUBNET", "10.237.6.0/18")
 	// fd11:1122:1111::/48,
 	KubeControllerManagerPodSubnet = utils.GetEnvWithDefaultValue("POD_SUBNET", "10.244.0.0/16")
 }

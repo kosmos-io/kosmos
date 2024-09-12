@@ -17,7 +17,7 @@ var exportExample = templates.Examples(i18n.T(`
 		kosmosctl export service foo  -n namespacefoo --kubeconfig=[control plane kubeconfig]
 `))
 
-var exportErr string = "kosmosctl export error"
+var exportErr = "kosmosctl export error"
 
 type CommandExportOptions struct {
 	*CommandOptions
@@ -56,7 +56,7 @@ func (o *CommandExportOptions) Complete(cmd *cobra.Command) error {
 	return nil
 }
 
-func (o *CommandExportOptions) Run(cmd *cobra.Command, args []string) error {
+func (o *CommandExportOptions) Run(_ *cobra.Command, args []string) error {
 	if len(args) == 0 {
 		return fmt.Errorf("args is null, resource type should be specified")
 	}

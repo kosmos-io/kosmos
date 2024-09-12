@@ -181,10 +181,9 @@ func (dmc *DaemonSetsMirrorController) syncDaemonSet(key lifted.QueueKey) error 
 				return err
 			}
 			return nil
-		} else {
-			klog.Errorf("failed to get kosmos daemon set %v", err)
-			return err
 		}
+		klog.Errorf("failed to get kosmos daemon set %v", err)
+		return err
 	}
 	kds := kd.DeepCopy()
 	if !isOwnedBy(kds.OwnerReferences, ds) {
@@ -229,7 +228,7 @@ func (dmc *DaemonSetsMirrorController) AddDaemonSet(obj interface{}) {
 	dmc.processor.Enqueue(ds)
 }
 
-func (dmc *DaemonSetsMirrorController) UpdateDaemonSet(old interface{}, new interface{}) {
+func (dmc *DaemonSetsMirrorController) UpdateDaemonSet(_ interface{}, new interface{}) {
 	ds, ok := new.(*appsv1.DaemonSet)
 	if !ok {
 		return
@@ -256,6 +255,6 @@ func (dmc *DaemonSetsMirrorController) DeleteKosmosDaemonSet(obj interface{}) {
 	dmc.ProcessKosmosDaemonSet(obj)
 }
 
-func (dmc *DaemonSetsMirrorController) UpdateKosmosDaemonSet(old interface{}, new interface{}) {
+func (dmc *DaemonSetsMirrorController) UpdateKosmosDaemonSet(_ interface{}, new interface{}) {
 	dmc.ProcessKosmosDaemonSet(new)
 }

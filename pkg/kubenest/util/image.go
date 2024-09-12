@@ -19,12 +19,12 @@ func GetImageMessage() (imageRepository string, imageVersion string) {
 	return imageRepository, imageVersion
 }
 
-func GetCoreDnsImageTag() string {
-	coreDnsImageTag := os.Getenv(constants.DefaultCoreDnsImageTagEnv)
-	if coreDnsImageTag == "" {
-		coreDnsImageTag = utils.DefaultCoreDnsImageTag
+func GetCoreDNSImageTag() string {
+	coreDNSImageTag := os.Getenv(constants.DefaultCoreDNSImageTagEnv)
+	if coreDNSImageTag == "" {
+		coreDNSImageTag = utils.DefaultCoreDNSImageTag
 	}
-	return coreDnsImageTag
+	return coreDNSImageTag
 }
 
 func GetVirtualControllerLabel() string {

@@ -1,7 +1,7 @@
 package host
 
 const (
-	CoreDnsService = `
+	CoreDNSService = `
 apiVersion: v1
 kind: Service
 metadata:

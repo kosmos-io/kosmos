@@ -30,20 +30,20 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/utils"
 )
 
-type ApiServerExternalSyncController struct {
+type APIServerExternalSyncController struct {
 	client.Client
 	EventRecorder record.EventRecorder
 }
 
-const ApiServerExternalSyncControllerName string = "api-server-external-service-sync-controller"
+const APIServerExternalSyncControllerName string = "api-server-external-service-sync-controller"
 
-func (e *ApiServerExternalSyncController) SetupWithManager(mgr manager.Manager) error {
+func (e *APIServerExternalSyncController) SetupWithManager(mgr manager.Manager) error {
 	skipEvent := func(obj client.Object) bool {
 		return strings.Contains(obj.GetName(), "apiserver") && obj.GetNamespace() != ""
 	}
 
 	return controllerruntime.NewControllerManagedBy(mgr).
-		Named(ApiServerExternalSyncControllerName).
+		Named(APIServerExternalSyncControllerName).
 		WithOptions(controller.Options{MaxConcurrentReconciles: 5}).
 		For(&v1.Endpoints{},
 			builder.WithPredicates(predicate.Funcs{
@@ -57,7 +57,7 @@ func (e *ApiServerExternalSyncController) SetupWithManager(mgr manager.Manager) 
 		Complete(e)
 }
 
-func (e *ApiServerExternalSyncController) newVirtualClusterMapFunc() handler.MapFunc {
+func (e *APIServerExternalSyncController) newVirtualClusterMapFunc() handler.MapFunc {
 	return func(a client.Object) []reconcile.Request {
 		var requests []reconcile.Request
 		vcluster := a.(*v1alpha1.VirtualCluster)
@@ -77,17 +77,16 @@ func (e *ApiServerExternalSyncController) newVirtualClusterMapFunc() handler.Map
 	}
 }
 
-func (e *ApiServerExternalSyncController) SyncApiServerExternalEPS(ctx context.Context, k8sClient kubernetes.Interface) error {
+func (e *APIServerExternalSyncController) SyncAPIServerExternalEPS(ctx context.Context, k8sClient kubernetes.Interface) error {
 	kubeEndpoints, err := k8sClient.CoreV1().Endpoints(constants.DefaultNs).Get(ctx, "kubernetes", metav1.GetOptions{})
 	if err != nil {
 		klog.Errorf("Error getting endpoints: %v", err)
 		return err
-	} else {
-		klog.V(4).Infof("Endpoints for service 'kubernetes': %v", kubeEndpoints)
-		for _, subset := range kubeEndpoints.Subsets {
-			for _, address := range subset.Addresses {
-				klog.V(4).Infof("IP: %s", address.IP)
-			}
+	}
+	klog.V(4).Infof("Endpoints for service 'kubernetes': %v", kubeEndpoints)
+	for _, subset := range kubeEndpoints.Subsets {
+		for _, address := range subset.Addresses {
+			klog.V(4).Infof("IP: %s", address.IP)
 		}
 	}
 
@@ -100,9 +99,9 @@ func (e *ApiServerExternalSyncController) SyncApiServerExternalEPS(ctx context.C
 		return err
 	}
 
-	apiServerExternalEndpoints, err := k8sClient.CoreV1().Endpoints(constants.DefaultNs).Get(ctx, constants.ApiServerExternalService, metav1.GetOptions{})
+	apiServerExternalEndpoints, err := k8sClient.CoreV1().Endpoints(constants.DefaultNs).Get(ctx, constants.APIServerExternalService, metav1.GetOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
-		klog.Errorf("failed to get endpoints for %s : %v", constants.ApiServerExternalService, err)
+		klog.Errorf("failed to get endpoints for %s : %v", constants.APIServerExternalService, err)
 		return err
 	}
 
@@ -137,9 +136,9 @@ func (e *ApiServerExternalSyncController) SyncApiServerExternalEPS(ctx context.C
 	return nil
 }
 
-func (e *ApiServerExternalSyncController) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
-	klog.V(4).Infof("============ %s start to reconcile %s ============", ApiServerExternalSyncControllerName, request.NamespacedName)
-	defer klog.V(4).Infof("============ %s finish to reconcile %s ============", ApiServerExternalSyncControllerName, request.NamespacedName)
+func (e *APIServerExternalSyncController) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
+	klog.V(4).Infof("============ %s start to reconcile %s ============", APIServerExternalSyncControllerName, request.NamespacedName)
+	defer klog.V(4).Infof("============ %s finish to reconcile %s ============", APIServerExternalSyncControllerName, request.NamespacedName)
 
 	var virtualClusterList v1alpha1.VirtualClusterList
 	if err := e.List(ctx, &virtualClusterList); err != nil {
@@ -175,7 +174,7 @@ func (e *ApiServerExternalSyncController) Reconcile(ctx context.Context, request
 	}
 
 	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		return e.SyncApiServerExternalEPS(ctx, k8sClient)
+		return e.SyncAPIServerExternalEPS(ctx, k8sClient)
 	}); err != nil {
 		klog.Errorf("virtualcluster %s sync apiserver external endpoints failed: %v", targetVirtualCluster.Name, err)
 		return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil

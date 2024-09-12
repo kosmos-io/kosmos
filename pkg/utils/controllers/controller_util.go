@@ -130,6 +130,7 @@ func (c *worker) SplitKey(key string) (namespace, name string, err error) {
 // marks them done. You may run as many of these in parallel as you wish; the
 // queue guarantees that they will not end up processing the same runtime object
 // at the same time
+// nolint:revive
 func (c *worker) worker() {
 	for c.processNextItem() {
 	}

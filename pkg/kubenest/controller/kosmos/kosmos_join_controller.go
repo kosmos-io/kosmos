@@ -310,7 +310,7 @@ func (c *KosmosJoinController) ClearSomeNodeOwner(nodeNames *[]string) {
 	}
 }
 
-func (c *KosmosJoinController) CreateClusterObject(ctx context.Context, request reconcile.Request,
+func (c *KosmosJoinController) CreateClusterObject(_ context.Context, _ reconcile.Request,
 	vc *v1alpha1.VirtualCluster, hostK8sClient kubernetes.Interface, cluster *v1alpha1.Cluster) (*[]string, *map[string]struct{}, error) {
 	var leafModels []v1alpha1.LeafModel
 	// recored new nodes' name, if error happen before create or update, need clear newNodeNames
@@ -369,7 +369,7 @@ func (c *KosmosJoinController) CreateClusterObject(ctx context.Context, request 
 	return &newNodeNames, &allNodeNamesMap, nil
 }
 
-func (c *KosmosJoinController) CreateOrUpdateCluster(ctx context.Context, request reconcile.Request,
+func (c *KosmosJoinController) CreateOrUpdateCluster(_ context.Context, request reconcile.Request,
 	kosmosClient versioned.Interface, k8sClient kubernetes.Interface, newNodeNames *[]string,
 	allNodeNamesMap *map[string]struct{}, cluster *v1alpha1.Cluster) error {
 	old, err := kosmosClient.KosmosV1alpha1().Clusters().Get(context.TODO(), cluster.Name, metav1.GetOptions{})
@@ -473,7 +473,7 @@ func (c *KosmosJoinController) CreateCluster(ctx context.Context, request reconc
 		return fmt.Errorf("crd kubernetes client failed: %v", err)
 	}
 
-	newNodeNames, allNodeNamesMap, nil := c.CreateClusterObject(ctx, request, vc, hostK8sClient, &cluster)
+	newNodeNames, allNodeNamesMap, err := c.CreateClusterObject(ctx, request, vc, hostK8sClient, &cluster)
 	if err != nil {
 		return err
 	}

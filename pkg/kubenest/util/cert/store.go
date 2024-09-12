@@ -9,6 +9,7 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
 )
 
+// nolint:revive
 type CertStore interface {
 	AddCert(cert *VirtualClusterCert)
 	GetCert(name string) *VirtualClusterCert

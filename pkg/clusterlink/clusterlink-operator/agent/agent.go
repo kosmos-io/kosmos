@@ -24,6 +24,7 @@ const (
 	ResourceName = "clusterlink-agent"
 )
 
+// nolint:revive
 type AgentInstaller struct {
 }
 

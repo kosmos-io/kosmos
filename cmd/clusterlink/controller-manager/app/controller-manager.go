@@ -110,7 +110,7 @@ func Run(ctx context.Context, opts *options.ControllerManagerOptions) error {
 	return nil
 }
 
-func setupControllers(mgr ctrl.Manager, opts *options.ControllerManagerOptions, ctx context.Context) []ctrlcontext.CleanFunc {
+func setupControllers(ctx context.Context, mgr ctrl.Manager, opts *options.ControllerManagerOptions) []ctrlcontext.CleanFunc {
 	controlPanelConfig, err := clientcmd.BuildConfigFromFlags("", opts.ControlPanelConfig)
 	if err != nil {
 		klog.Fatalf("build controlpanel config err: %v", err)

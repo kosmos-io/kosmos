@@ -1,3 +1,4 @@
+// nolint:revive
 package network
 
 import (
@@ -12,13 +13,6 @@ const vxlanOverhead = 50
 const AutoSelectInterfaceFlag = "*"
 
 type VxlanType int
-
-const (
-	BRIDGE VxlanType = 0
-	LOCAL  VxlanType = 1
-)
-
-// type IPFamilySupport string
 
 // const (
 // 	IPFamilyTypeALL  IPFamilySupport = "0"

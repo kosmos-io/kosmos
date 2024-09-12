@@ -47,7 +47,7 @@ type DistributeController struct {
 
 	shadowDaemonSetProcessor lifted.AsyncWorker
 
-	clusterDaemonSetManagerMap map[string]*clusterDaemonSetManager
+	clusterDaemonSetManagerMap map[string]*ClusterDaemonSetManager
 
 	rateLimiterOptions lifted.RateLimitOptions
 
@@ -66,7 +66,7 @@ func NewDistributeController(
 		clusterLister:              clusterInformer.Lister(),
 		shadowDaemonSetSynced:      sdsInformer.Informer().HasSynced,
 		clusterSynced:              clusterInformer.Informer().HasSynced,
-		clusterDaemonSetManagerMap: make(map[string]*clusterDaemonSetManager),
+		clusterDaemonSetManagerMap: make(map[string]*ClusterDaemonSetManager),
 		rateLimiterOptions:         rateLimiterOptions,
 	}
 
@@ -164,11 +164,11 @@ func (dc *DistributeController) syncCluster(key lifted.QueueKey) error {
 		// nolint:errcheck
 		dsInformer.Informer().AddEventHandler(cache.FilteringResourceEventHandler{
 			FilterFunc: func(obj interface{}) bool {
-				ds, ok := obj.(*appsv1.DaemonSet)
-				if !ok {
+				ds, newOK := obj.(*appsv1.DaemonSet)
+				if !newOK {
 					return false
 				}
-				if _, ok := ds.Labels[ManagedLabel]; ok {
+				if _, ok = ds.Labels[ManagedLabel]; ok {
 					return true
 				}
 				return false
@@ -180,30 +180,23 @@ func (dc *DistributeController) syncCluster(key lifted.QueueKey) error {
 			},
 		})
 
-		daemonsetSynced := dsInformer.Informer().HasSynced()
-		manager = NewClusterDaemonSetManager(
-			name,
-			kubeClient,
-			dsInformer,
-			kubeFactory,
-			daemonsetSynced,
-		)
+		manager = NewClusterDaemonSetManager(name, kubeClient, dsInformer, kubeFactory)
 		dc.clusterDaemonSetManagerMap[cluster.Name] = manager
 		manager.Start()
 	}
 
 	if cluster.DeletionTimestamp != nil {
-		list, error := manager.dsLister.List(labels.Set{ManagedLabel: ""}.AsSelector())
-		if error != nil {
-			klog.V(2).Infof("failed to list daemonsets from cluster %s: %v", cluster.Name, error)
-			return error
+		list, newErr := manager.dsLister.List(labels.Set{ManagedLabel: ""}.AsSelector())
+		if newErr != nil {
+			klog.V(2).Infof("failed to list daemonsets from cluster %s: %v", cluster.Name, newErr)
+			return newErr
 		}
 		for i := range list {
 			ds := list[i]
-			error := manager.kubeClient.AppsV1().DaemonSets(ds.Namespace).Delete(context.Background(), ds.Name, metav1.DeleteOptions{})
+			newErr = manager.kubeClient.AppsV1().DaemonSets(ds.Namespace).Delete(context.Background(), ds.Name, metav1.DeleteOptions{})
 			if err != nil {
-				klog.V(2).Infof("failed to delete daemonset %s/%s from cluster %s: %v", ds.Namespace, ds.Name, cluster.Name, error)
-				return error
+				klog.V(2).Infof("failed to delete daemonset %s/%s from cluster %s: %v", ds.Namespace, ds.Name, cluster.Name, newErr)
+				return newErr
 			}
 		}
 		err = dc.removeClusterFinalizer(cluster)
@@ -267,7 +260,7 @@ func (dc *DistributeController) syncShadowDaemonSet(key lifted.QueueKey) error {
 		klog.Errorf("failed to ensure finalizer for shadow daemonset %s/%s: %v", namespace, name, err)
 		return err
 	}
-	copy := sds.DeepCopy()
+	deepCopy := sds.DeepCopy()
 
 	err = manager.tryCreateOrUpdateDaemonSet(sds)
 	if err != nil {
@@ -275,18 +268,18 @@ func (dc *DistributeController) syncShadowDaemonSet(key lifted.QueueKey) error {
 		return err
 	}
 
-	ds, error := manager.dsLister.DaemonSets(sds.Namespace).Get(sds.Name)
+	ds, newErr := manager.dsLister.DaemonSets(sds.Namespace).Get(sds.Name)
 
-	if error != nil {
-		klog.Errorf("failed to get daemonset %s/%s: %v", namespace, name, error)
-		return error
+	if newErr != nil {
+		klog.Errorf("failed to get daemonset %s/%s: %v", namespace, name, newErr)
+		return newErr
 	}
 
-	error = dc.updateStatus(copy, ds)
+	newErr = dc.updateStatus(deepCopy, ds)
 
-	if error != nil {
-		klog.Errorf("failed to update status for shadow daemonset %s/%s: %v", namespace, name, error)
-		return error
+	if newErr != nil {
+		klog.Errorf("failed to update status for shadow daemonset %s/%s: %v", namespace, name, newErr)
+		return newErr
 	}
 	return nil
 }
@@ -367,7 +360,7 @@ func (dc *DistributeController) addCluster(obj interface{}) {
 	dc.clusterProcessor.Enqueue(ds)
 }
 
-func (dc *DistributeController) updateCluster(oldObj, newObj interface{}) {
+func (dc *DistributeController) updateCluster(_, newObj interface{}) {
 	newDS := newObj.(*v1alpha1.Cluster)
 	dc.clusterProcessor.Enqueue(newDS)
 }
@@ -420,7 +413,7 @@ func (dc *DistributeController) deleteShadowDaemonSet(obj interface{}) {
 	dc.shadowDaemonSetProcessor.Enqueue(ds)
 }
 
-type clusterDaemonSetManager struct {
+type ClusterDaemonSetManager struct {
 	name string
 
 	kubeClient clientset.Interface
@@ -436,7 +429,7 @@ type clusterDaemonSetManager struct {
 	daemonSetSynced cache.InformerSynced
 }
 
-func (km *clusterDaemonSetManager) Start() {
+func (km *ClusterDaemonSetManager) Start() {
 	km.factory.Start(km.ctx.Done())
 	if !cache.WaitForNamedCacheSync("distribute controller", km.ctx.Done(), km.daemonSetSynced) {
 		klog.Errorf("failed to wait for daemonSet caches to sync")
@@ -444,13 +437,13 @@ func (km *clusterDaemonSetManager) Start() {
 	}
 }
 
-func (km *clusterDaemonSetManager) Stop() {
+func (km *ClusterDaemonSetManager) Stop() {
 	if km.cancelFun != nil {
 		km.cancelFun()
 	}
 }
 
-func (km *clusterDaemonSetManager) tryCreateOrUpdateDaemonSet(sds *v1alpha1.ShadowDaemonSet) error {
+func (km *ClusterDaemonSetManager) tryCreateOrUpdateDaemonSet(sds *v1alpha1.ShadowDaemonSet) error {
 	err := km.ensureNameSpace(sds.Namespace)
 	if err != nil {
 		klog.V(4).Infof("ensure namespace %s failed: %v", sds.Namespace, err)
@@ -483,10 +476,9 @@ func (km *clusterDaemonSetManager) tryCreateOrUpdateDaemonSet(sds *v1alpha1.Shad
 				return err
 			}
 			return nil
-		} else {
-			klog.Errorf("failed to get daemonset %s/%s: %v", sds.Namespace, sds.Name, err)
-			return err
 		}
+		klog.Errorf("failed to get daemonset %s/%s: %v", sds.Namespace, sds.Name, err)
+		return err
 	}
 
 	ds.Spec.Template = sds.DaemonSetSpec.Template
@@ -519,7 +511,7 @@ func (km *clusterDaemonSetManager) tryCreateOrUpdateDaemonSet(sds *v1alpha1.Shad
 	return nil
 }
 
-func (km *clusterDaemonSetManager) ensureNameSpace(namespace string) error {
+func (km *ClusterDaemonSetManager) ensureNameSpace(namespace string) error {
 	ns := &corev1.Namespace{}
 	ns.Name = namespace
 	_, err := km.kubeClient.CoreV1().Namespaces().Create(context.Background(), ns, metav1.CreateOptions{})
@@ -534,7 +526,7 @@ func (km *clusterDaemonSetManager) ensureNameSpace(namespace string) error {
 	return nil
 }
 
-func (km *clusterDaemonSetManager) getDaemonSet(namespace, name string) (*appsv1.DaemonSet, error) {
+func (km *ClusterDaemonSetManager) getDaemonSet(namespace, name string) (*appsv1.DaemonSet, error) {
 	ds, err := km.dsLister.DaemonSets(namespace).Get(name)
 	if err != nil {
 		ds, err = km.kubeClient.AppsV1().DaemonSets(namespace).Get(context.Background(), name, metav1.GetOptions{})
@@ -546,10 +538,10 @@ func (km *clusterDaemonSetManager) getDaemonSet(namespace, name string) (*appsv1
 	return ds.DeepCopy(), nil
 }
 
-func NewClusterDaemonSetManager(name string, client *clientset.Clientset, dsInformer appsinformers.DaemonSetInformer, factory informer.SharedInformerFactory, synced bool) *clusterDaemonSetManager {
+func NewClusterDaemonSetManager(name string, client *clientset.Clientset, dsInformer appsinformers.DaemonSetInformer, factory informer.SharedInformerFactory) *ClusterDaemonSetManager {
 	ctx := context.TODO()
 	ctx, cancel := context.WithCancel(ctx)
-	return &clusterDaemonSetManager{
+	return &ClusterDaemonSetManager{
 		name:            name,
 		kubeClient:      client,
 		dsLister:        dsInformer.Lister(),

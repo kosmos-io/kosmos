@@ -1,7 +1,7 @@
 package host
 
 const (
-	CoreDnsSA = `
+	CoreDNSSA = `
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -9,7 +9,7 @@ metadata:
   namespace: {{ .Namespace }}
 `
 
-	CoreDnsClusterRoleBinding = `
+	CoreDNSClusterRoleBinding = `
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
@@ -24,7 +24,7 @@ subjects:
   namespace: {{ .Namespace }}
 `
 
-	CoreDnsClusterRole = `
+	CoreDNSClusterRole = `
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:

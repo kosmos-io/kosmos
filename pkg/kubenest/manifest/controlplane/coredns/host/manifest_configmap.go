@@ -1,7 +1,7 @@
 package host
 
 const (
-	CoreDnsCM = `
+	CoreDNSCM = `
 apiVersion: v1
 data:
   Corefile: |

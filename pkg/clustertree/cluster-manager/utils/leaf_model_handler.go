@@ -194,11 +194,11 @@ func updateTaints(client kubernetes.Interface, taints []corev1.Taint, nodeName s
 			Taints: taints,
 		},
 	}
-	patchJson, err := json.Marshal(node)
+	patchJSON, err := json.Marshal(node)
 	if err != nil {
 		return err
 	}
-	_, err = client.CoreV1().Nodes().Patch(context.TODO(), nodeName, types.MergePatchType, patchJson, metav1.PatchOptions{})
+	_, err = client.CoreV1().Nodes().Patch(context.TODO(), nodeName, types.MergePatchType, patchJSON, metav1.PatchOptions{})
 	if err != nil {
 		return err
 	}

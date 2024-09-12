@@ -24,6 +24,7 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/kubenest/util"
 )
 
+// nolint:revive
 type TaskOpt struct {
 	NodeInfo       v1alpha1.GlobalNode
 	VirtualCluster v1alpha1.VirtualCluster

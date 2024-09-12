@@ -166,9 +166,5 @@ func (o *Options) genericOptionsApplyTo(config *genericapiserver.RecommendedConf
 	if err := o.CoreAPI.ApplyTo(config); err != nil {
 		return err
 	}
-	if err := o.Admission.ApplyTo(&config.Config, config.SharedInformerFactory, config.ClientConfig, o.FeatureGate); err != nil {
-		return err
-	}
-
-	return nil
+	return o.Admission.ApplyTo(&config.Config, config.SharedInformerFactory, config.ClientConfig, o.FeatureGate)
 }

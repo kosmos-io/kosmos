@@ -1,7 +1,7 @@
 package virtualcluster
 
 const (
-	CoreDnsEndpoints = `
+	CoreDNSEndpoints = `
 apiVersion: v1
 kind: Endpoints
 metadata:

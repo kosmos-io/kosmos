@@ -107,7 +107,7 @@ func NewPodReflectorController(kubeClient clientset.Interface,
 	return pc
 }
 
-func (pc *PodReflectorController) Run(ctx context.Context, workers int) {
+func (pc *PodReflectorController) Run(ctx context.Context, _ int) {
 	defer utilruntime.HandleCrash()
 
 	klog.Infof("Starting pod reflector controller")
@@ -258,7 +258,7 @@ func (pc *PodReflectorController) addPod(obj interface{}) {
 	pc.podProcessor.Enqueue(pod)
 }
 
-func (pc *PodReflectorController) updatePod(old interface{}, new interface{}) {
+func (pc *PodReflectorController) updatePod(_ interface{}, new interface{}) {
 	pod := new.(*corev1.Pod)
 	pc.podProcessor.Enqueue(pod)
 }
@@ -294,14 +294,14 @@ func (pc *PodReflectorController) tryUpdateOrCreate(pod *corev1.Pod) error {
 			return err
 		}
 	}
-	copy := shadowPod.DeepCopy()
-	copy.SetAnnotations(pod.Annotations)
-	copy.SetLabels(pod.Labels)
-	copy.Spec = pod.Spec
-	copy.Spec.NodeName = clusterName
-	copy.Status = pod.Status
-	copy.UID = ""
-	updated, err := pc.kubeClient.CoreV1().Pods(copy.Namespace).Update(context.Background(), copy, metav1.UpdateOptions{})
+	deepCopy := shadowPod.DeepCopy()
+	deepCopy.SetAnnotations(pod.Annotations)
+	deepCopy.SetLabels(pod.Labels)
+	deepCopy.Spec = pod.Spec
+	deepCopy.Spec.NodeName = clusterName
+	deepCopy.Status = pod.Status
+	deepCopy.UID = ""
+	updated, err := pc.kubeClient.CoreV1().Pods(deepCopy.Namespace).Update(context.Background(), deepCopy, metav1.UpdateOptions{})
 	if err != nil {
 		klog.Errorf("failed to update pod %s/%s: %v", pod.Namespace, pod.Name, err)
 		return err

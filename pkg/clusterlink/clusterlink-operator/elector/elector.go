@@ -22,6 +22,7 @@ const (
 	ResourceName = "clusterlink-elector"
 )
 
+// nolint:revive
 type ElectorInstaller struct {
 }
 

@@ -14,7 +14,7 @@ type InitData interface {
 	GetName() string
 	GetNamespace() string
 	ControlplaneAddress() string
-	ServiceClusterIp() []string
+	ServiceClusterIP() []string
 	RemoteClient() clientset.Interface
 	KosmosClient() versioned.Interface
 	DataDir() string

@@ -63,7 +63,7 @@ type CommandInstallOptions struct {
 	CNI            string
 	DefaultNICName string
 	NetworkType    string
-	IpFamily       string
+	IPFamily       string
 	UseProxy       string
 
 	KosmosClient        versioned.Interface
@@ -104,7 +104,7 @@ func NewCmdInstall() *cobra.Command {
 	flags.StringVar(&o.CNI, "cni", "", "The cluster is configured using cni and currently supports calico and flannel.")
 	flags.StringVar(&o.DefaultNICName, "default-nic", "", "Set default network interface card.")
 	flags.StringVar(&o.NetworkType, "network-type", utils.NetworkTypeGateway, "Set the cluster network connection mode, which supports gateway and p2p modes, gateway is used by default.")
-	flags.StringVar(&o.IpFamily, "ip-family", string(v1alpha1.IPFamilyTypeIPV4), "Specify the IP protocol version used by network devices, common IP families include IPv4 and IPv6.")
+	flags.StringVar(&o.IPFamily, "ip-family", string(v1alpha1.IPFamilyTypeIPV4), "Specify the IP protocol version used by network devices, common IP families include IPv4 and IPv6.")
 	flags.StringVar(&o.UseProxy, "use-proxy", "false", "Set whether to enable proxy.")
 	flags.IntVarP(&o.WaitTime, "wait-time", "", utils.DefaultWaitTime, "Wait the specified time for the Kosmos install ready.")
 
@@ -307,9 +307,8 @@ func (o *CommandInstallOptions) runClusterlink() error {
 			if apierrors.IsAlreadyExists(err) {
 				klog.Warningf("CRD %v is existed, creation process will skip", &crds.Items[i].Name)
 				continue
-			} else {
-				return fmt.Errorf("kosmosctl install clusterlink run error, crd options failed: %v", err)
 			}
+			return fmt.Errorf("kosmosctl install clusterlink run error, crd options failed: %v", err)
 		}
 		klog.Info("Create CRD " + crds.Items[i].Name + " successful.")
 	}
@@ -332,9 +331,8 @@ func (o *CommandInstallOptions) runClusterlink() error {
 	networkManagerLabel := map[string]string{"app": networkManagerDeploy.Labels["app"]}
 	if err = util.WaitPodReady(o.K8sClient, networkManagerDeploy.Namespace, util.MapToString(networkManagerLabel), o.WaitTime); err != nil {
 		return fmt.Errorf("kosmosctl install clusterlink run error, network-manager deployment options failed: %v", err)
-	} else {
-		klog.Info("Deployment " + networkManagerDeploy.Name + " has been created.")
 	}
+	klog.Info("Deployment " + networkManagerDeploy.Name + " has been created.")
 
 	operatorDeploy, err := util.GenerateDeployment(manifest.KosmosOperatorDeployment, manifest.DeploymentReplace{
 		Namespace:       o.Namespace,
@@ -488,9 +486,8 @@ func (o *CommandInstallOptions) runClustertree() error {
 	label := map[string]string{"app": clustertreeDeploy.Labels["app"]}
 	if err = util.WaitPodReady(o.K8sClient, clustertreeDeploy.Namespace, util.MapToString(label), o.WaitTime); err != nil {
 		return fmt.Errorf("kosmosctl install clustertree run error, deployment options failed: %v", err)
-	} else {
-		klog.Info("Deployment clustertree-cluster-manager has been created.")
 	}
+	klog.Info("Deployment clustertree-cluster-manager has been created.")
 
 	operatorDeploy, err := util.GenerateDeployment(manifest.KosmosOperatorDeployment, manifest.DeploymentReplace{
 		Namespace:       o.Namespace,
@@ -626,9 +623,9 @@ func (o *CommandInstallOptions) runScheduler() error {
 	label := map[string]string{"app": schedulerDeploy.Labels["app"]}
 	if err = util.WaitPodReady(o.K8sClient, schedulerDeploy.Namespace, util.MapToString(label), o.WaitTime); err != nil {
 		return fmt.Errorf("kosmosctl install scheduler run error, deployment options failed: %v", err)
-	} else {
-		klog.Info("Deployment kosmos-scheduler has been created.")
 	}
+	klog.Info("Deployment kosmos-scheduler has been created.")
+
 	return nil
 }
 
@@ -702,9 +699,8 @@ func (o *CommandInstallOptions) createOperator() error {
 	operatorLabel := map[string]string{"app": operatorDeploy.Labels["app"]}
 	if err = util.WaitPodReady(o.K8sClient, operatorDeploy.Namespace, util.MapToString(operatorLabel), o.WaitTime); err != nil {
 		return fmt.Errorf("kosmosctl install operator run error, operator options deployment failed: %s", err)
-	} else {
-		klog.Info("Operator " + operatorDeploy.Name + " has been created.")
 	}
+	klog.Info("Operator " + operatorDeploy.Name + " has been created.")
 
 	return nil
 }
@@ -731,7 +727,7 @@ func (o *CommandInstallOptions) createControlCluster() error {
 		joinOptions.CNI = o.CNI
 		joinOptions.DefaultNICName = o.DefaultNICName
 		joinOptions.NetworkType = o.NetworkType
-		joinOptions.IpFamily = o.IpFamily
+		joinOptions.IPFamily = o.IPFamily
 		joinOptions.UseProxy = o.UseProxy
 		controlCluster, err := o.KosmosClient.KosmosV1alpha1().Clusters().Get(context.TODO(), utils.DefaultClusterName, metav1.GetOptions{})
 		if err != nil {
@@ -757,7 +753,7 @@ func (o *CommandInstallOptions) createControlCluster() error {
 					controlCluster.Spec.ClusterLinkOptions.NetworkType = v1alpha1.NetworkTypeP2P
 				}
 
-				switch o.IpFamily {
+				switch o.IPFamily {
 				case utils.DefaultIPv4:
 					controlCluster.Spec.ClusterLinkOptions.IPFamily = v1alpha1.IPFamilyTypeIPV4
 				case utils.DefaultIPv6:
@@ -806,7 +802,7 @@ func (o *CommandInstallOptions) createControlCluster() error {
 		joinOptions.CNI = o.CNI
 		joinOptions.DefaultNICName = o.DefaultNICName
 		joinOptions.NetworkType = o.NetworkType
-		joinOptions.IpFamily = o.IpFamily
+		joinOptions.IPFamily = o.IPFamily
 		joinOptions.UseProxy = o.UseProxy
 
 		controlCluster, err := o.KosmosClient.KosmosV1alpha1().Clusters().Get(context.TODO(), utils.DefaultClusterName, metav1.GetOptions{})
@@ -834,7 +830,7 @@ func (o *CommandInstallOptions) createControlCluster() error {
 					controlCluster.Spec.ClusterLinkOptions.NetworkType = v1alpha1.NetworkTypeP2P
 				}
 
-				switch o.IpFamily {
+				switch o.IPFamily {
 				case utils.DefaultIPv4:
 					controlCluster.Spec.ClusterLinkOptions.IPFamily = v1alpha1.IPFamilyTypeIPV4
 				case utils.DefaultIPv6:
@@ -969,9 +965,8 @@ func (o *CommandInstallOptions) runCoreDNS() error {
 	}
 	if err = util.WaitDeploymentReady(o.K8sClient, deploy, o.WaitTime); err != nil {
 		return fmt.Errorf("kosmosctl install coredns run error, deployment options failed: %v", err)
-	} else {
-		klog.Info("Deployment coredns has been created.")
 	}
+	klog.Info("Deployment coredns has been created.")
 
 	klog.Info("Attempting to create coredns service...")
 	svc, err := util.GenerateService(manifest.CorednsService, manifest.ServiceReplace{

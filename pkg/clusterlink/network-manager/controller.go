@@ -1,3 +1,4 @@
+// nolint:revive
 package network_manager
 
 import (

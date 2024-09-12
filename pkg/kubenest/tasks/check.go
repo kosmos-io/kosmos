@@ -15,9 +15,9 @@ import (
 var (
 	kubeControllerManagerLabels   = labels.Set{"virtualCluster-app": constants.KubeControllerManager}
 	virtualClusterManagerLabels   = labels.Set{"virtualCluster-app": constants.VirtualClusterScheduler}
-	virtualClusterApiserverLabels = labels.Set{"virtualCluster-app": constants.ApiServer}
+	virtualClusterApiserverLabels = labels.Set{"virtualCluster-app": constants.APIServer}
 	virtualClusterEtcdLabels      = labels.Set{"virtualCluster-app": constants.Etcd}
-	virtualClusterAnpLabels       = labels.Set{"virtualCluster-anp": constants.ApiServerAnp}
+	virtualClusterAnpLabels       = labels.Set{"virtualCluster-anp": constants.APIServerAnp}
 )
 
 func NewCheckApiserverHealthTask() workflow.Task {

@@ -27,10 +27,16 @@ import (
 
 const SyncResourcesRequeueTime = 10 * time.Second
 
+// nolint:revive
 var SYNC_GVRS = []schema.GroupVersionResource{utils.GVR_CONFIGMAP, utils.GVR_SECRET}
+
+// nolint:revive
 var SYNC_OBJS = []client.Object{&corev1.ConfigMap{}, &corev1.Secret{}}
 
+// nolint:revive
 const SYNC_KIND_CONFIGMAP = "ConfigMap"
+
+// nolint:revive
 const SYNC_KIND_SECRET = "Secret"
 
 type SyncResourcesReconciler struct {
@@ -83,7 +89,7 @@ func (r *SyncResourcesReconciler) Reconcile(ctx context.Context, request reconci
 	return reconcile.Result{}, nil
 }
 
-func (r *SyncResourcesReconciler) SetupWithManager(mgr manager.Manager, gvr schema.GroupVersionResource) error {
+func (r *SyncResourcesReconciler) SetupWithManager(mgr manager.Manager, _ schema.GroupVersionResource) error {
 	if r.Client == nil {
 		r.Client = mgr.GetClient()
 	}
@@ -99,7 +105,7 @@ func (r *SyncResourcesReconciler) SetupWithManager(mgr manager.Manager, gvr sche
 		return true
 	}
 
-	if err := ctrl.NewControllerManagedBy(mgr).
+	return ctrl.NewControllerManagedBy(mgr).
 		Named(r.ControllerName).
 		WithOptions(controller.Options{}).
 		For(r.Object, builder.WithPredicates(predicate.Funcs{
@@ -116,10 +122,7 @@ func (r *SyncResourcesReconciler) SetupWithManager(mgr manager.Manager, gvr sche
 				return false
 			},
 		})).
-		Complete(r); err != nil {
-		return err
-	}
-	return nil
+		Complete(r)
 }
 
 func (r *SyncResourcesReconciler) SyncResource(ctx context.Context, request reconcile.Request, lr *leafUtils.LeafClientResource) error {

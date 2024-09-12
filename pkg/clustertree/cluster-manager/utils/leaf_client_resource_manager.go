@@ -47,9 +47,8 @@ func (cr *leafClientResourceManager) GetLeafResource(actualClusterName string) (
 	defer cr.leafClientResourceManagersLock.Unlock()
 	if m, ok := cr.clientResourceMap[actualClusterName]; ok {
 		return m, nil
-	} else {
-		return nil, fmt.Errorf("cannot get leaf client resource, actualClusterName: %s", actualClusterName)
 	}
+	return nil, fmt.Errorf("cannot get leaf client resource, actualClusterName: %s", actualClusterName)
 }
 
 func (cr *leafClientResourceManager) AddLeafClientResource(lcr *LeafClientResource, cluster *kosmosv1alpha1.Cluster) {

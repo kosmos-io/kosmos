@@ -18,7 +18,7 @@ var importExample = templates.Examples(i18n.T(`
 		kosmosctl import service foo -n namespacefoo --kubecnfig=[control plane kubeconfig] --to-leafcluster leafclusterfoo
 `))
 
-var importErr string = "kosmosctl import error"
+var importErr = "kosmosctl import error"
 
 type CommandImportOptions struct {
 	*CommandOptions
@@ -78,7 +78,7 @@ func (o *CommandImportOptions) Validate(cmd *cobra.Command) error {
 	return nil
 }
 
-func (o *CommandImportOptions) Run(f ctlutil.Factory, cmd *cobra.Command, args []string) error {
+func (o *CommandImportOptions) Run(_ ctlutil.Factory, _ *cobra.Command, args []string) error {
 	if len(args) == 0 {
 		return fmt.Errorf("args is null, resource should be specified")
 	}

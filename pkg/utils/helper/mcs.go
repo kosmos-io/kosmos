@@ -60,9 +60,8 @@ func HasAnnotation(m metav1.ObjectMeta, key string) bool {
 	}
 	if _, exists := annotations[key]; exists {
 		return true
-	} else {
-		return false
 	}
+	return false
 }
 
 // GetAnnotationValue returns the annotation key of ObjectMeta
@@ -73,7 +72,6 @@ func GetAnnotationValue(m metav1.ObjectMeta, key string) (annotationValue string
 	}
 	if value, exists := annotations[key]; exists {
 		return value, true
-	} else {
-		return "", false
 	}
+	return "", false
 }

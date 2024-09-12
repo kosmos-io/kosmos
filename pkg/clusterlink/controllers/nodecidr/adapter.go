@@ -38,6 +38,7 @@ type commonAdapter struct {
 	processor         lifted.AsyncWorker
 }
 
+// nolint:revive
 func NewCommonAdapter(config *rest.Config,
 	clusterNodeLister clusterlister.ClusterNodeLister,
 	processor lifted.AsyncWorker) *commonAdapter {
@@ -97,7 +98,7 @@ func (c *commonAdapter) OnAdd(obj interface{}) {
 }
 
 // OnUpdate handles object update event and push the object to queue.
-func (c *commonAdapter) OnUpdate(oldObj, newObj interface{}) {
+func (c *commonAdapter) OnUpdate(_, newObj interface{}) {
 	runtimeObj, ok := newObj.(*corev1.Node)
 	if !ok {
 		return
@@ -122,6 +123,7 @@ type calicoAdapter struct {
 	processor         lifted.AsyncWorker
 }
 
+// nolint:revive
 func NewCalicoAdapter(config *rest.Config,
 	clusterNodeLister clusterlister.ClusterNodeLister,
 	processor lifted.AsyncWorker) *calicoAdapter {
@@ -217,7 +219,7 @@ func (c *calicoAdapter) OnAdd(obj interface{}) {
 }
 
 // OnUpdate handles object update event and push the object to queue.
-func (c *calicoAdapter) OnUpdate(oldObj, newObj interface{}) {
+func (c *calicoAdapter) OnUpdate(_, newObj interface{}) {
 	klog.V(7).Info("update event")
 	runtimeObj, ok := newObj.(*unstructured.Unstructured)
 	if !ok {

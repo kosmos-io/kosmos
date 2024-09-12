@@ -17,20 +17,20 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/kubenest/util"
 )
 
-func EnsureApiServerExternalEndPoint(kubeClient kubernetes.Interface) error {
-	err := CreateOrUpdateApiServerExternalEndpoint(kubeClient)
+func EnsureAPIServerExternalEndPoint(kubeClient kubernetes.Interface) error {
+	err := CreateOrUpdateAPIServerExternalEndpoint(kubeClient)
 	if err != nil {
 		return err
 	}
 
-	err = CreateOrUpdateApiServerExternalService(kubeClient)
+	err = CreateOrUpdateAPIServerExternalService(kubeClient)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func CreateOrUpdateApiServerExternalEndpoint(kubeClient kubernetes.Interface) error {
+func CreateOrUpdateAPIServerExternalEndpoint(kubeClient kubernetes.Interface) error {
 	klog.V(4).Info("begin to get kubernetes endpoint")
 	kubeEndpoint, err := kubeClient.CoreV1().Endpoints(constants.DefaultNs).Get(context.TODO(), "kubernetes", metav1.GetOptions{})
 	if err != nil {
@@ -40,7 +40,7 @@ func CreateOrUpdateApiServerExternalEndpoint(kubeClient kubernetes.Interface) er
 	klog.V(4).Info("the Kubernetes endpoint is：", kubeEndpoint)
 
 	newEndpoint := kubeEndpoint.DeepCopy()
-	newEndpoint.Name = constants.ApiServerExternalService
+	newEndpoint.Name = constants.APIServerExternalService
 	newEndpoint.Namespace = constants.DefaultNs
 	newEndpoint.ResourceVersion = ""
 
@@ -63,7 +63,7 @@ func CreateOrUpdateApiServerExternalEndpoint(kubeClient kubernetes.Interface) er
 		}
 
 		// Endpoint already exists, retrieve it
-		existingEndpoint, err := kubeClient.CoreV1().Endpoints(constants.DefaultNs).Get(context.TODO(), constants.ApiServerExternalService, metav1.GetOptions{})
+		existingEndpoint, err := kubeClient.CoreV1().Endpoints(constants.DefaultNs).Get(context.TODO(), constants.APIServerExternalService, metav1.GetOptions{})
 		if err != nil {
 			klog.Error("get existing api-server-external-service endpoint failed", err)
 			return errors.Wrap(err, "failed to get existing api-server-external-service endpoint")
@@ -76,9 +76,8 @@ func CreateOrUpdateApiServerExternalEndpoint(kubeClient kubernetes.Interface) er
 		if err != nil {
 			klog.Error("update api-server-external-service endpoint failed", err)
 			return errors.Wrap(err, "failed to update api-server-external-service endpoint")
-		} else {
-			klog.V(4).Info("successfully updated api-server-external-service endpoint")
 		}
+		klog.V(4).Info("successfully updated api-server-external-service endpoint")
 	} else {
 		klog.V(4).Info("successfully created api-server-external-service endpoint")
 	}
@@ -86,12 +85,12 @@ func CreateOrUpdateApiServerExternalEndpoint(kubeClient kubernetes.Interface) er
 	return nil
 }
 
-func CreateOrUpdateApiServerExternalService(kubeClient kubernetes.Interface) error {
+func CreateOrUpdateAPIServerExternalService(kubeClient kubernetes.Interface) error {
 	port, err := getEndPointPort(kubeClient)
 	if err != nil {
 		return fmt.Errorf("error when getEndPointPort: %w", err)
 	}
-	apiServerExternalServiceBytes, err := util.ParseTemplate(virtualcluster.ApiServerExternalService, struct {
+	apiServerExternalServiceBytes, err := util.ParseTemplate(virtualcluster.APIServerExternalService, struct {
 		ServicePort int32
 	}{
 		ServicePort: port,
@@ -104,7 +103,7 @@ func CreateOrUpdateApiServerExternalService(kubeClient kubernetes.Interface) err
 	if err := yaml.Unmarshal([]byte(apiServerExternalServiceBytes), &svc); err != nil {
 		return fmt.Errorf("err when decoding api-server-external-service in virtual cluster: %w", err)
 	}
-	_, err = kubeClient.CoreV1().Services(constants.DefaultNs).Get(context.TODO(), constants.ApiServerExternalService, metav1.GetOptions{})
+	_, err = kubeClient.CoreV1().Services(constants.DefaultNs).Get(context.TODO(), constants.APIServerExternalService, metav1.GetOptions{})
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			// Try to create the service
@@ -120,7 +119,7 @@ func CreateOrUpdateApiServerExternalService(kubeClient kubernetes.Interface) err
 
 func getEndPointPort(kubeClient kubernetes.Interface) (int32, error) {
 	klog.V(4).Info("begin to get Endpoints ports...")
-	endpoints, err := kubeClient.CoreV1().Endpoints(constants.DefaultNs).Get(context.TODO(), constants.ApiServerExternalService, metav1.GetOptions{})
+	endpoints, err := kubeClient.CoreV1().Endpoints(constants.DefaultNs).Get(context.TODO(), constants.APIServerExternalService, metav1.GetOptions{})
 	if err != nil {
 		klog.Errorf("get Endpoints failed: %v", err)
 		return 0, err

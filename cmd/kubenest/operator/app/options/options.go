@@ -31,7 +31,7 @@ type KubeNestOptions struct {
 	ForceDestroy      bool
 	AnpMode           string
 	AdmissionPlugins  bool
-	ApiServerReplicas int
+	APIServerReplicas int
 	ClusterCIDR       string
 	ETCDStorageClass  string
 	ETCDUnitSize      string
@@ -65,7 +65,7 @@ func (o *Options) AddFlags(flags *pflag.FlagSet) {
 	flags.BoolVar(&o.DeprecatedOptions.KubeInKubeConfig.ForceDestroy, "kube-nest-force-destroy", false, "Force destroy the node.If it set true.If set to true, Kubernetes will not evict the existing nodes on the node when joining nodes to the tenant's control plane, but will instead force destroy.")
 	flags.StringVar(&o.DeprecatedOptions.KubeInKubeConfig.AnpMode, "kube-nest-anp-mode", "tcp", "kube-apiserver network proxy mode, must be set to tcp or uds. uds mode the replicas for apiserver should be one, and tcp for multi apiserver replicas.")
 	flags.BoolVar(&o.DeprecatedOptions.KubeInKubeConfig.AdmissionPlugins, "kube-nest-admission-plugins", false, "kube-apiserver network disable-admission-plugins, false for - --disable-admission-plugins=License, true for remove the --disable-admission-plugins=License flag .")
-	flags.IntVar(&o.DeprecatedOptions.KubeInKubeConfig.ApiServerReplicas, "kube-nest-apiserver-replicas", 1, "virtual-cluster kube-apiserver replicas. default is 2.")
+	flags.IntVar(&o.DeprecatedOptions.KubeInKubeConfig.APIServerReplicas, "kube-nest-apiserver-replicas", 1, "virtual-cluster kube-apiserver replicas. default is 2.")
 	flags.StringVar(&o.DeprecatedOptions.KubeInKubeConfig.ClusterCIDR, "cluster-cidr", "10.244.0.0/16", "Used to set the cluster-cidr of kube-controller-manager and kube-proxy (configmap)")
 	flags.StringVar(&o.DeprecatedOptions.KubeInKubeConfig.ETCDStorageClass, "etcd-storage-class", "openebs-hostpath", "Used to set the etcd storage class.")
 	flags.StringVar(&o.DeprecatedOptions.KubeInKubeConfig.ETCDUnitSize, "etcd-unit-size", "1Gi", "Used to set the etcd unit size, each node is allocated storage of etcd-unit-size.")

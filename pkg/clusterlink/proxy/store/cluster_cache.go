@@ -104,7 +104,7 @@ func (c *Cache) Stop() {
 	}
 }
 
-func (c *Cache) GetResourceFromCache(ctx context.Context, gvr schema.GroupVersionResource, namespace, name string) (runtime.Object, string, error) {
+func (c *Cache) GetResourceFromCache(_ context.Context, _ schema.GroupVersionResource, _, _ string) (runtime.Object, string, error) {
 	return nil, "", nil
 }
 

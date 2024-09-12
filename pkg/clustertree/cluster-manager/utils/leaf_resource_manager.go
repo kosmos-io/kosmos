@@ -130,9 +130,8 @@ func (l *leafResourceManager) GetLeafResource(clusterName string) (*LeafResource
 	defer l.leafResourceManagersLock.Unlock()
 	if m, ok := l.resourceMap[clusterName]; ok {
 		return m, nil
-	} else {
-		return nil, fmt.Errorf("cannot get leaf resource, clusterName: %s", clusterName)
 	}
+	return nil, fmt.Errorf("cannot get leaf resource, clusterName: %s", clusterName)
 }
 
 func (l *leafResourceManager) GetLeafResourceByNodeName(nodeName string) (*LeafResource, error) {

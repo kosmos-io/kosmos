@@ -77,10 +77,9 @@ func (c *SimpleSyncEPSController) Reconcile(ctx context.Context, request reconci
 		if apierrors.IsNotFound(err) {
 			klog.Errorf("Service %s/%s not found,ignore it, err: %v", request.Namespace, serviceName, err)
 			return controllerruntime.Result{}, nil
-		} else {
-			klog.Errorf("Get service %s/%s failed, err: %v", request.Namespace, serviceName, err)
-			return controllerruntime.Result{Requeue: true}, err
 		}
+		klog.Errorf("Get service %s/%s failed, err: %v", request.Namespace, serviceName, err)
+		return controllerruntime.Result{Requeue: true}, err
 	}
 	if !hasAutoMCSAnnotation(service) && !shouldEnqueueEps(eps, c.AutoCreateMCSPrefix, c.ReservedNamespaces) {
 		klog.V(4).Infof("Service %s/%s does not have auto mcs annotation and should not be enqueued, ignore it", request.Namespace, serviceName)
@@ -293,9 +292,8 @@ func (c *SimpleSyncEPSController) updateEndpointSlice(slice *discoveryv1.Endpoin
 		} else {
 			if apierrors.IsNotFound(getErr) {
 				return nil
-			} else {
-				klog.Errorf("Failed to get updated endpointSlice %s/%s: %v", eps.Namespace, eps.Name, getErr)
 			}
+			klog.Errorf("Failed to get updated endpointSlice %s/%s: %v", eps.Namespace, eps.Name, getErr)
 		}
 
 		return updateErr

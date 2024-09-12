@@ -54,7 +54,7 @@ func init() {
 	ServeCmd.PersistentFlags().StringVarP(&keyFile, "key", "k", "key.pem", "SSL key file")
 }
 
-func serveCmdRun(cmd *cobra.Command, args []string) error {
+func serveCmdRun(_ *cobra.Command, _ []string) error {
 	user := viper.GetString("WEB_USER")
 	password := viper.GetString("WEB_PASS")
 	if len(user) == 0 || len(password) == 0 {

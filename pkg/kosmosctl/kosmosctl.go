@@ -96,6 +96,6 @@ func NewKosmosCtlCommand() *cobra.Command {
 	return cmds
 }
 
-func runHelp(cmd *cobra.Command, args []string) error {
+func runHelp(cmd *cobra.Command, _ []string) error {
 	return cmd.Help()
 }

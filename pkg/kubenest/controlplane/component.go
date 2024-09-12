@@ -116,7 +116,7 @@ func getKubeControllerManagerManifest(name, namespace, clusterCIDR string) (*app
 
 	vclabel := util.GetVirtualControllerLabel()
 
-	IPV6FirstFlag, err := util.IPV6First(constants.ApiServerServiceSubnet)
+	IPV6FirstFlag, err := util.IPV6First(constants.APIServerServiceSubnet)
 	if err != nil {
 		return nil, err
 	}
@@ -139,7 +139,7 @@ func getKubeControllerManagerManifest(name, namespace, clusterCIDR string) (*app
 		VirtualControllerLabel:    vclabel,
 		VirtualClusterCertsSecret: util.GetCertName(name),
 		KubeconfigSecret:          util.GetAdminConfigClusterIPSecretName(name),
-		ServiceSubnet:             constants.ApiServerServiceSubnet,
+		ServiceSubnet:             constants.APIServerServiceSubnet,
 		PodSubnet:                 podSubnet,
 		Replicas:                  constants.KubeControllerReplicas,
 		IPV6First:                 IPV6FirstFlag,

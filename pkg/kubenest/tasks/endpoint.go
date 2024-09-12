@@ -60,7 +60,7 @@ func runEndPointInVirtualClusterTask(r workflow.RunData) error {
 		return err
 	}
 
-	err = controlplane.EnsureApiServerExternalEndPoint(kubeClient)
+	err = controlplane.EnsureAPIServerExternalEndPoint(kubeClient)
 	if err != nil {
 		return err
 	}

@@ -134,7 +134,7 @@ func mutateCertConfig(data InitData, cc *cert.CertConfig) error {
 			Name:             data.GetName(),
 			Namespace:        data.GetNamespace(),
 			ControlplaneAddr: data.ControlplaneAddress(),
-			ClusterIps:       data.ServiceClusterIp(),
+			ClusterIPs:       data.ServiceClusterIP(),
 			ExternalIP:       data.ExternalIP(),
 			ExternalIPs:      data.ExternalIPs(),
 			VipMap:           data.VipMap(),

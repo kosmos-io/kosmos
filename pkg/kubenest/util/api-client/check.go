@@ -31,7 +31,7 @@ func NewVirtualClusterChecker(client clientset.Interface, timeout time.Duration)
 }
 
 func (v *VirtualClusterChecker) WaitForSomePods(label, namespace string, podNum int32) error {
-	return wait.PollImmediate(constants.ApiServerCallRetryInterval, v.timeout, func() (bool, error) {
+	return wait.PollImmediate(constants.APIServerCallRetryInterval, v.timeout, func() (bool, error) {
 		listOpts := metav1.ListOptions{LabelSelector: label}
 		pods, err := v.client.CoreV1().Pods(namespace).List(context.TODO(), listOpts)
 		if err != nil {
@@ -51,10 +51,10 @@ func (v *VirtualClusterChecker) WaitForSomePods(label, namespace string, podNum 
 		return expected >= podNum, nil
 	})
 }
-func (w *VirtualClusterChecker) WaitForAPI() error {
-	return wait.PollImmediate(constants.ApiServerCallRetryInterval, w.timeout, func() (bool, error) {
+func (v *VirtualClusterChecker) WaitForAPI() error {
+	return wait.PollImmediate(constants.APIServerCallRetryInterval, v.timeout, func() (bool, error) {
 		healthStatus := 0
-		w.client.Discovery().RESTClient().Get().AbsPath("/healthz").Do(context.TODO()).StatusCode(&healthStatus)
+		v.client.Discovery().RESTClient().Get().AbsPath("/healthz").Do(context.TODO()).StatusCode(&healthStatus)
 		if healthStatus != http.StatusOK {
 			return false, nil
 		}

@@ -44,7 +44,7 @@ type NodeServer struct {
 	GlobalLeafClientManager leafUtils.LeafClientResourceManager
 }
 
-type HttpConfig struct {
+type HTTPConfig struct {
 	listenAddr string
 	handler    http.Handler
 	tlsConfig  *tls.Config
@@ -77,7 +77,7 @@ func (s *NodeServer) getClient(ctx context.Context, namespace string, podName st
 	return lcr.Clientset, lcr.RestConfig, nil
 }
 
-func (s *NodeServer) RunHTTP(ctx context.Context, httpConfig HttpConfig) (func(), error) {
+func (s *NodeServer) RunHTTP(_ context.Context, httpConfig HTTPConfig) (func(), error) {
 	if httpConfig.tlsConfig == nil {
 		klog.Warning("TLS config not provided, not starting up http service")
 		return func() {}, nil
@@ -187,7 +187,7 @@ func (s *NodeServer) Start(ctx context.Context, opts *options.Options) error {
 	handler := http.NewServeMux()
 	s.AttachRoutes(handler)
 
-	cancelHTTP, err := s.RunHTTP(ctx, HttpConfig{
+	cancelHTTP, err := s.RunHTTP(ctx, HTTPConfig{
 		listenAddr: fmt.Sprintf(":%d", opts.ListenPort),
 		tlsConfig:  tlsConfig,
 		handler:    handler,

@@ -299,9 +299,8 @@ func (c *SimpleSyncServiceController) createOrUpdateServiceInClient(service *cor
 			if err = leafClient.Client.Create(context.TODO(), service); err != nil {
 				klog.Errorf("Create serviceImport service(%s/%s) in client cluster %s failed, Error: %v", service.Namespace, service.Name, leafManger.Cluster.Name, err)
 				return err
-			} else {
-				return nil
 			}
+			return nil
 		}
 		klog.Errorf("Get service(%s/%s) from in cluster %s failed, Error: %v", service.Namespace, service.Name, leafManger.Cluster.Name, err)
 		return err

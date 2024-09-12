@@ -19,6 +19,7 @@ import (
 	kosmosutils "github.com/kosmos.io/kosmos/pkg/utils"
 )
 
+// nolint:revive
 type ProxyInstaller struct {
 }
 
@@ -130,11 +131,7 @@ func (i *ProxyInstaller) Install(opt *option.AddonOption) error {
 		return err
 	}
 
-	if err := applyService(opt); err != nil {
-		return err
-	}
-
-	return nil
+	return applyService(opt)
 }
 
 // Uninstall resources related to CR:cluster

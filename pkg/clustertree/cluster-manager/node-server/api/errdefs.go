@@ -5,6 +5,7 @@ import (
 	"fmt"
 )
 
+// nolint:revive
 const (
 	ERR_NOT_FOUND     = "ErrNotFound"
 	ERR_INVALID_INPUT = "ErrInvalidInput"

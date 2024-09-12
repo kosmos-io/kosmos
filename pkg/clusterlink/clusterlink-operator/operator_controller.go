@@ -1,3 +1,4 @@
+//nolint:revive
 package clusterlink_operator
 
 import (

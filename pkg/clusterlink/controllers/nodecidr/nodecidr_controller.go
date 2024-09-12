@@ -52,7 +52,7 @@ type Controller struct {
 	ctx context.Context
 }
 
-func NewNodeCIDRController(config *rest.Config, clusterName string, clusterLinkClient versioned.Interface, RateLimiterOptions lifted.RateLimitOptions, context context.Context) *Controller {
+func NewNodeCIDRController(context context.Context, config *rest.Config, clusterName string, clusterLinkClient versioned.Interface, RateLimiterOptions lifted.RateLimitOptions) *Controller {
 	return &Controller{
 		clusterLinkClient:  clusterLinkClient,
 		config:             config,
@@ -232,7 +232,7 @@ func (c *Controller) OnAdd(obj interface{}) {
 }
 
 // OnUpdate handles object update event and push the object to queue.
-func (c *Controller) OnUpdate(oldObj, newObj interface{}) {
+func (c *Controller) OnUpdate(_, newObj interface{}) {
 	c.OnAdd(newObj)
 }
 
@@ -241,7 +241,7 @@ func (c *Controller) OnDelete(obj interface{}) {
 	c.OnAdd(obj)
 }
 
-func (c *Controller) EventFilter(obj interface{}) bool {
+func (c *Controller) EventFilter(_ interface{}) bool {
 	//todo
 	return true
 }

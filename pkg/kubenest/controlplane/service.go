@@ -30,12 +30,12 @@ func EnsureVirtualClusterService(client clientset.Interface, name, namespace str
 
 func DeleteVirtualClusterService(client clientset.Interface, name, namespace string) error {
 	services := []string{
-		util.GetApiServerName(name),
+		util.GetAPIServerName(name),
 		util.GetEtcdServerName(name),
 		util.GetEtcdClientServerName(name),
 		"kube-dns",
 		util.GetKonnectivityServerName(name),
-		util.GetKonnectivityApiServerName(name),
+		util.GetKonnectivityAPIServerName(name),
 	}
 	for _, service := range services {
 		err := client.CoreV1().Services(namespace).Delete(context.TODO(), service, metav1.DeleteOptions{})
@@ -53,19 +53,19 @@ func DeleteVirtualClusterService(client clientset.Interface, name, namespace str
 }
 
 func createServerService(client clientset.Interface, name, namespace string, portMap map[string]int32, _ *v1alpha1.KubeNestConfiguration, vc *v1alpha1.VirtualCluster) error {
-	ipFamilies := utils.IPFamilyGenerator(constants.ApiServerServiceSubnet)
+	ipFamilies := utils.IPFamilyGenerator(constants.APIServerServiceSubnet)
 	apiserverServiceBytes, err := util.ParseTemplate(apiserver.ApiserverService, struct {
 		ServiceName, Namespace, ServiceType string
 		ServicePort                         int32
 		IPFamilies                          []corev1.IPFamily
-		UseApiServerNodePort                bool
+		UseAPIServerNodePort                bool
 	}{
-		ServiceName:          util.GetApiServerName(name),
+		ServiceName:          util.GetAPIServerName(name),
 		Namespace:            namespace,
-		ServiceType:          constants.ApiServerServiceType,
-		ServicePort:          portMap[constants.ApiServerPortKey],
+		ServiceType:          constants.APIServerServiceType,
+		ServicePort:          portMap[constants.APIServerPortKey],
 		IPFamilies:           ipFamilies,
-		UseApiServerNodePort: vc.Spec.KubeInKubeConfig != nil && vc.Spec.KubeInKubeConfig.ApiServerServiceType == v1alpha1.NodePort,
+		UseAPIServerNodePort: vc.Spec.KubeInKubeConfig != nil && vc.Spec.KubeInKubeConfig.APIServerServiceType == v1alpha1.NodePort,
 	})
 	if err != nil {
 		return fmt.Errorf("error when parsing virtualClusterApiserver serive template: %w", err)
@@ -76,7 +76,7 @@ func createServerService(client clientset.Interface, name, namespace string, por
 	}{
 		ServiceName:     util.GetKonnectivityServerName(name),
 		Namespace:       namespace,
-		ProxyServerPort: portMap[constants.ApiServerNetworkProxyServerPortKey],
+		ProxyServerPort: portMap[constants.APIServerNetworkProxyServerPortKey],
 	})
 	if err != nil {
 		return fmt.Errorf("error when parsing virtualClusterApiserver anp service template: %w", err)
@@ -143,7 +143,7 @@ func createServerService(client clientset.Interface, name, namespace string, por
 	}
 
 	//core-dns service
-	coreDnsServiceBytes, err := util.ParseTemplate(host.CoreDnsService, struct {
+	coreDNSServiceBytes, err := util.ParseTemplate(host.CoreDNSService, struct {
 		Namespace string
 	}{
 		Namespace: namespace,
@@ -152,12 +152,12 @@ func createServerService(client clientset.Interface, name, namespace string, por
 		return fmt.Errorf("error when parsing core-dns serive template: %w", err)
 	}
 
-	coreDnsService := &corev1.Service{}
-	if err := yaml.Unmarshal([]byte(coreDnsServiceBytes), coreDnsService); err != nil {
+	coreDNSService := &corev1.Service{}
+	if err := yaml.Unmarshal([]byte(coreDNSServiceBytes), coreDNSService); err != nil {
 		return fmt.Errorf("err when decoding core-dns service: %w", err)
 	}
 
-	if err := util.CreateOrUpdateService(client, coreDnsService); err != nil {
+	if err := util.CreateOrUpdateService(client, coreDNSService); err != nil {
 		return fmt.Errorf("err when creating core-dns service, err: %w", err)
 	}
 

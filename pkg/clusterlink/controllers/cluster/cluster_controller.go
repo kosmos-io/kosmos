@@ -189,7 +189,7 @@ func (c *Controller) Reconcile(key lifted.QueueKey) error {
 	var serviceCIDRS []string
 	for i := range pods {
 		pod := pods[i]
-		if isApiServer(pod) {
+		if isAPIServer(pod) {
 			serviceCIDRS, err = ResolveServiceCIDRs(pod)
 			if err != nil {
 				klog.Errorf("get %s service cidr error: %v", pod.Name, err)
@@ -511,6 +511,6 @@ func validIPPool(ippool *calicov3.IPPool) bool {
 	return !ippool.Spec.Disabled && !strings.HasPrefix(utils.ExternalIPPoolNamePrefix, ippool.Name)
 }
 
-func isApiServer(pod *corev1.Pod) bool {
+func isAPIServer(pod *corev1.Pod) bool {
 	return pod.Namespace == "kube-system" && strings.HasPrefix(pod.Name, "kube-apiserver")
 }

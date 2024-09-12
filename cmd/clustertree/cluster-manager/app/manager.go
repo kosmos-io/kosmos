@@ -45,10 +45,7 @@ func NewClusterManagerCommand(ctx context.Context) (*cobra.Command, error) {
 			if errs := opts.Validate(); len(errs) != 0 {
 				return errs.ToAggregate()
 			}
-			if err := leaderElectionRun(ctx, opts); err != nil {
-				return err
-			}
-			return nil
+			return leaderElectionRun(ctx, opts)
 		},
 	}
 

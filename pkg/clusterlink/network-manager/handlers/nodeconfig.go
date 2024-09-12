@@ -27,7 +27,7 @@ func (c *NodeConfig) ToString() string {
 	return string(b)
 }
 
-func (c *NodeConfig) ToJson() ([]byte, error) {
+func (c *NodeConfig) ToJSON() ([]byte, error) {
 	return json.Marshal(c)
 }
 

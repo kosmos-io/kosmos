@@ -135,9 +135,8 @@ func CreateOrUpdateClusterNode(client versioned.Interface, node *clusterlinkv1al
 		_, err := client.KosmosV1alpha1().ClusterNodes().Create(context.Background(), node, metav1.CreateOptions{})
 		if err != nil {
 			return err
-		} else {
-			return nil
 		}
+		return nil
 	}
 	if err := f(clusterNode); err != nil {
 		return err

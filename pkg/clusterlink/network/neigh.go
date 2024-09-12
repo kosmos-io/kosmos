@@ -12,11 +12,14 @@ import (
 type NeighType int
 
 const (
+	// nolint:revive
 	NEIGH_FDB NeighType = iota
+	// nolint:revive
 	NEIGH_ARP
 )
 
-var NEIGH_TYPE_MAP map[NeighType]string = map[NeighType]string{
+// nolint:revive
+var NEIGH_TYPE_MAP = map[NeighType]string{
 	NEIGH_ARP: "arp",
 	NEIGH_FDB: "fbd",
 }

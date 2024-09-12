@@ -109,13 +109,13 @@ func applyComponentsManifests(r workflow.RunData) error {
 		templatedMapping["KeepalivedReplicas"] = keepalivedReplicas
 	}
 
-	UseTenantDns := data.VirtualCluster().Spec.KubeInKubeConfig != nil && data.VirtualCluster().Spec.KubeInKubeConfig.UseTenantDns
+	UseTenantDNS := data.VirtualCluster().Spec.KubeInKubeConfig != nil && data.VirtualCluster().Spec.KubeInKubeConfig.UseTenantDNS
 
 	skipComponents := getSkipComponentsForVirtualCluster([]*SkipComponentCondition{
 		{
 			// skip coredns component if tenant dns is enabled
-			Condition:     !UseTenantDns,
-			ComponentName: constants.TenantCoreDnsComponentName,
+			Condition:     !UseTenantDNS,
+			ComponentName: constants.TenantCoreDNSComponentName,
 		}, {
 			// skip keepalived component if vip is not enabled
 			Condition:     !keepalivedEnable,

@@ -167,11 +167,7 @@ func (o *CommandAnalysisOptions) runCluster() error {
 
 	o.PrintResult(o.AnalysisResult)
 
-	if err = o.Floater.RemoveFloater(); err != nil {
-		return err
-	}
-
-	return nil
+	return o.Floater.RemoveFloater()
 }
 
 func (o *CommandAnalysisOptions) analysisNodeConfig(nodeName string, nc1 v1alpha1.NodeConfigSpec, nc2 v1alpha1.NodeConfigSpec) {

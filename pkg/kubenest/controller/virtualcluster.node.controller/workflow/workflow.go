@@ -13,6 +13,7 @@ const (
 	maxRetries = 5
 )
 
+// nolint:revive
 type WorkflowData struct {
 	Tasks []task.Task
 }
@@ -44,6 +45,7 @@ func RunWithRetry(ctx context.Context, task task.Task, opt task.TaskOpt, preArgs
 	return args, nil
 }
 
+// nolint:revive
 func (w WorkflowData) RunTask(ctx context.Context, opt task.TaskOpt) error {
 	var args interface{}
 	for i, t := range w.Tasks {

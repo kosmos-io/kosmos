@@ -19,10 +19,7 @@ import (
 )
 
 func EnsureVirtualClusterEtcd(client clientset.Interface, name, namespace string, kubeNestConfiguration *v1alpha1.KubeNestConfiguration, vc *v1alpha1.VirtualCluster) error {
-	if err := installEtcd(client, name, namespace, kubeNestConfiguration, vc); err != nil {
-		return err
-	}
-	return nil
+	return installEtcd(client, name, namespace, kubeNestConfiguration, vc)
 }
 
 func DeleteVirtualClusterEtcd(client clientset.Interface, name, namespace string) error {
@@ -33,6 +30,7 @@ func DeleteVirtualClusterEtcd(client clientset.Interface, name, namespace string
 	return nil
 }
 
+// nolint:revive
 func installEtcd(client clientset.Interface, name, namespace string, kubeNestConfiguration *v1alpha1.KubeNestConfiguration, vc *v1alpha1.VirtualCluster) error {
 	imageRepository, imageVersion := util.GetImageMessage()
 
@@ -57,10 +55,8 @@ func installEtcd(client clientset.Interface, name, namespace string, kubeNestCon
 
 		initialClusters[index] = fmt.Sprintf("%s=%s", memberName, memberPeerURL)
 	}
-
 	vclabel := util.GetVirtualControllerLabel()
-
-	IPV6FirstFlag, err := util.IPV6First(constants.ApiServerServiceSubnet)
+	IPV6FirstFlag, err := util.IPV6First(constants.APIServerServiceSubnet)
 	if err != nil {
 		return err
 	}

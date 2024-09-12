@@ -192,9 +192,8 @@ func (c *ServiceExportController) updateEndpointSlice(eps *discoveryv1.EndpointS
 		} else {
 			if apierrors.IsNotFound(getErr) {
 				return nil
-			} else {
-				klog.Errorf("Failed to get updated endpointSlice %s/%s: %v", eps.Namespace, eps.Name, getErr)
 			}
+			klog.Errorf("Failed to get updated endpointSlice %s/%s: %v", eps.Namespace, eps.Name, getErr)
 		}
 
 		return updateErr
@@ -221,9 +220,8 @@ func (c *ServiceExportController) updateServiceExport(export *mcsv1alpha1.Servic
 		} else {
 			if apierrors.IsNotFound(getErr) {
 				return nil
-			} else {
-				klog.Errorf("Failed to get serviceExport %s/%s: %v", export.Namespace, export.Name, getErr)
 			}
+			klog.Errorf("Failed to get serviceExport %s/%s: %v", export.Namespace, export.Name, getErr)
 		}
 
 		return updateErr

@@ -2,6 +2,7 @@ package constants
 
 type VxlanType int
 
+// nolint:revive
 const (
 	VXLAN_BRIDGE_NAME = "vx-bridge"
 	VXLAN_LOCAL_NAME  = "vx-local"

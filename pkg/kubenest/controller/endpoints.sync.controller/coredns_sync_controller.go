@@ -151,7 +151,7 @@ func (e *CoreDNSController) Reconcile(ctx context.Context, request reconcile.Req
 		return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
 	}
 
-	if targetVirtualCluster.Spec.KubeInKubeConfig != nil && targetVirtualCluster.Spec.KubeInKubeConfig.UseTenantDns {
+	if targetVirtualCluster.Spec.KubeInKubeConfig != nil && targetVirtualCluster.Spec.KubeInKubeConfig.UseTenantDNS {
 		return reconcile.Result{}, nil
 	}
 
