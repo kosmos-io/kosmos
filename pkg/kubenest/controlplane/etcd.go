@@ -36,13 +36,30 @@ func DeleteVirtualClusterEtcd(client clientset.Interface, name, namespace string
 func installEtcd(client clientset.Interface, name, namespace string, kubeNestConfiguration *v1alpha1.KubeNestConfiguration, vc *v1alpha1.VirtualCluster) error {
 	imageRepository, imageVersion := util.GetImageMessage()
 
-	nodeCount := getNodeCountFromPromotePolicy(vc)
-	resourceQuantity, err := resource.ParseQuantity(kubeNestConfiguration.KubeInKubeConfig.ETCDUnitSize)
-	if err != nil {
-		klog.Errorf("Failed to parse quantity %s: %v", kubeNestConfiguration.KubeInKubeConfig.ETCDUnitSize, err)
-		return err
+	var resourceQuantity resource.Quantity
+	var err error
+
+	if vc.Spec.KubeInKubeConfig.ETCDUnitSize != "" {
+		resourceQuantity, err = resource.ParseQuantity(vc.Spec.KubeInKubeConfig.ETCDUnitSize)
+		if err != nil {
+			klog.Errorf("Failed to parse etcdSize %s: %v", vc.Spec.KubeInKubeConfig.ETCDUnitSize, err)
+			return err
+		}
+		if resourceQuantity.Value() <= 0 {
+			klog.Errorf("Invalid vc.Spec.KubeInKubeConfig.ETCDUnitSize: must be greater than zero")
+			return err
+		}
+		resourceQuantity.Set(resourceQuantity.Value())
+	} else {
+		nodeCount := getNodeCountFromPromotePolicy(vc)
+		resourceQuantity, err = resource.ParseQuantity(kubeNestConfiguration.KubeInKubeConfig.ETCDUnitSize)
+		if err != nil {
+			klog.Errorf("Failed to parse quantity %s: %v", kubeNestConfiguration.KubeInKubeConfig.ETCDUnitSize, err)
+			return err
+		}
+		resourceQuantity.Set(resourceQuantity.Value() * int64(nodeCount))
+
 	}
-	resourceQuantity.Set(resourceQuantity.Value() * int64(nodeCount))
 
 	initialClusters := make([]string, constants.EtcdReplicas)
 	for index := range initialClusters {
