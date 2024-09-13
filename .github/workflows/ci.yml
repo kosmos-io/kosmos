@@ -9,8 +9,8 @@ concurrency:
 jobs:
   verify:
     name: verify
-    runs-on: ubuntu-22.04
-#    runs-on: [self-hosted, ecs]
+#    runs-on: ubuntu-22.04
+    runs-on: [self-hosted, ecs]
     if: ${{ always() }}
     env:
       #GOPATH: ${{ github.workspace }}

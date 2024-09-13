@@ -30,7 +30,7 @@ func DeleteVirtualClusterEtcd(client clientset.Interface, name, namespace string
 	return nil
 }
 
-// nolint:revive
+// nolint
 func installEtcd(client clientset.Interface, name, namespace string, kubeNestConfiguration *v1alpha1.KubeNestConfiguration, vc *v1alpha1.VirtualCluster) error {
 	imageRepository, imageVersion := util.GetImageMessage()
 
@@ -52,15 +52,13 @@ func installEtcd(client clientset.Interface, name, namespace string, kubeNestCon
 			namespace,
 			constants.EtcdListenPeerPort,
 		)
-
 		initialClusters[index] = fmt.Sprintf("%s=%s", memberName, memberPeerURL)
 	}
-	vclabel := util.GetVirtualControllerLabel()
-	IPV6FirstFlag, err := util.IPV6First(constants.APIServerServiceSubnet)
-	if err != nil {
+	vcLabel := util.GetVirtualControllerLabel()
+	IPV6FirstFlag, newErr := util.IPV6First(constants.APIServerServiceSubnet)
+	if newErr != nil {
 		return err
 	}
-
 	etcdStatefulSetBytes, err := util.ParseTemplate(etcd.EtcdStatefulSet, struct {
 		StatefulSetName, Namespace, ImageRepository, Image, EtcdClientService, Version, VirtualControllerLabel string
 		CertsSecretName, EtcdPeerServiceName                                                                   string
@@ -73,7 +71,7 @@ func installEtcd(client clientset.Interface, name, namespace string, kubeNestCon
 		Namespace:              namespace,
 		ImageRepository:        imageRepository,
 		Version:                imageVersion,
-		VirtualControllerLabel: vclabel,
+		VirtualControllerLabel: vcLabel,
 		EtcdClientService:      util.GetEtcdClientServerName(name),
 		CertsSecretName:        util.GetEtcdCertName(name),
 		EtcdPeerServiceName:    util.GetEtcdServerName(name),

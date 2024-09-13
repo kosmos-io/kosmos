@@ -16,6 +16,7 @@ MEMBER3_CLUSTER_NAME="cluster-member3"
 
 ROOT="$(dirname "${BASH_SOURCE[0]}")"
 REPO_ROOT="$(dirname "${BASH_SOURCE[0]}")/.."
+source "$(dirname "${BASH_SOURCE[0]}")/install_kind_kubectl.sh"
 source "${ROOT}/util.sh"
 source "${ROOT}/cluster.sh"
 mkdir -p "$ARTIFACTS_PATH"
