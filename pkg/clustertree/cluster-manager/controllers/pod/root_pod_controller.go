@@ -212,13 +212,11 @@ func (r *RootPodReconciler) Reconcile(ctx context.Context, request reconcile.Req
 			if err := r.CreatePodInLeafCluster(ctx, lr, &rootpod, r.GlobalLeafManager.GetClusterNode(rootpod.Spec.NodeName).LeafNodeSelector); err != nil {
 				klog.Errorf("create pod inleaf error, err: %s", err)
 				return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
-			} else {
-				return reconcile.Result{}, nil
 			}
-		} else {
-			klog.Errorf("get pod in leaf error[3]: %v,  %s", err, request.NamespacedName)
-			return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
+			return reconcile.Result{}, nil
 		}
+		klog.Errorf("get pod in leaf error[3]: %v,  %s", err, request.NamespacedName)
+		return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
 	}
 
 	// update pod in leaf
@@ -410,9 +408,8 @@ func (r *RootPodReconciler) createSATokenInLeafCluster(ctx context.Context, lr *
 			if err := r.createStorageInLeafCluster(ctx, lr, utils.GVR_SECRET, []string{rootSecretName}, pod, clusterNodeInfo); err == nil {
 				klog.Info("create secret rootSecretName in leaf cluster success")
 				return true, nil
-			} else {
-				return false, err
 			}
+			return false, err
 		}); err != nil {
 			ch <- fmt.Sprintf("could not create secret token %s in leaf cluster: %v", rootSecretName, err)
 		}
@@ -499,9 +496,8 @@ func (r *RootPodReconciler) createConfigMapInLeafCluster(ctx context.Context, lr
 		if err = wait.PollImmediate(500*time.Millisecond, 30*time.Second, func() (bool, error) {
 			if err = r.createStorageInLeafCluster(ctx, lr, utils.GVR_CONFIGMAP, []string{configMapName}, pod, clusterNodeInfo); err == nil {
 				return true, nil
-			} else {
-				return false, err
 			}
+			return false, err
 		}); err != nil {
 			ch <- fmt.Sprintf("could not create configmap %s in member cluster: %v", configMapName, err)
 		}
@@ -544,9 +540,8 @@ func (r *RootPodReconciler) createSecretInLeafCluster(ctx context.Context, lr *l
 		if err = wait.PollImmediate(500*time.Millisecond, 30*time.Second, func() (bool, error) {
 			if err = r.createStorageInLeafCluster(ctx, lr, utils.GVR_SECRET, []string{secretName}, pod, clusterNodeInfo); err == nil {
 				return true, nil
-			} else {
-				return false, err
 			}
+			return false, err
 		}); err != nil {
 			ch <- fmt.Sprintf("could not create secret %s in member cluster: %v", secretName, err)
 		}
@@ -965,19 +960,17 @@ func (r *RootPodReconciler) CreatePodInLeafCluster(ctx context.Context, lr *leaf
 			if !errors.IsAlreadyExists(createErr) {
 				klog.V(4).Infof("Namespace %s create failed error: %v", basicPod.Namespace, createErr)
 				return err
-			} else {
-				// namespace already existed, skip create
-				klog.V(4).Info("Namespace %s already existed: %v", basicPod.Namespace, createErr)
 			}
+			// namespace already existed, skip create
+			klog.V(4).Info("Namespace %s already existed: %v", basicPod.Namespace, createErr)
 		}
 	}
 
 	if err := r.createVolumes(ctx, lr, basicPod, clusterNodeInfo); err != nil {
 		klog.Errorf("Creating Volumes error %+v", basicPod)
 		return err
-	} else {
-		klog.V(4).Infof("Creating Volumes successed %+v", basicPod)
 	}
+	klog.V(4).Infof("Creating Volumes successed %+v", basicPod)
 
 	r.projectedHandler(ctx, lr, basicPod)
 

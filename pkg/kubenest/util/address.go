@@ -37,25 +37,25 @@ func GetAPIServiceIP(clientset clientset.Interface) (string, error) {
 	return nodes.Items[0].Status.Addresses[0].Address, nil
 }
 
-func GetAPIServiceClusterIp(namespace string, client clientset.Interface) (error, string) {
+func GetAPIServiceClusterIP(namespace string, client clientset.Interface) (string, error) {
 	serviceLists, err := client.CoreV1().Services(namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
-		return err, ""
+		return "", err
 	}
 	if serviceLists != nil {
 		for _, service := range serviceLists.Items {
 			if service.Spec.Type == constants.ServiceType {
-				return nil, service.Spec.ClusterIP
+				return service.Spec.ClusterIP, nil
 			}
 		}
 	}
-	return nil, ""
+	return "", nil
 }
 
-func GetServiceClusterIp(namespace string, client clientset.Interface) (error, []string) {
+func GetServiceClusterIP(namespace string, client clientset.Interface) ([]string, error) {
 	serviceLists, err := client.CoreV1().Services(namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
-		return err, nil
+		return nil, err
 	}
 	var clusterIps []string
 	if serviceLists != nil {
@@ -65,10 +65,10 @@ func GetServiceClusterIp(namespace string, client clientset.Interface) (error, [
 			}
 		}
 	}
-	return nil, clusterIps
+	return clusterIps, nil
 }
 
-func GetEtcdServiceClusterIp(namespace string, serviceName string, client clientset.Interface) (string, error) {
+func GetEtcdServiceClusterIP(namespace string, serviceName string, client clientset.Interface) (string, error) {
 	service, err := client.CoreV1().Services(namespace).Get(context.TODO(), serviceName, metav1.GetOptions{})
 	if err != nil {
 		return "", err

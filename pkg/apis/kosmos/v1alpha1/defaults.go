@@ -5,6 +5,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
+// nolint:revive
+// SetDefaults_ShadowDaemonSet sets the default values for the ShadowDaemonSet.
 func SetDefaults_ShadowDaemonSet(obj *ShadowDaemonSet) {
 	updateStrategy := &obj.DaemonSetSpec.UpdateStrategy
 	if updateStrategy.Type == "" {

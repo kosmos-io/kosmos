@@ -59,7 +59,7 @@ type CommandJoinOptions struct {
 	CNI            string
 	DefaultNICName string
 	NetworkType    string
-	IpFamily       string
+	IPFamily       string
 	UseProxy       string
 
 	EnableTree bool
@@ -105,7 +105,7 @@ func NewCmdJoin(f ctlutil.Factory) *cobra.Command {
 	flags.StringVar(&o.CNI, "cni", "", "The cluster is configured using cni and currently supports calico and flannel.")
 	flags.StringVar(&o.DefaultNICName, "default-nic", "", "Set default network interface card.")
 	flags.StringVar(&o.NetworkType, "network-type", "", "Set the cluster network connection mode, which supports gateway and p2p modes, gateway is used by default.")
-	flags.StringVar(&o.IpFamily, "ip-family", "", "Specify the IP protocol version used by network devices, common IP families include IPv4 and IPv6.")
+	flags.StringVar(&o.IPFamily, "ip-family", "", "Specify the IP protocol version used by network devices, common IP families include IPv4 and IPv6.")
 	flags.StringVar(&o.UseProxy, "use-proxy", "false", "Set whether to enable proxy.")
 	flags.BoolVar(&o.EnableTree, "enable-tree", false, "Turn on clustertree.")
 	flags.StringVar(&o.LeafModel, "leaf-model", "", "Set leaf cluster model, which supports one-to-one model.")
@@ -114,7 +114,7 @@ func NewCmdJoin(f ctlutil.Factory) *cobra.Command {
 	return cmd
 }
 
-func (o *CommandJoinOptions) Complete(f ctlutil.Factory) error {
+func (o *CommandJoinOptions) Complete(_ ctlutil.Factory) error {
 	hostConfig, err := utils.RestConfig(o.HostKubeConfig, o.HostContext)
 	if err != nil {
 		return fmt.Errorf("kosmosctl join complete error, generate host rest config failed: %s", err)
@@ -172,9 +172,9 @@ func (o *CommandJoinOptions) Complete(f ctlutil.Factory) error {
 
 	// no enable-all,enable-tree,enable-link found, make 'EnableAll' with other config
 	if !o.EnableAll && !o.EnableTree && !o.EnableLink {
-		// due to NetworkType or IpFamily is not empty, make EnableLink true
-		if o.NetworkType != "" || o.IpFamily != "" {
-			klog.Warning("due to NetworkType or IpFamily is not empty, make EnableLink ture.")
+		// due to NetworkType or IPFamily is not empty, make EnableLink true
+		if o.NetworkType != "" || o.IPFamily != "" {
+			klog.Warning("due to NetworkType or IPFamily is not empty, make EnableLink ture.")
 			o.EnableLink = true
 		}
 
@@ -196,8 +196,8 @@ func (o *CommandJoinOptions) Complete(f ctlutil.Factory) error {
 		o.EnableTree = true
 	}
 
-	if o.IpFamily == "" {
-		o.IpFamily = utils.DefaultIPv4
+	if o.IPFamily == "" {
+		o.IPFamily = utils.DefaultIPv4
 	}
 
 	if o.NetworkType == "" {
@@ -343,7 +343,7 @@ func (o *CommandJoinOptions) runCluster() error {
 			cluster.Spec.ClusterLinkOptions.NetworkType = v1alpha1.NetWorkTypeGateWay
 		}
 
-		switch o.IpFamily {
+		switch o.IPFamily {
 		case utils.DefaultIPv4:
 			cluster.Spec.ClusterLinkOptions.IPFamily = v1alpha1.IPFamilyTypeIPV4
 		case utils.DefaultIPv6:

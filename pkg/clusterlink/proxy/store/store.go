@@ -122,7 +122,7 @@ func (s *store) Delete(context.Context, string, runtime.Object, *storage.Precond
 }
 
 // GuaranteedUpdate implements storage.Interface.
-func (s *store) GuaranteedUpdate(ctx context.Context, key string, destination runtime.Object, ignoreNotFound bool, preconditions *storage.Preconditions, tryUpdate storage.UpdateFunc, cachedExistingObject runtime.Object) error {
+func (s *store) GuaranteedUpdate(_ context.Context, _ string, _ runtime.Object, _ bool, _ *storage.Preconditions, _ storage.UpdateFunc, _ runtime.Object) error {
 	return fmt.Errorf("update is not suppported in proxy store")
 }
 

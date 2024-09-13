@@ -58,7 +58,7 @@ type containerExecutor struct {
 	getClient                 getClientFunc
 }
 
-func (c *containerExecutor) ExecInContainer(name string, uid types.UID, container string, cmd []string, in io.Reader, out, err io.WriteCloser, tty bool, resize <-chan remoteutils.TerminalSize, timeout time.Duration) error {
+func (c *containerExecutor) ExecInContainer(_ string, _ types.UID, _ string, cmd []string, in io.Reader, out, err io.WriteCloser, tty bool, resize <-chan remoteutils.TerminalSize, _ time.Duration) error {
 	eio := &execIO{
 		tty:    tty,
 		stdin:  in,

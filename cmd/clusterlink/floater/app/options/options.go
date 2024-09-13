@@ -19,5 +19,5 @@ func NewOptions() *Options {
 }
 
 // AddFlags adds flags of agent to the specified FlagSet
-func (o *Options) AddFlags(fs *pflag.FlagSet) {
+func (o *Options) AddFlags(_ *pflag.FlagSet) {
 }

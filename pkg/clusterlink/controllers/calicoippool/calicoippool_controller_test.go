@@ -42,7 +42,7 @@ func (f *fakeIPPoolClient) DeleteIPPool(ipPools []*ExternalClusterIPPool) error 
 	return nil
 }
 func (f *fakeIPPoolClient) ListIPPools() ([]*ExternalClusterIPPool, []IPPool, error) {
-	extClusterIpPools := make([]*ExternalClusterIPPool, 0, 5)
+	extClusterIPPools := make([]*ExternalClusterIPPool, 0, 5)
 	var ippools []IPPool
 	for _, pool := range f.ippools {
 		if strings.HasPrefix(pool.Name, utils.ExternalIPPoolNamePrefix) {
@@ -52,12 +52,12 @@ func (f *fakeIPPoolClient) ListIPPools() ([]*ExternalClusterIPPool, []IPPool, er
 				ipPool:  ipType,
 				ipType:  pool.Spec.CIDR,
 			}
-			extClusterIpPools = append(extClusterIpPools, extPool)
+			extClusterIPPools = append(extClusterIPPools, extPool)
 		} else {
 			ippools = append(ippools, IPPool(pool.Spec.CIDR))
 		}
 	}
-	return extClusterIpPools, ippools, nil
+	return extClusterIPPools, ippools, nil
 }
 
 func TestSyncIPPool(t *testing.T) {

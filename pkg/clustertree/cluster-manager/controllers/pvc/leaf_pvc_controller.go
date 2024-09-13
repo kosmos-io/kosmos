@@ -146,7 +146,7 @@ func (l *LeafPVCController) SetupWithManager(mgr manager.Manager) error {
 		Complete(l)
 }
 
-func filterPVC(leafPVC *v1.PersistentVolumeClaim, nodeName string) error {
+func filterPVC(leafPVC *v1.PersistentVolumeClaim, _ string) error {
 	labelSelector := leafPVC.Spec.Selector.DeepCopy()
 	leafPVC.Spec.Selector = nil
 	leafPVC.ObjectMeta.UID = ""

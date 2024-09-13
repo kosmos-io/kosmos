@@ -147,7 +147,7 @@ func (dsc *DaemonSetsController) addDaemonSet(obj interface{}) {
 	dsc.processor.Enqueue(ds)
 }
 
-func (dsc *DaemonSetsController) updateDaemonSet(oldObj, newObj interface{}) {
+func (dsc *DaemonSetsController) updateDaemonSet(_, newObj interface{}) {
 	newDS := newObj.(*kosmosv1alpha1.DaemonSet)
 	klog.V(4).Infof("Updating daemon set %s", newDS.Name)
 	dsc.processor.Enqueue(newDS)
@@ -177,7 +177,7 @@ func (dsc *DaemonSetsController) addShadowDaemonSet(obj interface{}) {
 	dsc.processShadowDaemonSet(sds)
 }
 
-func (dsc *DaemonSetsController) updateShadowDaemonSet(oldObj, newObj interface{}) {
+func (dsc *DaemonSetsController) updateShadowDaemonSet(_, newObj interface{}) {
 	newSDS := newObj.(*kosmosv1alpha1.ShadowDaemonSet)
 	klog.V(4).Infof("updating shadow daemon set %s", newSDS.Name)
 	dsc.processShadowDaemonSet(newSDS)
@@ -189,7 +189,7 @@ func (dsc *DaemonSetsController) deleteShadowDaemonSet(obj interface{}) {
 	dsc.processShadowDaemonSet(sds)
 }
 
-func (dsc *DaemonSetsController) processCluster(cluster *kosmosv1alpha1.Cluster) {
+func (dsc *DaemonSetsController) processCluster() {
 	//TODO add should run on node logic
 	list, err := dsc.dsLister.List(labels.Everything())
 	if err != nil {
@@ -201,19 +201,16 @@ func (dsc *DaemonSetsController) processCluster(cluster *kosmosv1alpha1.Cluster)
 	}
 }
 
-func (dsc *DaemonSetsController) addCluster(obj interface{}) {
-	cluster := obj.(*kosmosv1alpha1.Cluster)
-	dsc.processCluster(cluster)
+func (dsc *DaemonSetsController) addCluster(_ interface{}) {
+	dsc.processCluster()
 }
 
-func (dsc *DaemonSetsController) updateCluster(old interface{}, new interface{}) {
-	cluster := new.(*kosmosv1alpha1.Cluster)
-	dsc.processCluster(cluster)
+func (dsc *DaemonSetsController) updateCluster(_ interface{}, _ interface{}) {
+	dsc.processCluster()
 }
 
-func (dsc *DaemonSetsController) deleteKNode(obj interface{}) {
-	cluster := obj.(*kosmosv1alpha1.Cluster)
-	dsc.processCluster(cluster)
+func (dsc *DaemonSetsController) deleteKNode(_ interface{}) {
+	dsc.processCluster()
 }
 
 func (dsc *DaemonSetsController) syncDaemonSet(key lifted.QueueKey) error {

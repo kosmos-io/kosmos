@@ -170,9 +170,9 @@ func newRunData(opt *InitOptions) (*initData, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get a valid node IP for APIServer, err: %w", err)
 	}
-	var clusterIps []string
-	err, clusterIp := util.GetAPIServiceClusterIp(opt.Namespace, remoteClient)
-	clusterIps = append(clusterIps, clusterIp)
+	var clusterIPs []string
+	clusterIP, err := util.GetAPIServiceClusterIP(opt.Namespace, remoteClient)
+	clusterIPs = append(clusterIPs, clusterIP)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get APIServer Service-ClusterIp, err: %w", err)
 	}
@@ -181,7 +181,7 @@ func newRunData(opt *InitOptions) (*initData, error) {
 		namespace:             opt.Namespace,
 		virtualClusterVersion: version,
 		controlplaneAddr:      address,
-		clusterIps:            clusterIps,
+		clusterIps:            clusterIPs,
 		remoteClient:          remoteClient,
 		dynamicClient:         dynamicClient,
 		kosmosClient:          kosmosClient,
@@ -228,8 +228,8 @@ func (i initData) ControlplaneAddress() string {
 	return i.controlplaneAddr
 }
 
-func (i initData) ServiceClusterIp() []string {
-	err, clusterIps := util.GetServiceClusterIp(i.namespace, i.remoteClient)
+func (i initData) ServiceClusterIP() []string {
+	clusterIps, err := util.GetServiceClusterIP(i.namespace, i.remoteClient)
 	if err != nil {
 		return nil
 	}

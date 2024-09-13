@@ -45,7 +45,7 @@ func init() {
 	time.Sleep(10 * time.Second)
 }
 
-func TestCmd(t *testing.T) {
+func TestCmd(_ *testing.T) {
 	fmt.Println("Command test")
 	command := url.QueryEscape("ls -l")
 	ws, resp, err := dialer.Dial("wss://"+testAddr+"/cmd/?command="+command, headers)
@@ -59,7 +59,7 @@ func TestCmd(t *testing.T) {
 	handleMessages(ws)
 }
 
-func TestUpload(t *testing.T) {
+func TestUpload(_ *testing.T) {
 	fmt.Println("Upload file test")
 	fileName := url.QueryEscape("app.go")
 	filePath := url.QueryEscape("/tmp/websocket")
@@ -76,7 +76,7 @@ func TestUpload(t *testing.T) {
 	handleMessages(ws)
 }
 
-func TestShellScript(t *testing.T) {
+func TestShellScript(_ *testing.T) {
 	fmt.Println("Shell script test")
 
 	ws, resp, err := dialer.Dial("wss://"+testAddr+"/sh/?args=10&&args=10", headers)
@@ -91,7 +91,7 @@ func TestShellScript(t *testing.T) {
 	handleMessages(ws)
 }
 
-func TestPyScript(t *testing.T) {
+func TestPyScript(_ *testing.T) {
 	fmt.Println("Python script test")
 	ws, resp, err := dialer.Dial("wss://"+testAddr+"/py/?args=10&&args=10", headers)
 	if err != nil {

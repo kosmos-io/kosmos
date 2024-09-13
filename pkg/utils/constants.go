@@ -49,7 +49,7 @@ const (
 	DefaultClusterName         = "kosmos-control-cluster"
 	DefaultImageRepository     = "ghcr.io/kosmos-io"
 	DefaultImageVersion        = "v1.21.5-eki.0"
-	DefaultCoreDnsImageTag     = "v1.9.3"
+	DefaultCoreDNSImageTag     = "v1.9.3"
 	DefaultWaitTime            = 120
 	RootClusterAnnotationKey   = "kosmos.io/cluster-role"
 	RootClusterAnnotationValue = "root"
@@ -168,24 +168,28 @@ const (
 	MCSFinalizer                    = "kosmos.io/multi-cluster-service-finalizer"
 )
 
+// nolint:revive
 var GVR_CONFIGMAP = schema.GroupVersionResource{
 	Group:    "",
 	Version:  "v1",
 	Resource: "configmaps",
 }
 
+// nolint:revive
 var GVR_PVC = schema.GroupVersionResource{
 	Group:    "",
 	Version:  "v1",
 	Resource: "persistentvolumeclaims",
 }
 
+// nolint:revive
 var GVR_SECRET = schema.GroupVersionResource{
 	Group:    "",
 	Version:  "v1",
 	Resource: "secrets",
 }
 
+// nolint:revive
 var GVR_SERVICE = schema.GroupVersionResource{
 	Group:    "",
 	Version:  "v1",

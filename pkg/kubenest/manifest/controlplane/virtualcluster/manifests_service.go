@@ -1,7 +1,7 @@
 package virtualcluster
 
 const (
-	ApiServerExternalService = `
+	APIServerExternalService = `
 apiVersion: v1
 kind: Service
 metadata:

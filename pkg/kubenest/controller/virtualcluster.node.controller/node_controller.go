@@ -293,10 +293,7 @@ func (r *NodeController) DoNodeClean(ctx context.Context, virtualCluster v1alpha
 		cleanNodeInfos = append(cleanNodeInfos, *globalNode)
 	}
 
-	if err := r.cleanGlobalNode(ctx, cleanNodeInfos, virtualCluster, nil); err != nil {
-		return err
-	}
-	return nil
+	return r.cleanGlobalNode(ctx, cleanNodeInfos, virtualCluster, nil)
 }
 
 func (r *NodeController) cleanGlobalNode(ctx context.Context, nodeInfos []v1alpha1.GlobalNode, virtualCluster v1alpha1.VirtualCluster, _ kubernetes.Interface) error {
@@ -320,9 +317,8 @@ func (r *NodeController) joinNode(ctx context.Context, nodeInfos []v1alpha1.Glob
 	dnssvc, err := k8sClient.CoreV1().Services(constants.SystemNs).Get(ctx, constants.KubeDNSSVCName, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("get kube-dns service failed: %s", err)
-	} else {
-		clusterDNS = dnssvc.Spec.ClusterIP
 	}
+	clusterDNS = dnssvc.Spec.ClusterIP
 
 	return r.BatchProcessNodes(nodeInfos, func(nodeInfo v1alpha1.GlobalNode) error {
 		return workflow.NewJoinWorkFlow().RunTask(ctx, task.TaskOpt{

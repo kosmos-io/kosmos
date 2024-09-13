@@ -18,6 +18,7 @@ import (
 	kosmosutils "github.com/kosmos.io/kosmos/pkg/utils"
 )
 
+// nolint:revive
 type ManagerInstaller struct {
 }
 
@@ -157,10 +158,7 @@ func (i *ManagerInstaller) Install(opt *option.AddonOption) error {
 		return err
 	}
 
-	if err := applyClusterRoleBinding(opt); err != nil {
-		return err
-	}
-	return nil
+	return applyClusterRoleBinding(opt)
 }
 
 // Uninstall resources related to CR:cluster

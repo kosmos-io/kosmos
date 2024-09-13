@@ -134,7 +134,7 @@ func (c *OnewayPVCController) Reconcile(ctx context.Context, request reconcile.R
 	return c.ensureLeafPVC(ctx, leaf, lcr, rootPVC)
 }
 
-func (c *OnewayPVCController) clearLeafPVC(ctx context.Context, leaf *leafUtils.LeafResource, leafClient *leafUtils.LeafClientResource, pvc *corev1.PersistentVolumeClaim) (reconcile.Result, error) {
+func (c *OnewayPVCController) clearLeafPVC(_ context.Context, _ *leafUtils.LeafResource, _ *leafUtils.LeafClientResource, _ *corev1.PersistentVolumeClaim) (reconcile.Result, error) {
 	return reconcile.Result{}, nil
 }
 

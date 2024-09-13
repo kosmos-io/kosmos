@@ -278,9 +278,8 @@ func CreateObject(dynamicClient dynamic.Interface, namespace string, name string
 		if apierrors.IsAlreadyExists(err) {
 			klog.Warningf("%s %s already exists", gvr.String(), name)
 			return nil
-		} else {
-			return err
 		}
+		return err
 	}
 	return nil
 }
@@ -334,9 +333,8 @@ func DeleteObject(dynamicClient dynamic.Interface, namespace string, name string
 		if apierrors.IsNotFound(err) {
 			klog.Warningf("%s %s already deleted", gvr.String(), name)
 			return nil
-		} else {
-			return err
 		}
+		return err
 	}
 	return nil
 }

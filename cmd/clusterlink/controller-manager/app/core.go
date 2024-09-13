@@ -81,7 +81,7 @@ func startCalicoPoolController(ctx ctrlcontext.Context) (bool, ctrlcontext.Clean
 func startNodeCIDRController(ctx ctrlcontext.Context) (bool, ctrlcontext.CleanFunc, error) {
 	mgr := ctx.Mgr
 
-	nodeCIDRCtl := nodecidr.NewNodeCIDRController(mgr.GetConfig(), ctx.Opts.ClusterName, ctx.ClusterLinkClient, ctx.Opts.RateLimiterOpts, ctx.Ctx)
+	nodeCIDRCtl := nodecidr.NewNodeCIDRController(ctx.Ctx, mgr.GetConfig(), ctx.Opts.ClusterName, ctx.ClusterLinkClient, ctx.Opts.RateLimiterOpts)
 	if err := mgr.Add(nodeCIDRCtl); err != nil {
 		klog.Fatalf("Failed to setup node CIDR Controller: %v", err)
 		return true, nil, nil

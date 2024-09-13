@@ -26,6 +26,7 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/kubenest/util"
 )
 
+// nolint:revive
 type CertConfig struct {
 	Name                string
 	CAName              string
@@ -41,7 +42,7 @@ type AltNamesMutatorConfig struct {
 	Name             string
 	Namespace        string
 	ControlplaneAddr string
-	ClusterIps       []string
+	ClusterIPs       []string
 	ExternalIP       string
 	ExternalIPs      []string
 	VipMap           map[string]string
@@ -151,9 +152,9 @@ func etcdServerAltNamesMutator(cfg *AltNamesMutatorConfig) (*certutil.AltNames, 
 		IPs:      []net.IP{net.ParseIP("::1"), net.IPv4(127, 0, 0, 1)},
 	}
 
-	if len(cfg.ClusterIps) > 0 {
-		for _, clusterIp := range cfg.ClusterIps {
-			appendSANsToAltNames(altNames, []string{clusterIp})
+	if len(cfg.ClusterIPs) > 0 {
+		for _, clusterIP := range cfg.ClusterIPs {
+			appendSANsToAltNames(altNames, []string{clusterIP})
 		}
 	}
 	return altNames, nil
@@ -206,7 +207,7 @@ func makeAltNamesMutator(f func(cfg *AltNamesMutatorConfig) (*certutil.AltNames,
 }
 
 func proxyServerAltNamesMutator(cfg *AltNamesMutatorConfig) (*certutil.AltNames, error) {
-	firstIPs, err := util.GetFirstIP(constants.ApiServerServiceSubnet)
+	firstIPs, err := util.GetFirstIP(constants.APIServerServiceSubnet)
 	if err != nil {
 		return nil, err
 	}
@@ -236,21 +237,21 @@ func proxyServerAltNamesMutator(cfg *AltNamesMutatorConfig) (*certutil.AltNames,
 	}
 
 	if len(cfg.ExternalIPs) > 0 {
-		for _, externalIp := range cfg.ExternalIPs {
-			appendSANsToAltNames(altNames, []string{externalIp})
+		for _, externalIP := range cfg.ExternalIPs {
+			appendSANsToAltNames(altNames, []string{externalIP})
 		}
 	}
 
-	if len(cfg.ClusterIps) > 0 {
-		for _, clusterIp := range cfg.ClusterIps {
-			appendSANsToAltNames(altNames, []string{clusterIp})
+	if len(cfg.ClusterIPs) > 0 {
+		for _, clusterIP := range cfg.ClusterIPs {
+			appendSANsToAltNames(altNames, []string{clusterIP})
 		}
 	}
 	return altNames, nil
 }
 
 func apiServerAltNamesMutator(cfg *AltNamesMutatorConfig) (*certutil.AltNames, error) {
-	firstIPs, err := util.GetFirstIP(constants.ApiServerServiceSubnet)
+	firstIPs, err := util.GetFirstIP(constants.APIServerServiceSubnet)
 	if err != nil {
 		return nil, err
 	}
@@ -284,8 +285,8 @@ func apiServerAltNamesMutator(cfg *AltNamesMutatorConfig) (*certutil.AltNames, e
 	}
 
 	if len(cfg.ExternalIPs) > 0 {
-		for _, externalIp := range cfg.ExternalIPs {
-			appendSANsToAltNames(altNames, []string{externalIp})
+		for _, externalIP := range cfg.ExternalIPs {
+			appendSANsToAltNames(altNames, []string{externalIP})
 		}
 	}
 
@@ -294,9 +295,9 @@ func apiServerAltNamesMutator(cfg *AltNamesMutatorConfig) (*certutil.AltNames, e
 			appendSANsToAltNames(altNames, []string{vip})
 		}
 	}
-	if len(cfg.ClusterIps) > 0 {
-		for _, clusterIp := range cfg.ClusterIps {
-			appendSANsToAltNames(altNames, []string{clusterIp})
+	if len(cfg.ClusterIPs) > 0 {
+		for _, clusterIP := range cfg.ClusterIPs {
+			appendSANsToAltNames(altNames, []string{clusterIP})
 		}
 	}
 	return altNames, nil

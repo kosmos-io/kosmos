@@ -6,7 +6,7 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
 )
 
-func GetApiServerName(name string) string {
+func GetAPIServerName(name string) string {
 	return fmt.Sprintf("%s-%s", name, "apiserver")
 }
 
@@ -18,7 +18,7 @@ func GetKonnectivityServerName(name string) string {
 	return fmt.Sprintf("%s-%s", name, "konnectivity-server")
 }
 
-func GetKonnectivityApiServerName(name string) string {
+func GetKonnectivityAPIServerName(name string) string {
 	return fmt.Sprintf("%s-%s-konnectivity", name, "apiserver")
 }
 

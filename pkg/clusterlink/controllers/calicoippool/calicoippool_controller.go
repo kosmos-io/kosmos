@@ -280,7 +280,7 @@ func (c *Controller) OnAdd(obj interface{}) {
 }
 
 // OnUpdate handles object update event and push the object to queue.
-func (c *Controller) OnUpdate(oldObj, newObj interface{}) {
+func (c *Controller) OnUpdate(_, newObj interface{}) {
 	c.OnAdd(newObj)
 }
 
@@ -351,9 +351,8 @@ func (c *Controller) Reconcile(key lifted.QueueKey) error {
 	getCIDR := func(cidr string, cidrMap map[string]string) string {
 		if c, exist := cidrMap[cidr]; exist {
 			return c
-		} else {
-			return cidr
 		}
+		return cidr
 	}
 	cidrMap := cluster.Spec.ClusterLinkOptions.GlobalCIDRsMap
 	podCIDRS := cluster.Status.ClusterLinkStatus.PodCIDRs

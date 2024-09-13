@@ -294,9 +294,8 @@ func (c *ServiceImportController) updateEndpointSlice(eps *discoveryv1.EndpointS
 		} else {
 			if apierrors.IsNotFound(getErr) {
 				return nil
-			} else {
-				klog.Errorf("Failed to get updated endpointSlice %s/%s: %v", eps.Namespace, eps.Name, getErr)
 			}
+			klog.Errorf("Failed to get updated endpointSlice %s/%s: %v", eps.Namespace, eps.Name, getErr)
 		}
 
 		return updateErr
@@ -360,9 +359,8 @@ func (c *ServiceImportController) createOrUpdateServiceInClient(service *corev1.
 			if err = c.LeafClient.Create(context.TODO(), service); err != nil {
 				klog.Errorf("Create serviceImport service(%s/%s) in client cluster %s failed, Error: %v", service.Namespace, service.Name, c.LeafNodeName, err)
 				return err
-			} else {
-				return nil
 			}
+			return nil
 		}
 		klog.Errorf("Get service(%s/%s) from in cluster %s failed, Error: %v", service.Namespace, service.Name, c.LeafNodeName, err)
 		return err
@@ -387,7 +385,7 @@ func (c *ServiceImportController) OnAdd(obj interface{}) {
 	c.processor.Enqueue(runtimeObj)
 }
 
-func (c *ServiceImportController) OnUpdate(old interface{}, new interface{}) {
+func (c *ServiceImportController) OnUpdate(_ interface{}, new interface{}) {
 	runtimeObj, ok := new.(runtime.Object)
 	if !ok {
 		return
@@ -561,9 +559,8 @@ func (c *ServiceImportController) updateServiceImport(serviceImport *mcsv1alpha1
 		} else {
 			if apierrors.IsNotFound(getErr) {
 				return nil
-			} else {
-				klog.Errorf("Failed to get updated serviceImport %s/%s in cluster %s: %v", serviceImport.Namespace, serviceImport.Name, c.LeafNodeName, getErr)
 			}
+			klog.Errorf("Failed to get updated serviceImport %s/%s in cluster %s: %v", serviceImport.Namespace, serviceImport.Name, c.LeafNodeName, getErr)
 		}
 
 		return updateErr

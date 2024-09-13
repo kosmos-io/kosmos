@@ -26,10 +26,7 @@ func NewClusterLinkProxyCommand(ctx context.Context) *cobra.Command {
 					return errs.ToAggregate()
 				}
 			*/
-			if err := run(ctx, opts); err != nil {
-				return err
-			}
-			return nil
+			return run(ctx, opts)
 		},
 		Args: func(cmd *cobra.Command, args []string) error {
 			for _, arg := range args {

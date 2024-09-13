@@ -89,6 +89,7 @@ func UpdateSecret(old, new *corev1.Secret) {
 	}
 }
 
+// nolint:revive
 func UpdateUnstructured[T *corev1.ConfigMap | *corev1.Secret](old, new *unstructured.Unstructured, oldObj T, newObj T, update func(old, new T)) (*unstructured.Unstructured, error) {
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(old.UnstructuredContent(), &oldObj); err != nil {
 		return nil, err

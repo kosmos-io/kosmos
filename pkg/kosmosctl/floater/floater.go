@@ -139,11 +139,7 @@ func (f *Floater) CreateFloater() error {
 	}
 
 	klog.Infof("create Clusterlink floater, version: %s", f.Version)
-	if err = f.applyDaemonSet(); err != nil {
-		return err
-	}
-
-	return nil
+	return f.applyDaemonSet()
 }
 
 func (f *Floater) applyServiceAccount() error {

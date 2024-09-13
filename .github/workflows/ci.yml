@@ -9,7 +9,8 @@ concurrency:
 jobs:
   verify:
     name: verify
-    runs-on: [self-hosted, ecs]
+    runs-on: ubuntu-22.04
+#    runs-on: [self-hosted, ecs]
     if: ${{ always() }}
     env:
       #GOPATH: ${{ github.workspace }}
@@ -27,6 +28,8 @@ jobs:
         uses: actions/setup-go@v4
         with:
           go-version: '1.20'
+      - name: Set up GOPROXY for Go
+        run: go env -w GOPROXY=https://goproxy.cn,direct
       - name: lint
         run: hack/verify-staticcheck.sh
       - name: vendor

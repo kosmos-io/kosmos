@@ -23,7 +23,7 @@ const (
 	DataStoreType = "datastoreType"
 	EtcdV3        = "etcdv3"
 
-	ServiceClusterIpRange = "--service-cluster-ip-range"
+	ServiceClusterIPRange = "--service-cluster-ip-range"
 )
 
 type CalicoConfig struct {
@@ -67,12 +67,12 @@ func GetCalicoClient(cluster *clusterlinkv1alpha1.Cluster) (clientv3.Interface, 
 
 	calicoAPIConfig := apiconfig.NewCalicoAPIConfig()
 	calicoData := clusterConfigMap.Data
-	calicoJsonStr, err := json.Marshal(calicoData)
+	calicoJSONStr, err := json.Marshal(calicoData)
 	if err != nil {
 		klog.Errorf("failed to marshal cluster configmap %s to json string.", cluster.Name)
 		return nil, err
 	}
-	err = json.Unmarshal(calicoJsonStr, &calicoConfig)
+	err = json.Unmarshal(calicoJSONStr, &calicoConfig)
 	if err != nil {
 		klog.Errorf("failed to unmarshal json string to calico config, cluster configmap is %s.", cluster.Name)
 		return nil, err
@@ -121,10 +121,10 @@ func ResolveServiceCIDRs(pod *corev1.Pod) ([]string, error) {
 		command := container.Command
 		for j := range command {
 			line := command[j]
-			if strings.HasPrefix(line, ServiceClusterIpRange) {
+			if strings.HasPrefix(line, ServiceClusterIPRange) {
 				idx := strings.Index(line, "=")
-				serviceIpRange := line[idx+1:]
-				serviceCIDRS = strings.Split(serviceIpRange, ",")
+				serviceIPRange := line[idx+1:]
+				serviceCIDRS = strings.Split(serviceIPRange, ",")
 			}
 		}
 	}

@@ -38,10 +38,7 @@ func NewVirtualClusterOperatorCommand(ctx context.Context) *cobra.Command {
 		Use:  "virtual-cluster-operator",
 		Long: `create virtual kubernetes control plane with VirtualCluster`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := runCommand(ctx, opts); err != nil {
-				return err
-			}
-			return nil
+			return runCommand(ctx, opts)
 		},
 	}
 
@@ -89,7 +86,7 @@ func SetupConfig(opts *options.Options) (*config.Config, error) {
 		ko.KubeInKubeConfig.ETCDStorageClass = opts.DeprecatedOptions.KubeInKubeConfig.ETCDStorageClass
 		ko.KubeInKubeConfig.AdmissionPlugins = opts.DeprecatedOptions.KubeInKubeConfig.AdmissionPlugins
 		ko.KubeInKubeConfig.AnpMode = opts.DeprecatedOptions.KubeInKubeConfig.AnpMode
-		ko.KubeInKubeConfig.ApiServerReplicas = opts.DeprecatedOptions.KubeInKubeConfig.ApiServerReplicas
+		ko.KubeInKubeConfig.APIServerReplicas = opts.DeprecatedOptions.KubeInKubeConfig.APIServerReplicas
 		ko.KubeInKubeConfig.ClusterCIDR = opts.DeprecatedOptions.KubeInKubeConfig.ClusterCIDR
 
 		koc = *ko
@@ -125,12 +122,12 @@ func SetupConfig(opts *options.Options) (*config.Config, error) {
 }
 
 // TODO
-func printKubeNestConfiguration(koc v1alpha1.KubeNestConfiguration) {
+func printKubeNestConfiguration(_ v1alpha1.KubeNestConfiguration) {
 
 }
 
 // TODO
-func fillInForDefault(c *config.Config, koc v1alpha1.KubeNestConfiguration) {
+func fillInForDefault(_ *config.Config, _ v1alpha1.KubeNestConfiguration) {
 
 }
 
@@ -201,13 +198,13 @@ func startEndPointsControllers(mgr manager.Manager) error {
 		return fmt.Errorf("error starting %s: %v", endpointscontroller.KonnectivitySyncControllerName, err)
 	}
 
-	ApiServerExternalSyncController := endpointscontroller.ApiServerExternalSyncController{
+	APIServerExternalSyncController := endpointscontroller.APIServerExternalSyncController{
 		Client:        mgr.GetClient(),
 		EventRecorder: mgr.GetEventRecorderFor(constants.GlobalNodeControllerName),
 	}
 
-	if err := ApiServerExternalSyncController.SetupWithManager(mgr); err != nil {
-		return fmt.Errorf("error starting %s: %v", endpointscontroller.ApiServerExternalSyncControllerName, err)
+	if err := APIServerExternalSyncController.SetupWithManager(mgr); err != nil {
+		return fmt.Errorf("error starting %s: %v", endpointscontroller.APIServerExternalSyncControllerName, err)
 	}
 
 	return nil

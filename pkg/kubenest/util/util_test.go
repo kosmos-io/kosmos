@@ -70,7 +70,7 @@ func TestFindAvailableIP(t *testing.T) {
 	}
 }
 
-func TestFindAvailableIP2(t *testing.T) {
+func TestFindAvailableIP2(_ *testing.T) {
 	type HostPortPool struct {
 		PortsPool []int32 `yaml:"portsPool"`
 	}

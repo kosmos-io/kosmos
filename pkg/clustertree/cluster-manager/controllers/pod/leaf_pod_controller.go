@@ -73,7 +73,7 @@ func (dopt *rootDeleteOption) ApplyToDelete(opt *client.DeleteOptions) {
 	opt.GracePeriodSeconds = dopt.GracePeriodSeconds
 }
 
-func NewRootDeleteOption(pod *corev1.Pod) client.DeleteOption {
+func NewRootDeleteOption(_ *corev1.Pod) client.DeleteOption {
 	// TODO
 	//gracePeriodSeconds := pod.DeletionGracePeriodSeconds
 	//
@@ -123,9 +123,8 @@ func DeletePodInRootCluster(ctx context.Context, rootnamespacedname types.Namesp
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil
-		} else {
-			return err
 		}
+		return err
 	}
 
 	rPodCopy := rPod.DeepCopy()

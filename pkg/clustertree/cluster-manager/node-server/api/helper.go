@@ -83,11 +83,6 @@ func httpStatusCode(err error) int {
 	}
 }
 
-func NotImplemented(w http.ResponseWriter, r *http.Request) {
-	klog.Warning("501 not implemented")
-	http.Error(w, "501 not implemented", http.StatusNotImplemented)
-}
-
 func NotFound(w http.ResponseWriter, r *http.Request) {
 	klog.Warningf("404 request not found, url: %s", r.URL)
 	http.Error(w, "404 request not found", http.StatusNotFound)

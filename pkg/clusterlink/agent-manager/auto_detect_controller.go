@@ -34,6 +34,7 @@ const (
 )
 
 const (
+	// nolint:revive
 	AUTODETECTION_METHOD_CAN_REACH = "can-reach="
 )
 
@@ -97,6 +98,7 @@ func (r *AutoDetectReconciler) newClusterMapFunc() handler.MapFunc {
 	}
 }
 
+// nolint:revive
 func (r *AutoDetectReconciler) detectInterfaceName(ctx context.Context) (string, error) {
 	var Cluster kosmosv1alpha1.Cluster
 
@@ -221,9 +223,8 @@ func (r *AutoDetectReconciler) Reconcile(ctx context.Context, request reconcile.
 		if err := r.Update(ctx, newClusterNode); err != nil {
 			klog.Errorf("update clusternode %s error: %v", request.NamespacedName, err)
 			return reconcile.Result{RequeueAfter: AutoDetectRequeueTime}, nil
-		} else {
-			klog.V(4).Infof("update clusternode interface: %s, ipv4: %s, ipv6:%s, successed!", newClusterNode.Spec.InterfaceName, newClusterNode.Spec.IP, newClusterNode.Spec.IP6)
 		}
+		klog.V(4).Infof("update clusternode interface: %s, ipv4: %s, ipv6:%s, successed!", newClusterNode.Spec.InterfaceName, newClusterNode.Spec.IP, newClusterNode.Spec.IP6)
 	} else {
 		klog.V(4).Info("clusternode is not need to update")
 	}

@@ -48,7 +48,7 @@ func (i *Installer) Install(opt *option.AddonOption) error {
 }
 
 // Uninstall resources related to CR:cluster
-func (i *Installer) Uninstall(opt *option.AddonOption) error {
+func (i *Installer) Uninstall(_ *option.AddonOption) error {
 	klog.Infof("Don't remove clusterlink namespace on cluster for test")
 	// nsClient := opt.KubeClientSet.CoreV1().Namespaces()
 	// if err := nsClient.Delete(context.TODO(), opt.GetSpecNamespace(), metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {

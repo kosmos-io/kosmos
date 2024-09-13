@@ -67,7 +67,7 @@ var (
 	operation string   // operation for client to execute
 )
 
-func cmdCheckRun(cmd *cobra.Command, args []string) error {
+func cmdCheckRun(cmd *cobra.Command, _ []string) error {
 	if len(params) != 1 {
 		log.Errorf("port list is required and port list size must not be greater than 1")
 		return fmt.Errorf("port list is required and port list size must not be greater than 1")
@@ -143,7 +143,7 @@ func init() {
 	ClientCmd.AddCommand(checkCmd)
 }
 
-func cmdTtyRun(cmd *cobra.Command, args []string) error {
+func cmdTtyRun(cmd *cobra.Command, _ []string) error {
 	auth, err := getAuth(cmd)
 	if err != nil {
 		return err
@@ -242,7 +242,7 @@ func connectTty(wsURL string, headers http.Header) error {
 	}
 }
 
-func cmdCmdRun(cmd *cobra.Command, args []string) error {
+func cmdCmdRun(cmd *cobra.Command, _ []string) error {
 	if len(operation) == 0 {
 		log.Errorf("operation is required")
 		return fmt.Errorf("operation is required")
@@ -255,7 +255,7 @@ func cmdCmdRun(cmd *cobra.Command, args []string) error {
 	return executeWebSocketCommand(auth)
 }
 
-func cmdUploadRun(cmd *cobra.Command, args []string) error {
+func cmdUploadRun(cmd *cobra.Command, _ []string) error {
 	auth, err := getAuth(cmd)
 	if err != nil {
 		return err
@@ -316,7 +316,7 @@ func uploadFile(filePath, fileName, auth string) error {
 			defer wg.Done()
 			wsURL := fmt.Sprintf("wss://%s/upload/?file_name=%s&file_path=%s", addr, url.QueryEscape(filepath.Base(fileName)), url.QueryEscape(filePath))
 			fmt.Println("Uploading file:", fileName, "from", filePath, "to", addr)
-			err := connectAndSendFile(wsURL, headers, filePath, fileName)
+			err := connectAndSendFile(wsURL, headers, fileName)
 			if err != nil {
 				log.Errorf("failed to upload file: %v on %s: %v\n", err, addr, fileName)
 			}
@@ -344,7 +344,7 @@ func connectAndHandleMessages(wsURL string, headers http.Header) error {
 	return nil
 }
 
-func connectAndSendFile(wsURL string, headers http.Header, filePath, fileName string) error {
+func connectAndSendFile(wsURL string, headers http.Header, fileName string) error {
 	ws, resp, err := dialer.Dial(wsURL, headers)
 	if err != nil {
 		return fmt.Errorf("WebSocket dial error: %v", err)

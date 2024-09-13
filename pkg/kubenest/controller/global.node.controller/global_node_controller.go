@@ -140,16 +140,12 @@ func (r *GlobalNodeController) SyncTaint(ctx context.Context, globalNode *v1alph
 				return nil
 			}
 
-			if err := util.DrainNode(ctx, targetNode.Name, r.RootClientSet, &targetNode, env.GetDrainWaitSeconds(), true); err != nil {
-				return err
-			}
-			return nil
+			return util.DrainNode(ctx, targetNode.Name, r.RootClientSet, &targetNode, env.GetDrainWaitSeconds(), true)
 		})
 		return err
-	} else {
-		klog.V(4).Infof("global-node-controller: SyncTaints: node status is %s, skip", globalNode.Spec.State, globalNode.Name)
-		return nil
 	}
+	klog.V(4).Infof("global-node-controller: SyncTaints: node status is %s, skip", globalNode.Spec.State, globalNode.Name)
+	return nil
 }
 
 func (r *GlobalNodeController) SyncState(ctx context.Context, globalNode *v1alpha1.GlobalNode) error {
@@ -267,18 +263,17 @@ func (r *GlobalNodeController) Reconcile(ctx context.Context, request reconcile.
 		return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
 	}
 
-	if err := r.SyncLabel(ctx, &globalNode); err != nil {
+	if err = r.SyncLabel(ctx, &globalNode); err != nil {
 		klog.Warningf("sync label %s error: %v", request.NamespacedName, err)
 		return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
-	} else {
-		klog.V(4).Infof("sync label successed, %s", request.NamespacedName)
 	}
+	klog.V(4).Infof("sync label successed, %s", request.NamespacedName)
 
-	if err := r.SyncTaint(ctx, &globalNode); err != nil {
+	if err = r.SyncTaint(ctx, &globalNode); err != nil {
 		klog.Errorf("sync taint %s error: %v", request.NamespacedName, err)
 		return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
-	} else {
-		klog.V(4).Infof("sync taint successed, %s", request.NamespacedName)
 	}
+	klog.V(4).Infof("sync taint successed, %s", request.NamespacedName)
+
 	return reconcile.Result{}, nil
 }

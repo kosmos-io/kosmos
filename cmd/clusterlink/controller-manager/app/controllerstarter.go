@@ -98,7 +98,7 @@ func (c *Controller) OnAdd(obj interface{}) {
 }
 
 // OnUpdate handles object update event and push the object to queue.
-func (c *Controller) OnUpdate(oldObj, newObj interface{}) {
+func (c *Controller) OnUpdate(_, newObj interface{}) {
 	runtimeObj, ok := newObj.(runtime.Object)
 	if !ok {
 		return
@@ -111,7 +111,7 @@ func (c *Controller) OnDelete(obj interface{}) {
 	c.OnAdd(obj)
 }
 
-func (c *Controller) Reconcile(key lifted.QueueKey) error {
+func (c *Controller) Reconcile(_ lifted.QueueKey) error {
 	cluster, err := c.clusterLister.Get(c.opts.ClusterName)
 	if err != nil {
 		return err
@@ -180,7 +180,7 @@ func (c *Controller) removeFinalizer(cluster *clusterlinkv1alpha1.Cluster) error
 }
 func (c *Controller) setupControllers() {
 	subCtx, cancelFunc := context.WithCancel(c.ctx)
-	cleanFuns := setupControllers(c.mgr, c.opts, subCtx)
+	cleanFuns := setupControllers(subCtx, c.mgr, c.opts)
 	c.cancelFunc = cancelFunc
 	c.cleanFuncs = cleanFuns
 }

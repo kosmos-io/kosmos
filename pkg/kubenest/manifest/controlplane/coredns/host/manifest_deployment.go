@@ -1,7 +1,7 @@
 package host
 
 const (
-	CoreDnsDeployment = `
+	CoreDNSDeployment = `
 apiVersion: apps/v1
 kind: Deployment
 metadata:

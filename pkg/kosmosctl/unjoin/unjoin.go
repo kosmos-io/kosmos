@@ -72,7 +72,7 @@ func NewCmdUnJoin(f ctlutil.Factory) *cobra.Command {
 
 	return cmd
 }
-func (o *CommandUnJoinOptions) Complete(f ctlutil.Factory) error {
+func (o *CommandUnJoinOptions) Complete(_ ctlutil.Factory) error {
 	hostConfig, err := utils.RestConfig(o.HostKubeConfig, o.HostContext)
 	if err != nil {
 		return fmt.Errorf("kosmosctl unjoin complete error, generate host config failed: %s", err)
@@ -115,7 +115,7 @@ func (o *CommandUnJoinOptions) Complete(f ctlutil.Factory) error {
 	return nil
 }
 
-func (o *CommandUnJoinOptions) Validate(args []string) error {
+func (o *CommandUnJoinOptions) Validate(_ []string) error {
 	if len(o.Name) == 0 {
 		return fmt.Errorf("kosmosctl unjoin validate error, name is not valid")
 	}

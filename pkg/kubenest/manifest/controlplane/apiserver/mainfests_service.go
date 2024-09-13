@@ -20,7 +20,7 @@ spec:
     port: {{ .ServicePort }}
     protocol: TCP
     targetPort: {{ .ServicePort }}
-    {{ if .UseApiServerNodePort }}
+    {{ if .UseAPIServerNodePort }}
     nodePort: {{ .ServicePort }}
     {{ end }}
   selector:

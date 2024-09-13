@@ -21,7 +21,7 @@ spec:
         virtualCluster-app: apiserver
     spec:
       automountServiceAccountToken: false
-      {{ if not .UseApiServerNodePort }}
+      {{ if not .UseAPIServerNodePort }}
       hostNetwork: true
       {{ end }}
       dnsPolicy: ClusterFirstWithHostNet
@@ -52,7 +52,7 @@ spec:
         image:  {{ .ImageRepository }}/kube-apiserver:{{ .Version }}
         imagePullPolicy: IfNotPresent
         env:
-        {{ if .UseApiServerNodePort }}
+        {{ if .UseAPIServerNodePort }}
         - name: HOSTIP
           valueFrom:
             fieldRef:
@@ -103,7 +103,7 @@ spec:
         - --max-requests-inflight=1500
         - --max-mutating-requests-inflight=500
         - --v=4
-        {{ if .UseApiServerNodePort }}
+        {{ if .UseAPIServerNodePort }}
         - --advertise-address=$(HOSTIP)
         {{ else }}
         - --advertise-address=$(PODIP)
@@ -175,7 +175,7 @@ spec:
         virtualCluster-anp: apiserver-anp
     spec:
       automountServiceAccountToken: false
-      {{ if not .UseApiServerNodePort }}
+      {{ if not .UseAPIServerNodePort }}
       hostNetwork: true
       {{ end }}
       dnsPolicy: ClusterFirstWithHostNet
@@ -206,7 +206,7 @@ spec:
         image:  {{ .ImageRepository }}/kube-apiserver:{{ .Version }}
         imagePullPolicy: IfNotPresent
         env:
-        {{ if .UseApiServerNodePort }}
+        {{ if .UseAPIServerNodePort }}
         - name: HOSTIP
           valueFrom:
             fieldRef:
@@ -257,7 +257,7 @@ spec:
         - --max-requests-inflight=1500
         - --max-mutating-requests-inflight=500
         - --v=4
-        {{ if .UseApiServerNodePort }}
+        {{ if .UseAPIServerNodePort }}
         - --advertise-address=$(HOSTIP)
         {{ else }}
         - --advertise-address=$(PODIP)

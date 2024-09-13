@@ -27,40 +27,40 @@ import (
 func NewCoreDNSTask() workflow.Task {
 	return workflow.Task{
 		Name:        "coreDns",
-		Run:         runCoreDns,
-		Skip:        skipCoreDns,
+		Run:         runCoreDNS,
+		Skip:        skipCoreDNS,
 		RunSubTasks: true,
 		Tasks: []workflow.Task{
 			{
 				Name: "deploy-core-dns-in-host-cluster",
-				Run:  runCoreDnsHostTask,
+				Run:  runCoreDNSHostTask,
 			},
 			{
 				Name: "check-core-dns",
-				Run:  runCheckCoreDnsTask,
+				Run:  runCheckCoreDNSTask,
 			},
 			{
 				Name: "deploy-core-dns-service-in-virtual-cluster",
-				Run:  runCoreDnsVirtualTask,
+				Run:  runCoreDNSVirtualTask,
 			},
 		},
 	}
 }
 
-func skipCoreDns(d workflow.RunData) (bool, error) {
+func skipCoreDNS(d workflow.RunData) (bool, error) {
 	data, ok := d.(InitData)
 	if !ok {
 		return false, errors.New("coreDns task invoked with an invalid data struct")
 	}
 
 	vc := data.VirtualCluster()
-	if vc.Spec.KubeInKubeConfig != nil && vc.Spec.KubeInKubeConfig.UseTenantDns {
+	if vc.Spec.KubeInKubeConfig != nil && vc.Spec.KubeInKubeConfig.UseTenantDNS {
 		return true, nil
 	}
 	return false, nil
 }
 
-func runCoreDns(r workflow.RunData) error {
+func runCoreDNS(r workflow.RunData) error {
 	data, ok := r.(InitData)
 	if !ok {
 		return errors.New("coreDns task invoked with an invalid data struct")
@@ -73,7 +73,7 @@ func runCoreDns(r workflow.RunData) error {
 func UninstallCoreDNSTask() workflow.Task {
 	return workflow.Task{
 		Name:        "coredns",
-		Run:         runCoreDns,
+		Run:         runCoreDNS,
 		RunSubTasks: true,
 		Tasks: []workflow.Task{
 			{
@@ -84,7 +84,7 @@ func UninstallCoreDNSTask() workflow.Task {
 	}
 }
 
-func getCoreDnsHostComponentsConfig(client clientset.Interface, keyName string) ([]ComponentConfig, error) {
+func getCoreDNSHostComponentsConfig(client clientset.Interface, keyName string) ([]ComponentConfig, error) {
 	cm, err := client.CoreV1().ConfigMaps(constants.KosmosNs).Get(context.Background(), constants.ManifestComponentsConfigMap, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -107,7 +107,7 @@ func getCoreDnsHostComponentsConfig(client clientset.Interface, keyName string) 
 }
 
 // in host
-func runCoreDnsHostTask(r workflow.RunData) error {
+func runCoreDNSHostTask(r workflow.RunData) error {
 	data, ok := r.(InitData)
 	if !ok {
 		return errors.New("Virtual cluster manifests-components task invoked with an invalid data struct")
@@ -115,7 +115,7 @@ func runCoreDnsHostTask(r workflow.RunData) error {
 
 	dynamicClient := data.DynamicClient()
 
-	components, err := getCoreDnsHostComponentsConfig(data.RemoteClient(), constants.HostCoreDnsComponents)
+	components, err := getCoreDNSHostComponentsConfig(data.RemoteClient(), constants.HostCoreDnsComponents)
 	if err != nil {
 		return err
 	}
@@ -149,7 +149,7 @@ func uninstallCorednsHostTask(r workflow.RunData) error {
 
 	dynamicClient := data.DynamicClient()
 
-	components, err := getCoreDnsHostComponentsConfig(data.RemoteClient(), constants.HostCoreDnsComponents)
+	components, err := getCoreDNSHostComponentsConfig(data.RemoteClient(), constants.HostCoreDnsComponents)
 	if err != nil {
 		return err
 	}
@@ -173,7 +173,7 @@ func uninstallCorednsHostTask(r workflow.RunData) error {
 }
 
 // in host
-func runCheckCoreDnsTask(r workflow.RunData) error {
+func runCheckCoreDNSTask(r workflow.RunData) error {
 	data, ok := r.(InitData)
 	if !ok {
 		return errors.New("Virtual cluster manifests-components task invoked with an invalid data struct")
@@ -199,7 +199,7 @@ func runCheckCoreDnsTask(r workflow.RunData) error {
 	return fmt.Errorf("kube-dns is not ready")
 }
 
-func runCoreDnsVirtualTask(r workflow.RunData) error {
+func runCoreDNSVirtualTask(r workflow.RunData) error {
 	data, ok := r.(InitData)
 	if !ok {
 		return errors.New("Virtual cluster coreDns task invoked with an invalid data struct")
@@ -219,7 +219,7 @@ func runCoreDnsVirtualTask(r workflow.RunData) error {
 		return err
 	}
 
-	components, err := getCoreDnsHostComponentsConfig(data.RemoteClient(), constants.VirtualCoreDnsComponents)
+	components, err := getCoreDNSHostComponentsConfig(data.RemoteClient(), constants.VirtualCoreDNSComponents)
 	if err != nil {
 		return err
 	}

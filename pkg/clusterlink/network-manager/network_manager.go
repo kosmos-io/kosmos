@@ -1,3 +1,4 @@
+// nolint:revive
 package network_manager
 
 import (
@@ -109,7 +110,7 @@ func (n *Manager) GetConfigsByNodeName(nodeName string) *handlers.NodeConfig {
 	return n.NodeConfigs[nodeName]
 }
 
-func (n *Manager) Apply(nodeName string) error {
+func (n *Manager) Apply(_ string) error {
 	return nil
 }
 

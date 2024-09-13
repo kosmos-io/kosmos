@@ -108,7 +108,7 @@ func (n *DefaultNetWork) UpdateArps([]clusterlinkv1alpha1.Arp) error {
 	return ErrNotImplemented
 }
 
-func (n *DefaultNetWork) UpdateFdbs(fdbs []clusterlinkv1alpha1.Fdb) error {
+func (n *DefaultNetWork) UpdateFdbs(_ []clusterlinkv1alpha1.Fdb) error {
 	return ErrNotImplemented
 }
 

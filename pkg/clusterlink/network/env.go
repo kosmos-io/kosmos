@@ -38,7 +38,7 @@ func (w *WatchDog) AddTask(path string, contents []byte) {
 	w.WatchTasks = append(w.WatchTasks, WatchTask{Path: path, Contents: contents})
 }
 
-func (w *WatchDog) Watch(ctx context.Context) {
+func (w *WatchDog) Watch(_ context.Context) {
 	w.lock.Lock()
 	defer w.lock.Unlock()
 
@@ -60,7 +60,7 @@ func init() {
 	go wait.UntilWithContext(context.Background(), watchDog.Watch, 30*time.Second)
 }
 
-func UpdateDefaultIp6tablesBehavior(ifaceName string) error {
+func UpdateDefaultIP6tablesBehavior(ifaceName string) error {
 	iptableHandler, err := iptables.New(ipt.ProtocolIPv6)
 	if err != nil {
 		return err //nolint:wrapcheck  // Let the caller wrap it
@@ -75,7 +75,7 @@ func UpdateDefaultIp6tablesBehavior(ifaceName string) error {
 	return nil
 }
 
-func UpdateDefaultIp4tablesBehavior(ifaceName string) error {
+func UpdateDefaultIP4tablesBehavior(ifaceName string) error {
 	iptableHandler, err := iptables.New(ipt.ProtocolIPv4)
 	if err != nil {
 		return err //nolint:wrapcheck  // Let the caller wrap it

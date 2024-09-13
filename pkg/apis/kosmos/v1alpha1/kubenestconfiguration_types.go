@@ -11,11 +11,11 @@ const (
 	KosmosKube KubeNestType = "Kosmos in kube"
 )
 
-type ApiServerServiceType string
+type APIServerServiceType string
 
 const (
-	HostNetwork ApiServerServiceType = "hostNetwork"
-	NodePort    ApiServerServiceType = "nodePort"
+	HostNetwork APIServerServiceType = "hostNetwork"
+	NodePort    APIServerServiceType = "nodePort"
 )
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -51,7 +51,7 @@ type KubeInKubeConfig struct {
 	// +optional
 	AdmissionPlugins bool `yaml:"admissionPlugins" json:"admissionPlugins,omitempty"`
 	// +optional
-	ApiServerReplicas int `yaml:"apiServerReplicas" json:"apiServerReplicas,omitempty"`
+	APIServerReplicas int `yaml:"apiServerReplicas" json:"apiServerReplicas,omitempty"`
 	// +optional
 	ClusterCIDR string `yaml:"clusterCIDR" json:"clusterCIDR,omitempty"`
 	// +optional
@@ -84,11 +84,11 @@ type KubeInKubeConfig struct {
 	// +kubebuilder:validation:Enum=nodePort;hostNetwork
 	// +kubebuilder:default=hostNetwork
 	// +optional
-	ApiServerServiceType ApiServerServiceType `yaml:"apiServerServiceType" json:"apiServerServiceType,omitempty"`
+	APIServerServiceType APIServerServiceType `yaml:"apiServerServiceType" json:"apiServerServiceType,omitempty"`
 
 	// +kubebuilder:default=false
 	// +optional
-	UseTenantDns bool `yaml:"useTenantDns" json:"useTenantDns,omitempty"`
+	UseTenantDNS bool `yaml:"useTenantDNS" json:"useTenantDNS,omitempty"`
 }
 
 // TenantEntrypoint contains the configuration for the tenant entrypoint.

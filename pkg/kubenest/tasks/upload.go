@@ -171,15 +171,15 @@ func runUploadAdminKubeconfig(r workflow.RunData) error {
 		return errors.New("UploadAdminKubeconfig task invoked with an invalid data struct")
 	}
 
-	var controlplaneIpEndpoint, clusterIPEndpoint string
-	service, err := data.RemoteClient().CoreV1().Services(data.GetNamespace()).Get(context.TODO(), util.GetApiServerName(data.GetName()), metav1.GetOptions{})
+	var controlplaneIPEndpoint, clusterIPEndpoint string
+	service, err := data.RemoteClient().CoreV1().Services(data.GetNamespace()).Get(context.TODO(), util.GetAPIServerName(data.GetName()), metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
 	portInfo := getPortInfoFromAPIServerService(service)
 	// controlplane address + nodePort
-	controlplaneIpEndpoint = fmt.Sprintf("https://%s", utils.GenerateAddrStr(data.ControlplaneAddress(), fmt.Sprintf("%d", portInfo.NodePort)))
-	controlplaneIpKubeconfig, err := buildKubeConfigFromSpec(data, controlplaneIpEndpoint)
+	controlplaneIPEndpoint = fmt.Sprintf("https://%s", utils.GenerateAddrStr(data.ControlplaneAddress(), fmt.Sprintf("%d", portInfo.NodePort)))
+	controlplaneIPKubeconfig, err := buildKubeConfigFromSpec(data, controlplaneIPEndpoint)
 	if err != nil {
 		return err
 	}
@@ -191,7 +191,7 @@ func runUploadAdminKubeconfig(r workflow.RunData) error {
 		return err
 	}
 
-	controlplaneIpConfigBytes, err := clientcmd.Write(*controlplaneIpKubeconfig)
+	controlplaneIPConfigBytes, err := clientcmd.Write(*controlplaneIPKubeconfig)
 	if err != nil {
 		return err
 	}
@@ -207,7 +207,7 @@ func runUploadAdminKubeconfig(r workflow.RunData) error {
 			Name:      util.GetAdminConfigSecretName(data.GetName()),
 			Labels:    VirtualClusterControllerLabel,
 		},
-		Data: map[string][]byte{"kubeconfig": controlplaneIpConfigBytes},
+		Data: map[string][]byte{"kubeconfig": controlplaneIPConfigBytes},
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create secret of kubeconfig, err: %w", err)

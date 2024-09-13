@@ -4,7 +4,7 @@ type RootHandler struct {
 	Next
 }
 
-func (h *RootHandler) Do(c *Context) (err error) {
+func (h *RootHandler) Do(_ *Context) (err error) {
 	return
 }
 

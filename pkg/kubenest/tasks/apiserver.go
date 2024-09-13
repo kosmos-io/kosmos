@@ -86,7 +86,7 @@ func UninstallVirtualClusterApiserverTask() workflow.Task {
 		RunSubTasks: true,
 		Tasks: []workflow.Task{
 			{
-				Name: constants.ApiServer,
+				Name: constants.APIServer,
 				Run:  uninstallVirtualClusterAPIServer,
 			},
 		},

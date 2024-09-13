@@ -365,11 +365,11 @@ func (dsc *HostDaemonSetsController) dedupCurHistories(ctx context.Context, ds *
 						},
 					},
 				}
-				patchJson, err := json.Marshal(patchRaw)
+				patchJSON, err := json.Marshal(patchRaw)
 				if err != nil {
 					return nil, err
 				}
-				_, err = dsc.kubeClient.CoreV1().Pods(ds.Namespace).Patch(ctx, pod.Name, types.MergePatchType, patchJson, metav1.PatchOptions{})
+				_, err = dsc.kubeClient.CoreV1().Pods(ds.Namespace).Patch(ctx, pod.Name, types.MergePatchType, patchJSON, metav1.PatchOptions{})
 				if err != nil {
 					return nil, err
 				}

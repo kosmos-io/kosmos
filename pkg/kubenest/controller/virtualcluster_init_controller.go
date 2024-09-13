@@ -122,9 +122,8 @@ func (c *VirtualClusterInitController) Reconcile(ctx context.Context, request re
 		} else if updatedCluster.Status.Phase == v1alpha1.Deleting {
 			klog.V(2).InfoS("Virtual Cluster is deleting, wait for event 'AllNodeDeleted'", "Virtual Cluster", request)
 			return reconcile.Result{}, nil
-		} else {
-			return c.removeFinalizer(updatedCluster)
 		}
+		return c.removeFinalizer(updatedCluster)
 	}
 
 	switch originalCluster.Status.Phase {
@@ -197,18 +196,18 @@ func (c *VirtualClusterInitController) Reconcile(ctx context.Context, request re
 		}
 		if !policyChanged {
 			return reconcile.Result{}, nil
-		} else {
-			err := c.assignWorkNodes(updatedCluster)
-			if err != nil {
-				return reconcile.Result{RequeueAfter: RequeueTime}, errors.Wrapf(err, "Error update virtualcluster %s", updatedCluster.Name)
-			}
-			updatedCluster.Status.Phase = v1alpha1.Updating
-			err = c.Update(updatedCluster)
-			if err != nil {
-				klog.Errorf("Error update virtualcluster %s status to %s", updatedCluster.Name, updatedCluster.Status.Phase)
-				return reconcile.Result{}, errors.Wrapf(err, "Error update virtualcluster %s status", updatedCluster.Name)
-			}
 		}
+		err = c.assignWorkNodes(updatedCluster)
+		if err != nil {
+			return reconcile.Result{RequeueAfter: RequeueTime}, errors.Wrapf(err, "Error update virtualcluster %s", updatedCluster.Name)
+		}
+		updatedCluster.Status.Phase = v1alpha1.Updating
+		err = c.Update(updatedCluster)
+		if err != nil {
+			klog.Errorf("Error update virtualcluster %s status to %s", updatedCluster.Name, updatedCluster.Status.Phase)
+			return reconcile.Result{}, errors.Wrapf(err, "Error update virtualcluster %s status", updatedCluster.Name)
+		}
+
 	default:
 		klog.Warningf("Skip virtualcluster %s reconcile status: %s", originalCluster.Name, originalCluster.Status.Phase)
 	}
@@ -232,7 +231,7 @@ func (c *VirtualClusterInitController) SetupWithManager(mgr manager.Manager) err
 }
 
 func (c *VirtualClusterInitController) Update(updated *v1alpha1.VirtualCluster) error {
-	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		current := &v1alpha1.VirtualCluster{}
 		if err := c.Client.Get(context.TODO(), types.NamespacedName{
 			Namespace: updated.Namespace,
@@ -245,10 +244,7 @@ func (c *VirtualClusterInitController) Update(updated *v1alpha1.VirtualCluster) 
 		updated.Status.UpdateTime = &now
 		updated.ResourceVersion = current.ResourceVersion
 		return c.Client.Patch(context.TODO(), updated, client.MergeFrom(current))
-	}); err != nil {
-		return err
-	}
-	return nil
+	})
 }
 
 func (c *VirtualClusterInitController) ensureFinalizer(virtualCluster *v1alpha1.VirtualCluster) (reconcile.Result, error) {
@@ -301,6 +297,7 @@ func (c *VirtualClusterInitController) removeFinalizer(virtualCluster *v1alpha1.
 	return reconcile.Result{}, nil
 }
 
+// nolint:revive
 // createVirtualCluster assign work nodes, create control plane and create compoennts from manifests
 func (c *VirtualClusterInitController) createVirtualCluster(virtualCluster *v1alpha1.VirtualCluster, kubeNestOptions *v1alpha1.KubeNestConfiguration) error {
 	klog.V(2).Infof("Reconciling virtual cluster", "name", virtualCluster.Name)
@@ -584,10 +581,7 @@ func (c *VirtualClusterInitController) setGlobalNodeUsageStatus(virtualCluster *
 		return nil
 	}
 
-	if err := retry.RetryOnConflict(retry.DefaultRetry, updateStatusFunc); err != nil {
-		return err
-	}
-	return nil
+	return retry.RetryOnConflict(retry.DefaultRetry, updateStatusFunc)
 }
 
 func (c *VirtualClusterInitController) ensureAllPodsRunning(virtualCluster *v1alpha1.VirtualCluster, timeout time.Duration) error {
@@ -769,9 +763,8 @@ func CheckPortOnHost(addr string, port int32) (bool, error) {
 
 	if ret.Status != exector.SUCCESS {
 		return true, fmt.Errorf("pod[%d] is occupied", port)
-	} else {
-		return false, nil
 	}
+	return false, nil
 }
 
 func (c *VirtualClusterInitController) findHostAddresses() ([]string, error) {
@@ -795,7 +788,7 @@ func (c *VirtualClusterInitController) findHostAddresses() ([]string, error) {
 	return ret, nil
 }
 
-func (c *VirtualClusterInitController) GetHostPortNextFunc(virtualCluster *v1alpha1.VirtualCluster) (func() (int32, error), error) {
+func (c *VirtualClusterInitController) GetHostPortNextFunc(_ *v1alpha1.VirtualCluster) (func() (int32, error), error) {
 	var hostPool *HostPortPool
 	var err error
 	type nextfunc func() (int32, error)
@@ -820,10 +813,10 @@ func (c *VirtualClusterInitController) GetHostPortNextFunc(virtualCluster *v1alp
 	return next, nil
 }
 
-func createApiAnpAgentSvc(name, namespace string, nameMap map[string]int) *corev1.Service {
+func createAPIAnpAgentSvc(name, namespace string, nameMap map[string]int) *corev1.Service {
 	apiAnpAgentSvc := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      util.GetKonnectivityApiServerName(name),
+			Name:      util.GetKonnectivityAPIServerName(name),
 			Namespace: namespace,
 		},
 		Spec: corev1.ServiceSpec{
@@ -849,12 +842,12 @@ func createApiAnpAgentSvc(name, namespace string, nameMap map[string]int) *corev
 
 func (c *VirtualClusterInitController) GetNodePorts(client kubernetes.Interface, virtualCluster *v1alpha1.VirtualCluster) ([]int32, error) {
 	ports := make([]int32, 5)
-	ipFamilies := utils.IPFamilyGenerator(constants.ApiServerServiceSubnet)
+	ipFamilies := utils.IPFamilyGenerator(constants.APIServerServiceSubnet)
 	name := virtualCluster.GetName()
 	namespace := virtualCluster.GetNamespace()
 	apiSvc := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      util.GetApiServerName(name),
+			Name:      util.GetAPIServerName(name),
 			Namespace: namespace,
 		},
 		Spec: corev1.ServiceSpec{
@@ -877,14 +870,14 @@ func (c *VirtualClusterInitController) GetNodePorts(client kubernetes.Interface,
 		return nil, fmt.Errorf("can not create api svc for allocate port, error: %s", err)
 	}
 
-	createdApiSvc, err := client.CoreV1().Services(namespace).Get(context.TODO(), apiSvc.GetName(), metav1.GetOptions{})
+	createdAPISvc, err := client.CoreV1().Services(namespace).Get(context.TODO(), apiSvc.GetName(), metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("can not get api svc for allocate port, error: %s", err)
 	}
-	nodePort := createdApiSvc.Spec.Ports[0].NodePort
+	nodePort := createdAPISvc.Spec.Ports[0].NodePort
 	ports[0] = nodePort
 
-	apiAnpAgentSvc := createApiAnpAgentSvc(name, namespace, nameMap)
+	apiAnpAgentSvc := createAPIAnpAgentSvc(name, namespace, nameMap)
 	err = util.CreateOrUpdateService(client, apiAnpAgentSvc)
 	if err != nil {
 		return nil, fmt.Errorf("can not create anp svc for allocate port, error: %s", err)
@@ -936,7 +929,7 @@ func (c *VirtualClusterInitController) GetHostNetworkPorts(virtualCluster *v1alp
 
 // AllocateHostPort allocate host port for virtual cluster
 // #nosec G602
-func (c *VirtualClusterInitController) AllocateHostPort(virtualCluster *v1alpha1.VirtualCluster, kubeNestOptions *v1alpha1.KubeNestConfiguration) (int32, error) {
+func (c *VirtualClusterInitController) AllocateHostPort(virtualCluster *v1alpha1.VirtualCluster, _ *v1alpha1.KubeNestConfiguration) (int32, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	if len(virtualCluster.Status.PortMap) > 0 || virtualCluster.Status.Port != 0 {
@@ -946,7 +939,7 @@ func (c *VirtualClusterInitController) AllocateHostPort(virtualCluster *v1alpha1
 	var ports []int32
 	var err error
 
-	if virtualCluster.Spec.KubeInKubeConfig != nil && virtualCluster.Spec.KubeInKubeConfig.ApiServerServiceType == v1alpha1.NodePort {
+	if virtualCluster.Spec.KubeInKubeConfig != nil && virtualCluster.Spec.KubeInKubeConfig.APIServerServiceType == v1alpha1.NodePort {
 		ports, err = c.GetNodePorts(c.RootClientSet, virtualCluster)
 	} else {
 		ports, err = c.GetHostNetworkPorts(virtualCluster)
@@ -961,11 +954,11 @@ func (c *VirtualClusterInitController) AllocateHostPort(virtualCluster *v1alpha1
 		return 0, fmt.Errorf("no available ports to allocate")
 	}
 	virtualCluster.Status.PortMap = make(map[string]int32)
-	virtualCluster.Status.PortMap[constants.ApiServerPortKey] = ports[0]
-	virtualCluster.Status.PortMap[constants.ApiServerNetworkProxyAgentPortKey] = ports[1]
-	virtualCluster.Status.PortMap[constants.ApiServerNetworkProxyServerPortKey] = ports[2]
-	virtualCluster.Status.PortMap[constants.ApiServerNetworkProxyHealthPortKey] = ports[3]
-	virtualCluster.Status.PortMap[constants.ApiServerNetworkProxyAdminPortKey] = ports[4]
+	virtualCluster.Status.PortMap[constants.APIServerPortKey] = ports[0]
+	virtualCluster.Status.PortMap[constants.APIServerNetworkProxyAgentPortKey] = ports[1]
+	virtualCluster.Status.PortMap[constants.APIServerNetworkProxyServerPortKey] = ports[2]
+	virtualCluster.Status.PortMap[constants.APIServerNetworkProxyHealthPortKey] = ports[3]
+	virtualCluster.Status.PortMap[constants.APIServerNetworkProxyAdminPortKey] = ports[4]
 
 	klog.V(4).InfoS("Success allocate virtual cluster ports", "allocate ports", ports, "vc ports", ports[:2])
 
@@ -973,6 +966,7 @@ func (c *VirtualClusterInitController) AllocateHostPort(virtualCluster *v1alpha1
 }
 
 // AllocateVip allocate vip for virtual cluster
+// nolint:revive
 // #nosec G602
 func (c *VirtualClusterInitController) AllocateVip(virtualCluster *v1alpha1.VirtualCluster, vipPool *VipPool) error {
 	c.lock.Lock()

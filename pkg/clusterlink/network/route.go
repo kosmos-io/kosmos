@@ -73,9 +73,8 @@ func loadRoutes() ([]clusterlinkv1alpha1.Route, error) {
 		if err != nil {
 			if errors.As(err, &netlink.LinkNotFoundError{}) {
 				continue
-			} else {
-				return nil, err
 			}
+			return nil, err
 		}
 		for _, r := range routes {
 			ret = append(ret, clusterlinkv1alpha1.Route{

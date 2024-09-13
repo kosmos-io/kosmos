@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestNetxFunc(t *testing.T) {
+func TestNetxFunc(_ *testing.T) {
 	portsPool := []int32{1, 2, 3, 4, 5}
 	type nextfunc func() (int32, error)
 	// var next nextfunc
@@ -28,7 +28,7 @@ func TestNetxFunc(t *testing.T) {
 
 func TestCreateApiAnpServer(t *testing.T) {
 	var name, namespace string
-	apiAnpAgentSvc := createApiAnpAgentSvc(name, namespace, nameMap)
+	apiAnpAgentSvc := createAPIAnpAgentSvc(name, namespace, nameMap)
 
 	if len(apiAnpAgentSvc.Spec.Ports) != 4 {
 		t.Fatalf("apiAnpAgentSvc.Spec.Ports len != 4")

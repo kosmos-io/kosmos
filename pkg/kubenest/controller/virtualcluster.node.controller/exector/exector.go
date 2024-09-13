@@ -25,6 +25,7 @@ const (
 	NotFoundText = "127"
 )
 
+// nolint:revive
 type ExectorReturn struct {
 	Status  Status
 	Reason  string
@@ -37,11 +38,13 @@ func (r *ExectorReturn) String() string {
 	return fmt.Sprintf("%d, %s, %s, %d", r.Status, r.Reason, r.LastLog, r.Code)
 }
 
+// nolint:revive
 type Exector interface {
 	GetWebSocketOption() WebSocketOption
 	SendHandler(conn *websocket.Conn, done <-chan struct{}, interrupt chan struct{}, result *ExectorReturn)
 }
 
+// nolint:revive
 type ExectorHelper struct {
 	Token string
 	Addr  string

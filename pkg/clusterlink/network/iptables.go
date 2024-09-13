@@ -135,13 +135,11 @@ func translateChainName(key string, f bool) string {
 	}
 	if f {
 		return chainMap[key]
-	} else {
-		if chainMap["PREROUTING"] == key {
-			return "PREROUTING"
-		} else {
-			return "POSTROUTING"
-		}
 	}
+	if chainMap["PREROUTING"] == key {
+		return "PREROUTING"
+	}
+	return "POSTROUTING"
 }
 
 func groupByTableChain(records []IptablesRecord) map[string][]IptablesRecord {

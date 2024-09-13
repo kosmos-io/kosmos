@@ -91,15 +91,14 @@ func SortAddress(ctx context.Context, rootClient kubernetes.Interface, originAdd
 				return false
 			}
 			return true
-		} else {
-			if !utils.IsIPv6(address[i].Address) && utils.IsIPv6(address[j].Address) {
-				return false
-			}
-			if utils.IsIPv6(address[i].Address) && !utils.IsIPv6(address[j].Address) {
-				return true
-			}
+		}
+		if !utils.IsIPv6(address[i].Address) && utils.IsIPv6(address[j].Address) {
+			return false
+		}
+		if utils.IsIPv6(address[i].Address) && !utils.IsIPv6(address[j].Address) {
 			return true
 		}
+		return true
 	})
 
 	return append(address, otherAddress...), nil
