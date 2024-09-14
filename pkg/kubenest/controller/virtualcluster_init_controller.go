@@ -778,7 +778,7 @@ func (c *VirtualClusterInitController) findHostAddresses() ([]string, error) {
 	ret := []string{}
 
 	for _, node := range nodes.Items {
-		addr, err := utils.FindFirstNodeIPAddress(node, corev1.NodeInternalIP)
+		addr, err := utils.FindFirstNodeIPAddress(node, constants.PreferredAddressType)
 		if err != nil {
 			return nil, err
 		}
