@@ -1,4 +1,4 @@
-FROM ubuntu:latest as release-env
+FROM ubuntu:latest AS release-env
 
 ARG BINARY
 
