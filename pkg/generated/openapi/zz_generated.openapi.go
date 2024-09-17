@@ -1983,10 +1983,16 @@ func schema_pkg_apis_kosmos_v1alpha1_KubeInKubeConfig(ref common.ReferenceCallba
 							Format: "",
 						},
 					},
-					"useTenantDns": {
+					"useTenantDNS": {
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"boolean"},
 							Format: "",
+						},
+					},
+					"externalPort": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"integer"},
+							Format: "int32",
 						},
 					},
 				},

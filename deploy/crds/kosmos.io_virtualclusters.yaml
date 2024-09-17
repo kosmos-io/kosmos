@@ -74,6 +74,9 @@ spec:
                     type: string
                   etcdUnitSize:
                     type: string
+                  externalPort:
+                    type: integer
+                    format: int32
                   forceDestroy:
                     description: todo Group according to the parameters of apiserver,
                       etcd, coredns, etc. ForceDestroy indicates whether to force
