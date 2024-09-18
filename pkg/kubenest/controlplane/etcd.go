@@ -30,7 +30,7 @@ func DeleteVirtualClusterEtcd(client clientset.Interface, name, namespace string
 	return nil
 }
 
-// nolint:revive
+// nolint
 func installEtcd(client clientset.Interface, name, namespace string, kubeNestConfiguration *v1alpha1.KubeNestConfiguration, vc *v1alpha1.VirtualCluster) error {
 	imageRepository, imageVersion := util.GetImageMessage()
 
