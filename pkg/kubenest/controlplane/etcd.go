@@ -37,7 +37,7 @@ func installEtcd(client clientset.Interface, name, namespace string, kubeNestCon
 	var resourceQuantity resource.Quantity
 	var err error
 
-	if vc.Spec.KubeInKubeConfig.ETCDUnitSize != "" {
+	if vc.Spec.KubeInKubeConfig != nil && vc.Spec.KubeInKubeConfig.ETCDUnitSize != "" {
 		resourceQuantity, err = resource.ParseQuantity(vc.Spec.KubeInKubeConfig.ETCDUnitSize)
 		if err != nil {
 			klog.Errorf("Failed to parse etcdSize %s: %v", vc.Spec.KubeInKubeConfig.ETCDUnitSize, err)
@@ -56,7 +56,6 @@ func installEtcd(client clientset.Interface, name, namespace string, kubeNestCon
 			return err
 		}
 		resourceQuantity.Set(resourceQuantity.Value() * int64(nodeCount))
-
 	}
 
 	initialClusters := make([]string, constants.EtcdReplicas)

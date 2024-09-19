@@ -77,7 +77,7 @@ spec:
                       type: string
                     type: array
                 type: object
-              useTenantDns:
+              useTenantDNS:
                 default: false
                 type: boolean
             type: object
