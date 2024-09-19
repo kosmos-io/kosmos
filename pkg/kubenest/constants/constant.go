@@ -3,6 +3,8 @@ package constants
 import (
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
+
 	"github.com/kosmos.io/kosmos/pkg/utils"
 )
 
@@ -142,8 +144,12 @@ type Action string
 var APIServerServiceSubnet string
 var KubeControllerManagerPodSubnet string
 
+var PreferredAddressType corev1.NodeAddressType
+
 func init() {
 	APIServerServiceSubnet = utils.GetEnvWithDefaultValue("SERVICE_SUBNET", "10.237.6.0/18")
 	// fd11:1122:1111::/48,
 	KubeControllerManagerPodSubnet = utils.GetEnvWithDefaultValue("POD_SUBNET", "10.244.0.0/16")
+
+	PreferredAddressType = corev1.NodeAddressType(utils.GetEnvWithDefaultValue("PREFERRED_ADDRESS_TYPE", string(corev1.NodeInternalIP)))
 }

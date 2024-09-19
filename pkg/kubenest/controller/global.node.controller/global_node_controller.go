@@ -227,9 +227,9 @@ func (r *GlobalNodeController) Reconcile(ctx context.Context, request reconcile.
 			}
 			globalNode.Name = request.Name
 			globalNode.Spec.State = v1alpha1.NodeReserved
-			firstNodeIP, err := utils.FindFirstNodeIPAddress(*rootNode, v1.NodeInternalIP)
+			firstNodeIP, err := utils.FindFirstNodeIPAddress(*rootNode, constants.PreferredAddressType)
 			if err != nil {
-				klog.Errorf("get first node ip address err: %s %s", v1.NodeInternalIP, err.Error())
+				klog.Errorf("get first node ip address err: %s %s", constants.PreferredAddressType, err.Error())
 			}
 			globalNode.Spec.NodeIP = firstNodeIP
 			if _, err = r.KosmosClient.KosmosV1alpha1().GlobalNodes().Create(ctx, &globalNode, metav1.CreateOptions{}); err != nil {
