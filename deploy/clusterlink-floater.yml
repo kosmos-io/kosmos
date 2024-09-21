@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  labels:
+    app: clusterlink-floater
+  name: clusterlink-floater
+  namespace: kosmos-system
+spec:
+  selector:
+    matchLabels:
+      app: clusterlink-floater
+  template:
+    metadata:
+      labels:
+        app: clusterlink-floater
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kosmos.io/exclude
+                operator: DoesNotExist
+      containers:
+      - command:
+        - clusterlink-floater
+        env:
+        - name: PORT
+          value: "8889"
+        - name: ENABLE_ANALYSIS
+          value: "false"
+        image: ghcr.io/kosmos-io/clusterlink-floater:__VERSION__
+        imagePullPolicy: IfNotPresent
+        name: floater
+        securityContext:
+          privileged: true
+      tolerations:
+      - effect: NoSchedule
+        operator: Exists
+      - key: CriticalAddonsOnly
+        operator: Exists
+      - effect: NoExecute
+        operator: Exists

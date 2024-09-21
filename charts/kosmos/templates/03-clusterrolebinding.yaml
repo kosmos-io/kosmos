@@ -1,0 +1,83 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: clustertree
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: clustertree
+subjects:
+- kind: ServiceAccount
+  name: clustertree
+  namespace: {{ .Values.global.namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kosmos-scheduler
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kosmos-scheduler
+subjects:
+- kind: ServiceAccount
+  name: kosmos-scheduler
+  namespace: {{ .Values.global.namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kosmos
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kosmos
+subjects:
+- kind: ServiceAccount
+  name: kosmos-control
+  namespace: {{ .Values.global.namespace }}
+- kind: ServiceAccount
+  name: clusterlink-controller-manager
+  namespace: kosmos-system
+- kind: ServiceAccount
+  name: kosmos-operator
+  namespace: {{ .Values.global.namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: clusterlink-controller-manager
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: clusterlink-controller-manager
+subjects:
+- kind: ServiceAccount
+  name: clusterlink-controller-manager
+  namespace: {{ .Values.global.namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: clusterlink-elector
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: clusterlink-elector
+subjects:
+- kind: ServiceAccount
+  name: clusterlink-elector
+  namespace: {{ .Values.global.namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: clusterlink-network-manager
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: clusterlink-network-manager
+subjects:
+- kind: ServiceAccount
+  name: clusterlink-network-manager
+  namespace: {{ .Values.global.namespace }}
