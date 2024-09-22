@@ -1,0 +1,134 @@
+#global
+global:
+  namespace: "kosmos-system"
+  #kubeconfig for secret(Host Cluster), base64 encryption
+  kubeconfig: _kubeconfig_ 
+
+# kubeconfig for configMap(Host Cluster)，concrete content
+kubeconfig:
+  apiVersion: v1
+  clusters:
+  - cluster:
+      #authority
+      authority: _authority_info
+      #server
+      server: _url
+    name: cluster.local
+  contexts:
+  - context:
+      cluster: cluster.local
+      user: kubernetes-admin
+    name: kubernetes-admin@cluster.local
+  context: kubernetes-admin@cluster.local
+  kind: Config
+  preferences: {}
+  users:
+  - name: kubernetes-admin
+    user:
+      #certificate
+      certificate: _certificate_info
+      #key
+      key: _key_info
+
+#clustertree-manager
+clustertreeManager:
+  replicas: 2
+  image:
+    repository: ghcr.io/kosmos-io/clustertree-cluster-manager
+    #tag
+    tag: __VERSION__
+    pullPolicy: IfNotPresent
+
+#kosmos-operator
+operator:
+  replicas: 2
+  image:
+    repository: ghcr.io/kosmos-io/kosmos-operator
+    #tag
+    tag: __VERSION__
+    pullPolicy: IfNotPresent
+  resources:
+    limits:
+      cpu: 250m
+      memory: 200Mi
+    requests:
+      cpu: 100m
+      memory: 200Mi
+
+#kosmos-scheduler      
+scheduler:
+  replicas: 2
+  image:
+    repository: ghcr.io/kosmos-io/scheduler
+    #tag
+    tag: __VERSION__
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 200m
+
+#clusterlink-networkManager
+networkManager:
+  replicas: 2
+  image:
+    repository: ghcr.io/kosmos-io/clusterlink-network-manager
+    #tag
+    tag: __VERSION__
+    pullPolicy: IfNotPresent
+  resources:
+    limits:
+      cpu: 500m
+      memory: 500Mi
+    requests:
+      cpu: 500m
+      memory: 500Mi
+
+#clusterlink-elector
+elector:
+  replicas: 2
+  image:
+    repository: ghcr.io/kosmos-io/clusterlink-elector
+    #tag
+    tag: __VERSION__
+    pullPolicy: IfNotPresent
+
+#clusterlink-controllerManager
+controllerManager:
+  replicas: 2
+  image:
+    repository: ghcr.io/kosmos-io/clusterlink-controller-manager
+    #tag
+    tag: __VERSION__
+    pullPolicy: IfNotPresent
+  resources:
+    limits:
+      cpu: 500m
+      memory: 500Mi
+    requests:
+      cpu: 500m
+      memory: 500Mi
+
+#clusterlink-agent
+agent:
+  image:
+    repository: ghcr.io/kosmos-io/clusterlink-agent
+    tag: __VERSION__
+    pullPolicy: IfNotPresent
+  resources:
+    limits:
+      memory: 200Mi
+    requests:
+      cpu: 100m
+      memory: 200Mi
+
+#configMap
+schedulerConfig:
+  #k8s 1.25 :kubescheduler.config.k8s.io/v1
+  type: "kubescheduler.config.k8s.io/v1beta1"
+  #name
+  name: "default-scheduler"
+
+# secret
+clustertree:
+  cert: _cert_info
+  key: _key_info

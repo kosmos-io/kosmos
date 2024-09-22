@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: clusterlink-agent
+  namespace: {{ .Values.global.namespace }}
+spec:
+  selector:
+    matchLabels:
+      app: clusterlink-agent
+  template:
+    metadata:
+      labels:
+        app: clusterlink-agent
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kosmos.io/exclude
+                operator: DoesNotExist
+      containers:
+      - command:
+        - clusterlink-agent
+        - --kubeconfig=/etc/clusterlink/kubeconfig
+        - --v=4
+        env:
+        - name: CLUSTER_NAME
+          value: kosmos-control-cluster
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: spec.nodeName
+        image: {{ .Values.agent.image.repository }}:{{ .Values.agent.image.tag }}
+        imagePullPolicy: {{ .Values.agent.image.pullPolicy }}
+        name: clusterlink-agent
+        resources:
+          limits:
+            memory: {{ .Values.agent.resources.limits.memory }}
+          requests:
+            cpu: {{ .Values.agent.resources.requests.cpu }}
+            memory: {{ .Values.agent.resources.requests.memory }}
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - mountPath: /etc/clusterlink
+          name: proxy-config
+          readOnly: true
+        - mountPath: /run/xtables.lock
+          name: iptableslock
+        - mountPath: /lib/modules
+          name: lib-modules
+          readOnly: true
+      hostNetwork: true
+      tolerations:
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/control-plane
+        operator: Exists
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/master
+        operator: Exists
+      volumes:
+      - name: proxy-config
+        secret:
+          secretName: control-plane-config
+      - hostPath:
+          path: /run/xtables.lock
+          type: FileOrCreate
+        name: iptableslock
+      - hostPath:
+          path: /lib/modules
+        name: lib-modules

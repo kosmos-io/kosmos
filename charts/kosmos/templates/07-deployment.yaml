@@ -1,0 +1,405 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: clustertree-cluster-manager
+  name: clustertree-cluster-manager
+  namespace: {{ .Values.global.namespace }}
+spec:
+  replicas: {{ .Values.clustertreeManager.replicas }}
+  selector:
+    matchLabels:
+      app: clustertree-cluster-manager
+  template:
+    metadata:
+      labels:
+        app: clustertree-cluster-manager
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - clustertree-cluster-manager
+            namespaces:
+            - {{ .Values.global.namespace }}
+            topologyKey: kubernetes.io/hostname
+      containers:
+      - command:
+        - clustertree-cluster-manager
+        - --multi-cluster-service=true
+        - --v=2
+        env:
+        - name: APISERVER_CERT_LOCATION
+          value: /etc/cluster-tree/cert/cert.pem
+        - name: APISERVER_KEY_LOCATION
+          value: /etc/cluster-tree/cert/key.pem
+        - name: LEAF_NODE_IP
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: status.podIP
+        image: {{ .Values.clustertreeManager.image.repository }}:{{ .Values.clustertreeManager.image.tag }}
+        imagePullPolicy: {{ .Values.clustertreeManager.image.pullPolicy }}
+        name: manager
+        volumeMounts:
+        - mountPath: /etc/cluster-tree/cert
+          name: credentials
+          readOnly: true
+      serviceAccountName: clustertree
+      volumes:
+      - name: credentials
+        secret:
+          secretName: clustertree-cluster-manager
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: operator
+  name: kosmos-operator
+  namespace: {{ .Values.global.namespace }}
+spec:
+  replicas: {{ .Values.operator.replicas }}
+  selector:
+    matchLabels:
+      app: operator
+  template:
+    metadata:
+      labels:
+        app: operator
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - operator
+            namespaces:
+            - {{ .Values.global.namespace }}
+            topologyKey: kubernetes.io/hostname
+      containers:
+      - command:
+        - kosmos-operator
+        - --controlpanelconfig=/etc/kosmos-operator/kubeconfig
+        env:
+        - name: VERSION
+          value: {{ .Values.operator.image.tag }}
+        - name: USE_PROXY
+          value: "false"
+        image: {{ .Values.operator.image.repository }}:{{ .Values.operator.image.tag }}
+        imagePullPolicy: {{ .Values.operator.image.pullPolicy }}
+        livenessProbe:
+          exec:
+            command:
+            - cat
+            - /proc/1/cmdline
+          failureThreshold: 30
+          initialDelaySeconds: 3
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 3
+        name: operator
+        readinessProbe:
+          exec:
+            command:
+            - cat
+            - /proc/1/cmdline
+          failureThreshold: 30
+          initialDelaySeconds: 3
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 5
+        resources:
+          limits:
+            cpu: {{ .Values.operator.resources.limits.cpu }}
+            memory: {{ .Values.operator.resources.limits.memory }}
+          requests:
+            cpu: {{ .Values.operator.resources.requests.cpu }}
+            memory: {{ .Values.operator.resources.requests.memory }}
+        volumeMounts:
+        - mountPath: /etc/kosmos-operator
+          name: proxy-config
+          readOnly: true
+      serviceAccountName: kosmos-operator
+      volumes:
+      - name: proxy-config
+        secret:
+          secretName: control-plane-config
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    component: scheduler
+  name: kosmos-scheduler
+  namespace: {{ .Values.global.namespace }}
+spec:
+  replicas: {{ .Values.scheduler.replicas }}
+  selector:
+    matchLabels:
+      component: scheduler
+  template:
+    metadata:
+      labels:
+        component: scheduler
+    spec:
+      containers:
+      - command:
+        - scheduler
+        - --config=/etc/kubernetes/kube-scheduler/scheduler-config.yaml
+        image: {{ .Values.scheduler.image.repository }}:{{ .Values.scheduler.image.tag }}
+        imagePullPolicy: {{ .Values.scheduler.image.pullPolicy }}
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /healthz
+            port: 10259
+            scheme: HTTPS
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+        name: kosmos-scheduler
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /healthz
+            port: 10259
+            scheme: HTTPS
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+        resources:
+          requests:
+            cpu: {{ .Values.scheduler.resources.requests.cpu }}
+        volumeMounts:
+        - mountPath: /etc/kubernetes/kube-scheduler
+          name: scheduler-config
+          readOnly: true
+      serviceAccountName: kosmos-scheduler
+      volumes:
+      - configMap:
+          name: scheduler-config
+        name: scheduler-config
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: clusterlink-network-manager
+  name: clusterlink-network-manager
+  namespace: {{ .Values.global.namespace }}
+spec:
+  replicas: {{ .Values.networkManager.replicas }}
+  selector:
+    matchLabels:
+      app: clusterlink-network-manager
+  template:
+    metadata:
+      labels:
+        app: clusterlink-network-manager
+    spec:
+      containers:
+      - command:
+        - clusterlink-network-manager
+        - --v=4
+        image: {{ .Values.networkManager.image.repository }}:{{ .Values.networkManager.image.tag }}
+        imagePullPolicy: {{ .Values.networkManager.image.pullPolicy }}
+        livenessProbe:
+          exec:
+            command:
+            - cat
+            - /proc/1/cmdline
+          failureThreshold: 30
+          initialDelaySeconds: 3
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 3
+        name: manager
+        readinessProbe:
+          exec:
+            command:
+            - cat
+            - /proc/1/cmdline
+          failureThreshold: 30
+          initialDelaySeconds: 3
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 5
+        resources:
+          limits:
+            cpu: {{ .Values.networkManager.resources.limits.cpu }}
+            memory: {{ .Values.networkManager.resources.limits.memory }}
+          requests:
+            cpu: {{ .Values.networkManager.resources.requests.cpu }}
+            memory: {{ .Values.networkManager.resources.requests.memory }}
+      serviceAccountName: clusterlink-network-manager
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: elector
+  name: clusterlink-elector
+  namespace: {{ .Values.global.namespace }}
+spec:
+  replicas: {{ .Values.elector.replicas }}
+  selector:
+    matchLabels:
+      app: elector
+  template:
+    metadata:
+      labels:
+        app: elector
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kosmos.io/exclude
+                operator: DoesNotExist
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - elector
+            namespaces:
+            - {{ .Values.global.namespace }}
+            topologyKey: kubernetes.io/hostname
+      containers:
+      - command:
+        - clusterlink-elector
+        - --controlpanelconfig=/etc/clusterlink/kubeconfig
+        - --v=3
+        env:
+        - name: CLUSTER_NAME
+          value: kosmos-control-cluster
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: spec.nodeName
+        image: {{ .Values.elector.image.repository }}:{{ .Values.elector.image.tag }}
+        imagePullPolicy: {{ .Values.elector.image.pullPolicy }}
+        livenessProbe:
+          exec:
+            command:
+            - cat
+            - /proc/1/cmdline
+          failureThreshold: 30
+          initialDelaySeconds: 3
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 3
+        name: elector
+        readinessProbe:
+          exec:
+            command:
+            - cat
+            - /proc/1/cmdline
+          failureThreshold: 30
+          initialDelaySeconds: 3
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 5
+        volumeMounts:
+        - mountPath: /etc/clusterlink
+          name: proxy-config
+          readOnly: true
+      serviceAccountName: clusterlink-elector
+      tolerations:
+      - effect: NoSchedule
+        key: key
+        operator: Equal
+        value: value
+      volumes:
+      - name: proxy-config
+        secret:
+          secretName: control-plane-config
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: clusterlink-controller-manager
+  name: clusterlink-controller-manager
+  namespace: {{ .Values.global.namespace }}
+spec:
+  replicas: {{ .Values.controllerManager.replicas }}
+  selector:
+    matchLabels:
+      app: clusterlink-controller-manager
+  template:
+    metadata:
+      labels:
+        app: clusterlink-controller-manager
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - clusterlink-controller-manager
+            namespaces:
+            - {{ .Values.global.namespace }}
+            topologyKey: kubernetes.io/hostname
+      containers:
+      - command:
+        - clusterlink-controller-manager
+        - --controlpanelconfig=/etc/clusterlink/kubeconfig
+        env:
+        - name: CLUSTER_NAME
+          value: kosmos-control-cluster
+        image: {{ .Values.controllerManager.image.repository }}:{{ .Values.controllerManager.image.tag }}
+        imagePullPolicy: {{ .Values.controllerManager.image.pullPolicy }}
+        livenessProbe:
+          exec:
+            command:
+            - cat
+            - /proc/1/cmdline
+          failureThreshold: 30
+          initialDelaySeconds: 3
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 3
+        name: manager
+        readinessProbe:
+          exec:
+            command:
+            - cat
+            - /proc/1/cmdline
+          failureThreshold: 30
+          initialDelaySeconds: 3
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 5
+        resources:
+          limits:
+            cpu: {{ .Values.controllerManager.resources.limits.cpu }}
+            memory: {{ .Values.controllerManager.resources.limits.memory }}
+          requests:
+            cpu: {{ .Values.controllerManager.resources.requests.cpu }}
+            memory: {{ .Values.controllerManager.resources.requests.memory }}
+        volumeMounts:
+        - mountPath: /etc/clusterlink
+          name: proxy-config
+          readOnly: true
+      serviceAccountName: clusterlink-controller-manager
+      volumes:
+      - name: proxy-config
+        secret:
+          secretName: control-plane-config
