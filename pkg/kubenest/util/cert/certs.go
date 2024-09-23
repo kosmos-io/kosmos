@@ -358,7 +358,7 @@ func NewCertificateAuthority(cc *CertConfig) (*VirtualClusterCert, error) {
 		return nil, fmt.Errorf("unable to create private key while generating CA certificate, err: %w", err)
 	}
 
-	cert, err := certutil.NewSelfSignedCACert(cc.Config, key)
+	cert, err := NewSelfSignedCACert(cc.Config, key)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create self-signed CA certificate, err: %w", err)
 	}
@@ -374,6 +374,30 @@ func NewCertificateAuthority(cc *CertConfig) (*VirtualClusterCert, error) {
 		cert:     EncodeCertPEM(cert),
 		key:      encoded,
 	}, nil
+}
+
+// NewSelfSignedCACert creates a CA certificate
+func NewSelfSignedCACert(cfg certutil.Config, key crypto.Signer) (*x509.Certificate, error) {
+	now := time.Now()
+	tmpl := x509.Certificate{
+		SerialNumber: new(big.Int).SetInt64(0),
+		Subject: pkix.Name{
+			CommonName:   cfg.CommonName,
+			Organization: cfg.Organization,
+		},
+		DNSNames:              []string{cfg.CommonName},
+		NotBefore:             now.UTC(),
+		NotAfter:              now.Add(constants.CertificateValidity).UTC(),
+		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+	}
+
+	certDERBytes, err := x509.CreateCertificate(cryptorand.Reader, &tmpl, &tmpl, key.Public(), key)
+	if err != nil {
+		return nil, err
+	}
+	return x509.ParseCertificate(certDERBytes)
 }
 
 func CreateCertAndKeyFilesWithCA(cc *CertConfig, caCertData, caKeyData []byte) (*VirtualClusterCert, error) {

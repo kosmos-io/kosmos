@@ -35,7 +35,7 @@ const (
 	RsaKeySize                     = 2048
 	KeyExtension                   = ".key"
 	CertExtension                  = ".crt"
-	CertificateValidity            = time.Hour * 24 * 365
+	CertificateValidity            = time.Hour * 24 * 365 * 100
 	CaCertAndKeyName               = "ca"
 	VirtualClusterCertAndKeyName   = "virtualCluster"
 	VirtualClusterSystemNamespace  = "virtualCluster-system"
