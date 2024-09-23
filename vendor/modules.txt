@@ -527,9 +527,6 @@ github.com/peterbourgon/diskv
 # github.com/pkg/errors v0.9.1
 ## explicit
 github.com/pkg/errors
-# github.com/pmezard/go-difflib v1.0.0
-## explicit
-github.com/pmezard/go-difflib/difflib
 # github.com/projectcalico/api v0.0.0-20230602153125-fb7148692637
 ## explicit; go 1.19
 github.com/projectcalico/api/pkg/apis/projectcalico/v3
@@ -625,9 +622,8 @@ github.com/spf13/viper/internal/encoding/yaml
 # github.com/stoewer/go-strcase v1.2.0
 ## explicit; go 1.11
 github.com/stoewer/go-strcase
-# github.com/stretchr/testify v1.8.1
-## explicit; go 1.13
-github.com/stretchr/testify/assert
+# github.com/stretchr/testify v1.9.0
+## explicit; go 1.17
 # github.com/subosito/gotenv v1.3.0
 ## explicit; go 1.18
 github.com/subosito/gotenv
