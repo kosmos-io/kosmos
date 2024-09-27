@@ -1010,7 +1010,7 @@ func (r *RootPodReconciler) UpdatePodInLeafCluster(ctx context.Context, lr *leaf
 		r.changeToMasterCoreDNS(ctx, podCopy, r.Options)
 	}
 
-	klog.V(5).Infof("Updating pod %+v", podCopy)
+	klog.V(4).Infof("Updating pod %+v", podCopy)
 
 	lcr, err := r.leafClientResource(lr)
 	if err != nil {

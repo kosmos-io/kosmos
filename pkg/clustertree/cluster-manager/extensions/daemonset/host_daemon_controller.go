@@ -897,10 +897,10 @@ func (dsc *HostDaemonSetsController) podsShouldBeOnNode(
 		if oldestNewPod != nil && oldestOldPod != nil {
 			switch {
 			case !podutil.IsPodReady(oldestOldPod):
-				klog.V(5).Infof("Pod %s/%s from daemonset %s is no longer ready and will be replaced with newer pod %s", oldestOldPod.Namespace, oldestOldPod.Name, ds.Name, oldestNewPod.Name)
+				klog.V(4).Infof("Pod %s/%s from daemonset %s is no longer ready and will be replaced with newer pod %s", oldestOldPod.Namespace, oldestOldPod.Name, ds.Name, oldestNewPod.Name)
 				podsToDelete = append(podsToDelete, oldestOldPod.Name)
 			case podutil.IsPodAvailable(oldestNewPod, ds.DaemonSetSpec.MinReadySeconds, metav1.Time{Time: dsc.failedPodsBackoff.Clock.Now()}):
-				klog.V(5).Infof("Pod %s/%s from daemonset %s is now ready and will replace older pod %s", oldestNewPod.Namespace, oldestNewPod.Name, ds.Name, oldestOldPod.Name)
+				klog.V(4).Infof("Pod %s/%s from daemonset %s is now ready and will replace older pod %s", oldestNewPod.Namespace, oldestNewPod.Name, ds.Name, oldestOldPod.Name)
 				podsToDelete = append(podsToDelete, oldestOldPod.Name)
 			}
 		}

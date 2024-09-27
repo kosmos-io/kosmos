@@ -66,6 +66,8 @@ func (c *NodeLeaseController) Start(ctx context.Context) error {
 }
 
 func (c *NodeLeaseController) syncNodeStatus(ctx context.Context) {
+	klog.V(4).Infof("NODESYNC syncNodeStatus start")
+	defer klog.V(4).Infof("NODESYNC syncNodeStatus done")
 	nodes := make([]*corev1.Node, 0)
 	c.nodeLock.Lock()
 	for _, nodeIndex := range c.nodes {
@@ -90,6 +92,8 @@ func (c *NodeLeaseController) updateNodeStatus(ctx context.Context, n []*corev1.
 }
 
 func (c *NodeLeaseController) syncLease(ctx context.Context) {
+	klog.V(4).Infof("NODESYNC syncLease start")
+	defer klog.V(4).Infof("NODESYNC syncLease done")
 	nodes := make([]*corev1.Node, 0)
 	c.nodeLock.Lock()
 	for _, nodeIndex := range c.nodes {
@@ -115,7 +119,7 @@ func (c *NodeLeaseController) syncLease(ctx context.Context) {
 		return
 	}
 
-	klog.V(5).Infof("Successfully updated lease")
+	klog.V(4).Infof("Successfully updated lease")
 }
 
 func (c *NodeLeaseController) createLeaseIfNotExists(ctx context.Context, nodes []*corev1.Node) error {

@@ -161,6 +161,12 @@ func (c *NodeResourcesController) Reconcile(ctx context.Context, request reconci
 		clone.Status.Allocatable = clusterResources
 		clone.Status.Capacity = clusterResources
 
+		if !utils.NodeReady(clone) {
+			klog.V(4).Infof("NODESYNC syncResource, node not ready, node name: %s", clone.Name)
+		} else {
+			klog.V(4).Infof("NODESYNC syncResource, node name: %s", clone.Name)
+		}
+
 		patch, err := utils.CreateMergePatch(nodeInRoot, clone)
 		if err != nil {
 			klog.Errorf("Could not CreateMergePatch,Error: %v", err)
@@ -168,15 +174,17 @@ func (c *NodeResourcesController) Reconcile(ctx context.Context, request reconci
 		}
 
 		if _, err = c.RootClientset.CoreV1().Nodes().Patch(ctx, rootNode.Name, types.MergePatchType, patch, metav1.PatchOptions{}); err != nil {
+			klog.Errorf("(patch) failed to patch node resources: %v, will requeue, node name: %s", err, rootNode.Name)
 			return reconcile.Result{
 				RequeueAfter: RequeueTime,
-			}, fmt.Errorf("(patch) failed to patch node resources: %v, will requeue", err)
+			}, err
 		}
 
 		if _, err = c.RootClientset.CoreV1().Nodes().PatchStatus(ctx, rootNode.Name, patch); err != nil {
+			klog.Errorf("(patch-status) failed to patch node resources: %v, will requeue, node name: %s", err, rootNode.Name)
 			return reconcile.Result{
 				RequeueAfter: RequeueTime,
-			}, fmt.Errorf("(patch-status) failed to patch node resources: %v, will requeue", err)
+			}, err
 		}
 	}
 	return reconcile.Result{}, nil
