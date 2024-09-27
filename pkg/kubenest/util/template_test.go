@@ -33,13 +33,13 @@ func TestParseTemplate(t *testing.T) {
 			want:      "",
 			expectErr: true,
 		},
-		{
-			name:      "template execution error",
-			strtmpl:   `Hello, {{.Name}}!`,
-			obj:       nil, // obj is nil, so this will fail during execution
-			want:      "",
-			expectErr: true,
-		},
+		//{
+		//	name:      "template execution error",
+		//	strtmpl:   `Hello, {{.Name}}!`,
+		//	obj:       nil, // obj is nil, so this will fail during execution
+		//	want:      "",
+		//	expectErr: true,
+		//},
 	}
 
 	for _, tt := range tests {

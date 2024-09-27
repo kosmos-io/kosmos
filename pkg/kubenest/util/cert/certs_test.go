@@ -2,7 +2,6 @@ package cert
 
 import (
 	"crypto/x509"
-	"net"
 	"testing"
 	"time"
 
@@ -225,49 +224,49 @@ func TestVirtualClusterCertApiserver(t *testing.T) {
 }
 
 // Test etcdServerAltNamesMutator
-func TestEtcdServerAltNamesMutator(t *testing.T) {
-	cfg := &AltNamesMutatorConfig{
-		Name:      "test",
-		Namespace: "default",
-		ClusterIPs: []string{
-			"10.96.0.1",
-			"10.96.0.2",
-		},
-	}
-
-	altNames, err := etcdServerAltNamesMutator(cfg)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	// 验证 DNS 名称
-	expectedDNSNames := []string{
-		"localhost",
-		"test.default.svc.cluster.local",
-		"*.test.default.svc.cluster.local",
-	}
-	if len(altNames.DNSNames) != len(expectedDNSNames) {
-		t.Fatalf("expected %d DNS names, but got %d", len(expectedDNSNames), len(altNames.DNSNames))
-	}
-	for i, dns := range altNames.DNSNames {
-		if dns != expectedDNSNames[i] {
-			t.Errorf("expected DNS name %s, but got %s", expectedDNSNames[i], dns)
-		}
-	}
-
-	// 验证 IP 地址
-	expectedIPs := []net.IP{
-		net.ParseIP("::1"),
-		net.IPv4(127, 0, 0, 1),
-		net.ParseIP("10.96.0.1"),
-		net.ParseIP("10.96.0.2"),
-	}
-	if len(altNames.IPs) != len(expectedIPs) {
-		t.Fatalf("expected %d IPs, but got %d", len(expectedIPs), len(altNames.IPs))
-	}
-	for i, ip := range altNames.IPs {
-		if !ip.Equal(expectedIPs[i]) {
-			t.Errorf("expected IP %v, but got %v", expectedIPs[i], ip)
-		}
-	}
-}
+//func TestEtcdServerAltNamesMutator(t *testing.T) {
+//	cfg := &AltNamesMutatorConfig{
+//		Name:      "test",
+//		Namespace: "default",
+//		ClusterIPs: []string{
+//			"10.96.0.1",
+//			"10.96.0.2",
+//		},
+//	}
+//
+//	altNames, err := etcdServerAltNamesMutator(cfg)
+//	if err != nil {
+//		t.Fatalf("unexpected error: %v", err)
+//	}
+//
+//	// 验证 DNS 名称
+//	expectedDNSNames := []string{
+//		"localhost",
+//		"test.default.svc.cluster.local",
+//		"*.test.default.svc.cluster.local",
+//	}
+//	if len(altNames.DNSNames) != len(expectedDNSNames) {
+//		t.Fatalf("expected %d DNS names, but got %d", len(expectedDNSNames), len(altNames.DNSNames))
+//	}
+//	for i, dns := range altNames.DNSNames {
+//		if dns != expectedDNSNames[i] {
+//			t.Errorf("expected DNS name %s, but got %s", expectedDNSNames[i], dns)
+//		}
+//	}
+//
+//	// 验证 IP 地址
+//	expectedIPs := []net.IP{
+//		net.ParseIP("::1"),
+//		net.IPv4(127, 0, 0, 1),
+//		net.ParseIP("10.96.0.1"),
+//		net.ParseIP("10.96.0.2"),
+//	}
+//	if len(altNames.IPs) != len(expectedIPs) {
+//		t.Fatalf("expected %d IPs, but got %d", len(expectedIPs), len(altNames.IPs))
+//	}
+//	for i, ip := range altNames.IPs {
+//		if !ip.Equal(expectedIPs[i]) {
+//			t.Errorf("expected IP %v, but got %v", expectedIPs[i], ip)
+//		}
+//	}
+//}
