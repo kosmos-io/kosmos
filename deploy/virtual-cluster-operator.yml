@@ -103,11 +103,37 @@ spec:
                       values:
                         - virtual-cluster-operator
                 topologyKey: kubernetes.io/hostname
+      initContainers:
+      - name: init-container
+        image: ghcr.io/kosmos-io/virtual-cluster-operator:__VERSION__
+        command:
+          - sh
+          - "-c"
+          - |
+            mkdir -p /kosmos && \
+            tar -xzf /config/manifest-use.tar -C /kosmos
+        volumeMounts:
+          - name: manifest-volume
+            mountPath: /kosmos 
+          - name: manifest-tar
+            mountPath: /config 
       containers:
       - name: virtual-cluster-operator
         # Change a valid image address
         image: ghcr.io/kosmos-io/virtual-cluster-operator:__VERSION__
         imagePullPolicy: IfNotPresent
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 15
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 10
         env:
           - name: IMAGE_REPOSITIRY
             value: ghcr.io/kosmos-io
@@ -150,8 +176,8 @@ spec:
         - name: shellscript
           mountPath: /etc/vc-node-dir/config.yaml
           subPath: config.yaml
-        - mountPath: /kosmos/manifest
-          name: components-manifest
+        - mountPath: /kosmos
+          name: manifest-volume
         command:
         - virtual-cluster-operator
         - --kubeconfig=/etc/virtual-cluster-operator/kubeconfig
@@ -163,10 +189,11 @@ spec:
       - name: shellscript
         configMap:
           name: virtual-cluster-operator
-      - hostPath:
-          path: /home/vc-operator/manifest
-          type: DirectoryOrCreate
-        name: components-manifest
+      - name: manifest-tar
+        configMap:
+          name: manifest-tar
+      - name: manifest-volume
+        emptyDir: {} 
 ---
 apiVersion: apps/v1
 kind: DaemonSet
@@ -216,6 +243,20 @@ spec:
       containers:
         - name: install-agent
           image: cis-hub-huabei-3.cmecloud.cn/node-agent/node-agent:latest
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 5678
+              scheme: HTTPS
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 5678
+              scheme: HTTPS
+            initialDelaySeconds: 5
+            periodSeconds: 10          
           securityContext:
             privileged: true # container privileged
           command:

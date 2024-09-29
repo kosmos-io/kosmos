@@ -15,6 +15,7 @@ import (
 	cliflag "k8s.io/component-base/cli/flag"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/kosmos.io/kosmos/cmd/kubenest/operator/app/config"
@@ -223,9 +224,22 @@ func run(ctx context.Context, config *config.Config) error {
 		LeaderElection:          config.LeaderElection.LeaderElect,
 		LeaderElectionID:        config.LeaderElection.ResourceName,
 		LeaderElectionNamespace: config.LeaderElection.ResourceNamespace,
+		LivenessEndpointName:    "/healthz",
+		ReadinessEndpointName:   "/readyz",
+		HealthProbeBindAddress:  ":8081",
 	})
 	if err != nil {
 		return fmt.Errorf("failed to build controller manager: %v", err)
+	}
+
+	err = mgr.AddHealthzCheck("healthz", healthz.Ping)
+	if err != nil {
+		return fmt.Errorf("failed to build healthz: %v", err)
+	}
+
+	err = mgr.AddReadyzCheck("readyz", healthz.Ping)
+	if err != nil {
+		return fmt.Errorf("failed to build readyz: %v", err)
 	}
 
 	hostKubeClient, err := kubernetes.NewForConfig(config.RestConfig)
