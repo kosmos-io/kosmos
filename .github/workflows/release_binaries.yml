@@ -43,8 +43,8 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            _output/release/kosmosctl-linux-amd64
-            _output/release/kosmosctl-linux-arm64
-            _output/release/kosmosctl-darwin-amd64
-            _output/release/kosmosctl-darwin-arm64
+            _output/release/kosmosctl/kosmosctl-linux-amd64
+            _output/release/kosmosctl/kosmosctl-linux-arm64
+            _output/release/kosmosctl/kosmosctl-darwin-amd64
+            _output/release/kosmosctl/kosmosctl-darwin-arm64
 
