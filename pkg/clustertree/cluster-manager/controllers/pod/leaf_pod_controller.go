@@ -10,6 +10,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -35,32 +36,33 @@ type LeafPodReconciler struct {
 }
 
 func (r *LeafPodReconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
-	var pod corev1.Pod
-	if err := r.Get(ctx, request.NamespacedName, &pod); err != nil {
-		if apierrors.IsNotFound(err) {
-			// delete pod in root
-			if err := DeletePodInRootCluster(ctx, request.NamespacedName, r.RootClient); err != nil {
-				return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		var pod corev1.Pod
+		if err := r.Get(ctx, request.NamespacedName, &pod); err != nil {
+			if apierrors.IsNotFound(err) {
+				// delete pod in root
+				if err := DeletePodInRootCluster(ctx, request.NamespacedName, r.RootClient); err != nil {
+					return err
+				}
+				return nil
 			}
-			return reconcile.Result{}, nil
+			klog.Errorf("get %s error: %v", request.NamespacedName, err)
+			return err
 		}
-		klog.Errorf("get %s error: %v", request.NamespacedName, err)
-		return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
-	}
 
-	podCopy := pod.DeepCopy()
+		podCopy := pod.DeepCopy()
 
-	// if ShouldSkipStatusUpdate(podCopy) {
-	// 	return reconcile.Result{}, nil
-	// }
-
-	if podutils.IsKosmosPod(podCopy) {
-		podutils.FitObjectMeta(&podCopy.ObjectMeta)
-		podCopy.ResourceVersion = "0"
-		if err := r.RootClient.Status().Update(ctx, podCopy); err != nil && !apierrors.IsNotFound(err) {
-			klog.V(4).Info(errors.Wrap(err, "error while updating pod status in kubernetes"))
-			return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
+		if podutils.IsKosmosPod(podCopy) {
+			podutils.FitObjectMeta(&podCopy.ObjectMeta)
+			if err := r.RootClient.Status().Update(ctx, podCopy); err != nil && !apierrors.IsNotFound(err) {
+				klog.V(4).Info(errors.Wrap(err, "error while updating pod status in kubernetes"))
+				return err
+			}
 		}
+		return nil
+	})
+	if err != nil {
+		return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, err
 	}
 	return reconcile.Result{}, nil
 }
