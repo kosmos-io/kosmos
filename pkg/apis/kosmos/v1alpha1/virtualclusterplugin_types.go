@@ -51,6 +51,24 @@ type Chart struct {
 type Yaml struct {
 	// +required
 	Path Storage `json:"path"`
+
+	// +optional
+	Domain string `json:"domain"`
+
+	// +optional
+	KubeDNS string `json:"kubeDNS"`
+
+	// +optional
+	LocalDNS string `json:"localDNS"`
+
+	// +optional
+	ClusterDNS string `json:"clusterDNS"`
+
+	// +optional
+	ImageRepository string `json:"imageRepository"`
+
+	// +optional
+	Version string `json:"version"`
 }
 
 type Storage struct {

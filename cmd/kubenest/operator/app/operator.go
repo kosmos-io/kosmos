@@ -256,7 +256,6 @@ func run(ctx context.Context, config *config.Config) error {
 		KosmosClient:  kosmosClient,
 		EventRecorder: mgr.GetEventRecorderFor(constants.GlobalNodeControllerName),
 	}
-
 	if err = GlobalNodeController.SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("error starting %s: %v", constants.GlobalNodeControllerName, err)
 	}
@@ -289,6 +288,16 @@ func run(ctx context.Context, config *config.Config) error {
 			return fmt.Errorf("error starting %s: %v", constants.KosmosJoinControllerName, err)
 		}
 	}
+
+	//VirtualClusterPluginController := vcpc.VirtualClusterPluginController{
+	//	Client:        mgr.GetClient(),
+	//	RootClientSet: hostKubeClient,
+	//	KosmosClient:  kosmosClient,
+	//	EventRecorder: mgr.GetEventRecorderFor(constants.PluginControllerName),
+	//}
+	//if err = VirtualClusterPluginController.SetupWithManager(mgr); err != nil {
+	//	return fmt.Errorf("error starting %s: %v", constants.PluginControllerName, err)
+	//}
 
 	if err := mgr.Start(ctx); err != nil {
 		return fmt.Errorf("failed to start controller manager: %v", err)
