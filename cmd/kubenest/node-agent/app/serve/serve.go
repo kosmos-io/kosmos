@@ -69,6 +69,11 @@ func Start(addr, certFile, keyFile, user, password string) error {
 	passwordHash := sha256.Sum256([]byte(password))
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/healthz" || r.URL.Path == "/readyz" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
 		auth := r.Header.Get("Authorization")
 		if auth == "" {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
