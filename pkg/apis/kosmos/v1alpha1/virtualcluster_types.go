@@ -8,7 +8,7 @@ import (
 type Phase string
 
 const (
-	// Preparing means kubernetes control plane is preparing,and kubeconfig is not ready
+	// Preparing means kubernetes control plane is preparing,and kubeconfig is not ready11
 	Preparing Phase = "Preparing"
 	// Initialized means kubernetes control plane is ready,and kubeconfig is ready for use
 	Initialized Phase = "Initialized"
