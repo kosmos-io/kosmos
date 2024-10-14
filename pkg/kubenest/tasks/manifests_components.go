@@ -95,6 +95,9 @@ func applyComponentsManifests(r workflow.RunData) error {
 	templatedMapping["KUBE_PROXY_KUBECONFIG"] = string(secret.Data[constants.KubeConfig])
 	imageRepository, _ := util.GetImageMessage()
 	templatedMapping["ImageRepository"] = imageRepository
+	for k, v := range data.PluginOptions() {
+		templatedMapping[k] = v
+	}
 	keepalivedEnable := data.VipMap() != nil && data.VipMap()[constants.VcVipStatusKey] != ""
 	if keepalivedEnable {
 		templatedMapping["Vip"] = data.VipMap()[constants.VcVipStatusKey]
@@ -103,9 +106,7 @@ func applyComponentsManifests(r workflow.RunData) error {
 		if nodeCount < constants.VipKeepAlivedReplicas {
 			keepalivedReplicas = int(nodeCount)
 		}
-		for k, v := range data.PluginOptions() {
-			templatedMapping[k] = v
-		}
+
 		templatedMapping["KeepalivedReplicas"] = keepalivedReplicas
 	}
 
