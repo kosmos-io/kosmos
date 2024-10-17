@@ -1,0 +1,41 @@
+apiVersion: kosmos.io/v1alpha1
+kind: Cluster
+metadata:
+  #子集群标签(区分主子集群，value与name保持一致)
+  labels:
+    kosmos.io/actual-cluster-name: member-cluster
+  #子集群对象名称
+  name: member-cluster
+spec:
+  clusterLinkOptions:
+  #默认值，不需修改（bridgeCIDRs配置）
+    bridgeCIDRs:
+      ip: 220.0.0.0/8
+      ip6: 9480::0/16
+   #子集群中k8s安装的插件名称
+    cni: calico
+   #子集群中宿主机物理流量默认网卡
+    defaultNICName: eth0
+    enable: true
+    ipFamily: all
+   #默认值，不需修改（localCIDRs配置）
+    localCIDRs:
+      ip: 210.0.0.0/8
+      ip6: 9470::0/16
+    #跨集群容器网络拉通方式，支持p2p、gateway两种模式
+    networkType: p2p
+    #支持子集群中不同节点使用不同物理流量网卡配置，与defaultNICName不一样的节点宿主机网卡配置
+    nicNodeNames:
+    - interfaceName: eth1
+      nodeName:
+      - nodeName1
+      - nodeName2
+    useIPPool: false
+  clusterTreeOptions:
+    enable: true
+  #默认服务镜像配置，使用kosmosctl安装时需要
+  imageRepository: ghcr.io/kosmos
+  #子集群认证配置kubeconfig,此处需base64加密
+  kubeconfig: _kubeconfig_
+  #子集群安装服务的命名空间，建议与主集群保持一致（kosmos-system）
+  namespace: kosmos-system
