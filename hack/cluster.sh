@@ -130,6 +130,7 @@ function create_cluster() {
   local -r servicecidr=$5
   local -r isDual=${6:-false}
   local -r multiNodes=${7:-false}
+  local -r isMount=${8:-false}
 
   local KIND_CONFIG_NAME
 
@@ -137,6 +138,9 @@ function create_cluster() {
       KIND_CONFIG_NAME="kubenest_kindconfig"
   else
       KIND_CONFIG_NAME="kindconfig"
+  fi
+  if [ "${isMount}" == true ]; then
+      KIND_CONFIG_NAME="kubenest_kind_config"
   fi
 
   CLUSTER_DIR="${ROOT}/environments/${clustername}"
