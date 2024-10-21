@@ -1,0 +1,39 @@
+apiVersion: kosmos.io/v1alpha1
+kind: Cluster
+metadata:
+  annotations:
+    kosmos.io/cluster-role: root
+  name: kosmos-control-cluster
+spec:
+  clusterLinkOptions:
+  #默认，可不修改（bridgeCIDRS配置）
+    bridgeCIDRs:
+      ip: 220.0.0.0/8
+      ip6: 9480::0/16
+  #cni需修改，集群环境中查看k8s所安装的cni插件
+    cni: calico
+  #集群中宿主机默认流量网卡
+    defaultNICName: eth0
+    enable: true
+    ipFamily: all
+  #默认，可不修改（localCIDRS配置）
+    localCIDRs:
+      ip: 210.0.0.0/8
+      ip6: 9470::0/16
+  #kosmos支持两种模式p2p、gateway，可直接修改cluster对象进行切换
+    networkType: p2p
+  #此配置根据集群中不同节点不同物理网卡进行差异化配置，如果其他节点和默认组宿主机默认流量网卡不一致（defaultNICName）
+    nicNodeNames:
+    - interfaceName: eth1
+      nodeName:
+      - nodeName1
+      - nodeName2
+    useIPPool: false
+  clusterTreeOptions:
+    enable: true
+  #安装服务时默认服务镜像路径，使用kosmosctl安装时使用，helm部署时不需要
+  imageRepository: ghcr.io/kosmos
+  #主集群认证kubeconfig（base64加密）
+  kubeconfig: _kubeconfig_
+  #命名空间，如果为helm部署时与value.yaml中配置的ns保持一致
+  namespace: kosmos-system
