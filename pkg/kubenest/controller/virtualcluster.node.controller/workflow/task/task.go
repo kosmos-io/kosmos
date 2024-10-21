@@ -336,6 +336,26 @@ func NewWaitNodeReadyTask(isHost bool) Task {
 	}
 }
 
+func NewInstallLBTask() Task {
+	return Task{
+		Name:  "remote install load balancer",
+		Retry: true,
+		Run: func(ctx context.Context, to TaskOpt, _ interface{}) (interface{}, error) {
+			exectHelper := exector.NewExectorHelper(to.NodeInfo.Spec.NodeIP, "")
+
+			joinCmd := &exector.CMDExector{
+				Cmd: fmt.Sprintf("bash %s install_lb", env.GetExectorShellName()),
+			}
+			to.Loger().Infof("install nginx %s with cmd: %s", to.NodeInfo.Name, joinCmd.Cmd)
+			ret := exectHelper.DoExector(ctx.Done(), joinCmd)
+			if ret.Status != exector.SUCCESS {
+				return nil, fmt.Errorf("nstall nginx %s failed: %s", to.NodeInfo.Name, ret.String())
+			}
+			return nil, nil
+		},
+	}
+}
+
 // nolint:dupl
 func NewUpdateVirtualNodeLabelsTask() Task {
 	return Task{

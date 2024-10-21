@@ -90,6 +90,7 @@ func NewJoinWorkFlow() WorkflowData {
 		task.NewRemoteUpdateConfigYamlTask(),
 		task.NewRemoteNodeJoinTask(),
 		task.NewWaitNodeReadyTask(false),
+		task.NewInstallLBTask(),
 		task.NewUpdateVirtualNodeLabelsTask(),
 		task.NewUpdateNodePoolItemStatusTask(v1alpha1.NodeInUse, false),
 	}

@@ -330,10 +330,102 @@ function version() {
     echo "$SCRIPT_VERSION"
 }
 
+
+function is_ipv6() {
+    if [[ "$1" =~ : ]]; then
+        return 0 
+    else
+        return 1
+    fi
+}
+
+function install_lb() {
+    if [ -z "$USE_NGINX" ]; then
+      export USE_KUBEADM=false
+    fi
+
+    if [ "$USE_NGINX" = false ]; then
+        exit 0
+    fi
+
+    echo "exec(1/6): get port of apiserver...."
+
+    PORT=$(grep 'server:' "${PATH_KUBERNETES}/${KUBELET_KUBE_CONFIG_NAME}" | awk -F '[:/]' '{print $NF}')
+
+    if [ -z "$PORT" ]; then
+        echo "can not get port"
+        exit 1
+    else
+        echo "port is $PORT"
+    fi
+
+    if [ "$LOCAL_PORT" -eq "$PORT" ]; then
+        echo "Error: LOCAL_PORT ($LOCAL_PORT) cannot be the same as the backend port ($PORT)."
+        exit 0
+    fi
+
+    # Start generating nginx.conf
+    echo "exec(1/6): generate nginx.conf...."
+    cat <<EOL > "$PATH_FILE_TMP/nginx.conf"
+error_log stderr notice;
+worker_processes 1;
+events {
+  multi_accept on;
+  use epoll;
+  worker_connections 1024;
+}
+
+stream {
+        upstream kube_apiserver {
+            least_conn;
+EOL
+
+    # Loop through the array and append each server to the nginx.conf file
+    for SERVER in "${SERVERS[@]}"; do
+        if is_ipv6 "$SERVER"; then
+            echo "            server [$SERVER]:$PORT;" >> "$PATH_FILE_TMP/nginx.conf"
+        else
+            echo "            server $SERVER:$PORT;" >> "$PATH_FILE_TMP/nginx.conf"
+        fi
+    done
+
+    # Continue writing the rest of the nginx.conf
+    cat <<EOL >> "$PATH_FILE_TMP/nginx.conf"
+        }
+        server {
+            listen        [::]:$LOCAL_PORT;
+            listen        6443;
+            proxy_pass    kube_apiserver;
+            proxy_timeout 10m;
+            proxy_connect_timeout 10s;
+        }
+}
+EOL
+
+    echo "exec(1/6): create static pod"
+    GenerateStaticNginxProxy true
+
+
+    echo "exec(1/6): restart static pod"
+    mv "${PATH_KUBERNETES}/manifests/nginx-proxy.yaml" "${PATH_KUBERNETES}/nginx-proxy.yaml"
+    sleep 2
+    mv "${PATH_KUBERNETES}/nginx-proxy.yaml" "${PATH_KUBERNETES}/manifests/nginx-proxy.yaml"
+
+    echo "exec(1/6): update kubelet.conf"
+    cp "${PATH_KUBERNETES}/${KUBELET_KUBE_CONFIG_NAME}" "${PATH_KUBERNETES}/${KUBELET_KUBE_CONFIG_NAME}.bak"
+    sed -i "s|server: .*|server: https://${LOCAL_IP}:${LOCAL_PORT}|" "${PATH_KUBERNETES}/${KUBELET_KUBE_CONFIG_NAME}"
+
+    echo "exec(1/6): restart kubelet"
+    systemctl restart kubelet
+}
+
 # See how we were called.
 case "$1" in
     unjoin)
     unjoin
+    ;;
+    install_lb)
+    install_lb
     ;;
     join)
     join
