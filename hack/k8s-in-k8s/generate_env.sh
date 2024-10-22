@@ -80,8 +80,16 @@ function GetFileName() {
 
 function GetDirectory() {
     local fullpath="$1"
+    if [ -z "$fullpath" ]; then
+        echo "Error: No directory found."
+        exit 1
+    fi
     local directory=$(dirname "$fullpath")
     echo "$directory"
+}
+
+function GetMasterNodeIPs() {
+  kubectl get nodes -l node-role.kubernetes.io/master="" -o jsonpath='{range .items[*]}{.status.addresses[?(@.type=="InternalIP")].address}{" "}{end}'
 }
 
 # kubelet config name
@@ -96,6 +104,15 @@ PATH_KUBERNETES_PKI=$(GetDirectory "$(GetKubernetesCaPath)")
 # length=${#PATH_KUBERNETES_PKI}
 PATH_KUBERNETES=$(GetDirectory $PATH_KUBERNETES_PKI)
 HOST_CORE_DNS=$(GetKubeDnsClusterIP)
+
+DOCKER_IMAGE_NGINX="registry.paas/cmss/nginx:1.21.4"
+SERVERS=$(GetMasterNodeIPs)
+if [ -z "$SERVERS" ]; then
+    echo "Error: No master nodes found or failed to retrieve node IPs."
+    exit 1
+fi
+LOCAL_PORT="6443"
+LOCAL_IP="127.0.0.1"  # [::1]
 
 echo "#!/usr/bin/env bash
 
@@ -128,6 +145,13 @@ USE_KUBEADM=false
 # Generate kubelet.conf TIMEOUT
 KUBELET_CONF_TIMEOUT=30
 
+# load balance
+DOCKER_IMAGE_NGINX=$DOCKER_IMAGE_NGINX
+SERVERS=($SERVERS)
+LOCAL_PORT="6443"
+LOCAL_IP="127.0.0.1"  # [::1]
+USE_NGINX=true
+
 function GenerateKubeadmConfig() {
     echo \"---
 apiVersion: kubeadm.k8s.io/v1beta2
@@ -147,6 +171,10 @@ nodeRegistration:
 }
 
 function GenerateStaticNginxProxy() {
+    config_path=/apps/conf/nginx
+    if [ "\$1" == \"true\" ]; then
+      config_path=\$PATH_FILE_TMP
+    fi
     echo \"apiVersion: v1
 kind: Pod
 metadata:
@@ -155,7 +183,7 @@ metadata:
   namespace: kube-system
 spec:
   containers:
-  - image: registry.paas/cmss/nginx:1.21.4
+  - image: \$DOCKER_IMAGE_NGINX
     imagePullPolicy: IfNotPresent
     name: nginx-proxy
     resources:
@@ -175,7 +203,7 @@ spec:
   priorityClassName: system-node-critical
   volumes:
   - hostPath:
-      path: /apps/conf/nginx
+      path: \$config_path
       type: 
     name: etc-nginx
 status: {}\" > $PATH_KUBERNETES/manifests/nginx-proxy.yaml
