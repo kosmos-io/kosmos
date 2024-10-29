@@ -12,7 +12,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -20,19 +19,28 @@ import (
 	utilyaml "k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/dynamic"
 	clientset "k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/yaml"
 )
 
 func CreateOrUpdateService(client clientset.Interface, svc *v1.Service) error {
-	_, err := client.CoreV1().Services(svc.GetNamespace()).Update(context.TODO(), svc, metav1.UpdateOptions{})
+	_, err := client.CoreV1().Services(svc.GetNamespace()).Create(context.TODO(), svc, metav1.CreateOptions{})
 	if err != nil {
-		if !apierrors.IsNotFound(err) {
-			return err
-		}
+		if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			currentSvc, err := client.CoreV1().Services(svc.GetNamespace()).Get(context.TODO(), svc.GetName(), metav1.GetOptions{})
+			if err != nil {
+				return err
+			}
 
-		_, err := client.CoreV1().Services(svc.GetNamespace()).Create(context.TODO(), svc, metav1.CreateOptions{})
-		if err != nil {
+			svc.ResourceVersion = currentSvc.ResourceVersion
+
+			_, err = client.CoreV1().Services(svc.GetNamespace()).Update(context.TODO(), svc, metav1.UpdateOptions{})
+			if err != nil {
+				return err
+			}
+			return nil
+		}); err != nil {
 			return err
 		}
 	}
@@ -297,7 +305,7 @@ func ApplyObject(dynamicClient dynamic.Interface, obj *unstructured.Unstructured
 	// Get the existing resource
 	existingObj, err := resourceClient.Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
-		if kerrors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			// If not found, create the resource
 			_, err = resourceClient.Create(context.TODO(), obj, metav1.CreateOptions{})
 			if err != nil {
@@ -451,7 +459,7 @@ func ReplaceObject(dynamicClient dynamic.Interface, obj *unstructured.Unstructur
 	// Get the existing resource
 	_, err := resourceClient.Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
-		if kerrors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			// If not found, create the resource
 			_, err = resourceClient.Create(context.TODO(), obj, metav1.CreateOptions{})
 			if err != nil {
