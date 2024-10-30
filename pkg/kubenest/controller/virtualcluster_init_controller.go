@@ -527,13 +527,13 @@ func retrieveGlobalNodesWithLabelSelector(nodes []v1alpha1.GlobalNode, labelSele
 	return matchedNodes, nil
 }
 
+// 在此处对globalnode中的updateStatusFunc,但更新到globalnode只是VC的status？应该为VC中node的status
 func (c *VirtualClusterInitController) setGlobalNodeUsageStatus(virtualCluster *v1alpha1.VirtualCluster, node *v1alpha1.GlobalNode) error {
 	updateSpecFunc := func() error {
 		current, err := c.KosmosClient.KosmosV1alpha1().GlobalNodes().Get(context.TODO(), node.Name, metav1.GetOptions{})
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				klog.Errorf("globalnode %s not found. This should not happen normally", node.Name)
-				// 如果节点不存在，则不执行更新并返回nil
 				return nil
 			}
 			return fmt.Errorf("failed to get globalNode %s: %v", node.Name, err)

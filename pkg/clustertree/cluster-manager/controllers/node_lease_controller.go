@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"sync"
 	"time"
@@ -20,6 +21,7 @@ import (
 
 	kosmosv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	leafUtils "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/utils"
+	"github.com/kosmos.io/kosmos/pkg/utils"
 	"github.com/kosmos.io/kosmos/pkg/utils/podutils"
 	"github.com/pkg/errors"
 )
@@ -105,7 +107,9 @@ func (c *NodeLeaseController) syncpodStatus(ctx context.Context) {
 
 func (c *NodeLeaseController) updatepodStatus(ctx context.Context) error {
 
-	pods, err := c.leafClient.CoreV1().Pods(metav1.NamespaceAll).List(ctx, metav1.ListOptions{})
+	pods, err := c.leafClient.CoreV1().Pods(metav1.NamespaceAll).List(ctx, metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("%s!=%s", utils.KosmosPodLabel, utils.KosmosNodeValue),
+	})
 	if err != nil {
 		klog.Errorf("Could not list pods in leaf cluster,Error: %v", err)
 	}
@@ -133,7 +137,7 @@ func (c *NodeLeaseController) updatepodStatus(ctx context.Context) error {
 					podutils.FitObjectMeta(&rPodCopy.ObjectMeta)
 					if err := c.root.Status().Update(ctx, rPodCopy); err != nil && !apierrors.IsNotFound(err) {
 						klog.V(4).Info(errors.Wrap(err, "error while updating pod status in kubernetes"))
-						return nil
+						return err
 					}
 				}
 				return nil
@@ -142,10 +146,8 @@ func (c *NodeLeaseController) updatepodStatus(ctx context.Context) error {
 			if err != nil {
 				klog.Errorf("Failed to update pod %s/%s, error: %v", leafpod.Namespace, leafpod.Name, err)
 			}
-
 		}(leafpod)
 	}
-
 	wg.Wait()
 	return nil
 }

@@ -37,6 +37,7 @@ type LeafPodReconciler struct {
 
 func (r *LeafPodReconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
 
+	//retry.RetryOnConflict位置
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		var pod corev1.Pod
 		if err := r.Get(ctx, request.NamespacedName, &pod); err != nil {

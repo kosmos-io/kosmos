@@ -2,6 +2,7 @@ package globalnodecontroller
 
 import (
 	"context"
+	"time"
 
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -30,11 +31,16 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/utils"
 )
 
+const (
+	NodestatusUpdatefrequency = 10 * time.Second
+)
+
 type GlobalNodeController struct {
 	client.Client
 	RootClientSet kubernetes.Interface
 	EventRecorder record.EventRecorder
 	KosmosClient  versioned.Interface
+	//syncNodeStatusMux sync.Mutex
 }
 
 // compareMaps compares two map[string]string and returns true if they are equal
@@ -121,9 +127,186 @@ func (r *GlobalNodeController) newVirtualClusterMapFunc() handler.MapFunc {
 // 	}
 // }
 
+// func (r *GlobalNodeController) Start(ctx context.Context) error {
+// 	// globalnodes := make([]*v1alpha1.GlobalNodeList, 0)
+// 	// c.nodeLock.Lock()
+// 	// for _, nodeIndex := range c.nodes {
+// 	// 	nodeCopy := nodeIndex.DeepCopy()
+// 	// 	nodes = append(nodes, nodeCopy)
+// 	// }
+// 	// c.nodeLock.Unlock()
+
+// 	// err := c.updateNodeStatus(ctx, nodes, c.LeafNodeSelectors)
+// 	// if err != nil {
+// 	// 	klog.Errorf(err.Error())
+// 	// }
+
+// 	go wait.UntilWithContext(ctx, func(ctx context.Context) {
+
+// 		r.syncNodeStatusMux.Lock()
+// 		defer r.syncNodeStatusMux.Unlock()
+
+// 		var globalNodeList v1alpha1.GlobalNodeList
+// 		if err := r.List(ctx, &globalNodeList); err != nil {
+// 			klog.Errorf("error listing global nodes: %v", err)
+// 			return
+// 		}
+
+// 		for _, globalNode := range globalNodeList.Items {
+// 			if err := r.SyncNodeStatus(ctx, &globalNode); err != nil {
+// 				klog.Errorf("error syncing node status for global node %s: %v", globalNode.Name, err)
+// 			}
+// 		}
+// 	}, 10*time.Second)
+
+// 	<-ctx.Done()
+// 	return nil
+// }
+
+// func (r *GlobalNodeController) ChooseNode(ctx context.Context, globalNode *v1alpha1.GlobalNode) (*v1alpha1.GlobalNode, error) {
+
+// 	var updateGlobalNode *v1alpha1.GlobalNode
+// 	// 如果节点状态是 "InUse"
+// 	if globalNode.Spec.State == v1alpha1.NodeInUse {
+// 		var virtualCluster v1alpha1.VirtualCluster
+// 		if err := r.Get(ctx, types.NamespacedName{Name: globalNode.Name}, &virtualCluster); err != nil {
+// 			klog.Errorf("global-node-controller: SyncNodeStatus: can not get target virtualCluster, err: %s", globalNode.Name)
+// 			return nil, err
+// 		}
+// 		k8sClient, err := util.GenerateKubeclient(&virtualCluster)
+// 		if err != nil {
+// 			klog.Errorf("virtualcluster %s crd kubernetes client failed: %v", virtualCluster.Name, err)
+// 			return nil, err
+// 		}
+
+// 		virtualClusterNode, err := k8sClient.CoreV1().Nodes().Get(ctx, metav1.ListOptions{})
+// 		if err != nil {
+// 			klog.Errorf("virtualcluster %s get virtual-cluster nodes failed: %v", virtualCluster.Name, err)
+// 			return nil, err
+// 		}
+
+// 		current, err := r.KosmosClient.KosmosV1alpha1().GlobalNodes().Get(context.TODO(), virtualClusterNode.Name, metav1.GetOptions{})
+// 		if err != nil {
+// 			if apierrors.IsNotFound(err) {
+// 				klog.Errorf("globalnode %s not found. This should not happen normally", virtualClusterNode.Name)
+// 				return nil, klog.Errorf("globalNode %s not found", virtualClusterNode.Name)
+// 			}
+// 			klog.Errorf("failed to get globalNode %s: %v", virtualClusterNode.Name, err)
+// 			return nil, err
+// 		}
+// 		// if the node is in use, we don't need to update the status, because the status is updated by the node controller.
+// 		updateGlobalNode = current.DeepCopy()
+// 		updateGlobalNode.Status.Conditions = virtualClusterNode.Status.Conditions
+// 		// klog.V(4).Infof("global-node-controller: SyncState: node is in use %s, skip", globalNode.Name)
+// 		// return nil
+// 	} else {
+// 		var targetNode v1.Node
+// 		if err := r.Get(ctx, types.NamespacedName{Name: globalNode.Name}, &targetNode); err != nil {
+// 			klog.Errorf("global-node-controller: SyncNodeStatus: can not get target node, err: %s", globalNode.Name)
+// 			return nil, err
+// 		}
+// 		updateGlobalNode = globalNode.DeepCopy()
+// 		updateGlobalNode.Status.Conditions = targetNode.Status.Conditions
+// 	}
+// 	return updateGlobalNode, nil
+// }
+
+// 将node的状态上报给globalnode,对于 STATE为reserved和free的直接更新->global_node_controller
+// occupied的需要获取vc的node信息再更新->node_controller
+func (r *GlobalNodeController) SyncNodeStatus(ctx context.Context, globalNode *v1alpha1.GlobalNode) error {
+
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+
+		//每次重试时重新获取最新的 globalNode
+		currentGlobalNode := &v1alpha1.GlobalNode{}
+		if err := r.Get(ctx, types.NamespacedName{Name: globalNode.Name}, currentGlobalNode); err != nil {
+			klog.Errorf("global-node-controller: SyncNodeStatus: failed to get globalNode %s, err: %v", globalNode.Name, err)
+			return err
+		}
+
+		var updateGlobalNode *v1alpha1.GlobalNode
+		if globalNode.Spec.State == v1alpha1.NodeInUse {
+			var virtualCluster v1alpha1.VirtualCluster
+			if err := r.Get(ctx, types.NamespacedName{Name: globalNode.Name}, &virtualCluster); err != nil {
+				klog.Errorf("global-node-controller: SyncNodeStatus: can not get target virtualCluster, err: %s", globalNode.Name)
+				return err
+			}
+			k8sClient, err := util.GenerateKubeclient(&virtualCluster)
+			if err != nil {
+				klog.Errorf("virtualcluster %s crd kubernetes client failed: %v", virtualCluster.Name, err)
+				return err
+			}
+			virtualClusterNode, err := k8sClient.CoreV1().Nodes().Get(ctx, globalNode.Name, metav1.GetOptions{})
+			if err != nil {
+				klog.Errorf("virtualcluster %s get virtual-cluster nodes failed: %v", virtualCluster.Name, err)
+				return err
+			}
+			current, err := r.KosmosClient.KosmosV1alpha1().GlobalNodes().Get(context.TODO(), virtualClusterNode.Name, metav1.GetOptions{})
+			if err != nil {
+				if apierrors.IsNotFound(err) {
+					klog.Errorf("globalnode %s not found. This should not happen normally", virtualClusterNode.Name)
+					return nil
+				}
+				klog.Errorf("failed to get globalNode %s: %v", virtualClusterNode.Name, err)
+				return err
+			}
+			// if the node is in use, we don't need to update the status, because the status is updated by the node controller.
+			updateGlobalNode = current.DeepCopy()
+			updateGlobalNode.Status.Conditions = virtualClusterNode.Status.Conditions
+			// klog.V(4).Infof("global-node-controller: SyncState: node is in use %s, skip", globalNode.Name)
+			// return nil
+		} else {
+			var targetNode v1.Node
+			if err := r.Get(ctx, types.NamespacedName{Name: globalNode.Name}, &targetNode); err != nil {
+				klog.Errorf("global-node-controller: SyncNodeStatus: can not get target node, err: %s", globalNode.Name)
+				return err
+			}
+			//updateGlobalNode = globalNode.DeepCopy()
+			updateGlobalNode = currentGlobalNode.DeepCopy()
+			updateGlobalNode.Status.Conditions = targetNode.Status.Conditions
+		}
+
+		if err := r.Status().Update(ctx, updateGlobalNode); err != nil {
+			//klog.Errorf("update node status for globalnode failed, err: %s", globalNode.Name)
+			klog.Errorf("update node %s status for globalnode failed, %v", globalNode.Name, err)
+			return err
+		}
+		klog.V(4).Infof("SyncNodeStatus: successfully updated global node %s, Status.Conditions: %+v", updateGlobalNode.Name, updateGlobalNode.Status.Conditions)
+		return nil
+	})
+
+	// err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+	// 	var targetNode v1.Node
+	// 	if err := r.Get(ctx, types.NamespacedName{Name: globalNode.Name}, &targetNode); err != nil {
+	// 		klog.Errorf("global-node-controller: SyncNodeStatus: can not get target node, err: %s", globalNode.Name)
+	// 		return err
+	// 	}
+
+	// 	updateGlobalNode := globalNode.DeepCopy()
+	// 	updateGlobalNode.Status.Conditions = targetNode.Status.Conditions
+
+	// 	if err := r.Status().Update(ctx, updateGlobalNode); err != nil {
+	// 		klog.Errorf("update node status for globalnode failed, err: %s", globalNode.Name)
+	// 		return err
+	// 	}
+	// 	klog.V(4).Infof("SyncNodeStatus: successfully updated global node %s, Status.Conditions: %+v", updateGlobalNode.Name, updateGlobalNode.Status.Conditions)
+	// 	// // 重新获取更新后的 GlobalNode，确保获取最新状态
+	// rGlobalNode, err := r.KosmosClient.KosmosV1alpha1().GlobalNodes().Get(ctx, updateGlobalNode.Name, metav1.GetOptions{})
+	// if err != nil {
+	// 	klog.Errorf("global-node-controller: SyncLabel: failed to get updated global node: %s, err: %s", updateGlobalNode.Name, err)
+	// 	return err
+	// }
+	// // 只打印更新后的 GlobalNode 的 Status 部分
+	// klog.V(4).Infof("global-node-controller: SyncLabel: successfully updated global node %s, updated status: %+v", rGlobalNode.Name, rGlobalNode.Status)
+	// 	return nil
+	// })
+	return err
+}
+
 func (r *GlobalNodeController) SyncTaint(ctx context.Context, globalNode *v1alpha1.GlobalNode) error {
 	if globalNode.Spec.State == v1alpha1.NodeFreeState {
 		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			//获得globalnode对应的node
 			var targetNode v1.Node
 			if err := r.Get(ctx, types.NamespacedName{Name: globalNode.Name}, &targetNode); err != nil {
 				klog.Errorf("global-node-controller: SyncTaints: can not get host node, err: %s", globalNode.Name)
@@ -215,6 +398,9 @@ func (r *GlobalNodeController) Reconcile(ctx context.Context, request reconcile.
 	klog.V(4).Infof("============ global-node-controller start to reconcile %s ============", request.NamespacedName)
 	defer klog.V(4).Infof("============ global-node-controller finish to reconcile %s ============", request.NamespacedName)
 
+	// r.syncNodeStatusMux.Lock()
+	// defer r.syncNodeStatusMux.Unlock()
+
 	var globalNode v1alpha1.GlobalNode
 	if err := r.Get(ctx, request.NamespacedName, &globalNode); err != nil {
 		if apierrors.IsNotFound(err) {
@@ -262,6 +448,12 @@ func (r *GlobalNodeController) Reconcile(ctx context.Context, request reconcile.
 		// wait globalNode free
 		return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
 	}
+
+	if err = r.SyncNodeStatus(ctx, &globalNode); err != nil {
+		klog.Warningf("sync status %s error: %v", request.NamespacedName, err)
+		return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
+	}
+	klog.V(4).Infof("sync status successed, %s", request.NamespacedName)
 
 	if err = r.SyncLabel(ctx, &globalNode); err != nil {
 		klog.Warningf("sync label %s error: %v", request.NamespacedName, err)
