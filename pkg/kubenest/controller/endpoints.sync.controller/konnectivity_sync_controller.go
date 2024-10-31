@@ -73,7 +73,7 @@ func (e *KonnectivityController) SyncVirtualClusterEPS(ctx context.Context, k8sC
 		return fmt.Errorf("eps %s has no subsets", eps.Name)
 	}
 
-	// only sync the port of the konnectivity-server endpoints
+	// only sync the address of the konnectivity-server endpoints
 	targetPort := virtualEndPoints.Subsets[0].Ports[0].Port
 	updateEPS := virtualEndPoints.DeepCopy()
 
@@ -122,6 +122,10 @@ func (e *KonnectivityController) Reconcile(ctx context.Context, request reconcil
 
 	if targetVirtualCluster.Status.Phase != v1alpha1.AllNodeReady && targetVirtualCluster.Status.Phase != v1alpha1.Completed {
 		return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
+	}
+
+	if targetVirtualCluster.Spec.KubeInKubeConfig != nil && targetVirtualCluster.Spec.KubeInKubeConfig.APIServerServiceType == v1alpha1.NodePort {
+		return reconcile.Result{}, nil
 	}
 
 	k8sClient, err := util.GenerateKubeclient(targetVirtualCluster)

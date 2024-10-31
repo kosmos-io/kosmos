@@ -45,6 +45,7 @@ prompt_for_credentials
 # Update credentials in the configuration file
 sudo sed -i 's/^WEB_USER=.*/WEB_USER="'"$WEB_USER"'"/' "${INSTALL_DIR}"/agent.env
 sudo sed -i 's/^WEB_PASS=.*/WEB_PASS="'"$WEB_PASS"'"/' "${INSTALL_DIR}"/agent.env
+sudo sed -i 's/^WEB_PORT=.*/WEB_PORT="'"$WEB_PORT"'"/' "${INSTALL_DIR}"/agent.env
 
 # Generate SHA256 checksums
 sha256sum "${INSTALL_DIR}"/node-agent | sudo tee "${INSTALL_DIR}"/node-agent.sum

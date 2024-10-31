@@ -57,11 +57,7 @@ spec:
         - --listen-peer-urls=http://[::]:{{ .EtcdListenPeerPort }}
         - --advertise-client-urls=https://{{ .EtcdClientService }}.{{ .Namespace }}.svc.cluster.local:{{ .EtcdListenClientPort }}
         - --initial-cluster={{ .InitialCluster }}
-        {{ if .IPV6First }}
-        - --initial-advertise-peer-urls=http://[$(PODIP)]:2380
-        {{ else }}
-        - --initial-advertise-peer-urls=http://$(PODIP):2380
-        {{ end }}
+        - --initial-advertise-peer-urls=http://$(VIRTUAL_ETCD_NAME).{{ .EtcdPeerServiceName }}.{{ .Namespace }}.svc.cluster.local:2380
         - --initial-cluster-state=new
         - --client-cert-auth=true
         - --trusted-ca-file=/etc/virtualcluster/pki/etcd/etcd-ca.crt
