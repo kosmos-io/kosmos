@@ -100,8 +100,9 @@ func (c *NodeLeaseController) updateNodeStatus(ctx context.Context, n []*corev1.
 func (c *NodeLeaseController) syncpodStatus(ctx context.Context) {
 	err := c.updatepodStatus(ctx)
 	if err != nil {
-		klog.Errorf(err.Error())
+		klog.Errorf("Could not update pod status in root cluster,Error: %v", err)
 	}
+	return nil
 }
 
 func (c *NodeLeaseController) updatepodStatus(ctx context.Context) error {

@@ -218,11 +218,11 @@ func run(ctx context.Context, config *config.Config) error {
 	}
 
 	mgr, err := controllerruntime.NewManager(config.RestConfig, controllerruntime.Options{
-		Logger: klog.Background(),
-		Scheme: newscheme,
-		// LeaderElection:          config.LeaderElection.LeaderElect,
-		// LeaderElectionID:        config.LeaderElection.ResourceName,
-		// LeaderElectionNamespace: config.LeaderElection.ResourceNamespace,
+		Logger:                  klog.Background(),
+		Scheme:                  newscheme,
+		LeaderElection:          config.LeaderElection.LeaderElect,
+		LeaderElectionID:        config.LeaderElection.ResourceName,
+		LeaderElectionNamespace: config.LeaderElection.ResourceNamespace,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to build controller manager: %v", err)
@@ -261,13 +261,6 @@ func run(ctx context.Context, config *config.Config) error {
 		return fmt.Errorf("error starting %s: %v", constants.GlobalNodeControllerName, err)
 	}
 
-	//启动 GlobalNodeController的定时同步
-	// go func() {
-	// 	if err := GlobalNodeController.Start(ctx); err != nil {
-	// 		klog.Errorf("error starting GlobalNodeController: %v", err)
-	// 	}
-	// }()
-
 	if err := startEndPointsControllers(mgr); err != nil {
 		return err
 	}
@@ -283,13 +276,6 @@ func run(ctx context.Context, config *config.Config) error {
 	if err = VirtualClusterNodeController.SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("error starting %s: %v", constants.NodeControllerName, err)
 	}
-
-	//启动 VirtualClusterNodeController的定时同步
-	go func() {
-		if err := VirtualClusterNodeController.Start(ctx); err != nil {
-			klog.Errorf("error starting VirtualClusterNodeController: %v", err)
-		}
-	}()
 
 	if config.KubeNestOptions.KubeNestType == v1alpha1.KosmosKube {
 		KosmosJoinController := kosmos.KosmosJoinController{
