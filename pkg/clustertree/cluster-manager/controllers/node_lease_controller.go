@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"context"
-	"fmt"
 	"reflect"
 	"sync"
 	"time"
@@ -21,7 +20,6 @@ import (
 
 	kosmosv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	leafUtils "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/utils"
-	"github.com/kosmos.io/kosmos/pkg/utils"
 	"github.com/kosmos.io/kosmos/pkg/utils/podutils"
 	"github.com/pkg/errors"
 )
@@ -90,6 +88,7 @@ func (c *NodeLeaseController) syncNodeStatus(ctx context.Context) {
 }
 
 // nolint
+
 func (c *NodeLeaseController) updateNodeStatus(ctx context.Context, n []*corev1.Node, leafNodeSelector map[string]kosmosv1alpha1.NodeSelector) error {
 	err := c.LeafModelHandler.UpdateRootNodeStatus(ctx, n, leafNodeSelector)
 	if err != nil {
@@ -106,14 +105,10 @@ func (c *NodeLeaseController) syncpodStatus(ctx context.Context) {
 }
 
 func (c *NodeLeaseController) updatepodStatus(ctx context.Context) error {
-
-	pods, err := c.leafClient.CoreV1().Pods(metav1.NamespaceAll).List(ctx, metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("%s!=%s", utils.KosmosPodLabel, utils.KosmosNodeValue),
-	})
+	pods, err := c.leafClient.CoreV1().Pods(metav1.NamespaceAll).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		klog.Errorf("Could not list pods in leaf cluster,Error: %v", err)
 	}
-
 	var wg sync.WaitGroup
 	for _, leafpod := range pods.Items {
 		wg.Add(1)
@@ -126,14 +121,11 @@ func (c *NodeLeaseController) updatepodStatus(ctx context.Context) error {
 						klog.Warningf("Pod %s in namespace %s not found in root cluster, skipping...", leafpod.Name, leafpod.Namespace)
 						return nil
 					}
-					//klog.Warningf("Could not get pod in root cluster, Error: %v", err)
 					return err
 				}
 				if podutils.IsKosmosPod(rootpod) && !reflect.DeepEqual(rootpod.Status, leafpod.Status) {
 					rPodCopy := rootpod.DeepCopy()
 					rPodCopy.Status = leafpod.Status
-					//klog.Errorf("leafpod Status.Conditions in root:%+v", leafpod.Status.Conditions)
-					//klog.Errorf("rPodCopy  status.Conditions after in root:%+v", rPodCopy.Status.Conditions)
 					podutils.FitObjectMeta(&rPodCopy.ObjectMeta)
 					if err := c.root.Status().Update(ctx, rPodCopy); err != nil && !apierrors.IsNotFound(err) {
 						klog.V(4).Info(errors.Wrap(err, "error while updating pod status in kubernetes"))
@@ -142,9 +134,8 @@ func (c *NodeLeaseController) updatepodStatus(ctx context.Context) error {
 				}
 				return nil
 			})
-
 			if err != nil {
-				klog.Errorf("Failed to update pod %s/%s, error: %v", leafpod.Namespace, leafpod.Name, err)
+				klog.Errorf("failed to update pod %s/%s, error: %v", leafpod.Namespace, leafpod.Name, err)
 			}
 		}(leafpod)
 	}
