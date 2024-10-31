@@ -99,17 +99,21 @@ func (c *NodeLeaseController) updateNodeStatus(ctx context.Context, n []*corev1.
 }
 
 func (c *NodeLeaseController) syncpodStatus(ctx context.Context) {
-	err := c.updatepodStatus(ctx)
+
+	pods, err := c.LeafModelHandler.GetLeafPods(ctx, rootNode, c.LeafNodeSelectors[rootNode.Name])
+
 	if err != nil {
-		klog.Errorf(err.Error())
+		klog.Errorf("Could not list pods in leaf cluster,Error: %v", err)
 	}
+
+	return nil
 }
 
 func (c *NodeLeaseController) updatepodStatus(ctx context.Context) error {
-
 	pods, err := c.leafClient.CoreV1().Pods(metav1.NamespaceAll).List(ctx, metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("%s!=%s", utils.KosmosPodLabel, utils.KosmosNodeValue),
 	})
+
 	if err != nil {
 		klog.Errorf("Could not list pods in leaf cluster,Error: %v", err)
 	}
