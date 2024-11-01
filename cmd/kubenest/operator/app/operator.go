@@ -291,6 +291,12 @@ func run(ctx context.Context, config *config.Config) error {
 		return fmt.Errorf("error starting %s: %v", constants.NodeControllerName, err)
 	}
 
+	go func() {
+		if err := VirtualClusterNodeController.Start(ctx); err != nil {
+			klog.Errorf("error starting VirtualClusterNodeController: %v", err)
+		}
+	}()
+
 	if config.KubeNestOptions.KubeNestType == v1alpha1.KosmosKube {
 		KosmosJoinController := kosmos.KosmosJoinController{
 			Client:                     mgr.GetClient(),

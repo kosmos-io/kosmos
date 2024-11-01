@@ -121,6 +121,28 @@ func (r *GlobalNodeController) newVirtualClusterMapFunc() handler.MapFunc {
 // 	}
 // }
 
+// if STATE is reserved and free,directly update globalnode
+func (r *GlobalNodeController) SyncNodeStatus(ctx context.Context, globalNode *v1alpha1.GlobalNode) error {
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		updateGlobalNode := globalNode.DeepCopy()
+		if globalNode.Spec.State != v1alpha1.NodeInUse {
+			var targetNode v1.Node
+			if err := r.Get(ctx, types.NamespacedName{Name: globalNode.Name}, &targetNode); err != nil {
+				klog.Errorf("global-node-controller: SyncNodeStatus: can not get target node, err: %s", globalNode.Name)
+				return err
+			}
+			updateGlobalNode.Status.Conditions = targetNode.Status.Conditions
+		}
+		if _, err := r.KosmosClient.KosmosV1alpha1().GlobalNodes().UpdateStatus(ctx, updateGlobalNode, metav1.UpdateOptions{}); err != nil {
+			klog.Errorf("update node %s status for globalnode failed, %v", globalNode.Name, err)
+			return err
+		}
+		klog.V(4).Infof("SyncNodeStatus: successfully updated global node %s, Status.Conditions: %+v", updateGlobalNode.Name, updateGlobalNode.Status.Conditions)
+		return nil
+	})
+	return err
+}
+
 func (r *GlobalNodeController) SyncTaint(ctx context.Context, globalNode *v1alpha1.GlobalNode) error {
 	if globalNode.Spec.State == v1alpha1.NodeFreeState {
 		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
@@ -274,6 +296,12 @@ func (r *GlobalNodeController) Reconcile(ctx context.Context, request reconcile.
 		return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
 	}
 	klog.V(4).Infof("sync taint successed, %s", request.NamespacedName)
+
+	if err = r.SyncNodeStatus(ctx, &globalNode); err != nil {
+		klog.Warningf("sync status %s error: %v", request.NamespacedName, err)
+		return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
+	}
+	klog.V(4).Infof("sync status successed, %s", request.NamespacedName)
 
 	return reconcile.Result{}, nil
 }

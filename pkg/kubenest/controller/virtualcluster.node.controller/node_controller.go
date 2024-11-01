@@ -4,12 +4,14 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
@@ -136,6 +138,63 @@ func (r *NodeController) compareAndTranformNodes(ctx context.Context, targetNode
 	}
 
 	return unjoinNodes, joinNodes, nil
+}
+
+func (r *NodeController) Start(ctx context.Context) error {
+	go wait.UntilWithContext(ctx, func(ctx context.Context) {
+		var virtualClusterList v1alpha1.VirtualClusterList
+		if err := r.List(ctx, &virtualClusterList); err != nil {
+			klog.Errorf("error listing global nodes: %v", err)
+			return
+		}
+		for _, vc := range virtualClusterList.Items {
+			virtualCluster := vc
+			if err := r.UpdateVirtualClusterGlobalNode(ctx, &virtualCluster); err != nil {
+				klog.Errorf("error syncing node status for global node %s: %v", virtualCluster.Name, err)
+			}
+		}
+	}, 1*time.Minute)
+	<-ctx.Done()
+	return nil
+}
+
+// if STATE is occupied, get virtualCluster kubeconfig and use its node to update globalnode
+func (r *NodeController) UpdateVirtualClusterGlobalNode(ctx context.Context, virtualCluster *v1alpha1.VirtualCluster) error {
+	retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		k8sClient, err := util.GenerateKubeclient(virtualCluster)
+		if err != nil {
+			return fmt.Errorf("virtualcluster %s crd kubernetes client failed: %v", virtualCluster.Name, err)
+		}
+
+		nodes, err := k8sClient.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
+		if err != nil {
+			return fmt.Errorf("virtualcluster %s get virtualcluster nodes list failed: %v", virtualCluster.Name, err)
+		}
+
+		for _, node := range nodes.Items {
+			current, err := r.KosmosClient.KosmosV1alpha1().GlobalNodes().Get(ctx, node.Name, metav1.GetOptions{})
+			if err != nil {
+				if apierrors.IsNotFound(err) {
+					klog.Errorf("globalnode %s not found. This should not happen normally", node.Name)
+					return nil
+				}
+				return fmt.Errorf("failed to get globalNode %s: %v", node.Name, err)
+			}
+
+			updated := current.DeepCopy()
+			updated.Status.Conditions = node.Status.Conditions
+			if _, err := r.KosmosClient.KosmosV1alpha1().GlobalNodes().UpdateStatus(ctx, updated, metav1.UpdateOptions{}); err != nil {
+				klog.Errorf("update node status for globalnode %s failed, err: %v", updated.Name, err)
+				return err
+			}
+			klog.V(4).Infof("SyncNodeStatus: successfully updated global node %s, Status.Conditions: %+v", updated.Name, updated.Status.Conditions)
+		}
+		return nil
+	})
+	if retryErr != nil {
+		return fmt.Errorf("update virtualcluster %s status namespace %s failed: %s", virtualCluster.Name, virtualCluster.Namespace, retryErr)
+	}
+	return nil
 }
 
 func (r *NodeController) UpdateVirtualClusterStatus(ctx context.Context, virtualCluster v1alpha1.VirtualCluster, status v1alpha1.Phase, reason string) error {
