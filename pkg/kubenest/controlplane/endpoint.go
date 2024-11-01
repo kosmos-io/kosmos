@@ -105,12 +105,14 @@ func CreateOrUpdateAPIServerExternalService(kubeClient kubernetes.Interface) err
 	}
 	_, err = kubeClient.CoreV1().Services(constants.DefaultNs).Get(context.TODO(), constants.APIServerExternalService, metav1.GetOptions{})
 	if err != nil {
-		if !apierrors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			// Try to create the service
 			_, err = kubeClient.CoreV1().Services(constants.DefaultNs).Create(context.TODO(), &svc, metav1.CreateOptions{})
 			if err != nil {
 				return fmt.Errorf("error when creating api-server-external-service: %w", err)
 			}
+		} else {
+			return fmt.Errorf("error when get api-server-external-service: %w", err)
 		}
 	}
 	klog.V(4).Info("successfully created api-server-external-service service")
