@@ -57,7 +57,7 @@ func init() {
 func serveCmdRun(_ *cobra.Command, _ []string) error {
 	user := viper.GetString("WEB_USER")
 	password := viper.GetString("WEB_PASS")
-        port := viper.GetString("WEB_PORT")
+	port := viper.GetString("WEB_PORT")
 	if len(user) == 0 || len(password) == 0 {
 		log.Errorf("-user and -password are required %s %s", user, password)
 		return errors.New("-user and -password are required")
