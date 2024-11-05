@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"sync"
 	"time"
@@ -67,7 +68,7 @@ func NewNodeLeaseController(leafClient kubernetes.Interface, root client.Client,
 func (c *NodeLeaseController) Start(ctx context.Context) error {
 	go wait.UntilWithContext(ctx, c.syncLease, c.leaseInterval)
 	go wait.UntilWithContext(ctx, c.syncNodeStatus, c.statusInterval)
-	go wait.UntilWithContext(ctx, c.syncpodStatus, c.podstatusInterval)
+	go wait.UntilWithContext(ctx, c.syncPodStatus, c.podstatusInterval)
 	<-ctx.Done()
 	return nil
 }
@@ -97,25 +98,28 @@ func (c *NodeLeaseController) updateNodeStatus(ctx context.Context, n []*corev1.
 	return nil
 }
 
-func (c *NodeLeaseController) syncpodStatus(ctx context.Context) error {
-	err := c.updatepodStatus(ctx)
+func (c *NodeLeaseController) syncPodStatus(ctx context.Context) {
+	err := c.updatePodStatus(ctx)
 	if err != nil {
 		klog.Errorf(err.Error())
 	}
-	return nil
 }
 
-func (c *NodeLeaseController) updatepodStatus(ctx context.Context) error {
+func (c *NodeLeaseController) updatePodStatus(ctx context.Context) error {
 	pods, err := c.leafClient.CoreV1().Pods(metav1.NamespaceAll).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		klog.Errorf("Could not list pods in leaf cluster,Error: %v", err)
+		return err
 	}
+
 	var wg sync.WaitGroup
+	errChan := make(chan error, len(pods.Items))
+
 	for _, leafpod := range pods.Items {
 		wg.Add(1)
 		go func(leafpod corev1.Pod) {
 			defer wg.Done()
-			err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 				rootpod := &corev1.Pod{}
 				if err := c.root.Get(ctx, types.NamespacedName{Name: leafpod.Name, Namespace: leafpod.Namespace}, rootpod); err != nil {
 					if apierrors.IsNotFound(err) {
@@ -136,11 +140,29 @@ func (c *NodeLeaseController) updatepodStatus(ctx context.Context) error {
 				return nil
 			})
 			if err != nil {
-				klog.Errorf("failed to update pod %s/%s, error: %v", leafpod.Namespace, leafpod.Name, err)
+				//klog.Errorf("failed to update pod %s/%s, error: %v", leafpod.Namespace, leafpod.Name, err)
+				errChan <- fmt.Errorf("failed to update pod %s/%s, error: %v", leafpod.Namespace, leafpod.Name, err)
 			}
 		}(leafpod)
 	}
+
 	wg.Wait()
+	close(errChan)
+
+	var taskErr error
+	for err := range errChan {
+
+		if taskErr == nil {
+			taskErr = err
+		} else {
+			taskErr = errors.Wrap(err, taskErr.Error())
+		}
+	}
+
+	if taskErr != nil {
+		return taskErr
+	}
+
 	return nil
 }
 
