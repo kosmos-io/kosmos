@@ -205,7 +205,7 @@ func updateTaints(client kubernetes.Interface, taints []corev1.Taint, nodeName s
 	return nil
 }
 
-func createNode(ctx context.Context, clientset kubernetes.Interface, clusterName, nodeName, gitVersion string, listenPort int32) (*corev1.Node, error) {
+func createNode(ctx context.Context, clientset kubernetes.Interface, clusterName, nodeName, gitVersion string, listenPort int32, leafModel LeafMode) (*corev1.Node, error) {
 	nodeInRoot, err := clientset.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
 	if err != nil {
 		if !errors.IsNotFound(err) {
@@ -216,6 +216,9 @@ func createNode(ctx context.Context, clientset kubernetes.Interface, clusterName
 		nodeAnnotations := nodeInRoot.GetAnnotations()
 		if nodeAnnotations == nil {
 			nodeAnnotations = make(map[string]string, 1)
+		}
+		if leafModel == ALL {
+			nodeAnnotations[nodeMode] = "one2cluster"
 		}
 		nodeAnnotations[utils.KosmosNodeOwnedByClusterAnnotations] = clusterName
 		nodeInRoot.SetAnnotations(nodeAnnotations)
@@ -243,8 +246,7 @@ func (h ClassificationHandler) CreateRootNode(ctx context.Context, listenPort in
 
 	if h.leafMode == ALL {
 		nodeNameInRoot := fmt.Sprintf("%s%s", utils.KosmosNodePrefix, cluster.Name)
-		nodeInRoot, err := createNode(ctx, h.RootClientset, cluster.Name, nodeNameInRoot, gitVersion, listenPort)
-		nodeInRoot.Annotations[nodeMode] = "one2cluster"
+		nodeInRoot, err := createNode(ctx, h.RootClientset, cluster.Name, nodeNameInRoot, gitVersion, listenPort, h.leafMode)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -262,7 +264,7 @@ func (h ClassificationHandler) CreateRootNode(ctx context.Context, listenPort in
 				nodeNameInRoot = nodeNameInRoot[:63]
 			}
 
-			nodeInRoot, err := createNode(ctx, h.RootClientset, cluster.Name, nodeNameInRoot, gitVersion, listenPort)
+			nodeInRoot, err := createNode(ctx, h.RootClientset, cluster.Name, nodeNameInRoot, gitVersion, listenPort, h.leafMode)
 			if err != nil {
 				return nil, nil, err
 			}

@@ -27,12 +27,12 @@ func NodeAffinity4RootPV(pv *v1.PersistentVolume, isOne2OneMode bool, clusterNam
 	if isOne2OneMode {
 		for _, v := range pv.Spec.NodeAffinity.Required.NodeSelectorTerms {
 			for _, val := range v.MatchFields {
-				if val.Key == NodeHostnameValue || val.Key == NodeHostnameValueBeta {
+				if val.Key == NodeHostnameValue || val.Key == NodeHostnameValueBeta || val.Key == OpenebsPVNodeLabel {
 					node4RootPV = val.Values[0]
 				}
 			}
 			for _, val := range v.MatchExpressions {
-				if val.Key == NodeHostnameValue || val.Key == NodeHostnameValueBeta {
+				if val.Key == NodeHostnameValue || val.Key == NodeHostnameValueBeta || val.Key == OpenebsPVNodeLabel {
 					node4RootPV = val.Values[0]
 				}
 			}
