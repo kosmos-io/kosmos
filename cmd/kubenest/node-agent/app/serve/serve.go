@@ -432,3 +432,10 @@ func execCmd(conn *websocket.Conn, command string, args []string) {
 	log.Infof("Command : %s finished with exit code %d", command, exitCode)
 	_ = conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, fmt.Sprintf("%d", exitCode)))
 }
+
+// func UpdateLastHeartbeatTime(n *corev1.Node) {
+// 	now := metav1.NewTime(time.Now())
+// 	for i := range n.Status.Conditions {
+// 		n.Status.Conditions[i].LastHeartbeatTime = now
+// 	}
+// }
