@@ -21,4 +21,4 @@ jobs:
         env:
           ON_PLUGINS: true
         run: |
-          make upload-images
+          make multi-platform-images
