@@ -29,8 +29,6 @@ import (
 
 const (
 	PodSyncControllerName = "pod-sync-controller"
-
-	//DefaultpodStatusUpdateInterval = 10 * time.Second
 )
 
 type PodSyncController struct {
@@ -38,7 +36,6 @@ type PodSyncController struct {
 	rootClient kubernetes.Interface
 	root       client.Client
 	nodes      []*corev1.Node
-	//podstatusInterval time.Duration
 }
 
 func NewPodSyncController(leafClient kubernetes.Interface, rootClient kubernetes.Interface, root client.Client, nodes []*corev1.Node) *PodSyncController {
@@ -47,7 +44,6 @@ func NewPodSyncController(leafClient kubernetes.Interface, rootClient kubernetes
 		rootClient: rootClient,
 		root:       root,
 		nodes:      nodes,
-		//podstatusInterval: DefaultpodStatusUpdateInterval,
 	}
 	return c
 }
@@ -83,12 +79,6 @@ func (c *PodSyncController) SetupWithManager(mgr manager.Manager) error {
 		})).
 		Complete(c)
 }
-
-// func (c *PodSyncController) Start(ctx context.Context) error {
-// 	go wait.UntilWithContext(ctx, c.syncPodStatus, c.podstatusInterval)
-// 	<-ctx.Done()
-// 	return nil
-// }
 
 func (c *PodSyncController) syncPodStatus(ctx context.Context) error {
 
@@ -141,7 +131,6 @@ func (c *PodSyncController) updatePodStatus(ctx context.Context) error {
 				return nil
 			})
 			if err != nil {
-				//klog.Errorf("failed to update pod %s/%s, error: %v", leafpod.Namespace, leafpod.Name, err)
 				errChan <- fmt.Errorf("failed to update pod %s/%s, error: %v", leafpod.Namespace, leafpod.Name, err)
 			}
 		}(leafpod)

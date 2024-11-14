@@ -290,12 +290,6 @@ func (c *ClusterController) setupControllers(
 		return fmt.Errorf("error starting %s: %v", controllers.NodeLeaseControllerName, err)
 	}
 
-	//PodSyncController
-	// PodSyncController := controllers.NewPodSyncController(leafClientset, c.Root)
-	// if err := mgr.Add(PodSyncController); err != nil {
-	// 	return fmt.Errorf("error starting %s: %v", controllers.PodSyncControllerName, err)
-	// }
-
 	if c.Options.MultiClusterService {
 		serviceImportController := &mcs.ServiceImportController{
 			LeafClient:       mgr.GetClient(),
