@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	extensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -137,6 +138,13 @@ func (o *CommandUnJoinOptions) Run(args []string) error {
 
 func (o *CommandUnJoinOptions) runCluster() error {
 	klog.Info("Start removing cluster from kosmos control plane...")
+	unjoinCluster, err := o.KosmosClient.KosmosV1alpha1().Clusters().Get(context.TODO(), o.Name, metav1.GetOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return fmt.Errorf("kosmosctl unjoin run error, get cluster failed: %s", err)
+		}
+	}
+
 	// delete cluster
 	for {
 		err := o.KosmosClient.KosmosV1alpha1().Clusters().Delete(context.TODO(), o.Name, metav1.DeleteOptions{})
@@ -150,30 +158,38 @@ func (o *CommandUnJoinOptions) runCluster() error {
 	}
 	klog.Info("Cluster: " + o.Name + " has been deleted.")
 
-	// delete crd
-	serviceExport, err := util.GenerateCustomResourceDefinition(manifest.ServiceExport, nil)
-	if err != nil {
-		return err
-	}
-	err = o.K8sExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Delete(context.Background(), serviceExport.Name, metav1.DeleteOptions{})
-	if err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			return fmt.Errorf("kosmosctl unjoin run error, crd options failed: %v", err)
+	if unjoinCluster.Spec.ClusterTreeOptions.Enable {
+		// delete clustertree related crds
+		crds := apiextensionsv1.CustomResourceDefinitionList{}
+		serviceExport, err := util.GenerateCustomResourceDefinition(manifest.ServiceExport, nil)
+		if err != nil {
+			return err
+		}
+		serviceImport, err := util.GenerateCustomResourceDefinition(manifest.ServiceImport, nil)
+		if err != nil {
+			return err
+		}
+		clusterPodConvert, err := util.GenerateCustomResourceDefinition(manifest.ClusterPodConvert, nil)
+		if err != nil {
+			return err
+		}
+		podConvert, err := util.GenerateCustomResourceDefinition(manifest.PodConvert, nil)
+		if err != nil {
+			return err
+		}
+		crds.Items = append(crds.Items, *serviceImport, *serviceExport, *clusterPodConvert, *podConvert)
+		for i := range crds.Items {
+			err = o.K8sExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Delete(context.Background(), crds.Items[i].Name, metav1.DeleteOptions{})
+			if err != nil {
+				if apierrors.IsNotFound(err) {
+					klog.Warningf("CRD %v not found, deletion process will be skipped", crds.Items[i].Name)
+					continue
+				}
+				return fmt.Errorf("kosmosctl unjoin run error, crd options failed: %v", err)
+			}
+			klog.Info("CRD " + crds.Items[i].Name + " has been deleted.")
 		}
 	}
-	klog.Info("CRD: " + serviceExport.Name + " has been deleted.")
-
-	serviceImport, err := util.GenerateCustomResourceDefinition(manifest.ServiceImport, nil)
-	if err != nil {
-		return err
-	}
-	err = o.K8sExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Delete(context.Background(), serviceImport.Name, metav1.DeleteOptions{})
-	if err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			return fmt.Errorf("kosmosctl unjoin run error, crd options failed: %v", err)
-		}
-	}
-	klog.Info("CRD: " + serviceImport.Name + " has been deleted.")
 
 	// delete rbac
 	err = o.K8sClient.CoreV1().Secrets(o.Namespace).Delete(context.TODO(), utils.ControlPanelSecretName, metav1.DeleteOptions{})
@@ -181,18 +197,6 @@ func (o *CommandUnJoinOptions) runCluster() error {
 		return fmt.Errorf("kosmosctl unjoin run error, delete secret failed: %s", err)
 	}
 	klog.Info("Secret: " + utils.ControlPanelSecretName + " has been deleted.")
-
-	err = o.K8sClient.RbacV1().ClusterRoleBindings().Delete(context.TODO(), utils.ExternalIPPoolNamePrefix, metav1.DeleteOptions{})
-	if err != nil && !apierrors.IsNotFound(err) {
-		return fmt.Errorf("kosmosctl unjoin run error, delete clusterrolebinding failed: %s", err)
-	}
-	klog.Info("ClusterRoleBinding: " + utils.ExternalIPPoolNamePrefix + " has been deleted.")
-
-	err = o.K8sClient.RbacV1().ClusterRoles().Delete(context.TODO(), utils.ExternalIPPoolNamePrefix, metav1.DeleteOptions{})
-	if err != nil && !apierrors.IsNotFound(err) {
-		return fmt.Errorf("kosmosctl unjoin run error, delete clusterrole failed: %s", err)
-	}
-	klog.Info("ClusterRole: " + utils.ExternalIPPoolNamePrefix + " has been deleted.")
 
 	kosmosCR, err := util.GenerateClusterRole(manifest.KosmosClusterRole, nil)
 	if err != nil {
@@ -216,16 +220,6 @@ func (o *CommandUnJoinOptions) runCluster() error {
 	}
 	klog.Info("ClusterRoleBinding " + kosmosCRB.Name + " has been deleted.")
 
-	kosmosOperatorSA, err := util.GenerateServiceAccount(manifest.KosmosOperatorServiceAccount, nil)
-	if err != nil {
-		return err
-	}
-	err = o.K8sClient.CoreV1().ServiceAccounts(o.Namespace).Delete(context.TODO(), kosmosOperatorSA.Name, metav1.DeleteOptions{})
-	if err != nil && !apierrors.IsNotFound(err) {
-		return fmt.Errorf("kosmosctl unjoin run error, delete serviceaccout failed: %s", err)
-	}
-	klog.Info("ServiceAccount: " + kosmosOperatorSA.Name + " has been deleted.")
-
 	kosmosControlSA, err := util.GenerateServiceAccount(manifest.KosmosControlServiceAccount, manifest.ServiceAccountReplace{
 		Namespace: o.Namespace,
 	})
@@ -237,6 +231,26 @@ func (o *CommandUnJoinOptions) runCluster() error {
 		return fmt.Errorf("kosmosctl unjoin run error, delete serviceaccount failed: %s", err)
 	}
 	klog.Info("ServiceAccount " + kosmosControlSA.Name + " has been deleted.")
+
+	if unjoinCluster.Spec.ClusterLinkOptions.Enable {
+		err = o.K8sClient.RbacV1().ClusterRoles().Delete(context.TODO(), utils.ClusterLink, metav1.DeleteOptions{})
+		if err != nil && !apierrors.IsNotFound(err) {
+			return fmt.Errorf("kosmosctl unjoin run error, delete clusterrole failed: %s", err)
+		}
+		klog.Info("ClusterRole: " + utils.ClusterLink + " has been deleted.")
+
+		err = o.K8sClient.RbacV1().ClusterRoleBindings().Delete(context.TODO(), utils.ClusterLink, metav1.DeleteOptions{})
+		if err != nil && !apierrors.IsNotFound(err) {
+			return fmt.Errorf("kosmosctl unjoin run error, delete clusterrolebinding failed: %s", err)
+		}
+		klog.Info("ClusterRoleBinding: " + utils.ClusterLink + " has been deleted.")
+
+		err = o.K8sClient.CoreV1().ServiceAccounts(o.Namespace).Delete(context.TODO(), utils.OperatorName, metav1.DeleteOptions{})
+		if err != nil && !apierrors.IsNotFound(err) {
+			return fmt.Errorf("kosmosctl unjoin run error, delete serviceaccout failed: %s", err)
+		}
+		klog.Info("ServiceAccount: " + utils.OperatorName + " has been deleted.")
+	}
 
 	// if cluster is not the master, delete namespace
 	if o.Name != utils.DefaultClusterName {

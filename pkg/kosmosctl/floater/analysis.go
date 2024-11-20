@@ -56,9 +56,8 @@ type PrintAnalysisData struct {
 }
 
 func NewCmdAnalysis(f ctlutil.Factory) *cobra.Command {
-	o := &CommandAnalysisOptions{
-		Version: version.GetReleaseVersion().PatchRelease(),
-	}
+	o := &CommandAnalysisOptions{}
+
 	cmd := &cobra.Command{
 		Use:                   "analysis",
 		Short:                 i18n.T("Analysis network connectivity between Kosmos clusters"),
@@ -96,6 +95,10 @@ func (o *CommandAnalysisOptions) Complete(f ctlutil.Factory) error {
 	o.DynamicClient, err = dynamic.NewForConfig(c)
 	if err != nil {
 		return fmt.Errorf("kosmosctl analysis complete error, generate dynamic client failed: %s", err)
+	}
+
+	if len(o.Version) == 0 {
+		o.Version = version.GetReleaseVersion().PatchRelease()
 	}
 
 	af := NewAnalysisFloater(o)

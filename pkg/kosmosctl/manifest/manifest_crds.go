@@ -300,81 +300,6 @@ spec:
 `
 )
 
-const ClusterNode = `---
-apiVersion: apiextensions.k8s.io/v1
-kind: CustomResourceDefinition
-metadata:
-  annotations:
-    controller-gen.kubebuilder.io/version: v0.11.0
-  creationTimestamp: null
-  name: clusternodes.kosmos.io
-spec:
-  group: kosmos.io
-  names:
-    kind: ClusterNode
-    listKind: ClusterNodeList
-    plural: clusternodes
-    singular: clusternode
-  scope: Cluster
-  versions:
-  - additionalPrinterColumns:
-    - jsonPath: .spec.roles
-      name: ROLES
-      type: string
-    - jsonPath: .spec.interfaceName
-      name: INTERFACE
-      type: string
-    - jsonPath: .spec.ip
-      name: IP
-      type: string
-    name: v1alpha1
-    schema:
-      openAPIV3Schema:
-        properties:
-          apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation
-              of an object. Servers should convert recognized schemas to the latest
-              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
-            type: string
-          kind:
-            description: 'Kind is a string value representing the REST resource this
-              object represents. Servers may infer this from the endpoint the client
-              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
-            type: string
-          metadata:
-            type: object
-          spec:
-            properties:
-              clusterName:
-                type: string
-              interfaceName:
-                type: string
-              ip:
-                type: string
-              ip6:
-                type: string
-              nodeName:
-                type: string
-              podCIDRs:
-                items:
-                  type: string
-                type: array
-              roles:
-                items:
-                  type: string
-                type: array
-            type: object
-          status:
-            type: object
-        required:
-        - spec
-        type: object
-    served: true
-    storage: true
-    subresources:
-      status: {}
-`
-
 const Cluster = `---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
@@ -654,7 +579,83 @@ spec:
     storage: true
     subresources: {}
 `
-const NodeConfig = `---
+
+const ClusterlinkClusterNode = `---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.11.0
+  creationTimestamp: null
+  name: clusternodes.kosmos.io
+spec:
+  group: kosmos.io
+  names:
+    kind: ClusterNode
+    listKind: ClusterNodeList
+    plural: clusternodes
+    singular: clusternode
+  scope: Cluster
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.roles
+      name: ROLES
+      type: string
+    - jsonPath: .spec.interfaceName
+      name: INTERFACE
+      type: string
+    - jsonPath: .spec.ip
+      name: IP
+      type: string
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            properties:
+              clusterName:
+                type: string
+              interfaceName:
+                type: string
+              ip:
+                type: string
+              ip6:
+                type: string
+              nodeName:
+                type: string
+              podCIDRs:
+                items:
+                  type: string
+                type: array
+              roles:
+                items:
+                  type: string
+                type: array
+            type: object
+          status:
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+`
+
+const ClusterlinkNodeConfig = `---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
@@ -4232,6 +4233,432 @@ spec:
       storage: true
       subresources:
         status: {}
+`
+
+const SchedulerClusterDistributionPolicies = `
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.11.0
+  creationTimestamp: null
+  name: clusterdistributionpolicies.kosmos.io
+spec:
+  group: kosmos.io
+  names:
+    categories:
+    - kosmos-io
+    kind: ClusterDistributionPolicy
+    listKind: ClusterDistributionPolicyList
+    plural: clusterdistributionpolicies
+    shortNames:
+    - cdp
+    singular: clusterdistributionpolicy
+  scope: Cluster
+  versions:
+  - additionalPrinterColumns:
+    - description: CreationTimestamp is a timestamp representing the server time when
+        this object was created. It is not guaranteed to be set in happens-before
+        order across separate operations. Clients may not set this value. It is represented
+        in RFC3339 form and is in UTC.
+      jsonPath: .metadata.creationTimestamp
+      name: AGE
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: DistributionSpec represents the desired behavior of ClusterDistributionPolicy.
+            properties:
+              policyTerms:
+                description: PolicyTerms represents the rule for select nodes to distribute
+                  resources.
+                items:
+                  properties:
+                    advancedTerm:
+                      description: AdvancedTerm represents scheduling restrictions
+                        to a certain set of nodes.
+                      properties:
+                        nodeName:
+                          description: NodeName is a request to schedule this pod
+                            onto a specific node. If it is non-empty, the scheduler
+                            simply schedules this pod onto that node, assuming that
+                            it fits resource requirements.
+                          type: string
+                        nodeSelector:
+                          additionalProperties:
+                            type: string
+                          description: 'NodeSelector is a selector which must be true
+                            for the pod to fit on a node. Selector which must match
+                            a node''s labels for the pod to be scheduled on that node.
+                            More info: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/'
+                          type: object
+                          x-kubernetes-map-type: atomic
+                        tolerations:
+                          description: If specified, the pod's tolerations.
+                          items:
+                            description: The pod this Toleration is attached to tolerates
+                              any taint that matches the triple <key,value,effect>
+                              using the matching operator <operator>.
+                            properties:
+                              effect:
+                                description: Effect indicates the taint effect to
+                                  match. Empty means match all taint effects. When
+                                  specified, allowed values are NoSchedule, PreferNoSchedule
+                                  and NoExecute.
+                                type: string
+                              key:
+                                description: Key is the taint key that the toleration
+                                  applies to. Empty means match all taint keys. If
+                                  the key is empty, operator must be Exists; this
+                                  combination means to match all values and all keys.
+                                type: string
+                              operator:
+                                description: Operator represents a key's relationship
+                                  to the value. Valid operators are Exists and Equal.
+                                  Defaults to Equal. Exists is equivalent to wildcard
+                                  for value, so that a pod can tolerate all taints
+                                  of a particular category.
+                                type: string
+                              tolerationSeconds:
+                                description: TolerationSeconds represents the period
+                                  of time the toleration (which must be of effect
+                                  NoExecute, otherwise this field is ignored) tolerates
+                                  the taint. By default, it is not set, which means
+                                  tolerate the taint forever (do not evict). Zero
+                                  and negative values will be treated as 0 (evict
+                                  immediately) by the system.
+                                format: int64
+                                type: integer
+                              value:
+                                description: Value is the taint value the toleration
+                                  matches to. If the operator is Exists, the value
+                                  should be empty, otherwise just a regular string.
+                                type: string
+                            type: object
+                          type: array
+                      type: object
+                    name:
+                      type: string
+                    nodeType:
+                      default: mix
+                      description: NodeType declares the type for scheduling node.
+                        Valid options are "host", "leaf", "mix", "adv".
+                      enum:
+                      - host
+                      - leaf
+                      - mix
+                      - adv
+                      type: string
+                  required:
+                  - name
+                  type: object
+                minItems: 1
+                type: array
+              resourceSelectors:
+                description: ResourceSelectors used to select resources and is required.
+                items:
+                  description: ResourceSelector the resources will be selected.
+                  properties:
+                    labelSelector:
+                      description: Filter resource by labelSelector If target resource
+                        name is not empty, labelSelector will be ignored.
+                      properties:
+                        matchExpressions:
+                          description: matchExpressions is a list of label selector
+                            requirements. The requirements are ANDed.
+                          items:
+                            description: A label selector requirement is a selector
+                              that contains values, a key, and an operator that relates
+                              the key and values.
+                            properties:
+                              key:
+                                description: key is the label key that the selector
+                                  applies to.
+                                type: string
+                              operator:
+                                description: operator represents a key's relationship
+                                  to a set of values. Valid operators are In, NotIn,
+                                  Exists and DoesNotExist.
+                                type: string
+                              values:
+                                description: values is an array of string values.
+                                  If the operator is In or NotIn, the values array
+                                  must be non-empty. If the operator is Exists or
+                                  DoesNotExist, the values array must be empty. This
+                                  array is replaced during a strategic merge patch.
+                                items:
+                                  type: string
+                                type: array
+                            required:
+                            - key
+                            - operator
+                            type: object
+                          type: array
+                        matchLabels:
+                          additionalProperties:
+                            type: string
+                          description: matchLabels is a map of {key,value} pairs.
+                            A single {key,value} in the matchLabels map is equivalent
+                            to an element of matchExpressions, whose key field is
+                            "key", the operator is "In", and the values array contains
+                            only "value". The requirements are ANDed.
+                          type: object
+                      type: object
+                      x-kubernetes-map-type: atomic
+                    name:
+                      description: Name of the target resource. Default is empty,
+                        which means selecting all resources.
+                      type: string
+                    namePrefix:
+                      description: NamePrefix the prefix of the target resource name
+                      type: string
+                    policyName:
+                      description: Name of the Policy.
+                      type: string
+                  required:
+                  - policyName
+                  type: object
+                minItems: 1
+                type: array
+            required:
+            - policyTerms
+            - resourceSelectors
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources: {}
+
+`
+
+const SchedulerDistributionPolicies = `
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.11.0
+  creationTimestamp: null
+  name: distributionpolicies.kosmos.io
+spec:
+  group: kosmos.io
+  names:
+    categories:
+    - kosmos-io
+    kind: DistributionPolicy
+    listKind: DistributionPolicyList
+    plural: distributionpolicies
+    shortNames:
+    - dp
+    singular: distributionpolicy
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - description: CreationTimestamp is a timestamp representing the server time when
+        this object was created. It is not guaranteed to be set in happens-before
+        order across separate operations. Clients may not set this value. It is represented
+        in RFC3339 form and is in UTC.
+      jsonPath: .metadata.creationTimestamp
+      name: AGE
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: DistributionSpec represents the desired behavior of DistributionPolicy.
+            properties:
+              policyTerms:
+                description: PolicyTerms represents the rule for select nodes to distribute
+                  resources.
+                items:
+                  properties:
+                    advancedTerm:
+                      description: AdvancedTerm represents scheduling restrictions
+                        to a certain set of nodes.
+                      properties:
+                        nodeName:
+                          description: NodeName is a request to schedule this pod
+                            onto a specific node. If it is non-empty, the scheduler
+                            simply schedules this pod onto that node, assuming that
+                            it fits resource requirements.
+                          type: string
+                        nodeSelector:
+                          additionalProperties:
+                            type: string
+                          description: 'NodeSelector is a selector which must be true
+                            for the pod to fit on a node. Selector which must match
+                            a node''s labels for the pod to be scheduled on that node.
+                            More info: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/'
+                          type: object
+                          x-kubernetes-map-type: atomic
+                        tolerations:
+                          description: If specified, the pod's tolerations.
+                          items:
+                            description: The pod this Toleration is attached to tolerates
+                              any taint that matches the triple <key,value,effect>
+                              using the matching operator <operator>.
+                            properties:
+                              effect:
+                                description: Effect indicates the taint effect to
+                                  match. Empty means match all taint effects. When
+                                  specified, allowed values are NoSchedule, PreferNoSchedule
+                                  and NoExecute.
+                                type: string
+                              key:
+                                description: Key is the taint key that the toleration
+                                  applies to. Empty means match all taint keys. If
+                                  the key is empty, operator must be Exists; this
+                                  combination means to match all values and all keys.
+                                type: string
+                              operator:
+                                description: Operator represents a key's relationship
+                                  to the value. Valid operators are Exists and Equal.
+                                  Defaults to Equal. Exists is equivalent to wildcard
+                                  for value, so that a pod can tolerate all taints
+                                  of a particular category.
+                                type: string
+                              tolerationSeconds:
+                                description: TolerationSeconds represents the period
+                                  of time the toleration (which must be of effect
+                                  NoExecute, otherwise this field is ignored) tolerates
+                                  the taint. By default, it is not set, which means
+                                  tolerate the taint forever (do not evict). Zero
+                                  and negative values will be treated as 0 (evict
+                                  immediately) by the system.
+                                format: int64
+                                type: integer
+                              value:
+                                description: Value is the taint value the toleration
+                                  matches to. If the operator is Exists, the value
+                                  should be empty, otherwise just a regular string.
+                                type: string
+                            type: object
+                          type: array
+                      type: object
+                    name:
+                      type: string
+                    nodeType:
+                      default: mix
+                      description: NodeType declares the type for scheduling node.
+                        Valid options are "host", "leaf", "mix", "adv".
+                      enum:
+                      - host
+                      - leaf
+                      - mix
+                      - adv
+                      type: string
+                  required:
+                  - name
+                  type: object
+                minItems: 1
+                type: array
+              resourceSelectors:
+                description: ResourceSelectors used to select resources and is required.
+                items:
+                  description: ResourceSelector the resources will be selected.
+                  properties:
+                    labelSelector:
+                      description: Filter resource by labelSelector If target resource
+                        name is not empty, labelSelector will be ignored.
+                      properties:
+                        matchExpressions:
+                          description: matchExpressions is a list of label selector
+                            requirements. The requirements are ANDed.
+                          items:
+                            description: A label selector requirement is a selector
+                              that contains values, a key, and an operator that relates
+                              the key and values.
+                            properties:
+                              key:
+                                description: key is the label key that the selector
+                                  applies to.
+                                type: string
+                              operator:
+                                description: operator represents a key's relationship
+                                  to a set of values. Valid operators are In, NotIn,
+                                  Exists and DoesNotExist.
+                                type: string
+                              values:
+                                description: values is an array of string values.
+                                  If the operator is In or NotIn, the values array
+                                  must be non-empty. If the operator is Exists or
+                                  DoesNotExist, the values array must be empty. This
+                                  array is replaced during a strategic merge patch.
+                                items:
+                                  type: string
+                                type: array
+                            required:
+                            - key
+                            - operator
+                            type: object
+                          type: array
+                        matchLabels:
+                          additionalProperties:
+                            type: string
+                          description: matchLabels is a map of {key,value} pairs.
+                            A single {key,value} in the matchLabels map is equivalent
+                            to an element of matchExpressions, whose key field is
+                            "key", the operator is "In", and the values array contains
+                            only "value". The requirements are ANDed.
+                          type: object
+                      type: object
+                      x-kubernetes-map-type: atomic
+                    name:
+                      description: Name of the target resource. Default is empty,
+                        which means selecting all resources.
+                      type: string
+                    namePrefix:
+                      description: NamePrefix the prefix of the target resource name
+                      type: string
+                    policyName:
+                      description: Name of the Policy.
+                      type: string
+                  required:
+                  - policyName
+                  type: object
+                minItems: 1
+                type: array
+            required:
+            - policyTerms
+            - resourceSelectors
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources: {}
+
 `
 
 type CRDReplace struct {

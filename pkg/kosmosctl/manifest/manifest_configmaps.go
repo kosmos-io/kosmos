@@ -67,10 +67,10 @@ data:
             disabled:
               - name: "VolumeBinding"
               - name: "TaintToleration"
+              - name: "LeafNodeDistribution"
             enabled:
               - name: "LeafNodeTaintToleration"
               - name: "LeafNodeVolumeBinding"
-              - name: "LeafNodeDistribution"
           score:
             disabled:
               - name: "VolumeBinding"
