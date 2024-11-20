@@ -138,7 +138,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 	//}
 
 	cluster := &v1alpha1.Cluster{}
-
 	if err := r.Client.Get(ctx, request.NamespacedName, cluster); err != nil {
 		// The resource may no longer exist, in which case we stop processing.
 		if apierrors.IsNotFound(err) {
@@ -152,6 +151,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 		if len(cluster.GetFinalizers()) == 1 {
 			return r.removeCluster(cluster)
 		}
+	}
+
+	if !cluster.Spec.ClusterLinkOptions.Enable {
+		klog.Infof("cluster %v does not have the clusterlink module enabled, skipping this event.", cluster.Name)
+		return reconcile.Result{}, nil
 	}
 
 	return r.syncCluster(cluster)
