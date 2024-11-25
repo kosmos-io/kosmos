@@ -1,12 +1,15 @@
 package floater
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strconv"
 
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	ctlutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/i18n"
 	"k8s.io/kubectl/pkg/util/templates"
@@ -59,9 +62,8 @@ type PrintCheckData struct {
 }
 
 func NewCmdCheck() *cobra.Command {
-	o := &CommandCheckOptions{
-		Version: version.GetReleaseVersion().PatchRelease(),
-	}
+	o := &CommandCheckOptions{}
+
 	cmd := &cobra.Command{
 		Use:                   "check",
 		Short:                 i18n.T("Check network connectivity between Kosmos clusters"),
@@ -89,6 +91,7 @@ func NewCmdCheck() *cobra.Command {
 	flags.StringVarP(&o.Namespace, "namespace", "n", utils.DefaultNamespace, "Kosmos namespace.")
 	flags.StringVarP(&o.ImageRepository, "image-repository", "r", utils.DefaultImageRepository, "Image repository.")
 	flags.StringVarP(&o.DstImageRepository, "dst-image-repository", "", "", "Destination cluster image repository.")
+	flags.StringVar(&o.Version, "version", "", "image version for pull images")
 	flags.StringVar(&o.KubeConfig, "kubeconfig", "", "Absolute path to the host kubeconfig file.")
 	flags.StringVar(&o.Context, "context", "", "The name of the kubeconfig context.")
 	flags.StringVar(&o.SrcKubeConfig, "src-kubeconfig", "", "Absolute path to the source cluster kubeconfig file.")
@@ -104,6 +107,10 @@ func NewCmdCheck() *cobra.Command {
 }
 
 func (o *CommandCheckOptions) Complete() error {
+	if len(o.Version) == 0 {
+		o.Version = version.GetReleaseVersion().PatchRelease()
+	}
+
 	if len(o.DstImageRepository) == 0 {
 		o.DstImageRepository = o.ImageRepository
 	}
@@ -127,7 +134,70 @@ func (o *CommandCheckOptions) Complete() error {
 
 func (o *CommandCheckOptions) Validate() error {
 	if len(o.Namespace) == 0 {
-		return fmt.Errorf("namespace must be specified")
+		return fmt.Errorf("kosmosctl check validate error, namespace must be specified")
+	}
+
+	nodeRoleLabel := utils.NodeRoleLabel + "=" + utils.NodeRoleValue
+	srcConfig, err := utils.RestConfig(o.SrcKubeConfig, o.Context)
+	if err != nil {
+		return fmt.Errorf("kosmosctl check validate error, exception in kubeconfig verification of source cluster")
+	}
+	srcK8sClient, err := kubernetes.NewForConfig(srcConfig)
+	if err != nil {
+		return fmt.Errorf("kosmosctl check validate error, generate source K8s basic client failed: %v", err)
+	}
+	srcNodes, err := srcK8sClient.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{
+		LabelSelector: nodeRoleLabel,
+	})
+	if err != nil {
+		return fmt.Errorf("kosmosctl check validate error, src cluster has no available nodes: %v", err)
+	}
+	for _, node := range srcNodes.Items {
+		labels := node.Labels
+		if value, exists := labels[utils.KosmosExcludeNodeLabel]; !exists || value != utils.KosmosExcludeNodeValue {
+			nodeCopy := node.DeepCopy()
+			if nodeCopy.Labels == nil {
+				nodeCopy.Labels = make(map[string]string)
+			}
+			nodeCopy.Labels[utils.KosmosExcludeNodeLabel] = utils.KosmosExcludeNodeValue
+
+			_, err = srcK8sClient.CoreV1().Nodes().Update(context.TODO(), nodeCopy, metav1.UpdateOptions{})
+			if err != nil {
+				return fmt.Errorf("kosmosctl check validate error, source cluster agent node label update exception: %v", err)
+			}
+		}
+	}
+
+	if o.DstFloater != nil {
+		dstConfig, err := utils.RestConfig(o.DstKubeConfig, o.Context)
+		if err != nil {
+			return fmt.Errorf("kosmosctl check verify error, kubeconfig verification of the target cluster failed")
+		}
+		dstK8sClient, err := kubernetes.NewForConfig(dstConfig)
+		if err != nil {
+			return fmt.Errorf("kosmosctl check validate error, generate target K8s basic client failed: %v", err)
+		}
+		dstNodes, err := dstK8sClient.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{
+			LabelSelector: nodeRoleLabel,
+		})
+		if err != nil {
+			return fmt.Errorf("kosmosctl check validate error, dst cluster has no available nodes: %v", err)
+		}
+		for _, node := range dstNodes.Items {
+			labels := node.Labels
+			if value, exists := labels[utils.KosmosExcludeNodeLabel]; !exists || value != utils.KosmosExcludeNodeValue {
+				nodeCopy := node.DeepCopy()
+				if nodeCopy.Labels == nil {
+					nodeCopy.Labels = make(map[string]string)
+				}
+				nodeCopy.Labels[utils.KosmosExcludeNodeLabel] = utils.KosmosExcludeNodeValue
+
+				_, err = dstK8sClient.CoreV1().Nodes().Update(context.TODO(), nodeCopy, metav1.UpdateOptions{})
+				if err != nil {
+					return fmt.Errorf("kosmosctl check validate error, target cluster agent node label update exception: %v", err)
+				}
+			}
+		}
 	}
 
 	return nil

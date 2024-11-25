@@ -292,11 +292,11 @@ func (o *CommandInstallOptions) runClusterlink() error {
 	if err != nil {
 		return err
 	}
-	clusterlinkClusterNode, err := util.GenerateCustomResourceDefinition(manifest.ClusterNode, nil)
+	clusterlinkClusterNode, err := util.GenerateCustomResourceDefinition(manifest.ClusterlinkClusterNode, nil)
 	if err != nil {
 		return err
 	}
-	clusterlinkNodeConfig, err := util.GenerateCustomResourceDefinition(manifest.NodeConfig, nil)
+	clusterlinkNodeConfig, err := util.GenerateCustomResourceDefinition(manifest.ClusterlinkNodeConfig, nil)
 	if err != nil {
 		return err
 	}
@@ -334,7 +334,7 @@ func (o *CommandInstallOptions) runClusterlink() error {
 	}
 	klog.Info("Deployment " + networkManagerDeploy.Name + " has been created.")
 
-	operatorDeploy, err := util.GenerateDeployment(manifest.KosmosOperatorDeployment, manifest.DeploymentReplace{
+	operatorDeploy, err := util.GenerateDeployment(manifest.ClusterlinkOperatorDeployment, manifest.DeploymentReplace{
 		Namespace:       o.Namespace,
 		Version:         o.Version,
 		UseProxy:        o.UseProxy,
@@ -489,27 +489,6 @@ func (o *CommandInstallOptions) runClustertree() error {
 	}
 	klog.Info("Deployment clustertree-cluster-manager has been created.")
 
-	operatorDeploy, err := util.GenerateDeployment(manifest.KosmosOperatorDeployment, manifest.DeploymentReplace{
-		Namespace:       o.Namespace,
-		Version:         o.Version,
-		UseProxy:        o.UseProxy,
-		ImageRepository: o.ImageRegistry,
-	})
-	if err != nil {
-		return fmt.Errorf("kosmosctl install operator run error, operator generate deployment failed: %s", err)
-	}
-	_, err = o.K8sClient.AppsV1().Deployments(operatorDeploy.Namespace).Get(context.TODO(), operatorDeploy.Name, metav1.GetOptions{})
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			err = o.createOperator()
-			if err != nil {
-				return err
-			}
-		} else {
-			return fmt.Errorf("kosmosctl install operator run error, operator get deployment failed: %s", err)
-		}
-	}
-
 	return nil
 }
 
@@ -583,7 +562,7 @@ func (o *CommandInstallOptions) runScheduler() error {
 	}
 	klog.Infof("ConfigMap %s has been created.", scheduleConfigFile.Name)
 
-	hostkubeConfigMap := &corev1.ConfigMap{
+	hostKubeConfigMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      utils.HostKubeConfigName,
 			Namespace: o.Namespace,
@@ -597,13 +576,38 @@ func (o *CommandInstallOptions) runScheduler() error {
 			}()),
 		},
 	}
-	_, err = o.K8sClient.CoreV1().ConfigMaps(o.Namespace).Create(context.TODO(), hostkubeConfigMap, metav1.CreateOptions{})
+	_, err = o.K8sClient.CoreV1().ConfigMaps(o.Namespace).Create(context.TODO(), hostKubeConfigMap, metav1.CreateOptions{})
 	if err != nil {
 		if !apierrors.IsAlreadyExists(err) {
 			return fmt.Errorf("kosmosctl install scheduler run error, configmap options failed: %v", err)
 		}
 	}
 	klog.Info("ConfigMap host-kubeconfig has been created.")
+
+	klog.Info("Attempting to create Kosmos-Scheduler CRDs...")
+	crds := apiextensionsv1.CustomResourceDefinitionList{}
+	schedulerCDP, err := util.GenerateCustomResourceDefinition(manifest.SchedulerClusterDistributionPolicies, manifest.CRDReplace{
+		Namespace: o.Namespace,
+	})
+	if err != nil {
+		return err
+	}
+	schedulerDP, err := util.GenerateCustomResourceDefinition(manifest.SchedulerDistributionPolicies, nil)
+	if err != nil {
+		return err
+	}
+	crds.Items = append(crds.Items, *schedulerCDP, *schedulerDP)
+	for i := range crds.Items {
+		_, err = o.K8sExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Create(context.Background(), &crds.Items[i], metav1.CreateOptions{})
+		if err != nil {
+			if apierrors.IsAlreadyExists(err) {
+				klog.Warningf("CRD %v is existed, creation process will skip", &crds.Items[i].Name)
+				continue
+			}
+			return fmt.Errorf("kosmosctl install scheduler run error, crd options failed: %v", err)
+		}
+		klog.Info("Create CRD " + crds.Items[i].Name + " successful.")
+	}
 
 	klog.Info("Start creating kosmos-scheduler Deployment...")
 	schedulerDeploy, err := util.GenerateDeployment(manifest.SchedulerDeployment, manifest.DeploymentReplace{
@@ -631,7 +635,7 @@ func (o *CommandInstallOptions) runScheduler() error {
 
 func (o *CommandInstallOptions) createOperator() error {
 	klog.Info("Start creating ClusterLink-Operator...")
-	operatorDeploy, err := util.GenerateDeployment(manifest.KosmosOperatorDeployment, manifest.DeploymentReplace{
+	operatorDeploy, err := util.GenerateDeployment(manifest.ClusterlinkOperatorDeployment, manifest.DeploymentReplace{
 		Namespace:       o.Namespace,
 		Version:         o.Version,
 		UseProxy:        o.UseProxy,
@@ -685,7 +689,7 @@ func (o *CommandInstallOptions) createOperator() error {
 		return fmt.Errorf("kosmosctl install operator run error, operator options clusterrolebinding failed: %s", err)
 	}
 
-	operatorSA, err := util.GenerateServiceAccount(manifest.KosmosOperatorServiceAccount, manifest.ServiceAccountReplace{
+	operatorSA, err := util.GenerateServiceAccount(manifest.ClusterlinkOperatorServiceAccount, manifest.ServiceAccountReplace{
 		Namespace: o.Namespace,
 	})
 	if err != nil {

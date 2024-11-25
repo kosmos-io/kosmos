@@ -77,6 +77,7 @@ const (
 
 const (
 	ProxySecretName        = "clusterlink-agent-proxy"
+	OperatorName           = "clusterlink-operator"
 	ControlPanelSecretName = "controlpanel-config"
 	HostKubeConfigName     = "host-kubeconfig"
 	NodeConfigFile         = "~/nodeconfig.json"

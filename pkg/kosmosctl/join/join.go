@@ -301,6 +301,13 @@ func (o *CommandJoinOptions) CreateTreeRelatedCRDs() error {
 
 func (o *CommandJoinOptions) runCluster() error {
 	klog.Info("Start registering cluster to kosmos control plane...")
+	// create ns if it does not exist
+	kosmosNS := &corev1.Namespace{}
+	kosmosNS.Name = o.Namespace
+	_, err := o.K8sClient.CoreV1().Namespaces().Create(context.TODO(), kosmosNS, metav1.CreateOptions{})
+	if err != nil && !apierrors.IsAlreadyExists(err) {
+		return fmt.Errorf("kosmosctl join run error, create namespace failed: %s", err)
+	}
 
 	// create cluster in control panel
 	cluster := v1alpha1.Cluster{
@@ -354,6 +361,18 @@ func (o *CommandJoinOptions) runCluster() error {
 
 		cluster.Spec.ClusterLinkOptions.DefaultNICName = o.DefaultNICName
 		cluster.Spec.ClusterLinkOptions.CNI = o.CNI
+
+		clusterlinkOperatorSA, err := util.GenerateServiceAccount(manifest.ClusterlinkOperatorServiceAccount, manifest.ServiceAccountReplace{
+			Namespace: o.Namespace,
+		})
+		if err != nil {
+			return fmt.Errorf("kosmosctl join run error, generate serviceaccount failed: %s", err)
+		}
+		_, err = o.K8sClient.CoreV1().ServiceAccounts(clusterlinkOperatorSA.Namespace).Create(context.TODO(), clusterlinkOperatorSA, metav1.CreateOptions{})
+		if err != nil && !apierrors.IsAlreadyExists(err) {
+			return fmt.Errorf("kosmosctl join run error, create serviceaccount failed: %s", err)
+		}
+		klog.Info("ServiceAccount " + clusterlinkOperatorSA.Name + " has been created.")
 	}
 
 	if o.EnableTree {
@@ -362,30 +381,6 @@ func (o *CommandJoinOptions) runCluster() error {
 		if err != nil {
 			return err
 		}
-
-		clusterPodConvert, err := util.GenerateCustomResourceDefinition(manifest.ClusterPodConvert, nil)
-		if err != nil {
-			return err
-		}
-		_, err = o.K8sExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Create(context.Background(), clusterPodConvert, metav1.CreateOptions{})
-		if err != nil {
-			if !apierrors.IsAlreadyExists(err) {
-				return fmt.Errorf("kosmosctl join run error, crd options failed: %v", err)
-			}
-		}
-		klog.Info("Create CRD " + clusterPodConvert.Name + " successful.")
-
-		podConvert, err := util.GenerateCustomResourceDefinition(manifest.PodConvert, nil)
-		if err != nil {
-			return err
-		}
-		_, err = o.K8sExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Create(context.Background(), podConvert, metav1.CreateOptions{})
-		if err != nil {
-			if !apierrors.IsAlreadyExists(err) {
-				return fmt.Errorf("kosmosctl join run error, crd options failed: %v", err)
-			}
-		}
-		klog.Info("Create CRD " + podConvert.Name + " successful.")
 
 		if len(o.LeafModel) > 0 {
 			switch o.LeafModel {
@@ -425,19 +420,11 @@ func (o *CommandJoinOptions) runCluster() error {
 		}
 	}
 
-	_, err := o.KosmosClient.KosmosV1alpha1().Clusters().Create(context.TODO(), &cluster, metav1.CreateOptions{})
+	_, err = o.KosmosClient.KosmosV1alpha1().Clusters().Create(context.TODO(), &cluster, metav1.CreateOptions{})
 	if err != nil {
 		return fmt.Errorf("kosmosctl join run error, create cluster failed: %s", err)
 	}
 	klog.Info("Cluster " + o.Name + " has been created.")
-
-	// create ns if it does not exist
-	kosmosNS := &corev1.Namespace{}
-	kosmosNS.Name = o.Namespace
-	_, err = o.K8sClient.CoreV1().Namespaces().Create(context.TODO(), kosmosNS, metav1.CreateOptions{})
-	if err != nil && !apierrors.IsAlreadyExists(err) {
-		return fmt.Errorf("kosmosctl join run error, create namespace failed: %s", err)
-	}
 
 	// create rbac
 	kosmosControlSA, err := util.GenerateServiceAccount(manifest.KosmosControlServiceAccount, manifest.ServiceAccountReplace{
@@ -489,18 +476,6 @@ func (o *CommandJoinOptions) runCluster() error {
 		return fmt.Errorf("kosmosctl join run error, create clusterrolebinding failed: %s", err)
 	}
 	klog.Info("ClusterRoleBinding " + kosmosCRB.Name + " has been created.")
-
-	kosmosOperatorSA, err := util.GenerateServiceAccount(manifest.KosmosOperatorServiceAccount, manifest.ServiceAccountReplace{
-		Namespace: o.Namespace,
-	})
-	if err != nil {
-		return fmt.Errorf("kosmosctl join run error, generate serviceaccount failed: %s", err)
-	}
-	_, err = o.K8sClient.CoreV1().ServiceAccounts(kosmosOperatorSA.Namespace).Create(context.TODO(), kosmosOperatorSA, metav1.CreateOptions{})
-	if err != nil && !apierrors.IsAlreadyExists(err) {
-		return fmt.Errorf("kosmosctl join run error, create serviceaccount failed: %s", err)
-	}
-	klog.Info("ServiceAccount " + kosmosOperatorSA.Name + " has been created.")
 
 	// ToDo Wait for all services to be running
 

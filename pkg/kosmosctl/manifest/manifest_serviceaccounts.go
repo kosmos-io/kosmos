@@ -9,7 +9,7 @@ metadata:
   namespace: {{ .Namespace }}
 `
 
-	KosmosOperatorServiceAccount = `
+	ClusterlinkOperatorServiceAccount = `
 apiVersion: v1
 kind: ServiceAccount
 metadata:

@@ -211,7 +211,7 @@ func (o *CommandUninstallOptions) runClusterlink() error {
 	} else if clusternodes != nil && len(clusternodes.Items) > 0 {
 		klog.Info("kosmosctl uninstall warning, skip removing clusternode crd because cr instance exists")
 	} else {
-		clusternodeCRD, err := util.GenerateCustomResourceDefinition(manifest.ClusterNode, nil)
+		clusternodeCRD, err := util.GenerateCustomResourceDefinition(manifest.ClusterlinkClusterNode, nil)
 		if err != nil {
 			return err
 		}
@@ -230,7 +230,7 @@ func (o *CommandUninstallOptions) runClusterlink() error {
 	} else if nodeconfigs != nil && len(nodeconfigs.Items) > 0 {
 		klog.Info("kosmosctl uninstall warning, skip removing nodeconfig crd because cr instance exists")
 	} else {
-		nodeConfigCRD, err := util.GenerateCustomResourceDefinition(manifest.NodeConfig, nil)
+		nodeConfigCRD, err := util.GenerateCustomResourceDefinition(manifest.ClusterlinkNodeConfig, nil)
 		if err != nil {
 			return err
 		}
@@ -287,7 +287,7 @@ func (o *CommandUninstallOptions) runClusterlink() error {
 	_, err = o.K8sClient.AppsV1().Deployments(o.Namespace).Get(context.Background(), clustertreeDeploy.Name, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			operatorDeploy, err := util.GenerateDeployment(manifest.KosmosOperatorDeployment, manifest.DeploymentReplace{
+			operatorDeploy, err := util.GenerateDeployment(manifest.ClusterlinkOperatorDeployment, manifest.DeploymentReplace{
 				Namespace: o.Namespace,
 				Version:   o.Version,
 			})
@@ -419,7 +419,7 @@ func (o *CommandUninstallOptions) runClustertree() error {
 	_, err = o.K8sClient.AppsV1().Deployments(o.Namespace).Get(context.Background(), clusterlinkDeploy.Name, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			operatorDeploy, err := util.GenerateDeployment(manifest.KosmosOperatorDeployment, manifest.DeploymentReplace{
+			operatorDeploy, err := util.GenerateDeployment(manifest.ClusterlinkOperatorDeployment, manifest.DeploymentReplace{
 				Namespace: o.Namespace,
 				Version:   o.Version,
 			})
@@ -507,6 +507,27 @@ func (o *CommandUninstallOptions) runScheduler() error {
 	} else {
 		klog.Info("ServiceAccount " + schedulerSA.Name + " is deleted.")
 	}
+
+	clusterDPs, err := o.KosmosClient.KosmosV1alpha1().ClusterDistributionPolicies().List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return fmt.Errorf("kosmosctl uninstall kosmos-scheduler run error, list cluster distribution policy failed: %v", err)
+		}
+	} else if clusterDPs != nil && len(clusterDPs.Items) > 0 {
+		klog.Info("kosmosctl uninstall warning, skip removing cluster distribution policy crd because cr instance exists")
+	} else {
+		schedulerCDP, err := util.GenerateCustomResourceDefinition(manifest.SchedulerClusterDistributionPolicies, nil)
+		if err != nil {
+			return err
+		}
+		err = o.K8sExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Delete(context.Background(), schedulerCDP.Name, metav1.DeleteOptions{})
+		if err != nil && !apierrors.IsNotFound(err) {
+			return fmt.Errorf("kosmosctl uninstall kosmos-scheduler run error, cluster distribution policy crd delete failed: %v", err)
+		}
+		klog.Info("CRD " + schedulerCDP.Name + " is deleted.")
+	}
+
+	// ToDo delete namespace level crd DistributionPolicy
 
 	klog.Info("Scheduler uninstalled.")
 	return nil

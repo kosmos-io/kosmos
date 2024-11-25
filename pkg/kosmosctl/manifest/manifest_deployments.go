@@ -36,7 +36,7 @@ spec:
               memory: 500Mi
 `
 
-	KosmosOperatorDeployment = `
+	ClusterlinkOperatorDeployment = `
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -94,7 +94,6 @@ spec:
         - name: proxy-config
           secret:
             secretName: controlpanel-config
-
 `
 
 	ClusterTreeClusterManagerDeployment = `---
@@ -259,7 +258,6 @@ spec:
                 path: customer-hosts
             name: coredns-customer-hosts
           name: customer-hosts
-
 `
 
 	SchedulerDeployment = `
