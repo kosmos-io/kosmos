@@ -13,5 +13,5 @@ RUN apt-get update && apt-get install -y rsync pwgen openssl && \
 
 COPY ${BINARY} /app
 
-# install command
+# install command,if virtual-cluster-operator.yml is not specified        
 CMD ["bash", "/app/install.sh", "/app"]

@@ -212,6 +212,7 @@ func startEndPointsControllers(mgr manager.Manager) error {
 }
 
 func run(ctx context.Context, config *config.Config) error {
+
 	newscheme := scheme.NewSchema()
 	err := apiextensionsv1.AddToScheme(newscheme)
 	if err != nil {

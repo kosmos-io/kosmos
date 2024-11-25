@@ -2,6 +2,7 @@ package serve
 
 import (
 	"bufio"
+	"context"
 	"crypto/sha256"
 	"crypto/tls"
 	"encoding/base64"
@@ -20,10 +21,17 @@ import (
 
 	"github.com/creack/pty"
 	"github.com/gorilla/websocket"
+	"github.com/kosmos.io/kosmos/cmd/kubenest/node-agent/app/logger"
+	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
+	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-
-	"github.com/kosmos.io/kosmos/cmd/kubenest/node-agent/app/logger"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var (
@@ -55,6 +63,66 @@ func init() {
 }
 
 func serveCmdRun(_ *cobra.Command, _ []string) error {
+
+	//配置kubeconfig
+	kubeconfigPath := viper.GetString("KUBECONFIG")
+	log.Infof("Using kubeconfig: %s", kubeconfigPath)
+	// Load Kubernetes configuration
+	config, err := clientcmd.BuildConfigFromFlags("", kubeconfigPath)
+	if err != nil {
+		log.Errorf("Failed to load kubeconfig: %v", err)
+		return fmt.Errorf("failed to load kubeconfig: %w", err)
+	}
+
+	// Initialize Kubernetes client
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		log.Errorf("Failed to create Kubernetes client: %v", err)
+		return fmt.Errorf("failed to create Kubernetes client: %w", err)
+	}
+
+	// 获取所有节点列表
+	nodes, err := clientset.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		log.Fatalf("Failed to list nodes: %v", err)
+	}
+
+	// 打印节点信息
+	fmt.Printf("There are %d nodes in the cluster:\n", len(nodes.Items))
+	for _, node := range nodes.Items {
+		fmt.Printf("- Name: %s, Status: %s\n", node.Name, node.Status.Phase)
+	}
+
+	type GlobalNodeController struct {
+		client.Client
+		RootClientSet kubernetes.Interface
+		KosmosClient  versioned.Interface
+	}
+	var instance GlobalNodeController
+	r := &instance
+
+	var globalNode *v1alpha1.GlobalNode
+	globalNode.Name = "node52"
+	var targetNode v1alpha1.GlobalNode
+	if err := r.Get(context.TODO(), types.NamespacedName{Name: globalNode.Name}, &targetNode); err != nil {
+		klog.Errorf("global-node-controller: SyncNodeStatus: can not get target node, err: %s", globalNode.Name)
+		return err
+	}
+
+	//启动GO协程
+	go func() {
+		ticker := time.NewTicker(30 * time.Second) // Adjust interval as needed
+		defer ticker.Stop()
+		for range ticker.C {
+			// Heartbeat logic: Log heartbeat or send it to a monitoring service
+			log.Infof("Heartbeat: server is running on %s", addr)
+			//status := "True"
+			//targetNode.Status.Conditions = //time.Now()
+			//..
+			//fmt.Printf("service status: %v", status)
+		}
+	}()
+
 	user := viper.GetString("WEB_USER")
 	password := viper.GetString("WEB_PASS")
 	port := viper.GetString("WEB_PORT")
@@ -71,7 +139,7 @@ func serveCmdRun(_ *cobra.Command, _ []string) error {
 // start server
 func Start(addr, certFile, keyFile, user, password string) error {
 	passwordHash := sha256.Sum256([]byte(password))
-
+	//处理 HTTP 请求，w 是 http.ResponseWriter，用于构建 HTTP 响应。r 是 http.Request，包含客户端发来的请求信息。
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/healthz" || r.URL.Path == "/readyz" {
 			w.WriteHeader(http.StatusOK)
@@ -102,7 +170,7 @@ func Start(addr, certFile, keyFile, user, password string) error {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
-
+		//实现负责执行 WebSocket 握手，将 HTTP 协议升级为 WebSocket 协议
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
 			log.Errorf("http upgrade to websocket failed : %v", err)
@@ -110,6 +178,10 @@ func Start(addr, certFile, keyFile, user, password string) error {
 		}
 		defer conn.Close()
 
+		//r.RequestURI 是 HTTP 请求中原始的请求路径和查询字符串。
+		//假设请求的 URL 为 http://example.com/upload?file=test&token=12345，
+		//那么 r.RequestURI 将包含 /upload?file=test&token=12345。
+		//提取出 URI 中的查询字符串，并将其转换为一个可用于进一步操作的 url.Values 对象。
 		u, err := url.Parse(r.RequestURI)
 		if err != nil {
 			log.Errorf("parse uri: %s, %v", r.RequestURI, err)
@@ -136,6 +208,7 @@ func Start(addr, certFile, keyFile, user, password string) error {
 	})
 
 	log.Infof("Starting server on %s", addr)
+
 	tlsConfig := &tls.Config{
 		MinVersion: tls.VersionTLS13,
 	}

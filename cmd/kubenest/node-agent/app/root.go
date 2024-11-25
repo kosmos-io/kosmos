@@ -13,9 +13,10 @@ import (
 )
 
 var (
-	user     string // username for authentication
-	password string // password for authentication
-	log      = logger.GetLogger()
+	user       string // username for authentication
+	password   string // password for authentication
+	kubeconfig string //path to the kubeconfig file
+	log        = logger.GetLogger()
 )
 
 var RootCmd = &cobra.Command{
@@ -46,6 +47,9 @@ func initConfig() {
 	if len(password) == 0 {
 		password = viper.GetString("WEB_PASS")
 	}
+	if len(kubeconfig) == 0 {
+		kubeconfig = viper.GetString("KUBECONFIG")
+	}
 }
 
 func initWebSocketAddr() {
@@ -72,6 +76,8 @@ func init() {
 
 	RootCmd.PersistentFlags().StringVarP(&user, "user", "u", "", "Username for authentication")
 	RootCmd.PersistentFlags().StringVarP(&password, "password", "p", "", "Password for authentication")
+	RootCmd.PersistentFlags().StringVar(&kubeconfig, "kubeconfig", "/home/gaoyuan/公共/kosmos/ignore_dir/52.conf", "Path to the kubeconfig file")
+
 	// bind flags to viper
 	err := viper.BindPFlag("WEB_USER", RootCmd.PersistentFlags().Lookup("user"))
 	if err != nil {
@@ -81,6 +87,11 @@ func init() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	err = viper.BindPFlag("KUBECONFIG", RootCmd.PersistentFlags().Lookup("kubeconfig"))
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	// bind environment variables
 	err = viper.BindEnv("WEB_USER", "WEB_USER")
 	if err != nil {
@@ -90,6 +101,12 @@ func init() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	err = viper.BindEnv("KUBECONFIG", "KUBECONFIG")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	//添加子命令
 	RootCmd.AddCommand(client.ClientCmd)
 	RootCmd.AddCommand(serve.ServeCmd)
 }

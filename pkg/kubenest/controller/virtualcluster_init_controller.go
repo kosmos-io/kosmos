@@ -527,6 +527,7 @@ func retrieveGlobalNodesWithLabelSelector(nodes []v1alpha1.GlobalNode, labelSele
 	return matchedNodes, nil
 }
 
+// 在这里对updated.Status.VirtualCluster = virtualCluster.Name
 func (c *VirtualClusterInitController) setGlobalNodeUsageStatus(virtualCluster *v1alpha1.VirtualCluster, node *v1alpha1.GlobalNode) error {
 	updateSpecFunc := func() error {
 		current, err := c.KosmosClient.KosmosV1alpha1().GlobalNodes().Get(context.TODO(), node.Name, metav1.GetOptions{})

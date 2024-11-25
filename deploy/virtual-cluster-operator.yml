@@ -230,6 +230,17 @@ spec:
                 secretKeyRef:
                   name: node-agent-secret
                   key: password
+            # kubeconfig和nodename作为环境变量传入脚本
+            - name: KUBECONFIG
+            valueFrom:
+              secretKeyRef:
+                  name: virtual-cluster-operator
+                  key: kubeconfig
+            - name: nodeName
+            valueFrom:
+              secretKeyRef:
+                  name: 
+                  key: 
           command: ["/bin/bash"]
           args:
             - "/app/init.sh"
