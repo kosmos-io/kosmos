@@ -177,6 +177,11 @@ func (c *ClusterController) Reconcile(ctx context.Context, request reconcile.Req
 		return reconcile.Result{}, nil
 	}
 
+	if !cluster.Spec.ClusterTreeOptions.Enable {
+		klog.Infof("Cluster %s does not have the ClusterTree module enabled, skipping this event.", request.Name)
+		return reconcile.Result{}, nil
+	}
+
 	// build mgr for cluster
 	// TODO bug, the v4 log is lost
 	mgr, err := controllerruntime.NewManager(config, controllerruntime.Options{
