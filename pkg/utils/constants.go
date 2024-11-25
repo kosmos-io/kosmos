@@ -132,6 +132,7 @@ const (
 	NodeOSLabelBeta       = "beta.kubernetes.io/os"
 	NodeHostnameValue     = corev1.LabelHostname
 	NodeHostnameValueBeta = "beta.kubernetes.io/hostname"
+	OpenebsPVNodeLabel    = "openebs.io/nodename"
 	NodeOSLabelStable     = corev1.LabelOSStable
 	NodeArchLabelStable   = corev1.LabelArchStable
 	PVCSelectedNodeKey    = "volume.kubernetes.io/selected-node"

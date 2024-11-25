@@ -211,13 +211,13 @@ func filterPV(pv *v1.PersistentVolume, nodeName string) {
 		mfs := v.MatchFields
 		mes := v.MatchExpressions
 		for k, val := range v.MatchFields {
-			if val.Key == utils.NodeHostnameValue || val.Key == utils.NodeHostnameValueBeta {
+			if val.Key == utils.NodeHostnameValue || val.Key == utils.NodeHostnameValueBeta || val.Key == utils.OpenebsPVNodeLabel {
 				val.Values = []string{nodeName}
 			}
 			mfs[k] = val
 		}
 		for k, val := range v.MatchExpressions {
-			if val.Key == utils.NodeHostnameValue || val.Key == utils.NodeHostnameValueBeta {
+			if val.Key == utils.NodeHostnameValue || val.Key == utils.NodeHostnameValueBeta || val.Key == utils.OpenebsPVNodeLabel {
 				val.Values = []string{nodeName}
 			}
 			mes[k] = val

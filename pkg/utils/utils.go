@@ -66,3 +66,11 @@ func FormatCIDR(cidr string) (string, error) {
 	}
 	return ipNet.String(), nil
 }
+
+func HasKosmosNodeLabel(node *corev1.Node) bool {
+	if kosmosNodeLabel, ok := node.Labels[KosmosNodeLabel]; ok && kosmosNodeLabel == KosmosNodeValue {
+		return true
+	}
+
+	return false
+}
