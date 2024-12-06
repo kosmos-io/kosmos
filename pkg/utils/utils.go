@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"strings"
 
@@ -29,6 +30,12 @@ func IsIPv6(s string) bool {
 		}
 	}
 	return false
+}
+
+// IsIPv4 checks if the given IP address is IPv4.
+func IsIPv4(ip string) bool {
+	parsedIP := net.ParseIP(ip)
+	return parsedIP != nil && parsedIP.To4() != nil
 }
 
 func GetEnvWithDefaultValue(envName string, defaultValue string) string {
