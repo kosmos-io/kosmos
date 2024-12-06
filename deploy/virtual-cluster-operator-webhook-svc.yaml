@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: virtual-cluster-operator-webhook
+  namespace: kosmos-system
+spec:
+  ports:
+    - port: 443       # Service 端口，API Server 会使用它访问 Webhook
+      targetPort: 9443 # 映射到 Pod 内的 9443 端口
+  selector:
+    app: virtual-cluster-operator
