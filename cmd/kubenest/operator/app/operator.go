@@ -28,6 +28,7 @@ import (
 	glnodecontroller "github.com/kosmos.io/kosmos/pkg/kubenest/controller/global.node.controller"
 	kosmos "github.com/kosmos.io/kosmos/pkg/kubenest/controller/kosmos"
 	vcnodecontroller "github.com/kosmos.io/kosmos/pkg/kubenest/controller/virtualcluster.node.controller"
+	"github.com/kosmos.io/kosmos/pkg/kubenest/webhooks"
 	"github.com/kosmos.io/kosmos/pkg/scheme"
 	"github.com/kosmos.io/kosmos/pkg/sharedcli/klogflag"
 )
@@ -227,6 +228,7 @@ func run(ctx context.Context, config *config.Config) error {
 		LivenessEndpointName:    "/healthz",
 		ReadinessEndpointName:   "/readyz",
 		HealthProbeBindAddress:  ":8081",
+		Port:                    9443,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to build controller manager: %v", err)
@@ -250,6 +252,11 @@ func run(ctx context.Context, config *config.Config) error {
 	kosmosClient, err := versioned.NewForConfig(config.RestConfig)
 	if err != nil {
 		return fmt.Errorf("could not create clientset: %v", err)
+	}
+
+	// 创建 Webhook 设置
+	if err := webhooks.SetupWebhookWithManager(mgr); err != nil {
+		return fmt.Errorf("unable to setup webhook: %v", err)
 	}
 
 	VirtualClusterInitController := controller.VirtualClusterInitController{

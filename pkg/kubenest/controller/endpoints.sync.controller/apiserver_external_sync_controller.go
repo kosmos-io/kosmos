@@ -8,19 +8,17 @@ import (
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
@@ -38,145 +36,158 @@ type APIServerExternalSyncController struct {
 const APIServerExternalSyncControllerName string = "api-server-external-service-sync-controller"
 
 func (e *APIServerExternalSyncController) SetupWithManager(mgr manager.Manager) error {
-	skipEvent := func(obj client.Object) bool {
-		return strings.Contains(obj.GetName(), "apiserver") && obj.GetNamespace() != ""
-	}
-
 	return controllerruntime.NewControllerManagedBy(mgr).
 		Named(APIServerExternalSyncControllerName).
 		WithOptions(controller.Options{MaxConcurrentReconciles: 5}).
-		For(&v1.Endpoints{},
-			builder.WithPredicates(predicate.Funcs{
-				CreateFunc: func(createEvent event.CreateEvent) bool {
-					return skipEvent(createEvent.Object)
-				},
-				UpdateFunc: func(updateEvent event.UpdateEvent) bool { return skipEvent(updateEvent.ObjectNew) },
-				DeleteFunc: func(deleteEvent event.DeleteEvent) bool { return false },
-			})).
-		Watches(&source.Kind{Type: &v1alpha1.VirtualCluster{}}, handler.EnqueueRequestsFromMapFunc(e.newVirtualClusterMapFunc())).
+		Watches(&source.Kind{Type: &v1.Pod{}}, handler.EnqueueRequestsFromMapFunc(e.newPodMapFunc())).
 		Complete(e)
 }
 
-func (e *APIServerExternalSyncController) newVirtualClusterMapFunc() handler.MapFunc {
+func (e *APIServerExternalSyncController) newPodMapFunc() handler.MapFunc {
 	return func(a client.Object) []reconcile.Request {
 		var requests []reconcile.Request
-		vcluster := a.(*v1alpha1.VirtualCluster)
+		pod := a.(*v1.Pod)
 
-		// Join the Reconcile queue only if the status of the vcluster is Completed
-		if vcluster.Status.Phase == v1alpha1.Completed {
-			klog.V(4).Infof("api-server-external-sync-controller: virtualcluster change to completed: %s", vcluster.Name)
-			// Add the vcluster to the Reconcile queue
-			requests = append(requests, reconcile.Request{
-				NamespacedName: types.NamespacedName{
-					Name:      vcluster.Name,
-					Namespace: vcluster.Namespace,
-				},
-			})
+		// pod 的名称包含 "apiserver" 并且不包含 "kube-apiserver"
+		if strings.Contains(pod.Name, "apiserver") && !strings.Contains(pod.Name, "kube-apiserver") {
+			klog.V(4).Infof("api-server-external-sync-controller: Detected change in apiserver Pod: %s", pod.Name)
+
+			// 根据 pod 名称推断 vcluster 名称
+			parts := strings.SplitN(pod.Name, "-apiserver", 2)
+			vclusterName := parts[0]
+			klog.V(4).Infof("Derived vclusterName: %s from podName: %s", vclusterName, pod.Name)
+
+			// 查找与该 Pod 关联的 VirtualCluster
+			vcluster := &v1alpha1.VirtualCluster{}
+			if err := e.Client.Get(context.Background(), types.NamespacedName{
+				Namespace: pod.Namespace,
+				Name:      vclusterName,
+			}, vcluster); err != nil {
+				klog.Errorf("Failed to get VirtualCluster %s: %v", vclusterName, err)
+				return nil
+			}
+
+			// 确保 VirtualCluster 状态为 Completed
+			if vcluster.Status.Phase == v1alpha1.Completed {
+				klog.V(4).Infof("VirtualCluster %s is completed, enqueueing for reconciliation", vclusterName)
+				requests = append(requests, reconcile.Request{
+					NamespacedName: types.NamespacedName{
+						Name:      vcluster.Name,
+						Namespace: vcluster.Namespace,
+					},
+				})
+			}
 		}
 		return requests
 	}
 }
 
-func (e *APIServerExternalSyncController) SyncAPIServerExternalEPS(ctx context.Context, k8sClient kubernetes.Interface) error {
-	kubeEndpoints, err := k8sClient.CoreV1().Endpoints(constants.DefaultNs).Get(ctx, "kubernetes", metav1.GetOptions{})
-	if err != nil {
-		klog.Errorf("Error getting endpoints: %v", err)
-		return err
+func (e *APIServerExternalSyncController) SyncAPIServerExternalEPS(ctx context.Context, k8sClient kubernetes.Interface, vc *v1alpha1.VirtualCluster) error {
+	podList := &v1.PodList{}
+	if err := e.Client.List(ctx, podList, &client.ListOptions{
+		Namespace: vc.Namespace,
+		LabelSelector: labels.SelectorFromSet(map[string]string{
+			"virtualCluster-app": "apiserver",
+		}),
+	}); err != nil {
+		return fmt.Errorf("failed to list apiserver pods: %w", err)
 	}
-	klog.V(4).Infof("Endpoints for service 'kubernetes': %v", kubeEndpoints)
-	for _, subset := range kubeEndpoints.Subsets {
-		for _, address := range subset.Addresses {
-			klog.V(4).Infof("IP: %s", address.IP)
+
+	var addresses []v1.EndpointAddress
+	for _, pod := range podList.Items {
+		// 确保 Pod 处于 Running 状态并有 IP 地址
+		if pod.Status.Phase == v1.PodRunning && pod.Status.PodIP != "" {
+			klog.V(4).Infof("Found apiserver Pod: %s, IP: %s", pod.Name, pod.Status.PodIP)
+			addresses = append(addresses, v1.EndpointAddress{IP: pod.Status.PodIP})
 		}
 	}
 
-	if len(kubeEndpoints.Subsets) != 1 {
-		return fmt.Errorf("eps %s Subsets length is not 1", "kubernetes")
+	apiServerPort, ok := vc.Status.PortMap[constants.APIServerPortKey]
+	if !ok {
+		return fmt.Errorf("failed to get API server port from VirtualCluster status")
+	}
+	klog.V(4).Infof("API server port: %d", apiServerPort)
+
+	// constructing Endpoints objects
+	newEndpoint := &v1.Endpoints{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      constants.APIServerExternalService,
+			Namespace: constants.KosmosNs,
+		},
+		Subsets: []v1.EndpointSubset{
+			{
+				Addresses: addresses,
+				Ports: []v1.EndpointPort{
+					{
+						Name:     "https",
+						Port:     apiServerPort,
+						Protocol: v1.ProtocolTCP,
+					},
+				},
+			},
+		},
 	}
 
-	if kubeEndpoints.Subsets[0].Addresses == nil || len(kubeEndpoints.Subsets[0].Addresses) == 0 {
-		klog.Errorf("eps %s Addresses length is nil", "kubernetes")
-		return err
-	}
-
-	apiServerExternalEndpoints, err := k8sClient.CoreV1().Endpoints(constants.DefaultNs).Get(ctx, constants.APIServerExternalService, metav1.GetOptions{})
-	if err != nil && !apierrors.IsNotFound(err) {
-		klog.Errorf("failed to get endpoints for %s : %v", constants.APIServerExternalService, err)
-		return err
-	}
-
-	updateEPS := apiServerExternalEndpoints.DeepCopy()
-
-	if apiServerExternalEndpoints != nil {
-		klog.V(4).Infof("apiServerExternalEndpoints: %v", apiServerExternalEndpoints)
-	} else {
-		klog.V(4).Info("apiServerExternalEndpoints is nil")
-	}
-
-	if updateEPS != nil {
-		klog.V(4).Infof("updateEPS: %v", updateEPS)
-	} else {
-		klog.V(4).Info("updateEPS is nil")
-	}
-
-	if len(updateEPS.Subsets) == 1 && len(updateEPS.Subsets[0].Addresses) == 1 {
-		ip := kubeEndpoints.Subsets[0].Addresses[0].IP
-		klog.V(4).Infof("IP address: %s", ip)
-		updateEPS.Subsets[0].Addresses[0].IP = ip
-
-		if _, err := k8sClient.CoreV1().Endpoints(constants.DefaultNs).Update(ctx, updateEPS, metav1.UpdateOptions{}); err != nil {
-			klog.Errorf("failed to update endpoints for api-server-external-service: %v", err)
-			return err
+	//avoid unnecessary updates
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		currentEndpoint, err := k8sClient.CoreV1().Endpoints(constants.KosmosNs).Get(ctx, constants.APIServerExternalService, metav1.GetOptions{})
+		if apierrors.IsNotFound(err) {
+			_, err := k8sClient.CoreV1().Endpoints(constants.KosmosNs).Create(ctx, newEndpoint, metav1.CreateOptions{})
+			if err != nil {
+				return fmt.Errorf("failed to create api-server-external-service endpoint: %w", err)
+			}
+			klog.Infof("Created api-server-external-service Endpoint")
+			return nil
+		} else if err != nil {
+			return fmt.Errorf("failed to get existing api-server-external-service endpoint: %w", err)
 		}
-	} else {
-		klog.ErrorS(err, "Unexpected format of endpoints for api-server-external-service", "endpoint_data", updateEPS)
-		return err
-	}
 
-	return nil
+		// determine if an update is needed
+		if !endpointsEqual(currentEndpoint, newEndpoint) {
+			_, err := k8sClient.CoreV1().Endpoints(constants.KosmosNs).Update(ctx, newEndpoint, metav1.UpdateOptions{})
+			if err != nil {
+				return fmt.Errorf("failed to update api-server-external-service endpoint: %w", err)
+			}
+			klog.Infof("Updated api-server-external-service Endpoint")
+		} else {
+			klog.V(4).Info("No changes detected in Endpoint, skipping update")
+		}
+		return nil
+	})
+}
+
+// Endpoints 比较函数
+func endpointsEqual(a, b *v1.Endpoints) bool {
+	return fmt.Sprintf("%v", a.Subsets) == fmt.Sprintf("%v", b.Subsets)
 }
 
 func (e *APIServerExternalSyncController) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
 	klog.V(4).Infof("============ %s start to reconcile %s ============", APIServerExternalSyncControllerName, request.NamespacedName)
 	defer klog.V(4).Infof("============ %s finish to reconcile %s ============", APIServerExternalSyncControllerName, request.NamespacedName)
 
-	var virtualClusterList v1alpha1.VirtualClusterList
-	if err := e.List(ctx, &virtualClusterList); err != nil {
+	var vc v1alpha1.VirtualCluster
+	if err := e.Get(ctx, request.NamespacedName, &vc); err != nil {
 		if apierrors.IsNotFound(err) {
+			klog.Infof("VirtualCluster not found: %s", request.NamespacedName)
 			return reconcile.Result{}, nil
 		}
-		klog.V(4).Infof("query virtualcluster failed: %v", err)
+		klog.Errorf("Failed to get VirtualCluster: %v", err)
 		return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
 	}
-	var targetVirtualCluster v1alpha1.VirtualCluster
-	hasVirtualCluster := false
-	for _, vc := range virtualClusterList.Items {
-		if vc.Namespace == request.Namespace {
-			targetVirtualCluster = vc
-			klog.V(4).Infof("virtualcluster %s found", targetVirtualCluster.Name)
-			hasVirtualCluster = true
-			break
-		}
-	}
-	if !hasVirtualCluster {
-		klog.V(4).Infof("virtualcluster %s not found", request.Namespace)
+
+	if vc.Status.Phase != v1alpha1.Completed {
+		klog.Infof("VirtualCluster %s is not in Completed phase", vc.Name)
 		return reconcile.Result{}, nil
 	}
 
-	if targetVirtualCluster.Status.Phase != v1alpha1.Completed {
-		return reconcile.Result{}, nil
-	}
-
-	k8sClient, err := util.GenerateKubeclient(&targetVirtualCluster)
+	k8sClient, err := util.GenerateKubeclient(&vc)
 	if err != nil {
-		klog.Errorf("virtualcluster %s crd kubernetes client failed: %v", targetVirtualCluster.Name, err)
+		klog.Errorf("Failed to generate Kubernetes client for VirtualCluster %s: %v", vc.Name, err)
 		return reconcile.Result{}, nil
 	}
 
-	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		return e.SyncAPIServerExternalEPS(ctx, k8sClient)
-	}); err != nil {
-		klog.Errorf("virtualcluster %s sync apiserver external endpoints failed: %v", targetVirtualCluster.Name, err)
+	if err := e.SyncAPIServerExternalEPS(ctx, k8sClient, &vc); err != nil {
+		klog.Errorf("Failed to sync apiserver external Endpoints: %v", err)
 		return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
 	}
 

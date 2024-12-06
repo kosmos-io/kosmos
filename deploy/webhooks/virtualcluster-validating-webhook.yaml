@@ -1,0 +1,19 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: virtualcluster-validating-webhook
+webhooks:
+  - name: virtualcluster.kosmos.io
+    clientConfig:
+      service:
+        name: virtual-cluster-operator-webhook # 服务名称
+        namespace: kosmos-system            # 命名空间
+        path: /validate-kosmos-io-v1alpha1-virtualcluster # 默认路径
+      caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURDekNDQWZPZ0F3SUJBZ0lVTk4yRXo0ekoyY2wrTGVnWjBXaWgrYUxCSkF3d0RRWUpLb1pJaHZjTkFRRUwKQlFBd0ZURVRNQkVHQTFVRUF3d0tkMlZpYUc5dmF5MWpZVEFlRncweU5ERXhNakV3TmpNNU5UTmFGdzB6TkRFeApNVGt3TmpNNU5UTmFNQlV4RXpBUkJnTlZCQU1NQ25kbFltaHZiMnN0WTJFd2dnRWlNQTBHQ1NxR1NJYjNEUUVCCkFRVUFBNElCRHdBd2dnRUtBb0lCQVFETDBra01acnZFRXJDQVhzbzdURlZIRHVlMjFTWUx1a1RBOFpQNE9YelMKRW8wYlY1bjJ0UENUcm1JeTN5NU1rNmlZZVZoVTlOOXdzK0YxR0xzaHQ3WGZyVHExcG1wQ3NWNnBQMW9UZkZuVAptMDhWVVJCZ2JLK2VxT3QvcXMvbnBLWi9EZVN3NjRCbW9EMGNsVWJ5dWxqTHFGRTRSMXVLa0hlZlpBVklXaGhVCkRyNWNzb1Y1T1ZJUHhKaDh2d2RWcER2MldkZUxSNFJUcWVPTVJIL29QaytCa0VDYi9MMGRJdGtiQW0vcnJuZTUKWDFieUNXZ1V4eG1WdHRDbHpQTDRpcTNKRjdTYU1DRlg4dTFpMGxiSEpYYVNva0UyMzN1Z1p0ZEVqUVlOV0gyMAplc2I4aWptZ2JKV0tQbytxbzF4WHlSZ25HUmprZ3VWK2FkNW85NFZNdjgrZEFnTUJBQUdqVXpCUk1CMEdBMVVkCkRnUVdCQlFlcnp0ZGpPK2hNcmN1VTNjdGg2b3Y0MUJCT0RBZkJnTlZIU01FR0RBV2dCUWVyenRkak8raE1yY3UKVTNjdGg2b3Y0MUJCT0RBUEJnTlZIUk1CQWY4RUJUQURBUUgvTUEwR0NTcUdTSWIzRFFFQkN3VUFBNElCQVFBWgpuTjBWZ3czQ29GbGNablBjcEJPTGNEZUxKR2VWbDhyV0QrY2dGQjc5WEljL0kxYythRlpSbkVIZkJVSytpT3dVClBSZ2VSUzZiOVd0V29tVDhvMzlieWwwUWVrYVVwM3A1NGVIYUhINUtUYnJORkliZEU3bC9rRk0wMlV1eURxQU8KczNuakF3VUhjOUIwQmxLZ0ZHWFd4WWRXeWRaem00bXFGbk45ZEdlWldudXkrdHZSSzhSZjk5Rk1sNXh0dVZmYQo3amdpMHplVEx6NjBSK285cEtsN3FqK0xxZlRScVR5ZjVzbXdmSk0yS2h2ZENsb2ZKZjhxSGhhT0lZa094QnRmClBHbGpQQ0pYWk53VlgzZTBLbUV2QnNkamRLbGJjcVNHalpqLy8yVWhBTzU0aHJQUTkzem02R1FTdXZCU3lpR3YKMVB4eFdyVW1TZ25GRnJWb2F5Z20KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo=
+    rules:
+      - operations: ["CREATE", "UPDATE"]
+        apiGroups: ["kosmos.io"]
+        apiVersions: ["v1alpha1"]
+        resources: ["virtualclusters"]
+    admissionReviewVersions: ["v1"]
+    sideEffects: None
