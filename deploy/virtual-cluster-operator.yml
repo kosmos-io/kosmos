@@ -230,6 +230,11 @@ spec:
                 secretKeyRef:
                   name: node-agent-secret
                   key: password
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: spec.nodeName
           command: ["/bin/bash"]
           args:
             - "/app/init.sh"
@@ -239,6 +244,10 @@ spec:
               readOnly: false
             - mountPath: /host-systemd
               name: systemd-path
+              readOnly: false
+            - mountPath: /app/kubeconfigpath
+              name: kubeconfig
+              subPath: kubeconfig  
               readOnly: false
       containers:
         - name: install-agent
@@ -282,6 +291,10 @@ spec:
           hostPath:
             path: /etc/systemd/system
             type: DirectoryOrCreate
+        - name: kubeconfig
+          secret:
+            secretName: virtual-cluster-operator
+        
 ---
 apiVersion: v1
 kind: Secret

@@ -2,6 +2,7 @@ package serve
 
 import (
 	"bufio"
+	"context"
 	"crypto/sha256"
 	"crypto/tls"
 	"encoding/base64"
@@ -22,8 +23,12 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/kosmos.io/kosmos/cmd/kubenest/node-agent/app/logger"
+	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 )
 
 var (
@@ -36,6 +41,7 @@ var (
 	certFile string // SSL certificate file
 	keyFile  string // SSL key file
 	addr     string // server listen address
+	nodeName string // server nodename
 	log      = logger.GetLogger()
 )
 
@@ -47,14 +53,28 @@ var upgrader = websocket.Upgrader{
 	},
 } // use default options
 
+const (
+	defaultKubeconfig = "/srv/node-agent/kubeconfigpath"
+) //  kubeconfig for heartbeatCheck
+
 func init() {
 	// setup flags
 	ServeCmd.PersistentFlags().StringVarP(&addr, "addr", "a", ":5678", "websocket service address")
 	ServeCmd.PersistentFlags().StringVarP(&certFile, "cert", "c", "cert.pem", "SSL certificate file")
 	ServeCmd.PersistentFlags().StringVarP(&keyFile, "key", "k", "key.pem", "SSL key file")
+	ServeCmd.PersistentFlags().StringVarP(&nodeName, "nodename", "n", "", "set nodename")
 }
 
 func serveCmdRun(_ *cobra.Command, _ []string) error {
+	//start heartbeatCheck Goroutine
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	if len(nodeName) == 0 {
+		nodeName = viper.GetString("NODE_NAME")
+	}
+	go heartbeatCheck(ctx, nodeName)
+
 	user := viper.GetString("WEB_USER")
 	password := viper.GetString("WEB_PASS")
 	port := viper.GetString("WEB_PORT")
@@ -65,7 +85,55 @@ func serveCmdRun(_ *cobra.Command, _ []string) error {
 	if port != "" {
 		addr = ":" + port
 	}
+
 	return Start(addr, certFile, keyFile, user, password)
+}
+
+func heartbeatCheck(ctx context.Context, nodeName string) {
+	kubeconfigPath := defaultKubeconfig
+	config, err := clientcmd.BuildConfigFromFlags("", kubeconfigPath)
+	if err != nil {
+		log.Errorf("Failed to load kubeconfig from path %s:%v", kubeconfigPath, err)
+		return
+	}
+	kosmosClient, err := versioned.NewForConfig(config)
+	if err != nil {
+		log.Errorf("Failed to get config: %v", err)
+		return
+	}
+
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			log.Infof("Heartbeat for node %s stopped", nodeName)
+			return
+		case <-ticker.C:
+			node, err := kosmosClient.KosmosV1alpha1().GlobalNodes().Get(ctx, nodeName, metav1.GetOptions{})
+			if err != nil {
+				log.Errorf("Failed to get node: %v", err)
+			}
+			heartbeatTime := metav1.Now()
+
+			if len(node.Status.Conditions) == 0 {
+				log.Infof("GlobalNode %s has no conditions, initializing default condition", node.Name)
+				node.Status.Conditions = []corev1.NodeCondition{
+					{
+						LastHeartbeatTime: heartbeatTime,
+					},
+				}
+			} else {
+				node.Status.Conditions[0].LastHeartbeatTime = heartbeatTime
+			}
+			if _, err := kosmosClient.KosmosV1alpha1().GlobalNodes().UpdateStatus(ctx, node, metav1.UpdateOptions{}); err != nil {
+				log.Errorf("update node %s status for globalnode failed, %v", node.Name, err)
+			} else {
+				log.Infof("GlobalnodeHeartbeat: successfully updated global node %s, Status.Conditions: %+v", node.Name, node.Status.Conditions)
+			}
+		}
+	}
 }
 
 // start server
@@ -146,6 +214,7 @@ func Start(addr, certFile, keyFile, user, password string) error {
 		TLSConfig:         tlsConfig,
 		ReadHeaderTimeout: 10 * time.Second,
 	}
+
 	err := server.ListenAndServeTLS("", "")
 	if err != nil {
 		log.Errorf("failed to start server %v", err)

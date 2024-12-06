@@ -1,7 +1,6 @@
 package app
 
 import (
-	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -30,11 +29,12 @@ var RootCmd = &cobra.Command{
 
 func initConfig() {
 	// Tell Viper to automatically look for a .env file
-	viper.SetConfigFile("agent.env")
-	currentDir, _ := os.Getwd()
-	viper.AddConfigPath(currentDir)
-	viper.AddConfigPath("/srv/node-agent/agent.env")
-	viper.SetConfigType("toml")
+	//viper.SetConfigFile("agent.env")
+	viper.SetConfigFile("/srv/node-agent/agent.env")
+	//currentDir, _ := os.Getwd()
+	//viper.AddConfigPath(currentDir)
+	//viper.AddConfigPath("/srv/node-agent/agent.env")
+	//viper.SetConfigType("toml")
 	// If a agent.env file is found, read it in.
 	if err := viper.ReadInConfig(); err != nil {
 		log.Warnf("Load config file error, %s", err)
