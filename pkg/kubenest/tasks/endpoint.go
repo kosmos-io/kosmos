@@ -9,6 +9,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 
+	"github.com/kosmos.io/kosmos/pkg/kubenest/common"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/controlplane"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/util"
@@ -60,7 +61,14 @@ func runEndPointInVirtualClusterTask(r workflow.RunData) error {
 		return err
 	}
 
-	err = controlplane.EnsureAPIServerExternalEndPoint(kubeClient)
+	apiServerExternalResource := common.APIServerExternalResource{
+		Namespace:     data.GetNamespace(),
+		Name:          data.GetName(),
+		Vc:            data.VirtualCluster(),
+		RootClientSet: data.RemoteClient(),
+	}
+
+	err = controlplane.EnsureAPIServerExternalEndPoint(kubeClient, apiServerExternalResource)
 	if err != nil {
 		return err
 	}
