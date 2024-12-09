@@ -19,6 +19,9 @@ spec:
     - jsonPath: .spec.nodeIP
       name: NODE_IP
       type: string
+    - jsonPath: .status.conditions[0].type
+      name: TYPE
+      type: string
     - jsonPath: .spec.state
       name: STATE
       type: string
