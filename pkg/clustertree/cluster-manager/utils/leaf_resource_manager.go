@@ -20,7 +20,7 @@ type LeafMode int
 
 const (
 	nodeMode          = "leafNodeMode"
-	ALL      LeafMode = iota
+	ALL      LeafMode = iota //onetocluster
 	Node
 	Party
 )

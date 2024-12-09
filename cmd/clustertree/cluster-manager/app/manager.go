@@ -45,7 +45,8 @@ func NewClusterManagerCommand(ctx context.Context) (*cobra.Command, error) {
 			if errs := opts.Validate(); len(errs) != 0 {
 				return errs.ToAggregate()
 			}
-			return leaderElectionRun(ctx, opts)
+			//return leaderElectionRun(ctx, opts)
+			return run(ctx, opts)
 		},
 	}
 
@@ -245,6 +246,16 @@ func run(ctx context.Context, opts *options.Options) error {
 	}
 	if err := rootPVController.SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("error starting root pv controller %v", err)
+	}
+
+	//在主集群的node上面找到状态为not ready的节点，使用reconcile在子集群LeafClientManager对应pod
+	PodSyncController := controllers.PodSyncController{
+		RootClient:              mgr.GetClient(),
+		GlobalLeafManager:       globalLeafResourceManager,
+		GlobalLeafClientManager: globalLeafClientManager,
+	}
+	if err := PodSyncController.SetupWithManager(mgr); err != nil {
+		return fmt.Errorf("error starting root podsync controller %v", err)
 	}
 
 	if len(os.Getenv("USE-ONEWAY-STORAGE")) > 0 {
