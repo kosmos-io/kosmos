@@ -9,15 +9,8 @@ import (
 )
 
 type Options struct {
-	LeaderElection    componentbaseconfig.LeaderElectionConfiguration
-	KubernetesOptions KubernetesOptions
-}
-
-type KubernetesOptions struct {
-	KubeConfig string  `json:"kubeconfig" yaml:"kubeconfig"`
-	Master     string  `json:"master,omitempty" yaml:"master,omitempty"`
-	QPS        float32 `json:"qps,omitempty" yaml:"qps,omitempty"`
-	Burst      int     `json:"burst,omitempty" yaml:"burst,omitempty"`
+	LeaderElection componentbaseconfig.LeaderElectionConfiguration
+	utils.KubernetesOptions
 }
 
 func NewOptions() *Options {

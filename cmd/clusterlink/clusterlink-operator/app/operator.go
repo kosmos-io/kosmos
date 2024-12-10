@@ -68,10 +68,13 @@ func NewLinkOperatorCommand(ctx context.Context) *cobra.Command {
 }
 
 func Run(ctx context.Context, opts *options.Options) error {
-	restConfig, err := clientcmd.BuildConfigFromFlags("", opts.KubeConfig)
+	restConfig, err := clientcmd.BuildConfigFromFlags("", opts.KubernetesOptions.KubeConfig)
 	if err != nil {
 		return fmt.Errorf("error building kubeconfig: %s", err.Error())
 	}
+
+	utils.SetQPSBurst(restConfig, opts.KubernetesOptions)
+
 	clientSet, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
 		return fmt.Errorf("error get kubeclient: %v", err)

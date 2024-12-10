@@ -20,8 +20,8 @@ var (
 
 type Options struct {
 	LeaderElection     componentbaseconfig.LeaderElectionConfiguration
-	KubeConfig         string
 	ControlPanelConfig string
+	utils.KubernetesOptions
 }
 
 // NewOptions builds a default elector options.
@@ -46,6 +46,8 @@ func (o *Options) Validate() field.ErrorList {
 }
 
 func (o *Options) AddFlags(fs *pflag.FlagSet) {
+	fs.Float32Var(&o.KubernetesOptions.QPS, "kube-qps", utils.DefaultKubeQPS, "QPS to use while talking with kube-apiserver.")
+	fs.IntVar(&o.KubernetesOptions.Burst, "kube-burst", utils.DefaultKubeBurst, "Burst to use while talking with kube-apiserver.")
 	fs.BoolVar(&o.LeaderElection.LeaderElect, "leader-elect", true, "Enable leader election, which must be true when running multi instances.")
 	fs.StringVar(&o.LeaderElection.ResourceName, "leader-elect-resource-name", "elector", "The name of resource object that is used for locking during leader election.")
 	fs.StringVar(&o.LeaderElection.ResourceNamespace, "leader-elect-resource-namespace", utils.DefaultNamespace, "The namespace of resource object that is used for locking during leader election.")
@@ -62,6 +64,6 @@ func (o *Options) AddFlags(fs *pflag.FlagSet) {
 	fs.DurationVar(&o.LeaderElection.RetryPeriod.Duration, "leader-elect-retry-period", defaultElectionRetryPeriod.Duration, ""+
 		"The duration the clients should wait between attempting acquisition and renewal "+
 		"of a leadership. This is only applicable if leader election is enabled.")
-	fs.StringVar(&o.KubeConfig, "kubeconfig", "", "path to elector kubeconfig file.")
+	fs.StringVar(&o.KubernetesOptions.KubeConfig, "kubeconfig", "", "path to elector kubeconfig file.")
 	fs.StringVar(&o.ControlPanelConfig, "controlpanelconfig", "", "path to controlpanel kubeconfig file.")
 }

@@ -15,6 +15,7 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/extensions/daemonset"
 	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/generated/informers/externalversions"
+	"github.com/kosmos.io/kosmos/pkg/utils"
 	"github.com/kosmos.io/kosmos/pkg/utils/lifted"
 )
 
@@ -24,6 +25,9 @@ func StartHostDaemonSetsController(ctx context.Context, opts *options.Options, w
 	if err != nil {
 		klog.Errorf("Unable to build kubeconfig: %v", err)
 	}
+
+	utils.SetQPSBurst(kubeconfig, opts.KubernetesOptions)
+
 	kubeClient, err := clientset.NewForConfig(kubeconfig)
 	if err != nil {
 		klog.Errorf("Unable to create kubeClient: %v", err)
@@ -61,6 +65,9 @@ func StartDistributeController(ctx context.Context, opts *options.Options, workN
 		//klog.Errorf("Unable to build kubeconfig: %v", err)
 		klog.Errorf("Unable to build kubeconfig: %v", err)
 	}
+
+	utils.SetQPSBurst(kubeconfig, opts.KubernetesOptions)
+
 	kosmosClient, err := versioned.NewForConfig(kubeconfig)
 	if err != nil {
 		klog.Errorf("Unable to create kosmosClient: %v", err)
@@ -86,6 +93,9 @@ func StartDaemonSetsController(ctx context.Context, opts *options.Options, workN
 	if err != nil {
 		klog.Errorf("Unable to build kubeconfig: %v", err)
 	}
+
+	utils.SetQPSBurst(kubeconfig, opts.KubernetesOptions)
+
 	kubeClient, err := clientset.NewForConfig(kubeconfig)
 	if err != nil {
 		klog.Errorf("Unable to create kubeClient: %v", err)
@@ -119,6 +129,9 @@ func StartDaemonSetsMirrorController(ctx context.Context, opts *options.Options,
 	if err != nil {
 		klog.Errorf("Unable to build kubeconfig: %v", err)
 	}
+
+	utils.SetQPSBurst(kubeconfig, opts.KubernetesOptions)
+
 	kubeClient, err := clientset.NewForConfig(kubeconfig)
 	if err != nil {
 		klog.Errorf("Unable to create kubeClient: %v", err)
@@ -150,6 +163,9 @@ func StartPodReflectController(ctx context.Context, opts *options.Options, workN
 	if err != nil {
 		klog.Errorf("Unable to build kubeconfig: %v", err)
 	}
+
+	utils.SetQPSBurst(kubeconfig, opts.KubernetesOptions)
+
 	kubeClient, err := clientset.NewForConfig(kubeconfig)
 	if err != nil {
 		klog.Errorf("Unable to create kubeClient: %v", err)

@@ -19,9 +19,9 @@ type ControllerManagerOptions struct {
 
 	ControlPanelConfig string
 
-	KubeConfig string
-
 	ClusterName string
+
+	utils.KubernetesOptions
 }
 
 // NewControllerManagerOptions builds a default controller manager options.
@@ -36,6 +36,8 @@ func (o *ControllerManagerOptions) Validate() field.ErrorList {
 }
 
 func (o *ControllerManagerOptions) AddFlags(fs *pflag.FlagSet, allControllers, disabledByDefaultControllers []string) {
+	fs.Float32Var(&o.KubernetesOptions.QPS, "kube-qps", utils.DefaultKubeQPS, "QPS to use while talking with kube-apiserver.")
+	fs.IntVar(&o.KubernetesOptions.Burst, "kube-burst", utils.DefaultKubeBurst, "Burst to use while talking with kube-apiserver.")
 	fs.StringSliceVar(&o.Controllers, "controllers", []string{"*"}, fmt.Sprintf(
 		"A list of controllers to enable. '*' enables all on-by-default controllers, 'foo' enables the controller named 'foo', '-foo' disables the controller named 'foo'. \nAll controllers: %s.\nDisabled-by-default controllers: %s",
 		strings.Join(allControllers, ", "), strings.Join(disabledByDefaultControllers, ", "),
