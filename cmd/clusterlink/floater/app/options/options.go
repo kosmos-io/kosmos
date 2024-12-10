@@ -9,7 +9,7 @@ import (
 type Options struct {
 	KubeConfig string
 
-	// CleanPeriod represents clusterlink-agent cleanup period
+	// CleanPeriod represents clusterlink-floater cleanup period
 	CleanPeriod time.Duration
 }
 

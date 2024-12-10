@@ -17,6 +17,7 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/scheme"
 	"github.com/kosmos.io/kosmos/pkg/sharedcli/klogflag"
+	"github.com/kosmos.io/kosmos/pkg/utils"
 )
 
 var (
@@ -80,6 +81,8 @@ func Run(ctx context.Context, opts *options.ControllerManagerOptions) error {
 		panic(err)
 	}
 
+	utils.SetQPSBurst(config, opts.KubernetesOptions)
+
 	controllerManager, err := ctrl.NewManager(config, ctrl.Options{
 		Scheme: scheme.NewSchema(),
 	})
@@ -94,6 +97,8 @@ func Run(ctx context.Context, opts *options.ControllerManagerOptions) error {
 		klog.Fatalf("build controlpanel config err: %v", err)
 		panic(err)
 	}
+
+	utils.SetQPSBurst(controlPanelConfig, opts.KubernetesOptions)
 
 	clusterLinkClient, err := versioned.NewForConfig(controlPanelConfig)
 	if err != nil {
