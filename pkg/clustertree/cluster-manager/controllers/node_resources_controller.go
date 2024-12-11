@@ -128,7 +128,10 @@ func (c *NodeResourcesController) Reconcile(ctx context.Context, request reconci
 		}
 
 		clone := nodeInRoot.DeepCopy()
-		clone.Status.Conditions = utils.NodeConditions()
+		// When Clone.status.Conditions is empty, it is set to Utils.NodeConditions ()
+		if len(clone.Status.Conditions) == 0 {
+			clone.Status.Conditions = utils.NodeConditions()
+		}
 
 		// Node2Node mode should sync leaf node's labels and annotations to root nodeInRoot
 		if c.LeafModelHandler.GetLeafMode() == leafUtils.Node {
