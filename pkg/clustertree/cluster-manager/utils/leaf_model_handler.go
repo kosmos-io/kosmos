@@ -3,6 +3,7 @@ package utils
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"reflect"
 
 	corev1 "k8s.io/api/core/v1"
@@ -150,7 +151,15 @@ func (h ClassificationHandler) UpdateRootNodeStatus(ctx context.Context, nodesIn
 					Effect: utils.KosmosNodeTaintEffect,
 				})
 			} else {
-				rootCopy.Status.Conditions = utils.NodeConditions()
+				//rootCopy.Status.Conditions = utils.NodeConditions()
+				online, healthy := h.getClusterHealthStatus(h.LeafClientset)
+				observedReadyConditon := getObservedReadyStatus(online, healthy)
+				if online && healthy {
+					leafReadyConditon := h.checkAllNodesNotReady(ctx)
+					rootCopy.Status.Conditions = leafReadyConditon
+				} else {
+					rootCopy.Status.Conditions = observedReadyConditon
+				}
 
 				// Aggregation the resources of the leaf nodes
 				pods, err := h.GetLeafPods(ctx, rootCopy, leafNodeSelector[nodeNameInRoot])
@@ -300,4 +309,93 @@ func NewLeafModelHandler(cluster *kosmosv1alpha1.Cluster, rootClientset, leafCli
 		}
 	}
 	return classificationModel
+}
+
+func (h ClassificationHandler) getClusterHealthStatus(leafClient kubernetes.Interface) (online, healthy bool) {
+	healthStatus, err := healthEndpointCheck(leafClient, "/readyz")
+	if err != nil && healthStatus == http.StatusNotFound {
+		healthStatus, err := healthEndpointCheck(leafClient, "/healthz")
+		if err != nil {
+			klog.Errorf("Failed to healthEndpointCheck healthStatus is %v, err is : %v ", healthStatus, err)
+		}
+	}
+	if err != nil {
+		klog.Errorf("Failed to do cluster health check for cluster %v, err is : %v ", h.Cluster.Name, err)
+		return false, false
+	}
+	if healthStatus != http.StatusOK {
+		klog.Infof("Member cluster %v isn't healthy", h.Cluster.Name)
+		return true, false
+	}
+
+	return true, true
+}
+
+func healthEndpointCheck(client kubernetes.Interface, path string) (int, error) {
+	var healthStatus int
+	resp := client.Discovery().RESTClient().Get().AbsPath(path).Do(context.TODO()).StatusCode(&healthStatus)
+	return healthStatus, resp.Error()
+}
+
+func getObservedReadyStatus(online, healthy bool) []corev1.NodeCondition {
+	if !online {
+		return []corev1.NodeCondition{
+			{
+				Type:    corev1.NodeReady,
+				Status:  corev1.ConditionFalse,
+				Reason:  "ClusterNotReachable",
+				Message: "cluster is not reachable.",
+			},
+		}
+	}
+	if !healthy {
+		return []corev1.NodeCondition{
+			{
+				Type:    corev1.NodeReady,
+				Status:  corev1.ConditionFalse,
+				Reason:  "ClusterNotReady",
+				Message: "cluster is reachable but health endpoint responded without ok.",
+			},
+		}
+	}
+	return []corev1.NodeCondition{
+		{
+			Type:    corev1.NodeReady,
+			Status:  corev1.ConditionTrue,
+			Reason:  "ClusterReady",
+			Message: "cluster is healthy and ready to accept workloads.",
+		},
+	}
+}
+
+func (h ClassificationHandler) checkAllNodesNotReady(ctx context.Context) []corev1.NodeCondition {
+	nodes, err := h.LeafClientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{LabelSelector: utils.LabelNodeRoleControlPlane})
+	if err != nil {
+		klog.Errorf("Error getting master nodes in leaf cluster: %v", err)
+	}
+	allNotReady := true
+	for _, node := range nodes.Items {
+		nodeready := false
+		for _, condition := range node.Status.Conditions {
+			if condition.Type == "Ready" && condition.Status == "True" {
+				nodeready = true
+				break
+			}
+		}
+		if nodeready {
+			allNotReady = false
+		}
+	}
+	if allNotReady {
+		return []corev1.NodeCondition{
+			{
+				Type:    corev1.NodeReady,
+				Status:  corev1.ConditionFalse,
+				Reason:  "LeafNodesNotReady",
+				Message: "All leaf nodes are not ready.",
+			},
+		}
+	} else {
+		return utils.NodeConditions()
+	}
 }
