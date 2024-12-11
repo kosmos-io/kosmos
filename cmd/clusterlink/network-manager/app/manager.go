@@ -14,6 +14,7 @@ import (
 	networkmanager "github.com/kosmos.io/kosmos/pkg/clusterlink/network-manager"
 	"github.com/kosmos.io/kosmos/pkg/scheme"
 	"github.com/kosmos.io/kosmos/pkg/sharedcli/klogflag"
+	"github.com/kosmos.io/kosmos/pkg/utils"
 )
 
 func NewNetworkManagerCommand(ctx context.Context) *cobra.Command {
@@ -45,11 +46,11 @@ func NewNetworkManagerCommand(ctx context.Context) *cobra.Command {
 }
 
 func run(ctx context.Context, opts *options.Options) error {
-	config, err := clientcmd.BuildConfigFromFlags(opts.KubernetesOptions.Master, opts.KubernetesOptions.KubeConfig)
+	config, err := clientcmd.BuildConfigFromFlags(opts.KubernetesOptions.MasterURL, opts.KubernetesOptions.KubeConfig)
 	if err != nil {
 		panic(err)
 	}
-	config.QPS, config.Burst = opts.KubernetesOptions.QPS, opts.KubernetesOptions.Burst
+	utils.SetQPSBurst(config, opts.KubernetesOptions)
 
 	mgr, err := controllerruntime.NewManager(config, controllerruntime.Options{
 		Logger:                  klog.Background(),

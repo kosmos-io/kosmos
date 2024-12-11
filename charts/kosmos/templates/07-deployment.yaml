@@ -87,7 +87,7 @@ spec:
       containers:
       - command:
         - kosmos-operator
-        - --controlpanelconfig=/etc/kosmos-operator/kubeconfig
+        - --controlpanel-kubeconfig=/etc/kosmos-operator/kubeconfig
         env:
         - name: VERSION
           value: {{ .Values.operator.image.tag }}
@@ -280,7 +280,7 @@ spec:
       containers:
       - command:
         - clusterlink-elector
-        - --controlpanelconfig=/etc/clusterlink/kubeconfig
+        - --controlpanel-kubeconfig=/etc/clusterlink/kubeconfig
         - --v=3
         env:
         - name: CLUSTER_NAME
@@ -360,7 +360,7 @@ spec:
       containers:
       - command:
         - clusterlink-controller-manager
-        - --controlpanelconfig=/etc/clusterlink/kubeconfig
+        - --controlpanel-kubeconfig=/etc/clusterlink/kubeconfig
         env:
         - name: CLUSTER_NAME
           value: kosmos-control-cluster

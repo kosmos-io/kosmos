@@ -70,10 +70,11 @@ func NewAgentCommand(ctx context.Context) *cobra.Command {
 }
 
 func run(ctx context.Context, opts *options.Options) error {
-	restConfig, err := clientcmd.BuildConfigFromFlags("", opts.KubeConfig)
+	restConfig, err := clientcmd.BuildConfigFromFlags(opts.KubernetesOptions.MasterURL, opts.KubernetesOptions.KubeConfig)
 	if err != nil {
 		return fmt.Errorf("error building kubeconfig: %s", err.Error())
 	}
+	utils.SetQPSBurst(restConfig, opts.KubernetesOptions)
 
 	if err = network.CreateGlobalNetIptablesChains(); err != nil {
 		return fmt.Errorf("failed to create clusterlink iptables chains: %s", err.Error())

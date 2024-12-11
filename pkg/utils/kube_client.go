@@ -18,6 +18,23 @@ var (
 	defaultKubeConfig = filepath.Join(homedir.HomeDir(), ".kube", "config")
 )
 
+const (
+	DefaultKubeQPS   = 5.0
+	DefaultKubeBurst = 10
+
+	DefaultTreeAndNetManagerKubeQPS   = 40.0
+	DefaultTreeAndNetManagerKubeBurst = 60
+)
+
+type KubernetesOptions struct {
+	KubeConfig             string  `json:"kubeconfig" yaml:"kubeconfig"`
+	MasterURL              string  `json:"masterURL,omitempty" yaml:"masterURL,omitempty"`
+	ControlpanelKubeConfig string  `json:"controlpanelKubeConfig,omitempty" yaml:"controlpanelKubeConfig,omitempty"`
+	ControlpanelMasterURL  string  `json:"controlpanelMasterURL,omitempty" yaml:"controlpanelMasterURL,omitempty"`
+	QPS                    float32 `json:"qps,omitempty" yaml:"qps,omitempty"`
+	Burst                  int     `json:"burst,omitempty" yaml:"burst,omitempty"`
+}
+
 func loadKubeconfig(kubeconfigPath, context string) (*clientcmdapi.Config, error) {
 	if kubeconfigPath == "" {
 		kubeconfigPath = GetEnvString("KUBECONFIG", defaultKubeConfig)
@@ -126,6 +143,11 @@ func NewClientFromConfigPath(configPath string, opts ...Opts) (kubernetes.Interf
 		return nil, fmt.Errorf("could not create clientset: %v", err)
 	}
 	return client, nil
+}
+
+func SetQPSBurst(config *rest.Config, options KubernetesOptions) {
+	config.QPS = options.QPS
+	config.Burst = options.Burst
 }
 
 func NewKosmosClientFromConfigPath(configPath string, opts ...Opts) (kosmosversioned.Interface, error) {
