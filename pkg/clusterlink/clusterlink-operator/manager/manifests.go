@@ -69,7 +69,7 @@ spec:
           imagePullPolicy: IfNotPresent
           command:
             - clusterlink-controller-manager
-            - --controlpanelconfig=/etc/clusterlink/kubeconfig
+            - --controlpanel-kubeconfig=/etc/clusterlink/kubeconfig
           env:
           - name: CLUSTER_NAME
             value: "{{ .ClusterName }}"  

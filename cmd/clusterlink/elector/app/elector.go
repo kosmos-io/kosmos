@@ -22,6 +22,7 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/sharedcli"
 	"github.com/kosmos.io/kosmos/pkg/sharedcli/klogflag"
+	"github.com/kosmos.io/kosmos/pkg/utils"
 )
 
 // NewElectorCommand creates a *cobra.Command object with default parameters
@@ -71,15 +72,18 @@ func NewElectorCommand(ctx context.Context) *cobra.Command {
 }
 
 func run(ctx context.Context, opts *options.Options) error {
-	memberClusterConfig, err := clientcmd.BuildConfigFromFlags("", opts.KubeConfig)
+	memberClusterConfig, err := clientcmd.BuildConfigFromFlags(opts.MasterURL, opts.KubeConfig)
 	if err != nil {
 		return fmt.Errorf("error building kubeconfig: %+v", err)
 	}
+	utils.SetQPSBurst(memberClusterConfig, opts.KubernetesOptions)
 
-	controlpanelConfig, err := clientcmd.BuildConfigFromFlags("", opts.ControlPanelConfig)
+	controlpanelConfig, err := clientcmd.BuildConfigFromFlags(opts.ControlpanelMasterURL, opts.ControlpanelKubeConfig)
 	if err != nil {
 		return fmt.Errorf("error building controlpanelConfig: %+v", err)
 	}
+	utils.SetQPSBurst(controlpanelConfig, opts.KubernetesOptions)
+
 	controlpanelClient, err := versioned.NewForConfig(controlpanelConfig)
 	if err != nil {
 		return fmt.Errorf("error  building controlpanelClient: %+v", err)

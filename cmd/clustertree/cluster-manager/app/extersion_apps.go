@@ -15,15 +15,18 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/extensions/daemonset"
 	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/generated/informers/externalversions"
+	"github.com/kosmos.io/kosmos/pkg/utils"
 	"github.com/kosmos.io/kosmos/pkg/utils/lifted"
 )
 
 // StartHostDaemonSetsController starts a new HostDaemonSetsController.
 func StartHostDaemonSetsController(ctx context.Context, opts *options.Options, workNum int) (*daemonset.HostDaemonSetsController, error) {
-	kubeconfig, err := clientcmd.BuildConfigFromFlags(opts.KubernetesOptions.Master, opts.KubernetesOptions.KubeConfig)
+	kubeconfig, err := clientcmd.BuildConfigFromFlags(opts.KubernetesOptions.MasterURL, opts.KubernetesOptions.KubeConfig)
 	if err != nil {
 		klog.Errorf("Unable to build kubeconfig: %v", err)
 	}
+	utils.SetQPSBurst(kubeconfig, opts.KubernetesOptions)
+
 	kubeClient, err := clientset.NewForConfig(kubeconfig)
 	if err != nil {
 		klog.Errorf("Unable to create kubeClient: %v", err)
@@ -56,11 +59,13 @@ func StartHostDaemonSetsController(ctx context.Context, opts *options.Options, w
 }
 
 func StartDistributeController(ctx context.Context, opts *options.Options, workNum int) (*daemonset.DistributeController, error) {
-	kubeconfig, err := clientcmd.BuildConfigFromFlags(opts.KubernetesOptions.Master, opts.KubernetesOptions.KubeConfig)
+	kubeconfig, err := clientcmd.BuildConfigFromFlags(opts.KubernetesOptions.MasterURL, opts.KubernetesOptions.KubeConfig)
 	if err != nil {
 		//klog.Errorf("Unable to build kubeconfig: %v", err)
 		klog.Errorf("Unable to build kubeconfig: %v", err)
 	}
+	utils.SetQPSBurst(kubeconfig, opts.KubernetesOptions)
+
 	kosmosClient, err := versioned.NewForConfig(kubeconfig)
 	if err != nil {
 		klog.Errorf("Unable to create kosmosClient: %v", err)
@@ -82,10 +87,12 @@ func StartDistributeController(ctx context.Context, opts *options.Options, workN
 }
 
 func StartDaemonSetsController(ctx context.Context, opts *options.Options, workNum int) (*daemonset.DaemonSetsController, error) {
-	kubeconfig, err := clientcmd.BuildConfigFromFlags(opts.KubernetesOptions.Master, opts.KubernetesOptions.KubeConfig)
+	kubeconfig, err := clientcmd.BuildConfigFromFlags(opts.KubernetesOptions.MasterURL, opts.KubernetesOptions.KubeConfig)
 	if err != nil {
 		klog.Errorf("Unable to build kubeconfig: %v", err)
 	}
+	utils.SetQPSBurst(kubeconfig, opts.KubernetesOptions)
+
 	kubeClient, err := clientset.NewForConfig(kubeconfig)
 	if err != nil {
 		klog.Errorf("Unable to create kubeClient: %v", err)
@@ -115,10 +122,12 @@ func StartDaemonSetsController(ctx context.Context, opts *options.Options, workN
 }
 
 func StartDaemonSetsMirrorController(ctx context.Context, opts *options.Options, workNum int) (*daemonset.DaemonSetsMirrorController, error) {
-	kubeconfig, err := clientcmd.BuildConfigFromFlags(opts.KubernetesOptions.Master, opts.KubernetesOptions.KubeConfig)
+	kubeconfig, err := clientcmd.BuildConfigFromFlags(opts.KubernetesOptions.MasterURL, opts.KubernetesOptions.KubeConfig)
 	if err != nil {
 		klog.Errorf("Unable to build kubeconfig: %v", err)
 	}
+	utils.SetQPSBurst(kubeconfig, opts.KubernetesOptions)
+
 	kubeClient, err := clientset.NewForConfig(kubeconfig)
 	if err != nil {
 		klog.Errorf("Unable to create kubeClient: %v", err)
@@ -146,10 +155,12 @@ func StartDaemonSetsMirrorController(ctx context.Context, opts *options.Options,
 }
 
 func StartPodReflectController(ctx context.Context, opts *options.Options, workNum int) (*daemonset.PodReflectorController, error) {
-	kubeconfig, err := clientcmd.BuildConfigFromFlags(opts.KubernetesOptions.Master, opts.KubernetesOptions.KubeConfig)
+	kubeconfig, err := clientcmd.BuildConfigFromFlags(opts.KubernetesOptions.MasterURL, opts.KubernetesOptions.KubeConfig)
 	if err != nil {
 		klog.Errorf("Unable to build kubeconfig: %v", err)
 	}
+	utils.SetQPSBurst(kubeconfig, opts.KubernetesOptions)
+
 	kubeClient, err := clientset.NewForConfig(kubeconfig)
 	if err != nil {
 		klog.Errorf("Unable to create kubeClient: %v", err)

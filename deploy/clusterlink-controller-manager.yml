@@ -28,7 +28,7 @@ spec:
           imagePullPolicy: IfNotPresent
           command:
             - clusterlink-controller-manager
-            - --controlpanelconfig=/etc/clusterlink/kubeconfig
+            - --controlpanel-kubeconfig=/etc/clusterlink/kubeconfig
           resources:
             limits:
               memory: 500Mi

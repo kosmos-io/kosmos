@@ -68,18 +68,20 @@ func NewLinkOperatorCommand(ctx context.Context) *cobra.Command {
 }
 
 func Run(ctx context.Context, opts *options.Options) error {
-	restConfig, err := clientcmd.BuildConfigFromFlags("", opts.KubeConfig)
+	restConfig, err := clientcmd.BuildConfigFromFlags(opts.KubernetesOptions.MasterURL, opts.KubernetesOptions.KubeConfig)
 	if err != nil {
 		return fmt.Errorf("error building kubeconfig: %s", err.Error())
 	}
+	utils.SetQPSBurst(restConfig, opts.KubernetesOptions)
+
 	clientSet, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
 		return fmt.Errorf("error get kubeclient: %v", err)
 	}
 
 	var controlPanelKubeConfig *clientcmdapi.Config
-	if len(opts.ControlPanelKubeConfig) > 0 {
-		controlPanelKubeConfig, err = clientcmd.LoadFromFile(opts.ControlPanelKubeConfig)
+	if len(opts.KubernetesOptions.ControlpanelKubeConfig) > 0 {
+		controlPanelKubeConfig, err = clientcmd.LoadFromFile(opts.KubernetesOptions.ControlpanelKubeConfig)
 		if err != nil {
 			return fmt.Errorf("failed to load controlpanelKubeConfig: %v", err)
 		}
@@ -100,10 +102,11 @@ func Run(ctx context.Context, opts *options.Options) error {
 		controlPanelKubeConfig = config
 	}
 
-	c, err := clientcmd.BuildConfigFromFlags("", opts.ControlPanelKubeConfig)
+	c, err := clientcmd.BuildConfigFromFlags(opts.KubernetesOptions.ControlpanelMasterURL, opts.KubernetesOptions.ControlpanelKubeConfig)
 	if err != nil {
 		return fmt.Errorf("error building kubeconfig: %s", err.Error())
 	}
+	utils.SetQPSBurst(c, opts.KubernetesOptions)
 	mgr, err := ctrl.NewManager(c, ctrl.Options{
 		Scheme: scheme.NewSchema(),
 	})

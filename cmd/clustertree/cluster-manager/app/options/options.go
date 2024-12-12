@@ -9,6 +9,7 @@ import (
 	"k8s.io/component-base/config/options"
 	componentbaseconfigv1alpha1 "k8s.io/component-base/config/v1alpha1"
 
+	"github.com/kosmos.io/kosmos/pkg/utils"
 	"github.com/kosmos.io/kosmos/pkg/utils/flags"
 	"github.com/kosmos.io/kosmos/pkg/utils/lifted"
 )
@@ -17,16 +18,13 @@ const (
 	LeaderElectionNamespace    = "kosmos-system"
 	LeaderElectionResourceName = "cluster-manager"
 
-	DefaultKubeQPS   = 40.0
-	DefaultKubeBurst = 60
-
 	CoreDNSServiceNamespace = "kube-system"
 	CoreDNSServiceName      = "kube-dns"
 )
 
 type Options struct {
-	LeaderElection       componentbaseconfig.LeaderElectionConfiguration
-	KubernetesOptions    KubernetesOptions
+	LeaderElection componentbaseconfig.LeaderElectionConfiguration
+	utils.KubernetesOptions
 	ListenPort           int32
 	DaemonSetController  bool
 	MultiClusterService  bool
@@ -54,13 +52,6 @@ type Options struct {
 	SyncPeriod time.Duration
 }
 
-type KubernetesOptions struct {
-	KubeConfig string
-	Master     string
-	QPS        float32
-	Burst      int
-}
-
 func NewOptions() (*Options, error) {
 	var leaderElection componentbaseconfigv1alpha1.LeaderElectionConfiguration
 	componentbaseconfigv1alpha1.RecommendedDefaultLeaderElectionConfiguration(&leaderElection)
@@ -82,10 +73,10 @@ func (o *Options) AddFlags(flags *pflag.FlagSet) {
 		return
 	}
 
-	flags.Float32Var(&o.KubernetesOptions.QPS, "kube-qps", DefaultKubeQPS, "QPS to use while talking with kube-apiserver.")
-	flags.IntVar(&o.KubernetesOptions.Burst, "kube-burst", DefaultKubeBurst, "Burst to use while talking with kube-apiserver.")
+	flags.Float32Var(&o.KubernetesOptions.QPS, "kube-qps", utils.DefaultTreeAndNetManagerKubeQPS, "QPS to use while talking with kube-apiserver.")
+	flags.IntVar(&o.KubernetesOptions.Burst, "kube-burst", utils.DefaultTreeAndNetManagerKubeBurst, "Burst to use while talking with kube-apiserver.")
 	flags.StringVar(&o.KubernetesOptions.KubeConfig, "kubeconfig", "", "Path for kubernetes kubeconfig file, if left blank, will use in cluster way.")
-	flags.StringVar(&o.KubernetesOptions.Master, "master", "", "Used to generate kubeconfig for downloading, if not specified, will use host in kubeconfig.")
+	flags.StringVar(&o.KubernetesOptions.MasterURL, "master", "", "Used to generate kubeconfig for downloading, if not specified, will use host in kubeconfig.")
 	flags.Int32Var(&o.ListenPort, "listen-port", 10250, "Listen port for requests from the kube-apiserver.")
 	flags.BoolVar(&o.DaemonSetController, "daemonset-controller", false, "Turn on or off daemonset controller.")
 	flags.BoolVar(&o.MultiClusterService, "multi-cluster-service", false, "Turn on or off mcs support.")

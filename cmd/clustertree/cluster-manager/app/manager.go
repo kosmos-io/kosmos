@@ -68,10 +68,11 @@ func leaderElectionRun(ctx context.Context, opts *options.Options) error {
 		return run(ctx, opts)
 	}
 
-	kubeConfig, err := clientcmd.BuildConfigFromFlags("", opts.KubernetesOptions.KubeConfig)
+	kubeConfig, err := clientcmd.BuildConfigFromFlags(opts.MasterURL, opts.KubeConfig)
 	if err != nil {
 		return err
 	}
+	utils.SetQPSBurst(kubeConfig, opts.KubernetesOptions)
 
 	id, err := os.Hostname()
 	if err != nil {
@@ -119,7 +120,7 @@ func run(ctx context.Context, opts *options.Options) error {
 	globalLeafResourceManager := leafUtils.GetGlobalLeafResourceManager()
 	globalLeafClientManager := leafUtils.GetGlobalLeafClientResourceManager()
 
-	config, err := clientcmd.BuildConfigFromFlags(opts.KubernetesOptions.Master, opts.KubernetesOptions.KubeConfig)
+	config, err := clientcmd.BuildConfigFromFlags(opts.KubernetesOptions.MasterURL, opts.KubernetesOptions.KubeConfig)
 	if err != nil {
 		panic(err)
 	}

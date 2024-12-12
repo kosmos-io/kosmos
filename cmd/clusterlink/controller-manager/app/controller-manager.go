@@ -17,6 +17,7 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/scheme"
 	"github.com/kosmos.io/kosmos/pkg/sharedcli/klogflag"
+	"github.com/kosmos.io/kosmos/pkg/utils"
 )
 
 var (
@@ -80,6 +81,8 @@ func Run(ctx context.Context, opts *options.ControllerManagerOptions) error {
 		panic(err)
 	}
 
+	utils.SetQPSBurst(config, opts.KubernetesOptions)
+
 	controllerManager, err := ctrl.NewManager(config, ctrl.Options{
 		Scheme: scheme.NewSchema(),
 	})
@@ -89,11 +92,12 @@ func Run(ctx context.Context, opts *options.ControllerManagerOptions) error {
 	}
 
 	//TODO 整理这块
-	controlPanelConfig, err := clientcmd.BuildConfigFromFlags("", opts.ControlPanelConfig)
+	controlPanelConfig, err := clientcmd.BuildConfigFromFlags(opts.ControlpanelMasterURL, opts.ControlpanelKubeConfig)
 	if err != nil {
 		klog.Fatalf("build controlpanel config err: %v", err)
 		panic(err)
 	}
+	utils.SetQPSBurst(controlPanelConfig, opts.KubernetesOptions)
 
 	clusterLinkClient, err := versioned.NewForConfig(controlPanelConfig)
 	if err != nil {
@@ -111,11 +115,12 @@ func Run(ctx context.Context, opts *options.ControllerManagerOptions) error {
 }
 
 func setupControllers(ctx context.Context, mgr ctrl.Manager, opts *options.ControllerManagerOptions) []ctrlcontext.CleanFunc {
-	controlPanelConfig, err := clientcmd.BuildConfigFromFlags("", opts.ControlPanelConfig)
+	controlPanelConfig, err := clientcmd.BuildConfigFromFlags(opts.ControlpanelMasterURL, opts.ControlpanelKubeConfig)
 	if err != nil {
 		klog.Fatalf("build controlpanel config err: %v", err)
 		panic(err)
 	}
+	utils.SetQPSBurst(controlPanelConfig, opts.KubernetesOptions)
 
 	clusterLinkClient, err := versioned.NewForConfig(controlPanelConfig)
 	if err != nil {
