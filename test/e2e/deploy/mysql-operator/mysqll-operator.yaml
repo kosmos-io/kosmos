@@ -184,8 +184,8 @@ spec:
 ---
 apiVersion: v1
 data:
-  TOPOLOGY_PASSWORD: S2ZISEdUOHNOdQ==
-  TOPOLOGY_USER: b3JjaGVzdHJhdG9y
+  TOPOLOGY_PASSWORD: {{ .PASSWORD }}
+  TOPOLOGY_USER: {{ .USER }}
 kind: Secret
 metadata:
   name: mysql-operator-orc
