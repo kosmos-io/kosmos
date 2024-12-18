@@ -2,103 +2,21 @@
 package globalnodecontroller
 
 import (
+	"context"
 	"fmt"
+	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
+	"k8s.io/apimachinery/pkg/runtime"
 	"testing"
 	"time"
 
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/klog/v2"
-
+	"github.com/kosmos.io/kosmos/cmd/kubenest/operator/app/config"
 	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func GetGlobalNode(globalnodelist []*v1alpha1.GlobalNode, name string) (*v1alpha1.GlobalNode, error) {
-	// 模拟查找返回节点
-	for _, node := range globalnodelist {
-		if node.Name == name { // 假设 GlobalNode 结构体中有 Name 字段
-			return node, nil
-		}
-	}
-	return nil, fmt.Errorf("GlobalNode not found")
-}
-
-func UpdateStatus(globalnodelist []*v1alpha1.GlobalNode, globalNode *v1alpha1.GlobalNode) error {
-	// 遍历 globalnodelist 查找目标节点
-	var nodeFound bool
-	for i, node := range globalnodelist {
-		if node.Name == globalNode.Name {
-			// 找到匹配的节点，更新该节点
-			globalnodelist[i].Status.Conditions = globalNode.Status.Conditions
-			nodeFound = true
-			break // 找到目标节点后退出循环
-		}
-	}
-
-	// 如果没有找到对应的节点，返回错误
-	if !nodeFound {
-		return fmt.Errorf("GlobalNode with name '%s' not found", globalNode.Name)
-	}
-
-	// 返回成功，表示更新完成
-	return nil
-}
-
-func updateStatusForGlobalNode1(
-	globalNodes []*v1alpha1.GlobalNode,
-	globalNode *v1alpha1.GlobalNode,
-) error {
-	// 动态获取最新的 GlobalNode
-	currentNode, err := GetGlobalNode(globalNodes, globalNode.Name)
-	if err != nil {
-		klog.Errorf("Failed to fetch the latest GlobalNode %s: %v", globalNode.Name, err)
-		return err
-	}
-
-	// 确保 Status.Conditions 不为空
-	if len(currentNode.Status.Conditions) == 0 {
-		klog.Warningf("GlobalNode %s has no conditions, skipping status update", currentNode.Name)
-		return nil
-	}
-
-	// 获取 LastHeartbeatTime
-	condition := currentNode.Status.Conditions[0]
-	lastHeartbeatTime := condition.LastHeartbeatTime
-	timeDiff := time.Since(lastHeartbeatTime.Time)
-
-	// 更新状态条件
-	statusType := "Ready"
-	if timeDiff > ClientHeartbeatThreshold {
-		statusType = "NotReady"
-	}
-
-	// 检查状态是否需要更新
-	if string(condition.Type) != statusType {
-		condition.Type = v1.NodeConditionType(statusType)
-		condition.LastTransitionTime = metav1.NewTime(time.Now())
-
-		currentNode.Status.Conditions[0] = condition
-
-		// 提交状态更新
-		err = UpdateStatus(globalNodes, currentNode)
-		if err != nil {
-			if errors.IsConflict(err) {
-				klog.Warningf("Conflict detected while updating status for GlobalNode %s, retrying...", globalNode.Name)
-			} else {
-				klog.Errorf("Failed to update status for GlobalNode %s: %v", globalNode.Name, err)
-			}
-			return err
-		}
-
-		klog.Infof("Successfully updated status for GlobalNode %s to %s", globalNode.Name, statusType)
-	} else {
-		klog.Infof("No status update required for GlobalNode %s, current status: %s", globalNode.Name, condition.Type)
-	}
-
-	return nil
-}
 func TestUpdateStatusForGlobalNode(t *testing.T) {
+
 	tests := []struct {
 		name           string
 		initialNode    *v1alpha1.GlobalNode
@@ -286,7 +204,7 @@ func TestUpdateStatusForGlobalNode(t *testing.T) {
 					},
 				},
 			},
-			expectedStatus: "Unknown",
+			expectedStatus: "NotReady",
 		},
 		{
 			name: "Multiple nodes with mixed statuses",
@@ -338,10 +256,27 @@ func TestUpdateStatusForGlobalNode(t *testing.T) {
 		},
 	}
 
+	ctx := context.TODO()
+
+	scheme := runtime.NewScheme()
+	_ = v1alpha1.AddToScheme(scheme)
+
+	c := &config.Config{}
+
+	kosmosClient, _ := versioned.NewForConfig(c.RestConfig)
+	// 初始化控制器
+	controller := NewGlobalNodeStatusController(
+		nil,
+		kosmosClient,
+	)
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			fmt.Println(tt.initialNode.Name + "success")
-			updateStatusForGlobalNode1(tt.nodeList, tt.initialNode)
+			for _, node := range tt.nodeList {
+				kosmosClient.KosmosV1alpha1().GlobalNodes().Create(ctx, node, metav1.CreateOptions{})
+			}
+			controller.updateStatusForGlobalNode(ctx, tt.initialNode)
 			fmt.Println(string(tt.initialNode.Status.Conditions[0].Type) == tt.expectedStatus)
 		})
 	}
