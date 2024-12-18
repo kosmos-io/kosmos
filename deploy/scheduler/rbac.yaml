@@ -26,6 +26,14 @@ metadata:
   name: kosmos-scheduler
 rules:
   - verbs:
+      - get
+      - list
+      - watch
+    apiGroups:
+      - kosmos.io
+    resources:
+      - '*'
+  - verbs:
       - create
       - patch
       - update
