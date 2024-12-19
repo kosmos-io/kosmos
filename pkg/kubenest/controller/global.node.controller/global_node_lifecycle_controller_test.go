@@ -4,6 +4,7 @@ package globalnodecontroller
 import (
 	"context"
 	"fmt"
+	kosmosfake "github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned/fake"
 	"testing"
 	"time"
 
@@ -12,9 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	"github.com/kosmos.io/kosmos/cmd/kubenest/operator/app/config"
 	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
-	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 )
 
 func TestUpdateStatusForGlobalNode(t *testing.T) {
@@ -264,20 +263,18 @@ func TestUpdateStatusForGlobalNode(t *testing.T) {
 	_ = v1alpha1.AddToScheme(scheme)
 
 	rootClient := fake.NewClientBuilder().WithScheme(scheme).Build()
-
-	c := &config.Config{}
-	kosmosClient, _ := versioned.NewForConfig(c.RestConfig)
+	kosmosclient := kosmosfake.NewSimpleClientset()
 
 	controller := NewGlobalNodeStatusController(
 		rootClient,
-		kosmosClient,
+		kosmosclient,
 	)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			fmt.Println(tt.initialNode.Name + "success")
 			for _, node := range tt.nodeList {
-				_, err := kosmosClient.KosmosV1alpha1().GlobalNodes().Create(ctx, node, metav1.CreateOptions{})
+				_, err := kosmosclient.KosmosV1alpha1().GlobalNodes().Create(ctx, node, metav1.CreateOptions{})
 				if err != nil {
 					return
 				}
