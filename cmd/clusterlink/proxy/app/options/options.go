@@ -18,12 +18,14 @@ import (
 	logsapi "k8s.io/component-base/logs/api/v1"
 
 	"github.com/kosmos.io/kosmos/pkg/clusterlink/proxy"
+	"github.com/kosmos.io/kosmos/pkg/utils"
 )
 
 // Options contains command line parameters for clusterlink-proxy
 type Options struct {
 	MaxRequestsInFlight         int
 	MaxMutatingRequestsInFlight int
+	utils.KubernetesOptions
 
 	Logs           *logs.Options
 	SecureServing  *genericoptions.SecureServingOptionsWithLoopback
@@ -97,7 +99,10 @@ func (o *Options) Flags() cliflag.NamedFlagSets {
 	genericfs.IntVar(&o.MaxMutatingRequestsInFlight, "max-mutating-requests-inflight", o.MaxMutatingRequestsInFlight, ""+
 		"this flag limits the maximum number of mutating requests in flight, or a zero value disables the limit completely.")
 
-	o.CoreAPI.AddFlags(fss.FlagSet("global"))
+	globalcfs := fss.FlagSet("global")
+	globalcfs.Float32Var(&o.KubernetesOptions.QPS, "kube-qps", utils.DefaultKubeQPS, "QPS to use while talking with kube-apiserver.")
+	globalcfs.IntVar(&o.KubernetesOptions.Burst, "kube-burst", utils.DefaultKubeBurst, "Burst to use while talking with kube-apiserver.")
+	o.CoreAPI.AddFlags(globalcfs)
 	o.SecureServing.AddFlags(fss.FlagSet("secure serving"))
 	o.Authentication.AddFlags(fss.FlagSet("authentication"))
 	o.Authorization.AddFlags(fss.FlagSet("authorization"))
@@ -166,5 +171,7 @@ func (o *Options) genericOptionsApplyTo(config *genericapiserver.RecommendedConf
 	if err := o.CoreAPI.ApplyTo(config); err != nil {
 		return err
 	}
+
+	utils.SetQPSBurst(config.ClientConfig, o.KubernetesOptions)
 	return o.Admission.ApplyTo(&config.Config, config.SharedInformerFactory, config.ClientConfig, o.FeatureGate)
 }
