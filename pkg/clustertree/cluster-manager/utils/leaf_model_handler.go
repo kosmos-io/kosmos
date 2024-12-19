@@ -3,6 +3,7 @@ package utils
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"reflect"
 
 	corev1 "k8s.io/api/core/v1"
@@ -43,8 +44,9 @@ type ClassificationHandler struct {
 	Cluster  *kosmosv1alpha1.Cluster
 	//LeafClient    client.Client
 	//RootClient    client.Client
-	RootClientset kubernetes.Interface
-	LeafClientset kubernetes.Interface
+	RootClientset         kubernetes.Interface
+	LeafClientset         kubernetes.Interface
+	clusterConditionCache clusterConditionStore
 }
 
 // GetLeafMode returns the leafMode for a Cluster
@@ -150,8 +152,29 @@ func (h ClassificationHandler) UpdateRootNodeStatus(ctx context.Context, nodesIn
 					Effect: utils.KosmosNodeTaintEffect,
 				})
 			} else {
-				rootCopy.Status.Conditions = utils.NodeConditions()
-
+				online := h.getClusterHealthStatus()
+				observedReadyConditons := getObservedReadyStatus(online)
+				readyConditions := h.clusterConditionCache.thresholdAdjustedReadyCondition(h.Cluster, nodeInRoot, observedReadyConditons)
+				readyCondition := FindStatusCondition(readyConditions)
+				if !online && readyCondition.Status != corev1.ConditionTrue {
+					klog.V(2).Infof("Cluster(%s) still offline after %s, ensuring offline is set.", h.Cluster.Name, h.clusterConditionCache.failureThreshold)
+					rootCopy.Status.Conditions = readyConditions
+					updateAddress, err := GetAddress(ctx, h.RootClientset, nodesInLeaf.Items[0].Status.Addresses)
+					if err != nil {
+						return err
+					}
+					rootCopy.Status.Addresses = updateAddress
+					if _, err = h.RootClientset.CoreV1().Nodes().UpdateStatus(ctx, rootCopy, metav1.UpdateOptions{}); err != nil {
+						return err
+					}
+					return nil
+				}
+				if online && readyCondition.Status == corev1.ConditionTrue {
+					leafMasterReadyConditon := h.checkAllMasterNodesNotReady(ctx)
+					rootCopy.Status.Conditions = leafMasterReadyConditon
+				} else {
+					rootCopy.Status.Conditions = readyConditions
+				}
 				// Aggregation the resources of the leaf nodes
 				pods, err := h.GetLeafPods(ctx, rootCopy, leafNodeSelector[nodeNameInRoot])
 				if err != nil {
@@ -300,4 +323,71 @@ func NewLeafModelHandler(cluster *kosmosv1alpha1.Cluster, rootClientset, leafCli
 		}
 	}
 	return classificationModel
+}
+
+// Perform a health check on the API server
+func (h ClassificationHandler) getClusterHealthStatus() (online bool) {
+	var healthStatus int
+	resp := h.LeafClientset.Discovery().RESTClient().Get().AbsPath("/readyz").Do(context.TODO()).StatusCode(&healthStatus)
+	if resp.Error() != nil {
+		klog.Errorf("Health check failed.Current health status:%v, error is : %v ", healthStatus, resp.Error())
+	}
+	if healthStatus != http.StatusOK {
+		klog.Warningf("Member cluster %v isn't healthy", h.Cluster.Name)
+		return false
+	}
+	return true
+}
+
+// Returns the node status based on the health check results
+func getObservedReadyStatus(online bool) []corev1.NodeCondition {
+	if !online {
+		return []corev1.NodeCondition{
+			{
+				Type:    corev1.NodeReady,
+				Status:  corev1.ConditionFalse,
+				Reason:  "ClusterNotReachable",
+				Message: "cluster is not reachable.",
+			},
+		}
+	}
+	return []corev1.NodeCondition{
+		{
+			Type:    corev1.NodeReady,
+			Status:  corev1.ConditionTrue,
+			Reason:  "ClusterReady",
+			Message: "cluster is online and ready to accept workloads.",
+		},
+	}
+}
+func (h ClassificationHandler) checkAllMasterNodesNotReady(ctx context.Context) []corev1.NodeCondition {
+	//to do .....must check if LabelSelector: utils.LabelNodeRoleControlPlane is correct?
+	nodes, err := h.LeafClientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{LabelSelector: utils.LabelNodeRoleControlPlane})
+	if err != nil {
+		klog.Errorf("Error getting master nodes in leaf cluster: %v", err)
+	}
+	allMasterNotReady := true
+	for _, node := range nodes.Items {
+		masterNodeReady := false
+		for _, condition := range node.Status.Conditions {
+			if condition.Type == "Ready" && condition.Status == "True" {
+				masterNodeReady = true
+				break
+			}
+		}
+		if masterNodeReady {
+			allMasterNotReady = false
+		}
+	}
+	if allMasterNotReady {
+		return []corev1.NodeCondition{
+			{
+				Type:    corev1.NodeReady,
+				Status:  corev1.ConditionFalse,
+				Reason:  "LeafNodesNotReady",
+				Message: "All leaf cluster‘s master nodes are not ready.",
+			},
+		}
+	}
+	return utils.NodeConditions()
 }
