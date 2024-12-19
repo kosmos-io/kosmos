@@ -181,6 +181,13 @@ func createKubeConfig(opts *options.Options) (*restclient.Config, error) {
 }
 
 func startEndPointsControllers(mgr manager.Manager) error {
+	restConfig := mgr.GetConfig()
+
+	kubeClient, err := kubernetes.NewForConfig(restConfig)
+	if err != nil {
+		return err
+	}
+
 	coreEndPointsController := endpointscontroller.CoreDNSController{
 		Client:        mgr.GetClient(),
 		EventRecorder: mgr.GetEventRecorderFor(constants.GlobalNodeControllerName),
@@ -202,6 +209,7 @@ func startEndPointsControllers(mgr manager.Manager) error {
 	APIServerExternalSyncController := endpointscontroller.APIServerExternalSyncController{
 		Client:        mgr.GetClient(),
 		EventRecorder: mgr.GetEventRecorderFor(constants.GlobalNodeControllerName),
+		KubeClient:    kubeClient,
 	}
 
 	if err := APIServerExternalSyncController.SetupWithManager(mgr); err != nil {
