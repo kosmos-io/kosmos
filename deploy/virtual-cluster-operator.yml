@@ -230,6 +230,8 @@ spec:
                 secretKeyRef:
                   name: node-agent-secret
                   key: password
+            - name: WEB_PORT
+              value: "5678"
           command: ["/bin/bash"]
           args:
             - "/app/init.sh"
