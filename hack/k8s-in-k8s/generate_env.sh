@@ -89,7 +89,7 @@ function GetDirectory() {
 }
 
 function GetMasterNodeIPs() {
-  kubectl get nodes -l node-role.kubernetes.io/master="" -o jsonpath='{range .items[*]}{.status.addresses[?(@.type=="InternalIP")].address}{" "}{end}'
+  kubectl get nodes -l node-role.kubernetes.io/$1="" -o jsonpath='{range .items[*]}{.status.addresses[?(@.type=="InternalIP")].address}{" "}{end}'
 }
 
 # kubelet config name
@@ -106,13 +106,25 @@ PATH_KUBERNETES=$(GetDirectory $PATH_KUBERNETES_PKI)
 HOST_CORE_DNS=$(GetKubeDnsClusterIP)
 
 DOCKER_IMAGE_NGINX="registry.paas/cmss/nginx:1.21.4"
-SERVERS=$(GetMasterNodeIPs)
+
+master_lables=("master", "control-plane")
+
+for mlabel in "${master_lables[@]}"; do
+    SERVERS=$(GetMasterNodeIPs $mlabel)
+    if [ -z "$SERVERS" ]; then
+      echo "Warning: No master nodes labeled $mlabel."
+    else
+      break
+    fi
+done
 if [ -z "$SERVERS" ]; then
     echo "Error: No master nodes found or failed to retrieve node IPs."
     exit 1
 fi
+
 LOCAL_PORT="6443"
 LOCAL_IP="127.0.0.1"  # [::1]
+CRI_SOCKET=$(ps -aux | grep kubelet | grep -- '--container-runtime-endpoint' | awk -F'--container-runtime-endpoint=' '{print $2}' | awk '{print $1}' | sed 's/^unix:\/\///')
 
 echo "#!/usr/bin/env bash
 
@@ -140,8 +152,6 @@ PATH_KUBELET_CONF=$PATH_KUBELET_CONF
 # name for config file of kubelet
 KUBELET_CONFIG_NAME=$KUBELET_CONFIG_NAME
 HOST_CORE_DNS=$HOST_CORE_DNS
-# kubeadm switch
-USE_KUBEADM=false
 # Generate kubelet.conf TIMEOUT
 KUBELET_CONF_TIMEOUT=30
 
@@ -151,6 +161,7 @@ SERVERS=($SERVERS)
 LOCAL_PORT="6443"
 LOCAL_IP="127.0.0.1"  # [::1]
 USE_NGINX=true
+CRI_SOCKET=$CRI_SOCKET
 
 function GenerateKubeadmConfig() {
     echo \"---
@@ -163,10 +174,10 @@ discovery:
         unsafeSkipCAVerification: true
 kind: JoinConfiguration
 nodeRegistration:
-    criSocket: /run/containerd/containerd.sock
+    criSocket: $CRI_SOCKET
     kubeletExtraArgs:
     container-runtime: remote
-    container-runtime-endpoint: unix:///run/containerd/containerd.sock
+    container-runtime-endpoint: unix://$CRI_SOCKET
     taints: null\" > \$2/kubeadm.cfg.current
 }
 
