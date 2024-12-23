@@ -21,6 +21,7 @@ import (
 	clusterManager "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/mcs"
+	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/pod"
 	podcontrollers "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/pod"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/pv"
 	"github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/controllers/pvc"
@@ -246,6 +247,15 @@ func run(ctx context.Context, opts *options.Options) error {
 	}
 	if err := rootPVController.SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("error starting root pv controller %v", err)
+	}
+
+	RootPodSyncReconciler := pod.RootPodSyncReconciler{
+		RootClient:              mgr.GetClient(),
+		GlobalLeafManager:       globalLeafResourceManager,
+		GlobalLeafClientManager: globalLeafClientManager,
+	}
+	if err := RootPodSyncReconciler.SetupWithManager(mgr); err != nil {
+		return fmt.Errorf("error starting root podsync controller %v", err)
 	}
 
 	if len(os.Getenv("USE-ONEWAY-STORAGE")) > 0 {
