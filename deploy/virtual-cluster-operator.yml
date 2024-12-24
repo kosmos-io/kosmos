@@ -235,6 +235,8 @@ spec:
                 fieldRef:
                   apiVersion: v1
                   fieldPath: spec.nodeName
+            - name: WEB_PORT
+              value: "5678"
           command: ["/bin/bash"]
           args:
             - "/app/init.sh"

@@ -9,10 +9,115 @@ JOIN_HOST=$2
 JOIN_TOKEN=$3
 JOIN_CA_HASH=$4
 
+
+function cri_runtime_clean() {
+    criSocket=unix://$CRI_SOCKET
+    containers=($(crictl -r $criSocket pods -q))
+
+    if [ ${#containers[@]} -eq 0 ]; then
+        echo "No containers found in containerd"
+        return 0
+    fi
+
+    for container in "${containers[@]}"; do
+        echo "Stopping container: $container"
+        crictl -r $criSocket stopp "$container"
+        echo "Removing container: $container"
+        crictl -r $criSocket rmp "$container"
+    done
+}
+
+
+function docker_runtime_clean() {
+    containers=($(docker ps -a --filter name=k8s_ -q))
+
+    if [ ${#containers[@]} -eq 0 ]; then
+        echo "No containers found matching the filter 'k8s_'"
+        return 0
+    fi
+
+    for container in "${containers[@]}"; do
+        echo "Stopping container: $container"
+        docker stop "$container"
+        echo "Removing container: $container"
+        docker rm "$container"
+    done
+
+}
+
+# Function to unmount all directories under a given directory
+function unmount_kubelet_directory() {
+    kubelet_dir="$1"
+
+    if [ -z "$kubelet_dir" ]; then
+        echo "Error: kubelet directory not specified."
+        exit 1
+    fi
+
+    # Ensure the directory has a trailing slash
+    if [[ "$kubelet_dir" != */ ]]; then
+        kubelet_dir="${kubelet_dir}/"
+    fi
+
+
+    mounts=($(awk -v dir="$kubelet_dir" '$0 ~ dir {print $2}' /proc/mounts))
+
+    for mount in "${mounts[@]}"; do
+        echo "Unmounting $mount..."
+        if ! umount "$mount"; then
+            echo "Warning: Failed to unmount $mount" >&2
+        fi
+    done
+}
+
+function clean_dirs() {
+   files_to_delete=(
+        "${PATH_KUBELET_LIB}/*"
+        "${PATH_KUBERNETES}/manifests/*"
+        "${PATH_KUBERNETES_PKI}/*"
+        "${PATH_KUBERNETES}/admin.conf"
+        "${PATH_KUBERNETES}/kubelet.conf"
+        "${PATH_KUBERNETES}/bootstrap-kubelet.conf"
+        "${PATH_KUBERNETES}/controller-manager.conf"
+        "${PATH_KUBERNETES}/scheduler.conf"
+        "/var/lib/dockershim"
+        "/var/run/kubernetes"
+        "/var/lib/cni"
+    )
+    for file in "${files_to_delete[@]}"; do
+        echo "Deleting file: $file"
+        rm -rf $file
+    done
+}
+
+
+# similar to the reset function of kubeadm. kubernetes/cmd/kubeadm/app/cmd/phases/reset/cleanupnode.go
+function node_reset() {
+    echo "exec node_reset(1/4): stop kubelet...."
+    systemctl stop kubelet
+
+    echo "exec node_reset(2/4): remove container of kubernetes...."
+    if [[ "$CRI_SOCKET" == *"docker"* ]]; then
+        docker_runtime_clean
+    elif [[ "$CRI_SOCKET" == *"containerd"* ]]; then
+        cri_runtime_clean
+    else 
+        echo "Unknown runtime: $CRI_SOCKET"
+        exit 1
+    fi
+    
+    echo "exec node_reset(3/4): unmount kubelet lib...."
+    # /kubernetes/cmd/kubeadm/app/cmd/phases/reset/cleanupnode.go:151 CleanDir
+    unmount_kubelet_directory "${PATH_KUBELET_LIB}"
+
+    echo "exec node_reset(4/4): clean file for kubernetes...."
+    clean_dirs
+}
+
 function unjoin() {
     # before unjoin, you need delete node by kubectl
     echo "exec(1/5): kubeadm reset...."
-    echo "y" | kubeadm reset
+    node_reset
     if [ $? -ne 0 ]; then
         exit 1
     fi
@@ -48,7 +153,7 @@ function unjoin() {
     fi
 }
 
-function beforeRevert() {
+function before_revert() {
     if [ -f "/apps/conf/nginx/nginx.conf" ]; then 
         # modify  hosts
         config_file="/apps/conf/nginx/nginx.conf"
@@ -65,7 +170,7 @@ function beforeRevert() {
     fi
 }
 
-function afterRevert() {
+function after_revert() {
     if [ -f "/apps/conf/nginx/nginx.conf" ]; then 
         # modify  hosts
         config_file="/apps/conf/nginx/nginx.conf"
@@ -90,38 +195,38 @@ function afterRevert() {
 }
 
 function get_ca_certificate() {
-     local output_file="$PATH_KUBERNETES_PKI/ca.crt"
-     local kubeconfig_data=$(curl -sS --insecure "https://$JOIN_HOST/api/v1/namespaces/kube-public/configmaps/cluster-info" 2>/dev/null | \
-                             grep -oP 'certificate-authority-data:\s*\K.*(?=server:[^[:space:]]*?)' | \
-                             sed -e 's/^certificate-authority-data://' -e 's/[[:space:]]//g' -e 's/\\n$//g')
+    local output_file="$PATH_KUBERNETES_PKI/ca.crt"
+    local kubeconfig_data=$(curl -sS --insecure "https://$JOIN_HOST/api/v1/namespaces/kube-public/configmaps/cluster-info" 2>/dev/null | \
+                            grep -oP 'certificate-authority-data:\s*\K.*(?=server:[^[:space:]]*?)' | \
+                            sed -e 's/^certificate-authority-data://' -e 's/[[:space:]]//g' -e 's/\\n$//g')
 
-     # verify the kubeconfig data is not empty
-     if [ -z "$kubeconfig_data" ]; then
-       echo "Failed to extract certificate-authority-data."
-       return 1
-     fi
+    # verify the kubeconfig data is not empty
+    if [ -z "$kubeconfig_data" ]; then
+    echo "Failed to extract certificate-authority-data."
+    return 1
+    fi
 
-     # Base64 decoded and written to a file
-     echo "$kubeconfig_data" | base64 --decode > "$output_file"
+    # Base64 decoded and written to a file
+    echo "$kubeconfig_data" | base64 --decode > "$output_file"
 
-     # check that the file was created successfully
-     if [ -f "$output_file" ]; then
-         echo "certificate-authority-data saved to $output_file"
-     else
-         echo "Failed to save certificate-authority-data to $output_file"
-      return 1
-     fi
+    # check that the file was created successfully
+    if [ -f "$output_file" ]; then
+        echo "certificate-authority-data saved to $output_file"
+    else
+        echo "Failed to save certificate-authority-data to $output_file"
+    return 1
+    fi
 }
 
 function create_kubelet_bootstrap_config() {
-   # Checks if the parameters are provided
- if [ -z "$JOIN_HOST" ] || [ -z "$JOIN_TOKEN" ]; then
-     echo "Please provide server and token as parameters."
-     return 1
- fi
+    # Checks if the parameters are provided
+    if [ -z "$JOIN_HOST" ] || [ -z "$JOIN_TOKEN" ]; then
+        echo "Please provide server and token as parameters."
+        return 1
+    fi
 
- # Define file contents
- cat << EOF > bootstrap-kubelet.conf
+    # Define file contents
+    cat << EOF > bootstrap-kubelet.conf
 apiVersion: v1
 kind: Config
 clusters:
@@ -142,14 +247,14 @@ users:
     token: $JOIN_TOKEN
 EOF
 
- # copy the file to the /etc/kubernetes directory
- cp bootstrap-kubelet.conf $PATH_KUBERNETES
+    # copy the file to the /etc/kubernetes directory
+    cp bootstrap-kubelet.conf $PATH_KUBERNETES
 
- echo "the file bootstrap-kubelet.conf has stored in $PATH_KUBERNETES directory."
+    echo "the file bootstrap-kubelet.conf has stored in $PATH_KUBERNETES directory."
 }
 
 function revert() {
-    echo "exec(1/5): update kubeadm.cfg..."
+    echo "exec(1/6): update kubeadm.cfg..."
     if [ ! -f "$PATH_KUBEADM_CONFIG/kubeadm.cfg" ]; then
         GenerateKubeadmConfig  $JOIN_TOKEN $PATH_FILE_TMP
     else
@@ -157,76 +262,74 @@ function revert() {
     fi
     
     # add taints
-    echo "exec(2/5): update kubeadm.cfg tanits..."
+    echo "exec(2/6): update kubeadm.cfg tanits..."
     sed -i "/kubeletExtraArgs/a \    register-with-taints: node.kosmos.io/unschedulable:NoSchedule"  "$PATH_FILE_TMP/kubeadm.cfg.current" 
     if [ $? -ne 0 ]; then
         exit 1
     fi
 
-    echo "exec(3/5): update kubelet-config..."
+    echo "exec(3/6): update kubelet-config..."
     sed -e "s|__DNS_ADDRESS__|$HOST_CORE_DNS|g" -e "w ${PATH_KUBELET_CONF}/${KUBELET_CONFIG_NAME}" "$PATH_FILE_TMP"/"$KUBELET_CONFIG_NAME"
     if [ $? -ne 0 ]; then
         exit 1
     fi
 
-    beforeRevert
+    before_revert
     if [ $? -ne 0 ]; then
         exit 1
     fi
 
 
-    echo "exec(4/5): execute join cmd...."
-    if [ -z "$USE_KUBEADM" ]; then
-      # if "USE_KUBEADM is not set, default set to true"
-      export USE_KUBEADM=true
-    fi
-    if [ "$USE_KUBEADM" = true ]; then
-       echo "use kubeadm to join node to host"
-       kubeadm join --config "$PATH_FILE_TMP/kubeadm.cfg.current"
-       if [ $? -ne 0 ]; then
-          exit 1
-       fi
+    echo "exec(4/6): execute join cmd...."
+
+    echo "NONONO use kubeadm to join node to host"
+    get_ca_certificate $JOIN_HOST
+    create_kubelet_bootstrap_config $JOIN_HOST $JOIN_TOKEN
+    if [ -f "${PATH_FILE_TMP}/kubeadm-flags.env.origin" ]; then
+        cp "${PATH_FILE_TMP}/kubeadm-flags.env.origin" "${PATH_KUBELET_LIB}" && \
+        mv "${PATH_KUBELET_LIB}/kubeadm-flags.env.origin" "${PATH_KUBELET_LIB}/kubeadm-flags.env"
     else
-       echo "NONONO use kubeadm to join node to host"
-       get_ca_certificate $JOIN_HOST
-       create_kubelet_bootstrap_config $JOIN_HOST $JOIN_TOKEN
-       if [ -f "${PATH_FILE_TMP}/kubeadm-flags.env.origin" ]; then
-          cp "${PATH_FILE_TMP}/kubeadm-flags.env.origin" "${PATH_KUBELET_LIB}" && \
-          mv "${PATH_KUBELET_LIB}/kubeadm-flags.env.origin" "${PATH_KUBELET_LIB}/kubeadm-flags.env"
-       else
-          cp "${PATH_FILE_TMP}/kubeadm-flags.env" "${PATH_KUBELET_LIB}"
-       fi
+        cp "${PATH_FILE_TMP}/kubeadm-flags.env" "${PATH_KUBELET_LIB}"
     fi
 
-    echo "exec(5/5): restart cotnainerd...."
+    echo "exec(5/6): restart cotnainerd...."
     systemctl restart containerd
     if [ $? -ne 0 ]; then
         exit 1
     fi
 
-    if [ "$USE_KUBEADM" = false ]; then
-           systemctl start kubelet
-           elapsed_time=0
+    systemctl start kubelet
+    elapsed_time=0
 
-           while [ $elapsed_time -lt $KUBELET_CONF_TIMEOUT ]; do
-             if [ -f "${PATH_KUBERNETES}/${KUBELET_KUBE_CONFIG_NAME}" ]; then
-                rm -f "${PATH_KUBERNETES}/bootstrap-kubelet.conf"
-                echo "Deleted bootstrap-kubelet.conf file as kubelet.conf exists."
-                break
-             fi
-             sleep 2
-             elapsed_time=$((elapsed_time + 2))
-           done
-
-           if [ $elapsed_time -ge $KUBELET_CONF_TIMEOUT ]; then
-              echo "Timeout: kubelet.conf was not generated within $KUBELET_CONF_TIMEOUT seconds. Continuing script execution."
-           fi
+    while [ $elapsed_time -lt $KUBELET_CONF_TIMEOUT ]; do
+        if [ -f "${PATH_KUBERNETES}/${KUBELET_KUBE_CONFIG_NAME}" ]; then
+        rm -f "${PATH_KUBERNETES}/bootstrap-kubelet.conf"
+        echo "Deleted bootstrap-kubelet.conf file as kubelet.conf exists."
+        break
         fi
-    afterRevert
+        sleep 2
+        elapsed_time=$((elapsed_time + 2))
+    done
+
+    if [ $elapsed_time -ge $KUBELET_CONF_TIMEOUT ]; then
+        echo "Timeout: kubelet.conf was not generated within $KUBELET_CONF_TIMEOUT seconds. Continuing script execution."
+    fi
+
+    after_revert
+
     if [ $? -ne 0 ]; then
         exit 1
     fi
 
+    echo "exec(6/6): revert manifests...."
+    if [ -d "$PATH_FILE_TMP/manifests.origin" ]; then  
+        if [[ -n "$(ls -A ${PATH_FILE_TMP}/manifests.origin/ 2>/dev/null)" ]]; then
+            cp -r ${PATH_FILE_TMP}/manifests.origin/* "${PATH_KUBERNETES}/manifests/" 
+        else
+            echo "No files in ${PATH_FILE_TMP}/manifests.origin"
+        fi
+        
+    fi
 
 }
 
@@ -301,6 +404,21 @@ function log() {
     systemctl status $LOG_NAME
 }
 
+function backup_manifests() {
+    echo "backup_manifests(1/1): backup manifests"
+    if [ ! -d "$PATH_FILE_TMP/manifests.origin" ]; then   
+        mkdir -p "$PATH_FILE_TMP/manifests.origin"
+        if [ $? -ne 0 ]; then
+            exit 1
+        fi
+        if [[ -n "$(ls -A ${PATH_KUBERNETES}/manifests/ 2>/dev/null)" ]]; then
+            cp -rf ${PATH_KUBERNETES}/manifests/* ${PATH_FILE_TMP}/manifests.origin/
+        else
+            echo "No files in ${PATH_KUBERNETES}/manifests/"
+        fi
+    fi
+}
+
 # check the environments
 function check() {
     # TODO: create env file
@@ -315,7 +433,7 @@ function check() {
     echo "check(2/2): copy  kubeadm-flags.env  to create $PATH_FILE_TMP , remove args[cloud-provider] and taints"
     # Since this function is used both to detach nodes, we need to make sure we haven't copied kubeadm-flags.env before
     if [ ! -f "${PATH_FILE_TMP}/kubeadm-flags.env.origin" ]; then
-       cp "${PATH_KUBELET_LIB}/kubeadm-flags.env" "${PATH_FILE_TMP}/kubeadm-flags.env.origin"
+        cp "${PATH_KUBELET_LIB}/kubeadm-flags.env" "${PATH_FILE_TMP}/kubeadm-flags.env.origin"
     fi
     sed -e "s| --cloud-provider=external | |g" -e "w ${PATH_FILE_TMP}/kubeadm-flags.env" "$PATH_KUBELET_LIB/kubeadm-flags.env"
     sed -i "s| --register-with-taints=node.kosmos.io/unschedulable:NoSchedule||g" "${PATH_FILE_TMP}/kubeadm-flags.env"
@@ -323,13 +441,13 @@ function check() {
         exit 1
     fi
 
+    backup_manifests
     echo "environments is ok"
 }
 
 function version() {
     echo "$SCRIPT_VERSION"
 }
-
 
 function is_ipv6() {
     if [[ "$1" =~ : ]]; then
@@ -341,7 +459,7 @@ function is_ipv6() {
 
 function install_lb() {
     if [ -z "$USE_NGINX" ]; then
-      export USE_KUBEADM=false
+      export USE_NGINX=false
     fi
 
     if [ "$USE_NGINX" = false ]; then
@@ -365,7 +483,7 @@ function install_lb() {
     fi
 
     # Start generating nginx.conf
-    echo "exec(1/6): generate nginx.conf...."
+    echo "exec(2/6): generate nginx.conf...."
     cat <<EOL > "$PATH_FILE_TMP/nginx.conf"
 error_log stderr notice;
 worker_processes 1;
@@ -402,20 +520,20 @@ EOL
 }
 EOL
 
-    echo "exec(1/6): create static pod"
+    echo "exec(3/6): create static pod"
     GenerateStaticNginxProxy true
 
 
-    echo "exec(1/6): restart static pod"
+    echo "exec(4/6): restart static pod"
     mv "${PATH_KUBERNETES}/manifests/nginx-proxy.yaml" "${PATH_KUBERNETES}/nginx-proxy.yaml"
     sleep 2
     mv "${PATH_KUBERNETES}/nginx-proxy.yaml" "${PATH_KUBERNETES}/manifests/nginx-proxy.yaml"
 
-    echo "exec(1/6): update kubelet.conf"
+    echo "exec(5/6): update kubelet.conf"
     cp "${PATH_KUBERNETES}/${KUBELET_KUBE_CONFIG_NAME}" "${PATH_KUBERNETES}/${KUBELET_KUBE_CONFIG_NAME}.bak"
     sed -i "s|server: .*|server: https://${LOCAL_IP}:${LOCAL_PORT}|" "${PATH_KUBERNETES}/${KUBELET_KUBE_CONFIG_NAME}"
 
-    echo "exec(1/6): restart kubelet"
+    echo "exec(6/6): restart kubelet"
     systemctl restart kubelet
 }
 
