@@ -254,9 +254,12 @@ func NewRemoteNodeJoinTask() Task {
 		Retry: true,
 		Run: func(ctx context.Context, to TaskOpt, _ interface{}) (interface{}, error) {
 			exectHelper := exector.NewExectorHelper(to.NodeInfo.Spec.NodeIP, "")
-
+			baseCmd := fmt.Sprintf("bash %s join %s", env.GetExectorShellName(), to.KubeDNSAddress)
+			if to.VirtualCluster.Spec.KubeInKubeConfig != nil && to.VirtualCluster.Spec.KubeInKubeConfig.UseNodeLocalDNS {
+				baseCmd = fmt.Sprintf("bash %s join %s %s", env.GetExectorShellName(), to.KubeDNSAddress, constants.NodeLocalDNSIp)
+			}
 			joinCmd := &exector.CMDExector{
-				Cmd: fmt.Sprintf("bash %s join %s", env.GetExectorShellName(), to.KubeDNSAddress),
+				Cmd: baseCmd,
 			}
 			to.Loger().Infof("join node %s with cmd: %s", to.NodeInfo.Name, joinCmd.Cmd)
 			ret := exectHelper.DoExector(ctx.Done(), joinCmd)

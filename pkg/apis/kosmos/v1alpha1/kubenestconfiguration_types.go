@@ -91,6 +91,9 @@ type KubeInKubeConfig struct {
 	UseTenantDNS bool `yaml:"useTenantDNS" json:"useTenantDNS,omitempty"`
 	// +optional
 	ExternalPort int32 `json:"externalPort,omitempty"`
+	// +kubebuilder:default=false
+	// +optional
+	UseNodeLocalDNS bool `yaml:"useNodeLocalDNS" json:"useNodeLocalDNS,omitempty"`
 }
 
 // TenantEntrypoint contains the configuration for the tenant entrypoint.
