@@ -275,6 +275,14 @@ func run(ctx context.Context, config *config.Config) error {
 		return fmt.Errorf("error starting %s: %v", constants.GlobalNodeControllerName, err)
 	}
 
+	GlobalNodeConditionController := glnodecontroller.NewGlobalNodeStatusController(
+		mgr.GetClient(),
+		kosmosClient,
+	)
+	if err := mgr.Add(GlobalNodeConditionController); err != nil {
+		return fmt.Errorf("error starting %s: %v", glnodecontroller.GlobalNodeStatusControllerName, err)
+	}
+
 	if err := startEndPointsControllers(mgr); err != nil {
 		return err
 	}
