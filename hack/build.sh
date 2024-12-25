@@ -52,12 +52,14 @@ function build_binary_for_platform() {
       -ldflags "${LDFLAGS:-}" \
       -o "_output/bin/${platform}/$target" \
       "${target_pkg}"
-  # copy file
-  echo "${REPO_ROOT}/hack/node-agent" "_output/bin/${platform}/$target"
-  mkdir -p "_output/bin/${platform}/agent"
-  cp "${REPO_ROOT}/hack/node-agent"/* "_output/bin/${platform}/agent"
-  cp "_output/bin/${platform}/$target" "_output/bin/${platform}/agent"
-  cd "_output/bin/${platform}" && tar -czvf "agent.tar.gz" "agent"
+  # copy file for node-agent
+  if [[ "${target}" == "node-agent" ]]; then
+    echo "${REPO_ROOT}/hack/node-agent" "_output/bin/${platform}/$target"
+    mkdir -p "_output/bin/${platform}/agent"
+    cp "${REPO_ROOT}/hack/node-agent"/* "_output/bin/${platform}/agent"
+    cp "_output/bin/${platform}/$target" "_output/bin/${platform}/agent"
+    cd "_output/bin/${platform}" && tar -czvf "agent.tar.gz" "agent"
+  fi
   set +x
 }
 
