@@ -8,6 +8,7 @@ LOG_NAME=${2:-kubelet}
 JOIN_HOST=$2
 JOIN_TOKEN=$3
 JOIN_CA_HASH=$4
+NODE_LOCAL_DNS_ADDRESS=$3
 
 function unjoin() {
     # before unjoin, you need delete node by kubectl
@@ -248,7 +249,14 @@ function join() {
         exit 1
     fi
     echo "exec(4/8): set core dns address...."
-    sed -e "s|__DNS_ADDRESS__|$DNS_ADDRESS|g" -e "w ${PATH_KUBELET_CONF}/${KUBELET_CONFIG_NAME}" "$PATH_FILE_TMP"/"$KUBELET_CONFIG_NAME"
+    if [ -n "$NODE_LOCAL_DNS_ADDRESS" ]; then
+        sed -e "/__DNS_ADDRESS__/i - ${NODE_LOCAL_DNS_ADDRESS}" \
+            -e "s|__DNS_ADDRESS__|${DNS_ADDRESS}|g" \
+            "$PATH_FILE_TMP/$KUBELET_CONFIG_NAME" \
+            > "${PATH_KUBELET_CONF}/${KUBELET_CONFIG_NAME}"
+    else
+        sed -e "s|__DNS_ADDRESS__|$DNS_ADDRESS|g" -e "w ${PATH_KUBELET_CONF}/${KUBELET_CONFIG_NAME}" "$PATH_FILE_TMP"/"$KUBELET_CONFIG_NAME"
+    fi
     if [ $? -ne 0 ]; then
         exit 1
     fi

@@ -137,6 +137,12 @@ const (
 
 	//in virtual cluster
 	APIServerExternalService = "api-server-external-service"
+
+	//nodelocaldns
+	NodeLocalDNSComponentName = "virtual-node-local-dns"
+	NodeLocalDNSIp            = "169.254.20.10"
+	NodeLocalDNSClusterDomain = "cluster.local"
+	NodeLocalDNSService       = "__PILLAR__DNS__SERVER__"
 )
 
 type Action string
