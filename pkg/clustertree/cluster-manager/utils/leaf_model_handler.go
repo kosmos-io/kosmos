@@ -3,9 +3,7 @@ package utils
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"reflect"
-	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -19,12 +17,6 @@ import (
 
 	kosmosv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/utils"
-)
-
-// to do: test time......
-const (
-	clusterFailureThreshold = 50 * time.Second
-	clusterSuccessThreshold = 5 * time.Second
 )
 
 // LeafModelHandler is the interface to handle the leafModel logic
@@ -51,18 +43,17 @@ type ClassificationHandler struct {
 	Cluster  *kosmosv1alpha1.Cluster
 	//LeafClient    client.Client
 	//RootClient    client.Client
-	RootClientset         kubernetes.Interface
-	LeafClientset         kubernetes.Interface
-	clusterConditionCache clusterConditionStore
+	RootClientset kubernetes.Interface
+	LeafClientset kubernetes.Interface
 }
 
 // GetLeafMode returns the leafMode for a Cluster
-func (h *ClassificationHandler) GetLeafMode() LeafMode {
+func (h ClassificationHandler) GetLeafMode() LeafMode {
 	return h.leafMode
 }
 
 // GetLeafNodes returns nodes in leaf cluster by the rootNode
-func (h *ClassificationHandler) GetLeafNodes(ctx context.Context, rootNode *corev1.Node, selector kosmosv1alpha1.NodeSelector) (nodesInLeaf *corev1.NodeList, err error) {
+func (h ClassificationHandler) GetLeafNodes(ctx context.Context, rootNode *corev1.Node, selector kosmosv1alpha1.NodeSelector) (nodesInLeaf *corev1.NodeList, err error) {
 	listOption := metav1.ListOptions{}
 	if h.leafMode == Party {
 		listOption.LabelSelector = metav1.FormatLabelSelector(selector.LabelSelector)
@@ -80,7 +71,7 @@ func (h *ClassificationHandler) GetLeafNodes(ctx context.Context, rootNode *core
 }
 
 // GetLeafPods returns pods in leaf cluster by the rootNode
-func (h *ClassificationHandler) GetLeafPods(ctx context.Context, rootNode *corev1.Node, selector kosmosv1alpha1.NodeSelector) (pods *corev1.PodList, err error) {
+func (h ClassificationHandler) GetLeafPods(ctx context.Context, rootNode *corev1.Node, selector kosmosv1alpha1.NodeSelector) (pods *corev1.PodList, err error) {
 	if h.leafMode == Party {
 		pods, err = h.LeafClientset.CoreV1().Pods(metav1.NamespaceAll).List(ctx, metav1.ListOptions{})
 		if err != nil {
@@ -115,11 +106,7 @@ func (h *ClassificationHandler) GetLeafPods(ctx context.Context, rootNode *corev
 }
 
 // UpdateRootNodeStatus updates the node's status in root cluster
-/*todo: This code detects a specific API server. If the current API server fails, we need to consider how to connect to other API servers.
-todo:There are currently two solutions: (1) Add high availability mode
-todo:(2) Use configmap to store the API server list and traverse it
-todo:(3) Add the APIserverlist field in the cluster CRD, which needs to be entered manually during deployment.*/
-func (h *ClassificationHandler) UpdateRootNodeStatus(ctx context.Context, nodesInRoot []*corev1.Node, leafNodeSelector map[string]kosmosv1alpha1.NodeSelector) error {
+func (h ClassificationHandler) UpdateRootNodeStatus(ctx context.Context, nodesInRoot []*corev1.Node, leafNodeSelector map[string]kosmosv1alpha1.NodeSelector) error {
 	errors := []error{}
 	for _, node := range nodesInRoot {
 		nodeNameInRoot := node.Name
@@ -141,21 +128,7 @@ func (h *ClassificationHandler) UpdateRootNodeStatus(ctx context.Context, nodesI
 				// TODO: If a node is accidentally deleted, recreate it
 				return fmt.Errorf("cannot get node in root cluster while update the join node status %s, err: %v", nodeNameInRoot, err)
 			}
-			rootCopy := nodeInRoot.DeepCopy()
-			//Check whether the leaf cluster is online
-			online := h.getClusterHealthStatus()
-			observedReadyConditons := getObservedReadyStatus(online)
-			readyConditions := h.clusterConditionCache.thresholdAdjustedReadyCondition(h.Cluster, nodeInRoot, observedReadyConditons, clusterFailureThreshold, clusterSuccessThreshold)
-			readyCondition := FindStatusCondition(readyConditions)
-			//If it is still not online after retrying for a while, change noderoot status to notready
-			if !online && readyCondition.Status != corev1.ConditionTrue {
-				klog.V(2).Infof("Cluster(%s) still offline after %s, ensuring offline is set.", h.Cluster.Name, h.clusterConditionCache.failureThreshold)
-				rootCopy.Status.Conditions = readyConditions
-				if _, err = h.RootClientset.CoreV1().Nodes().UpdateStatus(ctx, rootCopy, metav1.UpdateOptions{}); err != nil {
-					return err
-				}
-				return nil
-			}
+
 			nodesInLeaf, err := h.LeafClientset.CoreV1().Nodes().List(ctx, listOptions)
 			if err != nil {
 				// TODO: If a node is accidentally deleted, recreate it
@@ -165,7 +138,10 @@ func (h *ClassificationHandler) UpdateRootNodeStatus(ctx context.Context, nodesI
 				// TODO: If a node is accidentally deleted, recreate it
 				return fmt.Errorf("have no node in leaf cluster while update the join node %s status", nodeNameInRoot)
 			}
+
+			rootCopy := nodeInRoot.DeepCopy()
 			var nodeInLeafTaints []corev1.Taint
+
 			if h.leafMode == Node {
 				rootCopy.Status = *nodesInLeaf.Items[0].Status.DeepCopy()
 				nodeInLeafTaints = append(nodesInLeaf.Items[0].Spec.Taints, corev1.Taint{
@@ -174,9 +150,8 @@ func (h *ClassificationHandler) UpdateRootNodeStatus(ctx context.Context, nodesI
 					Effect: utils.KosmosNodeTaintEffect,
 				})
 			} else {
-				//Check whether all subcluster master nodes are ready. If all are notready, update the rootnode status to notready
-				leafMasterReadyConditon := h.checkAllMasterNodesNotReady(ctx)
-				rootCopy.Status.Conditions = leafMasterReadyConditon
+				rootCopy.Status.Conditions = utils.NodeConditions()
+
 				// Aggregation the resources of the leaf nodes
 				pods, err := h.GetLeafPods(ctx, rootCopy, leafNodeSelector[nodeNameInRoot])
 				if err != nil {
@@ -186,10 +161,12 @@ func (h *ClassificationHandler) UpdateRootNodeStatus(ctx context.Context, nodesI
 				rootCopy.Status.Allocatable = clusterResources
 				rootCopy.Status.Capacity = clusterResources
 			}
+
 			updateAddress, err := GetAddress(ctx, h.RootClientset, nodesInLeaf.Items[0].Status.Addresses)
 			if err != nil {
 				return err
 			}
+
 			rootCopy.Status.Addresses = updateAddress
 			if _, err = h.RootClientset.CoreV1().Nodes().UpdateStatus(ctx, rootCopy, metav1.UpdateOptions{}); err != nil {
 				return err
@@ -262,7 +239,7 @@ func createNode(ctx context.Context, clientset kubernetes.Interface, clusterName
 }
 
 // CreateRootNode creates the node in root cluster
-func (h *ClassificationHandler) CreateRootNode(ctx context.Context, listenPort int32, gitVersion string) ([]*corev1.Node, map[string]kosmosv1alpha1.NodeSelector, error) {
+func (h ClassificationHandler) CreateRootNode(ctx context.Context, listenPort int32, gitVersion string) ([]*corev1.Node, map[string]kosmosv1alpha1.NodeSelector, error) {
 	nodes := make([]*corev1.Node, 0)
 	leafNodeSelectors := make(map[string]kosmosv1alpha1.NodeSelector)
 	cluster := h.Cluster
@@ -323,72 +300,4 @@ func NewLeafModelHandler(cluster *kosmosv1alpha1.Cluster, rootClientset, leafCli
 		}
 	}
 	return classificationModel
-}
-
-// Perform a health check on the API server
-func (h *ClassificationHandler) getClusterHealthStatus() (online bool) {
-	var healthStatus int
-	resp := h.LeafClientset.Discovery().RESTClient().Get().AbsPath("/readyz").Do(context.TODO()).StatusCode(&healthStatus)
-	if resp.Error() != nil {
-		klog.Errorf("Health check failed.Current health status:%v, error is : %v ", healthStatus, resp.Error())
-	}
-	if healthStatus != http.StatusOK {
-		klog.Warningf("Member cluster %v isn't healthy", h.Cluster.Name)
-		return false
-	}
-	return true
-}
-
-// Returns the node status based on the health check results
-func getObservedReadyStatus(online bool) []corev1.NodeCondition {
-	if !online {
-		return []corev1.NodeCondition{
-			{
-				Type:    corev1.NodeReady,
-				Status:  corev1.ConditionFalse,
-				Reason:  "ClusterNotReachable",
-				Message: "cluster is not reachable.",
-			},
-		}
-	}
-	return []corev1.NodeCondition{
-		{
-			Type:    corev1.NodeReady,
-			Status:  corev1.ConditionTrue,
-			Reason:  "ClusterReady",
-			Message: "cluster is online and ready to accept workloads.",
-		},
-	}
-}
-func (h *ClassificationHandler) checkAllMasterNodesNotReady(ctx context.Context) []corev1.NodeCondition {
-	//filter out nodes with the LabelNodeRoleOldControlPlane or LabelNodeRoleControlPlane label
-	//todo:Check whether the tags are correct.
-	nodes, err := h.LeafClientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{LabelSelector: utils.LabelNodeRoleControlPlane})
-	if err != nil {
-		klog.Errorf("Error getting master nodes in leaf cluster: %v", err)
-	}
-	allMasterNotReady := true
-	for _, node := range nodes.Items {
-		masterNodeReady := false
-		for _, condition := range node.Status.Conditions {
-			if condition.Type == "Ready" && condition.Status == "True" {
-				masterNodeReady = true
-				break
-			}
-		}
-		if masterNodeReady {
-			allMasterNotReady = false
-		}
-	}
-	if allMasterNotReady {
-		return []corev1.NodeCondition{
-			{
-				Type:    corev1.NodeReady,
-				Status:  corev1.ConditionFalse,
-				Reason:  "LeafNodesNotReady",
-				Message: "All leaf cluster‘s master nodes are not ready.",
-			},
-		}
-	}
-	return utils.NodeConditions()
 }

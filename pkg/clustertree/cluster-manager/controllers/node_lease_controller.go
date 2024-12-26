@@ -27,8 +27,7 @@ const (
 	DefaultLeaseDuration         = 40
 	DefaultRenewIntervalFraction = 0.25
 
-	//DefaultNodeStatusUpdateInterval = 1 * time.Minute
-	leafClusterupdateInterval = 10 * time.Second
+	DefaultNodeStatusUpdateInterval = 1 * time.Minute
 )
 
 type NodeLeaseController struct {
@@ -54,11 +53,7 @@ func NewNodeLeaseController(leafClient kubernetes.Interface, root client.Client,
 		LeafModelHandler:  LeafModelHandler,
 		LeafNodeSelectors: LeafNodeSelectors,
 		leaseInterval:     getRenewInterval(),
-		//	statusInterval:    DefaultNodeStatusUpdateInterval,
-		statusInterval: leafClusterupdateInterval,
-		//		ClusterSuccessThreshold: clusterFailureThreshold,
-		//		ClusterFailureThreshold: clusterFailureThreshold,
-
+		statusInterval:    DefaultNodeStatusUpdateInterval,
 	}
 	return c
 }
