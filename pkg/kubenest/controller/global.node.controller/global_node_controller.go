@@ -2,6 +2,7 @@ package globalnodecontroller
 
 import (
 	"context"
+	"reflect"
 
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -55,6 +56,31 @@ func compareMaps(map1, map2 map[string]string) bool {
 	return true
 }
 
+// CustomPredicateForGlobalNode is used for event filtering of the GlobalNode resource.
+var CustomPredicateForGlobalNode = predicate.Funcs{
+	CreateFunc: func(createEvent event.CreateEvent) bool {
+		return true
+	},
+	UpdateFunc: func(updateEvent event.UpdateEvent) bool {
+		oldObj, okOld := updateEvent.ObjectOld.(*v1alpha1.GlobalNode)
+		newObj, okNew := updateEvent.ObjectNew.(*v1alpha1.GlobalNode)
+
+		if !okOld || !okNew {
+			return true
+		}
+
+		specChanged := !reflect.DeepEqual(oldObj.Spec, newObj.Spec)
+
+		return specChanged
+	},
+	DeleteFunc: func(e event.DeleteEvent) bool {
+		return true
+	},
+	GenericFunc: func(e event.GenericEvent) bool {
+		return true
+	},
+}
+
 func (r *GlobalNodeController) SetupWithManager(mgr manager.Manager) error {
 	if r.Client == nil {
 		r.Client = mgr.GetClient()
@@ -70,6 +96,7 @@ func (r *GlobalNodeController) SetupWithManager(mgr manager.Manager) error {
 			UpdateFunc: func(updateEvent event.UpdateEvent) bool {
 				oldObj := updateEvent.ObjectOld.(*v1.Node)
 				newObj := updateEvent.ObjectNew.(*v1.Node)
+
 				return !compareMaps(oldObj.Labels, newObj.Labels)
 			},
 			DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
@@ -81,12 +108,13 @@ func (r *GlobalNodeController) SetupWithManager(mgr manager.Manager) error {
 		})).
 		Watches(&source.Kind{Type: &v1alpha1.GlobalNode{}}, handler.EnqueueRequestsFromMapFunc(func(a client.Object) []reconcile.Request {
 			gn := a.(*v1alpha1.GlobalNode)
+
 			return []reconcile.Request{
 				{NamespacedName: types.NamespacedName{
 					Name: gn.Name,
 				}},
 			}
-		})).
+		}), builder.WithPredicates(CustomPredicateForGlobalNode)).
 		// Watches(&source.Kind{Type: &v1.Node{}}, handler.EnqueueRequestsFromMapFunc(r.newNodeMapFunc())).
 		Watches(&source.Kind{Type: &v1alpha1.VirtualCluster{}}, handler.EnqueueRequestsFromMapFunc(r.newVirtualClusterMapFunc())).
 		Complete(r)
