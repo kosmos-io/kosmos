@@ -106,6 +106,7 @@ PATH_KUBERNETES=$(GetDirectory $PATH_KUBERNETES_PKI)
 HOST_CORE_DNS=$(GetKubeDnsClusterIP)
 
 DOCKER_IMAGE_NGINX="registry.paas/cmss/nginx:1.21.4"
+DOCKER_IMAGE_LVSCARE="registry.paas/cmss/lvscare:1.0.0"
 
 master_lables=("master", "control-plane")
 
@@ -157,10 +158,35 @@ KUBELET_CONF_TIMEOUT=30
 
 # load balance
 DOCKER_IMAGE_NGINX=$DOCKER_IMAGE_NGINX
+DOCKER_IMAGE_LVSCARE=$DOCKER_IMAGE_LVSCARE
 SERVERS=($SERVERS)
-LOCAL_PORT="6443"
-LOCAL_IP="127.0.0.1"  # [::1]
-USE_NGINX=true
+
+# Proxy Configuration Options
+# Specify the proxy server to be used for traffic management or load balancing.
+# Available options for USE_PROXY:
+# - "NGINX"   : Use NGINX as the proxy server.
+# - "LVSCARE" : Use LVSCARE for load balancing (based on IPVS).
+# - "NONE"    : No proxy server will be used.
+# Note: When USE_PROXY is set to "NONE", no proxy service will be configured.
+USE_PROXY="LVSCARE"  # Current proxy setting: LVSCARE for load balancing.
+
+# Proxy Service Port Configuration
+# LOCAL_PORT specifies the port on which the proxy service listens.
+# Example:
+# - For Kubernetes setups, this is typically the API server port.
+LOCAL_PORT="6443"  # Proxy service listening port (default: 6443 for Kubernetes API).
+
+# Proxy Address Configuration
+# LOCAL_IP specifies the address of the proxy service.
+# - When USE_PROXY is set to "NGINX":
+#   - Use LOCAL_IP="127.0.0.1" (IPv4) or LOCAL_IP="[::1]" (IPv6 loopback).
+# - When USE_PROXY is set to "LVSCARE":
+#   - Use LOCAL_IP as the VIP (e.g., "192.0.0.2") for LVSCARE load balancing.
+#   - Ensure this address is added to the "excludeCIDRs" list in the kube-proxy configuration file
+#     to avoid routing conflicts.
+LOCAL_IP="192.0.0.2"  # LVSCARE setup: Proxy address and VIP for load balancing.
+
+
 CRI_SOCKET=$CRI_SOCKET
 
 function GenerateKubeadmConfig() {
