@@ -2,6 +2,7 @@ package globalnodecontroller
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	v1 "k8s.io/api/core/v1"
@@ -9,6 +10,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
+	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -18,15 +20,24 @@ import (
 
 const (
 	GlobalNodeStatusControllerName = "global-node-status-controller"
+	NodeNotReady                   = v1.NodeConditionType("NotReady")
+	NodeReady                      = v1.NodeReady
 	DefaultStatusUpdateInterval    = 15 * time.Second
 	ClientHeartbeatThreshold       = 10 * time.Second
+	nodeUpdateWorkerSize           = 8
+	RequiredNotReadyCount          = 5
 )
+
+type nodeHealthData struct {
+	notReadyCount int
+}
 
 type GlobalNodeStatusController struct {
 	root           client.Client
 	statusInterval time.Duration
 
-	kosmosClient versioned.Interface
+	kosmosClient  versioned.Interface
+	nodeHealthMap sync.Map // map[string]*nodeHealthData
 }
 
 func NewGlobalNodeStatusController(
@@ -37,6 +48,7 @@ func NewGlobalNodeStatusController(
 		root:           root,
 		statusInterval: DefaultStatusUpdateInterval,
 		kosmosClient:   kosmosClient,
+		nodeHealthMap:  sync.Map{},
 	}
 }
 func (c *GlobalNodeStatusController) Start(ctx context.Context) error {
@@ -47,8 +59,6 @@ func (c *GlobalNodeStatusController) Start(ctx context.Context) error {
 }
 func (c *GlobalNodeStatusController) syncGlobalNodeStatus(ctx context.Context) {
 	globalNodes := make([]*v1alpha1.GlobalNode, 0)
-	//c.globalNodeLock.Lock()
-	//defer c.globalNodeLock.Unlock()
 
 	nodeList, err := c.kosmosClient.KosmosV1alpha1().GlobalNodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
@@ -70,14 +80,23 @@ func (c *GlobalNodeStatusController) updateGlobalNodeStatus(
 	ctx context.Context,
 	globalNodes []*v1alpha1.GlobalNode,
 ) error {
-	for _, globalNode := range globalNodes {
-		err := c.updateStatusForGlobalNode(ctx, globalNode)
-		if err != nil {
-			klog.Errorf("Failed to update status for global node %s: %v", globalNode.Name, err)
-			return err
+	errChan := make(chan error, len(globalNodes))
+
+	workqueue.ParallelizeUntil(ctx, nodeUpdateWorkerSize, len(globalNodes), func(piece int) {
+		node := globalNodes[piece]
+		if err := c.updateStatusForGlobalNode(ctx, node); err != nil {
+			klog.Errorf("Failed to update status for global node %s: %v", node.Name, err)
+			errChan <- err
 		}
+	})
+
+	close(errChan)
+
+	var retErr error
+	for err := range errChan {
+		retErr = err
 	}
-	return nil
+	return retErr
 }
 
 func (c *GlobalNodeStatusController) updateStatusForGlobalNode(
@@ -100,13 +119,30 @@ func (c *GlobalNodeStatusController) updateStatusForGlobalNode(
 		lastHeartbeatTime := condition.LastHeartbeatTime
 		timeDiff := time.Since(lastHeartbeatTime.Time)
 
-		statusType := "Ready"
+		statusType := NodeReady
 		if timeDiff > ClientHeartbeatThreshold {
-			statusType = "NotReady"
+			statusType = NodeNotReady
 		}
 
-		if string(condition.Type) != statusType {
-			condition.Type = v1.NodeConditionType(statusType)
+		dataRaw, _ := c.nodeHealthMap.LoadOrStore(globalNode.Name, &nodeHealthData{})
+		nh := dataRaw.(*nodeHealthData)
+
+		if statusType == NodeNotReady {
+			nh.notReadyCount++
+			if condition.Type == NodeReady {
+				klog.V(2).Infof("GlobalNode %s: notReadyCount=%d, newStatus=%s", globalNode.Name, nh.notReadyCount, statusType)
+			}
+		} else {
+			nh.notReadyCount = 0
+		}
+
+		if nh.notReadyCount > 0 && nh.notReadyCount < RequiredNotReadyCount {
+			c.nodeHealthMap.Store(globalNode.Name, nh)
+			return nil
+		}
+
+		if condition.Type != statusType {
+			condition.Type = statusType
 			condition.LastTransitionTime = metav1.NewTime(time.Now())
 
 			currentNode.Status.Conditions[0] = condition
@@ -122,10 +158,9 @@ func (c *GlobalNodeStatusController) updateStatusForGlobalNode(
 			}
 
 			klog.Infof("Successfully updated status for GlobalNode %s to %s", globalNode.Name, statusType)
-		} else {
-			klog.Infof("No status update required for GlobalNode %s, current status: %s", globalNode.Name, condition.Type)
+			nh.notReadyCount = 0
+			c.nodeHealthMap.Store(globalNode.Name, nh)
 		}
-
 		return nil
 	})
 }
