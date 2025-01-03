@@ -44,7 +44,7 @@ spec:
               topologyKey: kubernetes.io/hostname
       containers:
         - name: nginx
-          image: nginx:latest
+          image: nginx:1.27.3
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
