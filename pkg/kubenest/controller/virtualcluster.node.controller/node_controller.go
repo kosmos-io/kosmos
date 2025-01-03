@@ -163,6 +163,8 @@ func (r *NodeController) UpdateVirtualClusterStatus(ctx context.Context, virtual
 		return fmt.Errorf("update virtualcluster %s status namespace %s failed: %s", virtualCluster.Name, virtualCluster.Namespace, retryErr)
 	}
 
+	r.EventRecorder.Event(&virtualCluster, v1.EventTypeWarning, "VCStatusPending", fmt.Sprintf("Name: %s, Namespace: %s, reason: %s", virtualCluster.Name, virtualCluster.Namespace, reason))
+
 	return nil
 }
 

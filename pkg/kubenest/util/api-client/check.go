@@ -13,6 +13,8 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
 )
 
+const DefaultRetryCount = 3
+
 type Checker interface {
 	WaitForAPI() error
 	WaitForSomePods(label, namespace string, podNum int32) error
