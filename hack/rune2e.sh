@@ -61,10 +61,17 @@ sleep 100 && docker exec -i ${HOST_CLUSTER_NAME}-control-plane sh -c "curl -sSf 
 # e2e for mysql-operator
 echo "apply mysql-operator on cluster ${HOST_CLUSTER_NAME} with files in path ${REPO_ROOT}/test/e2e/deploy/mysql-operator"
 kubectl --kubeconfig "${REPO_ROOT}/environments/${HOST_CLUSTER_NAME}/kubeconfig" apply -f "${REPO_ROOT}"/test/e2e/deploy/mysql-operator
+kubectl create secret generic mysql-operator-orc \
+  --from-literal=TOPOLOGY_PASSWORD="$(openssl rand -base64 12)" \
+  --from-literal=TOPOLOGY_USER="$(openssl rand -base64 16)" \
+  --namespace=mysql-operator
 util::wait_for_condition "mysql operator are ready" \
   "kubectl --kubeconfig "${REPO_ROOT}/environments/${HOST_CLUSTER_NAME}/kubeconfig" get pods -n mysql-operator mysql-operator-0 | awk 'NR>1 {if (\$3 == \"Running\") exit 0; else exit 1; }'" \
   300
 kubectl --kubeconfig "${REPO_ROOT}/environments/${HOST_CLUSTER_NAME}/kubeconfig" apply -f "${REPO_ROOT}"/test/e2e/deploy/cr
+kubectl create secret generic my-secret \
+  --from-literal=ROOT_PASSWORD="$(openssl rand -base64 12)" \
+  --namespace=kosmos-e2e
 
 util::wait_for_condition "mysql cr are ready" \
   "[ \$(kubectl --kubeconfig ${REPO_ROOT}/environments/${HOST_CLUSTER_NAME}/kubeconfig get pods -n kosmos-e2e -l app.kubernetes.io/name=mysql |grep \"4/4\"| grep \"Running\" | wc -l) -eq 2 ]" \

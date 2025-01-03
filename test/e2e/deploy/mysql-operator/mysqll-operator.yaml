@@ -183,16 +183,6 @@ spec:
   type: ClusterIP
 ---
 apiVersion: v1
-data:
-  TOPOLOGY_PASSWORD: {{ .PASSWORD }}
-  TOPOLOGY_USER: {{ .USER }}
-kind: Secret
-metadata:
-  name: mysql-operator-orc
-  namespace: mysql-operator
-type: Opaque
----
-apiVersion: v1
 kind: Service
 metadata:
   name: mysql-operator-0-orc-svc
