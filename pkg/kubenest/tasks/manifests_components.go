@@ -2,6 +2,7 @@ package tasks
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -15,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/dynamic"
 	clientset "k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 
@@ -95,6 +97,11 @@ func applyComponentsManifests(r workflow.RunData) error {
 	templatedMapping["KUBE_PROXY_KUBECONFIG"] = string(secret.Data[constants.KubeConfig])
 	imageRepository, _ := util.GetImageMessage()
 	templatedMapping["ImageRepository"] = imageRepository
+
+	templatedMapping["PillarLocalDNS"] = constants.NodeLocalDNSIp
+	templatedMapping["PillarDNSDomain"] = constants.NodeLocalDNSClusterDomain
+	templatedMapping["PillarDNSServer"] = ""
+
 	for k, v := range data.PluginOptions() {
 		templatedMapping[k] = v
 	}
@@ -111,6 +118,7 @@ func applyComponentsManifests(r workflow.RunData) error {
 	}
 
 	UseTenantDNS := data.VirtualCluster().Spec.KubeInKubeConfig != nil && data.VirtualCluster().Spec.KubeInKubeConfig.UseTenantDNS
+	UseNodeLocalDNS := data.VirtualCluster().Spec.KubeInKubeConfig != nil && data.VirtualCluster().Spec.KubeInKubeConfig.UseNodeLocalDNS
 
 	skipComponents := getSkipComponentsForVirtualCluster([]*SkipComponentCondition{
 		{
@@ -122,6 +130,11 @@ func applyComponentsManifests(r workflow.RunData) error {
 			Condition:     !keepalivedEnable,
 			ComponentName: constants.VipKeepalivedComponentName,
 		},
+		{
+			// skip nodelocaldns component if nodelocaldns is not enabled
+			Condition:     !UseNodeLocalDNS,
+			ComponentName: constants.NodeLocalDNSComponentName,
+		},
 	})
 
 	for _, component := range components {
@@ -129,6 +142,14 @@ func applyComponentsManifests(r workflow.RunData) error {
 		if v, ok := skipComponents[component.Name]; ok && v {
 			klog.V(2).Infof("Deploy component %s skipped", component.Name)
 			continue
+		}
+		if component.Name == constants.NodeLocalDNSComponentName {
+			kubeDNSIP, err := getKubeDNSClusterIP(config)
+			if err != nil {
+				return errors.Wrap(err, "Failed to get kube-dns ClusterIP")
+			}
+			klog.Infof("kube-dns CLUSTER-IP: %s", kubeDNSIP)
+			templatedMapping["PillarClusterDNS"] = kubeDNSIP
 		}
 		err = applyTemplatedManifests(component.Name, dynamicClient, component.Path, templatedMapping)
 		if err != nil {
@@ -214,4 +235,17 @@ func applyTemplatedManifests(component string, dynamicClient dynamic.Interface, 
 		}
 	}
 	return nil
+}
+func getKubeDNSClusterIP(config *rest.Config) (string, error) {
+	client, err := clientset.NewForConfig(config)
+	if err != nil {
+		return "", fmt.Errorf("failed to create kubernetes client: %v", err)
+	}
+
+	svc, err := client.CoreV1().Services("kube-system").Get(context.TODO(), "kube-dns", metav1.GetOptions{})
+	if err != nil {
+		return "", fmt.Errorf("failed to get kube-dns service: %v", err)
+	}
+
+	return svc.Spec.ClusterIP, nil
 }
