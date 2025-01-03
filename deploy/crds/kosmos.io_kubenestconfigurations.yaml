@@ -57,6 +57,9 @@ spec:
                 type: string
               etcdUnitSize:
                 type: string
+              externalPort:
+                format: int32
+                type: integer
               forceDestroy:
                 description: todo Group according to the parameters of apiserver,
                   etcd, coredns, etc. ForceDestroy indicates whether to force destroy
@@ -77,6 +80,9 @@ spec:
                       type: string
                     type: array
                 type: object
+              useNodeLocalDNS:
+                default: false
+                type: boolean
               useTenantDNS:
                 default: false
                 type: boolean
