@@ -27,6 +27,17 @@ func (p *PrefixedLogger) Infof(format string, args ...interface{}) {
 	}
 }
 
+func (p *PrefixedLogger) Warn(args ...interface{}) {
+	if p.level.Enabled() {
+		klog.WarningDepth(1, append([]interface{}{p.prefix}, args...)...)
+	}
+}
+func (p *PrefixedLogger) Warnf(format string, args ...interface{}) {
+	if p.level.Enabled() {
+		klog.WarningDepth(1, fmt.Sprintf(p.prefix+format, args...))
+	}
+}
+
 func (p *PrefixedLogger) Error(args ...interface{}) {
 	klog.ErrorDepth(1, append([]interface{}{p.prefix}, args...)...)
 }

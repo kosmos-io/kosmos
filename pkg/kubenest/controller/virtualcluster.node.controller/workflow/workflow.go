@@ -28,7 +28,7 @@ func RunWithRetry(ctx context.Context, task task.Task, opt task.TaskOpt, preArgs
 				break
 			}
 			waitTime := 3 * (i + 1)
-			opt.Loger().Infof("work flow retry %d after %ds, task name: %s, err: %s", i, waitTime, task.Name, err)
+			opt.Loger().Warnf("work flow retry %d after %ds, task name: %s, err: %s", i, waitTime, task.Name, err)
 			time.Sleep(time.Duration(waitTime) * time.Second)
 		} else {
 			break
@@ -36,10 +36,10 @@ func RunWithRetry(ctx context.Context, task task.Task, opt task.TaskOpt, preArgs
 	}
 	if err != nil {
 		if task.ErrorIgnore {
-			opt.Loger().Infof("work flow ignore err, task name: %s, err: %s", task.Name, err)
+			opt.Loger().Warnf("work flow ignore err, task name: %s, err: %s", task.Name, err)
 			return nil, nil
 		}
-		opt.Loger().Infof("work flow interrupt, task name: %s, err: %s", task.Name, err)
+		opt.Loger().Warnf("work flow interrupt, task name: %s, err: %s", task.Name, err)
 		return nil, err
 	}
 	return args, nil

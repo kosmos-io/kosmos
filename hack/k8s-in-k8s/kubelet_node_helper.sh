@@ -202,8 +202,8 @@ function get_ca_certificate() {
 
     # verify the kubeconfig data is not empty
     if [ -z "$kubeconfig_data" ]; then
-    echo "Failed to extract certificate-authority-data."
-    return 1
+        echo "Failed to extract certificate-authority-data."
+        return 1
     fi
 
     # Base64 decoded and written to a file
@@ -284,6 +284,9 @@ function revert() {
 
     echo "NONONO use kubeadm to join node to host"
     get_ca_certificate $JOIN_HOST
+    if [ $? -ne 0 ]; then
+        exit 1
+    fi
     create_kubelet_bootstrap_config $JOIN_HOST $JOIN_TOKEN
     if [ -f "${PATH_FILE_TMP}/kubeadm-flags.env.origin" ]; then
         cp "${PATH_FILE_TMP}/kubeadm-flags.env.origin" "${PATH_KUBELET_LIB}" && \
@@ -457,16 +460,31 @@ function is_ipv6() {
     fi
 }
 
-function install_lb() {
-    if [ -z "$USE_NGINX" ]; then
-      export USE_NGINX=false
-    fi
+function wait_api_server_proxy_ready() {
+    local retries=0
+    local max_retries=10
+    local sleep_duration=6
 
-    if [ "$USE_NGINX" = false ]; then
-        exit 0
-    fi
+    while true; do
+        response=$(curl -k --connect-timeout 5 --max-time 10 https://${LOCAL_IP}:${LOCAL_PORT}/healthz)
+        
+        if [ "$response" == "ok" ]; then
+            echo "apiserver proxy is ready!"
+            return 0 
+        else
+            retries=$((retries + 1))
+            echo "apiserver proxy is not ready. Retrying(${retries}/${max_retries})..."
+            if [ "$retries" -ge "$max_retries" ]; then
+                echo "Max retries reached. apiserver proxy did not become ready."
+                return 1
+            fi
+            sleep $sleep_duration
+        fi
+    done
+}
 
-    echo "exec(1/6): get port of apiserver...."
+function install_nginx_lb() {
+    echo "exec(1/7): get port of apiserver...."
 
     PORT=$(grep 'server:' "${PATH_KUBERNETES}/${KUBELET_KUBE_CONFIG_NAME}" | awk -F '[:/]' '{print $NF}')
 
@@ -483,7 +501,7 @@ function install_lb() {
     fi
 
     # Start generating nginx.conf
-    echo "exec(2/6): generate nginx.conf...."
+    echo "exec(2/7): generate nginx.conf...."
     cat <<EOL > "$PATH_FILE_TMP/nginx.conf"
 error_log stderr notice;
 worker_processes 1;
@@ -520,21 +538,133 @@ EOL
 }
 EOL
 
-    echo "exec(3/6): create static pod"
+    echo "exec(3/7): create static pod"
     GenerateStaticNginxProxy true
 
 
-    echo "exec(4/6): restart static pod"
+    echo "exec(4/7): restart static pod"
     mv "${PATH_KUBERNETES}/manifests/nginx-proxy.yaml" "${PATH_KUBERNETES}/nginx-proxy.yaml"
     sleep 2
     mv "${PATH_KUBERNETES}/nginx-proxy.yaml" "${PATH_KUBERNETES}/manifests/nginx-proxy.yaml"
 
-    echo "exec(5/6): update kubelet.conf"
+    echo "exec(5/7): wati nginx ready"
+    if wait_api_server_proxy_ready; then
+        echo "nginx is ready"
+    else
+        echo "nginx is not ready"
+        exit 1
+    fi
+
+    echo "exec(6/7): update kubelet.conf"
     cp "${PATH_KUBERNETES}/${KUBELET_KUBE_CONFIG_NAME}" "${PATH_KUBERNETES}/${KUBELET_KUBE_CONFIG_NAME}.bak"
     sed -i "s|server: .*|server: https://${LOCAL_IP}:${LOCAL_PORT}|" "${PATH_KUBERNETES}/${KUBELET_KUBE_CONFIG_NAME}"
 
+    echo "exec(7/7): restart kubelet"
+    systemctl restart kubelet
+}
+
+function install_lvscare_lb() {
+    echo "exec(1/6): get port of apiserver...."
+
+    PORT=$(grep 'server:' "${PATH_KUBERNETES}/${KUBELET_KUBE_CONFIG_NAME}" | awk -F '[:/]' '{print $NF}')
+
+    if [ -z "$PORT" ]; then
+        echo "can not get port"
+        exit 1
+    else
+        echo "port is $PORT"
+    fi
+
+    # Start generating kube-lvscare.yaml
+    echo "exec(2/6): generate kube-lvscare.yaml...."
+
+    cat <<EOL > $PATH_KUBERNETES/manifests/kube-lvscare.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    app: kube-lvscare
+  name: kube-lvscare
+  namespace: kube-system
+spec:
+  containers:
+  - args:
+    - care
+    - --vs
+    - ${LOCAL_IP}:${LOCAL_PORT}
+    - --health-path
+    - /healthz
+    - --health-schem
+    - https
+EOL
+
+    # Loop through the array and append each server to the kube-lvscare.yaml file
+    for SERVER in "${SERVERS[@]}"; do
+        if is_ipv6 "$SERVER"; then
+            echo "    - --rs" >> "$PATH_KUBERNETES/manifests/kube-lvscare.yaml"
+            echo "    - [$SERVER]:$PORT" >> "$PATH_KUBERNETES/manifests/kube-lvscare.yaml"
+        else
+            echo "    - --rs" >> "$PATH_KUBERNETES/manifests/kube-lvscare.yaml"
+            echo "    - $SERVER:$PORT" >> "$PATH_KUBERNETES/manifests/kube-lvscare.yaml"
+        fi
+    done
+
+    # Continue writing the rest of the kube-lvscare.yaml file
+    cat <<EOL >> "$PATH_KUBERNETES/manifests/kube-lvscare.yaml"
+    command:
+    - /usr/bin/lvscare
+    image: $DOCKER_IMAGE_LVSCARE
+    imagePullPolicy: Always
+    name: kube-lvscare
+    resources: {}
+    securityContext:
+      privileged: true
+    volumeMounts:
+    - mountPath: /lib/modules
+      name: lib-modules
+      readOnly: true
+  hostNetwork: true
+  volumes:
+  - hostPath:
+      path: /lib/modules
+    name: lib-modules
+status: {}
+EOL
+
+    echo "exec(3/6): restart static pod"
+    mv "${PATH_KUBERNETES}/manifests/kube-lvscare.yaml" "${PATH_KUBERNETES}/kube-lvscare.yaml"
+    sleep 2
+    mv "${PATH_KUBERNETES}/kube-lvscare.yaml" "${PATH_KUBERNETES}/manifests/kube-lvscare.yaml"
+
+    echo "exec(4/6): wait lvscare ready"
+    if wait_api_server_proxy_ready; then
+        echo "lvscare is ready"
+    else
+        echo "lvscare is not ready"
+        exit 1
+    fi
+
+    echo "exec(5/6): update kubelet.conf"
+    cp "${PATH_KUBERNETES}/${KUBELET_KUBE_CONFIG_NAME}" "${PATH_KUBERNETES}/${KUBELET_KUBE_CONFIG_NAME}.bak"
+    sed -i "s|server: .*|server: https://${LOCAL_IP}:${LOCAL_PORT}|" "${PATH_KUBERNETES}/${KUBELET_KUBE_CONFIG_NAME}"
+    sed -i 's|certificate-authority-data: .*|insecure-skip-tls-verify: true|' "${PATH_KUBERNETES}/${KUBELET_KUBE_CONFIG_NAME}"
+
     echo "exec(6/6): restart kubelet"
     systemctl restart kubelet
+}
+
+function install_lb() {
+    if [ -z "$USE_PROXY" ]; then
+      export USE_PROXY="LVSCARE"
+    fi
+
+    if [ "$USE_PROXY" = "NGINX" ]; then
+        install_nginx_lb
+    elif [ "$USE_PROXY" = "LVSCARE" ]; then
+        install_lvscare_lb
+    else
+        exit 0
+    fi
 }
 
 # See how we were called.
