@@ -17,6 +17,7 @@ import (
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/kosmos.io/kosmos/cmd/clustertree/cluster-manager/app/options"
 	kosmosv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	leafUtils "github.com/kosmos.io/kosmos/pkg/clustertree/cluster-manager/utils"
 )
@@ -27,7 +28,8 @@ const (
 	DefaultLeaseDuration         = 40
 	DefaultRenewIntervalFraction = 0.25
 
-	DefaultNodeStatusUpdateInterval = 1 * time.Minute
+	//DefaultNodeStatusUpdateInterval = 1 * time.Minute
+	leafClusterupdateInterval = 10 * time.Second
 )
 
 type NodeLeaseController struct {
@@ -42,6 +44,9 @@ type NodeLeaseController struct {
 	nodes             []*corev1.Node
 	LeafNodeSelectors map[string]kosmosv1alpha1.NodeSelector
 	nodeLock          sync.Mutex
+	Options           *options.Options
+	// eventRecorder     record.EventRecorder
+	// eventBroadcaster  record.EventBroadcaster
 }
 
 func NewNodeLeaseController(leafClient kubernetes.Interface, root client.Client, nodes []*corev1.Node, LeafNodeSelectors map[string]kosmosv1alpha1.NodeSelector, rootClient kubernetes.Interface, LeafModelHandler leafUtils.LeafModelHandler) *NodeLeaseController {
@@ -53,7 +58,8 @@ func NewNodeLeaseController(leafClient kubernetes.Interface, root client.Client,
 		LeafModelHandler:  LeafModelHandler,
 		LeafNodeSelectors: LeafNodeSelectors,
 		leaseInterval:     getRenewInterval(),
-		statusInterval:    DefaultNodeStatusUpdateInterval,
+		//statusInterval:    DefaultNodeStatusUpdateInterval,
+		statusInterval: leafClusterupdateInterval,
 	}
 	return c
 }
@@ -74,9 +80,18 @@ func (c *NodeLeaseController) syncNodeStatus(ctx context.Context) {
 	}
 	c.nodeLock.Unlock()
 
-	err := c.updateNodeStatus(ctx, nodes, c.LeafNodeSelectors)
-	if err != nil {
-		klog.Errorf(err.Error())
+	klog.Infof("Starting to update node status to notready in root cluster.")
+	if c.Options.UpdateRootNodeStatusNotready {
+		err := c.updateNodeStatusAddNotready(ctx, nodes, c.LeafNodeSelectors)
+		if err != nil {
+			klog.Errorf("Could not update node status in root cluster,Error: %v", err)
+		}
+	}
+	if !c.Options.UpdateRootNodeStatusNotready {
+		err := c.updateNodeStatus(ctx, nodes, c.LeafNodeSelectors)
+		if err != nil {
+			klog.Errorf(err.Error())
+		}
 	}
 }
 
@@ -85,6 +100,15 @@ func (c *NodeLeaseController) updateNodeStatus(ctx context.Context, n []*corev1.
 	err := c.LeafModelHandler.UpdateRootNodeStatus(ctx, n, leafNodeSelector)
 	if err != nil {
 		klog.Errorf("Could not update node status in root cluster,Error: %v", err)
+	}
+	return nil
+}
+
+// nolint
+func (c *NodeLeaseController) updateNodeStatusAddNotready(ctx context.Context, n []*corev1.Node, leafNodeSelector map[string]kosmosv1alpha1.NodeSelector) error {
+	err := c.LeafModelHandler.UpdateRootNodeStatusAddNotready(ctx, n, leafNodeSelector)
+	if err != nil {
+		klog.Errorf("Could not update node status add notreadyin root cluster,Error: %v", err)
 	}
 	return nil
 }

@@ -194,7 +194,6 @@ func (c *ClusterController) Reconcile(ctx context.Context, request reconcile.Req
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("new manager with err %v, cluster %s", err, cluster.Name)
 	}
-
 	leafModelHandler := leafUtils.NewLeafModelHandler(cluster, c.RootClientset, leafClient)
 	c.LeafModelHandler = leafModelHandler
 
@@ -286,6 +285,7 @@ func (c *ClusterController) setupControllers(
 	}
 
 	nodeLeaseController := controllers.NewNodeLeaseController(leafClientset, c.Root, nodes, leafNodeSelector, c.RootClientset, c.LeafModelHandler)
+	nodeLeaseController.Options = c.Options
 	if err := mgr.Add(nodeLeaseController); err != nil {
 		return fmt.Errorf("error starting %s: %v", controllers.NodeLeaseControllerName, err)
 	}

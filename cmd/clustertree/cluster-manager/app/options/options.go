@@ -50,6 +50,9 @@ type Options struct {
 	BackoffOpts flags.BackoffOptions
 
 	SyncPeriod time.Duration
+
+	//Add notready status upload part for one2cluster in UpdateRootNodeStatus
+	UpdateRootNodeStatusNotready bool
 }
 
 func NewOptions() (*Options, error) {
@@ -87,6 +90,7 @@ func (o *Options) AddFlags(flags *pflag.FlagSet) {
 	flags.StringSliceVar(&o.AutoCreateMCSPrefix, "auto-mcs-prefix", []string{}, "The prefix of namespace for service to auto create mcs resources")
 	flags.StringSliceVar(&o.ReservedNamespaces, "reserved-namespaces", []string{"kube-system"}, "The namespaces protected by Kosmos that the controller-manager will skip.")
 	flags.DurationVar(&o.SyncPeriod, "sync-period", 0, "the sync period for informer to resync.")
+	flags.BoolVar(&o.UpdateRootNodeStatusNotready, "Update-RootNode-Status-Notready", false, "Turn on or off add notready status upload part for one2cluster in UpdateRootNodeStatus")
 	o.RateLimiterOpts.AddFlags(flags)
 	o.BackoffOpts.AddFlags(flags)
 	options.BindLeaderElectionFlags(&o.LeaderElection, flags)
