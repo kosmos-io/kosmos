@@ -216,7 +216,13 @@ func (pl *VolumeBinding) Filter(_ context.Context, cs *framework.CycleState, pod
 		}
 	} else {
 		// the node is real node
-		podVolumes, reasons, err = pl.Binder.FindPodVolumes(pod, state.boundClaims, state.claimsToBind, node)
+		if hasKosmosOwnerPVC(state) {
+			// the pod is bound to kosmos node
+			// in order to avoid where pv has no node affinity
+			reasons = append(reasons, scheduling.ErrReasonNodeConflict)
+		} else {
+			podVolumes, reasons, err = pl.Binder.FindPodVolumes(pod, state.boundClaims, state.claimsToBind, node)
+		}
 	}
 
 	if err != nil {
@@ -240,6 +246,33 @@ func (pl *VolumeBinding) Filter(_ context.Context, cs *framework.CycleState, pod
 	}
 
 	return nil
+}
+
+func hasKosmosOwnerPVC(state *stateData) bool {
+	isKosmosOwnerPVC := false
+
+	if len(state.boundClaims) > 0 {
+		for _, claim := range state.boundClaims {
+			if pvcHasKosmosAnnotations(claim) {
+				isKosmosOwnerPVC = true
+				break
+			}
+		}
+	}
+	if len(state.claimsToBind) > 0 {
+		for _, claim := range state.claimsToBind {
+			if pvcHasKosmosAnnotations(claim) {
+				isKosmosOwnerPVC = true
+				break
+			}
+		}
+	}
+	return isKosmosOwnerPVC
+}
+
+func pvcHasKosmosAnnotations(claim *corev1.PersistentVolumeClaim) bool {
+	_, ok := claim.Annotations[utils.KosmosResourceOwnersAnnotations]
+	return ok
 }
 
 // FindPodKosmosVolumes finds the matching PVs for PVCs and kosmos nodes to provision PVs
