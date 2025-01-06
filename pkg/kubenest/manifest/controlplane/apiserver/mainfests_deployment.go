@@ -548,6 +548,17 @@ spec:
                   audience: system:konnectivity-server
 ---
 apiVersion: v1
+kind: Service
+metadata:
+  name: konnectivity-server
+  namespace: kube-system
+spec:
+  ports:
+    - port: {{ .AgentPort }}
+      name: proxy-server
+      targetPort: {{ .AgentPort }}
+---
+apiVersion: v1
 kind: Endpoints
 metadata:
   name: konnectivity-server
@@ -560,16 +571,5 @@ subsets:
     ports:
       - port: {{ .AgentPort }}
         name: proxy-server
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: konnectivity-server
-  namespace: kube-system
-spec:
-  ports:
-    - port: {{ .AgentPort }}
-      name: proxy-server
-      targetPort: {{ .AgentPort }}
 `
 )
