@@ -259,7 +259,7 @@ func installAnpAgent(data InitData) error {
 		// create the object
 		return apiclient.TryRunCommand(func() error {
 			return util.ReplaceObject(vcClient, u)
-		}, 3)
+		}, apiclient.DefaultRetryCount)
 	}
 	return util.ForEachObjectInYAML(context.TODO(), vcClient, []byte(anpAgentManifestBytes), "", actionFunc)
 }
@@ -411,14 +411,17 @@ func runUploadProxyAgentCert(r workflow.RunData) error {
 	if err != nil {
 		return fmt.Errorf("failed to get virtual cluster client, err: %w", err)
 	}
-	err = createOrUpdateSecret(vcClient, &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      util.GetCertName(data.GetName()),
-			Namespace: "kube-system",
-			Labels:    VirtualClusterControllerLabel,
-		},
-		Data: certsData,
-	})
+
+	err = apiclient.TryRunCommand(func() error {
+		return createOrUpdateSecret(vcClient, &v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      util.GetCertName(data.GetName()),
+				Namespace: "kube-system",
+				Labels:    VirtualClusterControllerLabel,
+			},
+			Data: certsData,
+		})
+	}, apiclient.DefaultRetryCount)
 	if err != nil {
 		return fmt.Errorf("failed to upload agent cert to tenant, err: %w", err)
 	}
