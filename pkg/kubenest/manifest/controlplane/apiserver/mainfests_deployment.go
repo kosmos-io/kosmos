@@ -307,7 +307,11 @@ spec:
         image: {{ .ImageRepository }}/kas-network-proxy-server:{{ .Version }}
         resources:
           requests:
-            cpu: 1m
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
         securityContext:
           allowPrivilegeEscalation: false
           runAsUser: 0
@@ -484,9 +488,11 @@ spec:
           image: {{ .ImageRepository }}/kas-network-proxy-agent:{{ .Version }}
           resources:
             requests:
-              cpu: 50m
+              cpu: 100m
+              memory: 100Mi
             limits:
-              memory: 30Mi
+              cpu: 500m
+              memory: 500Mi
           command: [ "/proxy-agent"]
           args: [
             "--logtostderr=true",

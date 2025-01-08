@@ -27,6 +27,7 @@ const (
 	ControllerFinalizerName          = "operator.virtualcluster.io/finalizer"
 	DefaultKubeconfigPath            = "/etc/cluster-tree/cert"
 	Label                            = "virtualCluster-app"
+	LabelValue                       = "apiserver"
 	ComponentBeReadyTimeout          = 300 * time.Second
 	ComponentBeDeletedTimeout        = 300 * time.Second
 
