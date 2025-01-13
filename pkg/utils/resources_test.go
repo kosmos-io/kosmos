@@ -14,6 +14,7 @@ func TestGetNodesTotalResources(t *testing.T) {
 		name     string
 		nodes    *corev1.NodeList
 		expected corev1.ResourceList
+		notNodes map[string]corev1.Node
 	}{
 		{
 			name: "No nodes",
@@ -45,7 +46,7 @@ func TestGetNodesTotalResources(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := GetNodesTotalResources(tt.nodes)
+			result := GetNodesTotalResources(tt.nodes, tt.notNodes)
 			for key, expectedValue := range tt.expected {
 				if result[key] != expectedValue {
 					t.Errorf("expected %s for %s, got %v", expectedValue.String(), key.String(), result[key])
@@ -108,6 +109,7 @@ func TestGetPodsTotalRequestsAndLimits(t *testing.T) {
 		podList        *corev1.PodList
 		expectedReqs   corev1.ResourceList
 		expectedLimits corev1.ResourceList
+		notNodes       map[string]corev1.Node
 	}{
 		{
 			name: "No pods",
@@ -234,7 +236,7 @@ func TestGetPodsTotalRequestsAndLimits(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			reqs, limits := GetPodsTotalRequestsAndLimits(tt.podList)
+			reqs, limits := GetPodsTotalRequestsAndLimits(tt.podList, tt.notNodes)
 			for key, expectedValue := range tt.expectedReqs {
 				if reqs[key] != expectedValue {
 					t.Errorf("expected %s for requests %s, got %v", expectedValue.String(), key.String(), reqs[key])
