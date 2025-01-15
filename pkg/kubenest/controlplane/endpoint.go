@@ -122,12 +122,10 @@ func CreateOrUpdateAPIServerExternalService(kubeClient kubernetes.Interface) err
 	}
 	apiServerExternalServiceBytes, err := util.ParseTemplate(virtualcluster.APIServerExternalService, struct {
 		ServicePort int32
-		IPv4        bool
-		IPv6        bool
+		IPFamilies  []corev1.IPFamily
 	}{
 		ServicePort: port,
-		IPv4:        ipFamilies.IPv4,
-		IPv6:        ipFamilies.IPv6,
+		IPFamilies:  ipFamilies,
 	})
 	if err != nil {
 		return fmt.Errorf("error when parsing api-server-external-serive template: %w", err)
@@ -137,6 +135,7 @@ func CreateOrUpdateAPIServerExternalService(kubeClient kubernetes.Interface) err
 	if err := yaml.Unmarshal([]byte(apiServerExternalServiceBytes), &svc); err != nil {
 		return fmt.Errorf("err when decoding api-server-external-service in virtual cluster: %w", err)
 	}
+	klog.V(4).Infof("create svc %s: %s", constants.APIServerExternalService, apiServerExternalServiceBytes)
 	_, err = kubeClient.CoreV1().Services(constants.KosmosNs).Get(context.TODO(), constants.APIServerExternalService, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -159,45 +158,29 @@ func CreateOrUpdateAPIServerExternalService(kubeClient kubernetes.Interface) err
 	return nil
 }
 
-func getEndPointInfo(kubeClient kubernetes.Interface) (int32, IPFamilies, error) {
+func getEndPointInfo(kubeClient kubernetes.Interface) (int32, []corev1.IPFamily, error) {
 	klog.V(4).Info("begin to get Endpoints ports...")
+	ipFamilies := utils.IPFamilyGenerator(constants.APIServerServiceSubnet)
 	endpoints, err := kubeClient.CoreV1().Endpoints(constants.KosmosNs).Get(context.TODO(), constants.APIServerExternalService, metav1.GetOptions{})
 	if err != nil {
 		klog.Errorf("get Endpoints failed: %v", err)
-		return 0, IPFamilies{}, err
+		return 0, ipFamilies, err
 	}
 
 	if len(endpoints.Subsets) == 0 {
 		klog.Errorf("subsets is empty")
-		return 0, IPFamilies{}, fmt.Errorf("No subsets found in the endpoints")
+		return 0, ipFamilies, fmt.Errorf("No subsets found in the endpoints")
 	}
 
 	subset := endpoints.Subsets[0]
 
 	if len(subset.Ports) == 0 {
 		klog.Errorf("Port not found in the endpoint")
-		return 0, IPFamilies{}, fmt.Errorf("No ports found in the endpoint")
+		return 0, ipFamilies, fmt.Errorf("No ports found in the endpoint")
 	}
 
 	port := subset.Ports[0].Port
 	klog.V(4).Infof("The port number was successfully obtained: %d", port)
-
-	ipFamilies := IPFamilies{
-		IPv4: false,
-		IPv6: false,
-	}
-
-	// Check if the addresses contain IPv4 or IPv6
-	for _, address := range subset.Addresses {
-		if utils.IsIPv4(address.IP) {
-			ipFamilies.IPv4 = true
-		}
-		if utils.IsIPv6(address.IP) {
-			ipFamilies.IPv6 = true
-		}
-	}
-
-	klog.V(4).Infof("IPv4: %v, IPv6: %v", ipFamilies.IPv4, ipFamilies.IPv6)
 	return port, ipFamilies, nil
 }
 
