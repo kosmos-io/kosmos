@@ -70,6 +70,12 @@ func TestSyncAPIServerExternalEndpoints(t *testing.T) {
 		},
 	}
 
+	kosmosNsObj := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: constants.KosmosNs,
+		},
+	}
+
 	tests := []struct {
 		name          string
 		objects       []runtime.Object
@@ -78,12 +84,62 @@ func TestSyncAPIServerExternalEndpoints(t *testing.T) {
 		wantErr       bool
 		wantErrString string
 		wantSubsets   []corev1.EndpointSubset
+		setupKosmosNs bool
 	}{
 		{
-			name:        "Successfully syncs external endpoints",
-			objects:     []runtime.Object{},
-			mockNodes:   nodes,
-			wantSubsets: endpoint.Subsets,
+			name:          "Successfully syncs external endpoints in kosmos-system",
+			objects:       []runtime.Object{kosmosNsObj},
+			mockNodes:     nodes,
+			wantSubsets:   endpoint.Subsets,
+			setupKosmosNs: true,
+		},
+		{
+			name:          "Successfully syncs external endpoints in default when kosmos-system not exists",
+			objects:       []runtime.Object{},
+			mockNodes:     nodes,
+			wantSubsets:   endpoint.Subsets,
+			setupKosmosNs: false,
+		},
+		{
+			name: "Updates existing endpoint in kosmos-system",
+			objects: []runtime.Object{
+				kosmosNsObj,
+				&corev1.Endpoints{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      constants.APIServerExternalService,
+						Namespace: constants.KosmosNs,
+					},
+					Subsets: []corev1.EndpointSubset{
+						{
+							Addresses: []corev1.EndpointAddress{{IP: "192.168.1.2"}},
+							Ports:     []corev1.EndpointPort{{Name: "https", Port: 6443, Protocol: corev1.ProtocolTCP}},
+						},
+					},
+				},
+			},
+			mockNodes:     nodes,
+			wantSubsets:   endpoint.Subsets,
+			setupKosmosNs: true,
+		},
+		{
+			name: "Updates existing endpoint in default namespace",
+			objects: []runtime.Object{
+				&corev1.Endpoints{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      constants.APIServerExternalService,
+						Namespace: constants.DefaultNs,
+					},
+					Subsets: []corev1.EndpointSubset{
+						{
+							Addresses: []corev1.EndpointAddress{{IP: "192.168.1.2"}},
+							Ports:     []corev1.EndpointPort{{Name: "https", Port: 6443, Protocol: corev1.ProtocolTCP}},
+						},
+					},
+				},
+			},
+			mockNodes:     nodes,
+			wantSubsets:   endpoint.Subsets,
+			setupKosmosNs: false,
 		},
 		{
 			name:        "Does not update endpoint if no changes",
@@ -130,18 +186,15 @@ func TestSyncAPIServerExternalEndpoints(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Use fake clientset to simulate the Kubernetes API client (host cluster)
 			fakeHostClusterClient := fake.NewSimpleClientset(tt.objects...)
-			// Simulate the Virtual Cluster client by passing the same clientset
 			fakeVCClient := fake.NewSimpleClientset()
-			// Mock NodeGetter to return the mock nodes for Host cluster
 			mockNodeGetter := &MockNodeGetter{Nodes: tt.mockNodes, Err: tt.mockErr}
-			// Use fake clientset to simulate the Kubernetes API client (host cluster)
+
 			controller := &APIServerExternalSyncController{
 				KubeClient: fakeHostClusterClient,
 				NodeGetter: mockNodeGetter,
 			}
-			// Test the controller method using the VC's client
+
 			err := controller.SyncAPIServerExternalEndpoints(ctx, fakeVCClient, vc)
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -151,9 +204,18 @@ func TestSyncAPIServerExternalEndpoints(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				if tt.wantSubsets != nil {
-					createdEndpoint, err := fakeVCClient.CoreV1().Endpoints(constants.KosmosNs).Get(ctx, constants.APIServerExternalService, metav1.GetOptions{})
-					assert.NoError(t, err)
-					assert.True(t, reflect.DeepEqual(createdEndpoint.Subsets, tt.wantSubsets))
+					var createdEndpoint *corev1.Endpoints
+					var err error
+
+					if tt.setupKosmosNs {
+						createdEndpoint, err = fakeVCClient.CoreV1().Endpoints(constants.KosmosNs).Get(ctx, constants.APIServerExternalService, metav1.GetOptions{})
+					} else {
+						createdEndpoint, err = fakeVCClient.CoreV1().Endpoints(constants.DefaultNs).Get(ctx, constants.APIServerExternalService, metav1.GetOptions{})
+					}
+
+					if err == nil {
+						assert.True(t, reflect.DeepEqual(createdEndpoint.Subsets, tt.wantSubsets))
+					}
 				}
 			}
 		})

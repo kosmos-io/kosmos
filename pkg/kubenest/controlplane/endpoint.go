@@ -18,11 +18,6 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/utils"
 )
 
-type IPFamilies struct {
-	IPv4 bool
-	IPv6 bool
-}
-
 func EnsureAPIServerExternalEndPoint(kubeClient kubernetes.Interface, apiServerExternalResource common.APIServerExternalResource) error {
 	err := EnsureKosmosSystemNamespace(kubeClient)
 	if err != nil {
