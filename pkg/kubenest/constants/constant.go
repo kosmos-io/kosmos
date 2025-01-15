@@ -39,7 +39,7 @@ const (
 	CertificateValidity            = time.Hour * 24 * 365 * 100
 	CaCertAndKeyName               = "ca"
 	VirtualClusterCertAndKeyName   = "virtualCluster"
-	VirtualClusterSystemNamespace  = "virtualCluster-system"
+	VirtualClusterSystemNamespace  = "virtual-cluster-system"
 	ApiserverCertAndKeyName        = "apiserver"
 	EtcdCaCertAndKeyName           = "etcd-ca"
 	EtcdServerCertAndKeyName       = "etcd-server"
