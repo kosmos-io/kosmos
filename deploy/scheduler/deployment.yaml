@@ -80,6 +80,7 @@ data:
               - name: "VolumeBinding"
             enabled:
               - name: "LeafNodeVolumeBinding"
+              - name: "LeafNodeWorkloadPolicy"
           filter:
             disabled:
               - name: "VolumeBinding"
@@ -88,14 +89,18 @@ data:
               - name: "LeafNodeTaintToleration"
               - name: "LeafNodeVolumeBinding"
               - name: "LeafNodeDistribution"
+              - name: "LeafNodeWorkloadPolicy"
           score:
             disabled:
               - name: "VolumeBinding"
+            enabled:
+              - name: "LeafNodeWorkloadPolicy"
           reserve:
             disabled:
               - name: "VolumeBinding"
             enabled:
               - name: "LeafNodeVolumeBinding"
+              - name: "LeafNodeWorkloadPolicy"
           preBind:
             disabled:
               - name: "VolumeBinding"
@@ -106,6 +111,10 @@ data:
             args:
               bindTimeoutSeconds: 5
           - name: LeafNodeDistribution
+            args:
+            # kubeConfigPath: "REPLACE_ME_WITH_KUBE_CONFIG_PATH"
+              kubeConfigPath: "/etc/kubernetes/kubeconfig"
+          - name: LeafNodeWorkloadPolicy
             args:
             # kubeConfigPath: "REPLACE_ME_WITH_KUBE_CONFIG_PATH"
               kubeConfigPath: "/etc/kubernetes/kubeconfig"
