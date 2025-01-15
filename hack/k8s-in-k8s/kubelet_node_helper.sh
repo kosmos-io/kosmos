@@ -572,7 +572,7 @@ EOL
 }
 
 function install_lvscare_lb() {
-    echo "exec(1/6): get port of apiserver...."
+    echo "exec(1/7): get port of apiserver...."
 
     PORT=$(grep 'server:' "${PATH_KUBERNETES}/${KUBELET_KUBE_CONFIG_NAME}" | awk -F '[:/]' '{print $NF}')
 
@@ -584,7 +584,7 @@ function install_lvscare_lb() {
     fi
 
     # Start generating kube-lvscare.yaml
-    echo "exec(2/6): generate kube-lvscare.yaml...."
+    echo "exec(2/7): generate kube-lvscare.yaml...."
 
     cat <<EOL > $PATH_KUBERNETES/manifests/kube-lvscare.yaml
 apiVersion: v1
@@ -639,12 +639,12 @@ EOL
 status: {}
 EOL
 
-    echo "exec(3/6): restart static pod"
+    echo "exec(3/7): restart static pod"
     mv "${PATH_KUBERNETES}/manifests/kube-lvscare.yaml" "${PATH_KUBERNETES}/kube-lvscare.yaml"
     sleep 2
     mv "${PATH_KUBERNETES}/kube-lvscare.yaml" "${PATH_KUBERNETES}/manifests/kube-lvscare.yaml"
 
-    echo "exec(4/6): wait lvscare ready"
+    echo "exec(4/7): wait lvscare ready"
     if wait_api_server_proxy_ready; then
         echo "lvscare is ready"
     else
@@ -652,12 +652,20 @@ EOL
         exit 1
     fi
 
-    echo "exec(5/6): update kubelet.conf"
+    echo "exec(5/7): update kubelet.conf"
     cp "${PATH_KUBERNETES}/${KUBELET_KUBE_CONFIG_NAME}" "${PATH_KUBERNETES}/${KUBELET_KUBE_CONFIG_NAME}.bak"
-    sed -i "s|server: .*|server: https://${LOCAL_IP}:${LOCAL_PORT}|" "${PATH_KUBERNETES}/${KUBELET_KUBE_CONFIG_NAME}"
-    sed -i 's|certificate-authority-data: .*|insecure-skip-tls-verify: true|' "${PATH_KUBERNETES}/${KUBELET_KUBE_CONFIG_NAME}"
+    sed -i "s|server: .*|server: https://apiserver.virtual-cluster-system.svc:${LOCAL_PORT}|" "${PATH_KUBERNETES}/${KUBELET_KUBE_CONFIG_NAME}"
+    
+    echo "exec(6/7): update /etc/hosts"
+    local_record="${LOCAL_IP} apiserver.virtual-cluster-system.svc"
+    if grep -qFx "$local_record" /etc/hosts; then
+        echo "Record $local_record already exists in /etc/hosts."
+    else
+        sed -i "1i $local_record" /etc/hosts
+        echo "Record $local_record inserted into /etc/hosts."
+    fi
 
-    echo "exec(6/6): restart kubelet"
+    echo "exec(7/7): restart kubelet"
     systemctl restart kubelet
 }
 
