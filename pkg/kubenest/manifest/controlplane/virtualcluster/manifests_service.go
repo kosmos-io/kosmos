@@ -9,12 +9,9 @@ metadata:
   namespace: kosmos-system
 spec:
   ipFamilies:
-    {{- if .IPv4 }} 
-    - IPv4
-    {{- end }}
-    {{- if .IPv6 }} 
-    - IPv6
-    {{- end }}
+  {{- range .IPFamilies }}
+  - {{ . }}
+  {{- end }}
   ipFamilyPolicy: PreferDualStack
   type: NodePort
   ports:
