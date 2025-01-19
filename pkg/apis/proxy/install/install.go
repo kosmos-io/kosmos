@@ -17,10 +17,11 @@ limitations under the License.
 package install
 
 import (
-	"github.com/kosmos.io/kosmos/pkg/apis/proxy"
-	"github.com/kosmos.io/kosmos/pkg/apis/proxy/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+
+	"github.com/kosmos.io/kosmos/pkg/apis/proxy"
+	"github.com/kosmos.io/kosmos/pkg/apis/proxy/v1alpha1"
 )
 
 // Install registers the API group and adds types to a scheme.

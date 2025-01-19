@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 	netutils "k8s.io/utils/net"
 )
 
@@ -80,4 +81,51 @@ func HasKosmosNodeLabel(node *corev1.Node) bool {
 	}
 
 	return false
+}
+
+type MultiNamespace struct {
+	IsAll      bool
+	namespaces sets.Set[string]
+}
+
+func NewMultiNamespace() *MultiNamespace {
+	return &MultiNamespace{
+		namespaces: sets.New[string](),
+	}
+}
+
+func (n *MultiNamespace) Add(ns ...string) {
+	if len(ns) == 0 {
+		n.IsAll = true
+		n.namespaces = nil
+		return
+	}
+	if n.IsAll || n.namespaces.HasAll(ns...) {
+		return
+	}
+	n.namespaces.Insert(ns...)
+}
+
+func (n *MultiNamespace) Contains(ns ...string) bool {
+	return n.IsAll || n.namespaces.HasAll(ns...)
+}
+
+func (n *MultiNamespace) Single() (string, bool) {
+	if n.IsAll || n.namespaces.Len() != 1 {
+		return "", false
+	}
+
+	// reach here means there is exactly one namespace, so we can safely get it.
+	ns := sets.List(n.namespaces)[0]
+	return ns, true
+}
+
+func (n *MultiNamespace) Equal(another *MultiNamespace) bool {
+	if n.IsAll != another.IsAll {
+		return false
+	}
+	if n.IsAll && another.IsAll {
+		return true
+	}
+	return n.namespaces.Equal(another.namespaces)
 }

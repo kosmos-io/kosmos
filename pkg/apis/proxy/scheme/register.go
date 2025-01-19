@@ -17,13 +17,14 @@ limitations under the License.
 package scheme
 
 import (
-	"github.com/kosmos.io/kosmos/pkg/apis/proxy/install"
 	"k8s.io/apimachinery/pkg/apis/meta/internalversion"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+
+	"github.com/kosmos.io/kosmos/pkg/apis/proxy/install"
 )
 
 var (
@@ -40,5 +41,4 @@ func init() {
 	install.Install(Scheme)
 	utilruntime.Must(internalversion.AddToScheme(Scheme))
 	metav1.AddToGroupVersion(Scheme, schema.GroupVersion{Version: "v1"})
-
 }
