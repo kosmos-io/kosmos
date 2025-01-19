@@ -1,5 +1,5 @@
 /*
-Copyright The Kosmos Authors.
+Copyright 2025
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,3 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package v1alpha1 is the v1alpha1 version of the API.
+// +k8s:deepcopy-gen=package,register
+// +k8s:openapi-gen=true
+// +k8s:conversion-gen=github.com/kosmos.io/kosmos/pkg/apis/proxy
+// +groupName=proxy.kosmos.io
+package v1alpha1

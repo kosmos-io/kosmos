@@ -50,6 +50,10 @@ type PodConvertPolicyListerExpansion interface{}
 // PodConvertPolicyNamespaceLister.
 type PodConvertPolicyNamespaceListerExpansion interface{}
 
+// ResourceCacheListerExpansion allows custom methods to be added to
+// ResourceCacheLister.
+type ResourceCacheListerExpansion interface{}
+
 // ShadowDaemonSetListerExpansion allows custom methods to be added to
 // ShadowDaemonSetLister.
 type ShadowDaemonSetListerExpansion interface{}
