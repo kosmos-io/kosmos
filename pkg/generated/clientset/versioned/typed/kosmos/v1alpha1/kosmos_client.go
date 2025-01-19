@@ -21,6 +21,7 @@ type KosmosV1alpha1Interface interface {
 	GlobalNodesGetter
 	NodeConfigsGetter
 	PodConvertPoliciesGetter
+	ResourceCachesGetter
 	ShadowDaemonSetsGetter
 	VirtualClustersGetter
 	VirtualClusterPluginsGetter
@@ -65,6 +66,10 @@ func (c *KosmosV1alpha1Client) NodeConfigs() NodeConfigInterface {
 
 func (c *KosmosV1alpha1Client) PodConvertPolicies(namespace string) PodConvertPolicyInterface {
 	return newPodConvertPolicies(c, namespace)
+}
+
+func (c *KosmosV1alpha1Client) ResourceCaches() ResourceCacheInterface {
+	return newResourceCaches(c)
 }
 
 func (c *KosmosV1alpha1Client) ShadowDaemonSets(namespace string) ShadowDaemonSetInterface {
