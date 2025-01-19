@@ -5,11 +5,13 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+	genericapiserver "k8s.io/apiserver/pkg/server"
 	cliflag "k8s.io/component-base/cli/flag"
-	"k8s.io/component-base/term"
-	"k8s.io/klog/v2"
 
 	"github.com/kosmos.io/kosmos/cmd/clusterlink/proxy/app/options"
+	"github.com/kosmos.io/kosmos/pkg/sharedcli/klogflag"
+	profileflag "github.com/kosmos.io/kosmos/pkg/sharedcli/profileflag"
+	"github.com/kosmos.io/kosmos/pkg/utils"
 )
 
 // NewClusterLinkProxyCommand creates a *cobra.Command object with default parameters
@@ -17,15 +19,12 @@ func NewClusterLinkProxyCommand(ctx context.Context) *cobra.Command {
 	opts := options.NewOptions()
 
 	cmd := &cobra.Command{
-		Use:  "proxy",
-		Long: `The proxy starts a apiserver for agent access the backend proxy`,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			// validate options
-			/*
-				if errs := opts.Validate(); len(errs) != 0 {
-					return errs.ToAggregate()
-				}
-			*/
+		Use:  utils.KosmosClusrerLinkRroxyComponentName,
+		Long: `starts a server for agent kube-apiserver`,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			if err := opts.Validate(); err != nil {
+				return err
+			}
 			return run(ctx, opts)
 		},
 		Args: func(cmd *cobra.Command, args []string) error {
@@ -37,24 +36,26 @@ func NewClusterLinkProxyCommand(ctx context.Context) *cobra.Command {
 			return nil
 		},
 	}
-	namedFlagSets := opts.Flags()
 
-	fs := cmd.Flags()
-	for _, f := range namedFlagSets.FlagSets {
-		fs.AddFlagSet(f)
-	}
+	flags := cmd.Flags()
 
-	cols, _, err := term.TerminalSize(cmd.OutOrStdout())
-	if err != nil {
-		klog.Warning("term.TerminalSize err: %v", err)
-	} else {
-		cliflag.SetUsageAndHelpFunc(cmd, namedFlagSets, cols)
-	}
+	fss := cliflag.NamedFlagSets{}
+	genericFlagSet := fss.FlagSet("generic")
+	opts.AddFlags(genericFlagSet)
+
+	logsFlagSet := fss.FlagSet("logs")
+	klogflag.Add(logsFlagSet)
+
+	flags.AddFlagSet(genericFlagSet)
+	flags.AddFlagSet(logsFlagSet)
 
 	return cmd
 }
 
 func run(ctx context.Context, opts *options.Options) error {
+	// pprof
+	profileflag.ListenAndServe(opts.ProfileOpts)
+
 	config, err := opts.Config()
 	if err != nil {
 		return err
@@ -64,6 +65,18 @@ func run(ctx context.Context, opts *options.Options) error {
 	if err != nil {
 		return err
 	}
+
+	server.GenericAPIServer.AddPostStartHookOrDie("start-proxy-controller", func(context genericapiserver.PostStartHookContext) error {
+		go func() {
+			config.ExtraConfig.ProxyController.Run(context.StopCh, 1)
+		}()
+		return nil
+	})
+
+	server.GenericAPIServer.AddPostStartHookOrDie("start-apiserver-informer", func(context genericapiserver.PostStartHookContext) error {
+		config.ExtraConfig.KosmosInformerFactory.Start(context.StopCh)
+		return nil
+	})
 
 	return server.GenericAPIServer.PrepareRun().Run(ctx.Done())
 }

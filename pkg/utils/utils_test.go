@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 func TestContainsStringInUtils(t *testing.T) {
@@ -114,5 +115,45 @@ func TestFormatCIDRInUtils(t *testing.T) {
 			assert.NoError(t, err, "Expected FormatCIDR(%s) to not return an error", test.cidr)
 			assert.Equal(t, test.expect, result, "Expected FormatCIDR(%s) to be %s", test.cidr, test.expect)
 		}
+	}
+}
+
+func TestMultiNamespace(t *testing.T) {
+	type fields struct {
+		IsAll      bool
+		namespaces sets.Set[string]
+	}
+	type args struct {
+		ns []string
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+	}{
+		{
+			name: "case1",
+			fields: fields{
+				IsAll:      false,
+				namespaces: sets.Set[string]{},
+			},
+			args: args{
+				ns: []string{"ns1", "ns2"},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			n1 := NewMultiNamespace()
+			n1.Add(tt.args.ns...)
+			n2 := NewMultiNamespace()
+			n2.Add(tt.args.ns...)
+			_, single := n1.Single()
+			assert.Equal(t, n1.IsAll, false)
+			assert.Equal(t, n1.namespaces.Len(), 2)
+			assert.True(t, n1.namespaces.HasAll("ns1", "ns2"))
+			assert.True(t, n1.Equal(n2))
+			assert.False(t, single, false)
+		})
 	}
 }

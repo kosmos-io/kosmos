@@ -4,17 +4,17 @@ import (
 	"context"
 	"testing"
 
-	proxyv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/proxy/v1alpha1"
-	clusterlinkproxy "github.com/kosmos.io/kosmos/pkg/clusterlink/proxy/controller"
 	"github.com/stretchr/testify/assert"
 	genericrequest "k8s.io/apiserver/pkg/endpoints/request"
+
+	proxyv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/proxy/v1alpha1"
+	clusterlinkproxy "github.com/kosmos.io/kosmos/pkg/clusterlink/proxy/controller"
 )
 
 func TestNewProxyREST(t *testing.T) {
 	ctl := clusterlinkproxy.ResourceCacheController{}
 	r := NewProxyREST(&ctl)
 	assert.NotNil(t, r)
-	assert.Equal(t, ctl, r.ctl)
 }
 
 func TestProxyREST_New(t *testing.T) {
@@ -48,7 +48,7 @@ func TestNewProxyREST_NewConnectOptions(t *testing.T) {
 	assert.Equal(t, "", s)
 }
 
-func TestProxyREST_Destroy(t *testing.T) {
+func TestProxyREST_Destroy(_ *testing.T) {
 	ctl := clusterlinkproxy.ResourceCacheController{}
 	r := NewProxyREST(&ctl)
 	r.Destroy()

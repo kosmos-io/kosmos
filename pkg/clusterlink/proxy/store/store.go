@@ -6,32 +6,42 @@ import (
 	"strings"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/apiserver/pkg/storage"
 	"k8s.io/client-go/dynamic"
+
+	"github.com/kosmos.io/kosmos/pkg/utils"
 )
 
-// store implements storage.Interface, Providing Get/Watch/List resources from member clusters.
+// store implements storage.Interface like underlying storage,
+// Providing Get/Watch/List resources from clusters.
 type store struct {
+	gvr       schema.GroupVersionResource
+	namespace *utils.MultiNamespace
+	// newClientFunc returns a resource client
+	newClientFunc func() (dynamic.NamespaceableResourceInterface, error)
+
 	versioner storage.Versioner
 	prefix    string
-	// newClientFunc returns a resource client for member cluster apiserver
-	newClientFunc func() (dynamic.NamespaceableResourceInterface, error)
 }
 
 var _ storage.Interface = &store{}
 
-func newStore(newClientFunc func() (dynamic.NamespaceableResourceInterface, error), versioner storage.Versioner, prefix string) *store {
+func newStore(gvr schema.GroupVersionResource, newClientFunc func() (dynamic.NamespaceableResourceInterface, error), multiNS *utils.MultiNamespace, versioner storage.Versioner, prefix string) *store {
 	return &store{
 		newClientFunc: newClientFunc,
 		versioner:     versioner,
 		prefix:        prefix,
+		namespace:     multiNS,
+		gvr:           gvr,
 	}
 }
 
-// Versioner implements storage.Interface.
 func (s *store) Versioner() storage.Versioner {
 	return s.versioner
 }
@@ -39,13 +49,15 @@ func (s *store) Versioner() storage.Versioner {
 // Get implements storage.Interface.
 func (s *store) Get(ctx context.Context, key string, opts storage.GetOptions, objPtr runtime.Object) error {
 	var namespace, name string
+	// get name and namespace from path
 	part1, part2 := s.splitKey(key)
 	if part2 == "" {
-		// for cluster scope resource, key is /prefix/name. So parts are [name, ""]
 		name = part1
 	} else {
-		// for namespace scope resource, key is /prefix/namespace/name. So parts are [namespace, name]
 		namespace, name = part1, part2
+	}
+	if namespace != metav1.NamespaceAll && !s.namespace.Contains(namespace) {
+		return apierrors.NewNotFound(s.gvr.GroupResource(), name)
 	}
 
 	client, err := s.client(namespace)
@@ -57,7 +69,7 @@ func (s *store) Get(ctx context.Context, key string, opts storage.GetOptions, ob
 	if err != nil {
 		return err
 	}
-
+	setEmptyManagedFields(obj)
 	unstructuredObj := objPtr.(*unstructured.Unstructured)
 	obj.DeepCopyInto(unstructuredObj)
 	return nil
@@ -74,19 +86,39 @@ func (s *store) List(ctx context.Context, key string, opts storage.ListOptions, 
 	// For namespace scope resources, key is /prefix/namespace. Parts are [namespace, ""]
 	namespace, _ := s.splitKey(key)
 
-	client, err := s.client(namespace)
+	reqNS, objFilter, shortCircuit := filterNS(s.namespace, namespace)
+	if shortCircuit {
+		return nil
+	}
+
+	client, err := s.client(reqNS)
 	if err != nil {
 		return err
 	}
 
-	options := convertToMetaV1ListOptions(opts)
-	objects, err := client.List(ctx, options)
+	objects, err := client.List(ctx, convertToMetaV1ListOptions(opts))
 	if apierrors.IsNotFound(err) {
 		return nil
 	}
 	if err != nil {
 		return err
 	}
+
+	filteredItems := make([]unstructured.Unstructured, 0, len(objects.Items))
+	for _, obj := range objects.Items {
+		setEmptyManagedFields(obj)
+
+		if objFilter != nil {
+			obj := obj
+			if objFilter(&obj) {
+				filteredItems = append(filteredItems, obj)
+			}
+		}
+	}
+	if len(filteredItems) > 0 {
+		objects.Items = filteredItems
+	}
+
 	objects.DeepCopyInto(listObj.(*unstructured.UnstructuredList))
 	return nil
 }
@@ -101,14 +133,28 @@ func (s *store) Watch(ctx context.Context, key string, opts storage.ListOptions)
 	// For cluster scope resources, key is /prefix. Parts are ["", ""]
 	// For namespace scope resources, key is /prefix/namespace. Parts are [namespace, ""]
 	namespace, _ := s.splitKey(key)
+	reqNS, objFilter, shortCircuit := filterNS(s.namespace, namespace)
+	if shortCircuit {
+		return watch.NewEmptyWatch(), nil
+	}
 
-	client, err := s.client(namespace)
+	client, err := s.client(reqNS)
 	if err != nil {
 		return nil, err
 	}
 
-	options := convertToMetaV1ListOptions(opts)
-	return client.Watch(ctx, options)
+	watcher, err := client.Watch(ctx, convertToMetaV1ListOptions(opts))
+	if err != nil {
+		return nil, err
+	}
+	watcher = watch.Filter(watcher, func(in watch.Event) (watch.Event, bool) {
+		setEmptyManagedFields(in.Object)
+		if objFilter != nil {
+			return in, objFilter(in.Object)
+		}
+		return in, true
+	})
+	return watcher, nil
 }
 
 // Create implements storage.Interface.
@@ -158,4 +204,51 @@ func (s *store) splitKey(key string) (string, string) {
 		part1 = parts[1]
 	}
 	return part0, part1
+}
+
+// filterNS returns the namespace to request and the filter function to filter objects.
+// filter namespace, only watch cached namsspace resources
+func filterNS(cached *utils.MultiNamespace, request string) (reqNS string, objFilter func(runtime.Object) bool, shortCircuit bool) {
+	if cached.IsAll {
+		reqNS = request
+		return
+	}
+
+	if ns, ok := cached.Single(); ok {
+		if request == metav1.NamespaceAll || request == ns {
+			reqNS = ns
+		} else {
+			shortCircuit = true
+		}
+		return
+	}
+
+	if request == metav1.NamespaceAll {
+		reqNS = metav1.NamespaceAll
+		objFilter = objectFilter(cached)
+	} else if cached.Contains(request) {
+		reqNS = request
+	} else {
+		shortCircuit = true
+	}
+	return
+}
+
+func objectFilter(ns *utils.MultiNamespace) func(o runtime.Object) bool {
+	return func(o runtime.Object) bool {
+		accessor, err := meta.Accessor(o)
+		if err != nil {
+			return true
+		}
+		return ns.Contains(accessor.GetNamespace())
+	}
+}
+
+// setEmptyManagedFields sets the managed fields to empty
+func setEmptyManagedFields(obj interface{}) {
+	if accssor, err := meta.Accessor(obj); err == nil {
+		if accssor.GetManagedFields() != nil {
+			accssor.SetManagedFields(nil)
+		}
+	}
 }

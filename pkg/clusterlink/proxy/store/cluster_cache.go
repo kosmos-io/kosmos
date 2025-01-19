@@ -15,11 +15,14 @@ import (
 	"k8s.io/apiserver/pkg/registry/rest"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/klog/v2"
+
+	"github.com/kosmos.io/kosmos/pkg/utils"
 )
 
 // Store is the cache for resources from controlpanel
 type Store interface {
-	UpdateCache(resources map[schema.GroupVersionResource]struct{}) error
+	UpdateCache(resources map[schema.GroupVersionResource]*utils.MultiNamespace) error
+	HasResource(resource schema.GroupVersionResource) bool
 	GetResourceFromCache(ctx context.Context, gvr schema.GroupVersionResource, namespace, name string) (runtime.Object, string, error)
 	Stop()
 
@@ -28,53 +31,44 @@ type Store interface {
 	Watch(ctx context.Context, gvr schema.GroupVersionResource, options *metainternalversion.ListOptions) (watch.Interface, error)
 }
 
-var _ Store = &Cache{}
+var _ Store = &ClusterCache{}
 
-// Cache caches resources
-type Cache struct {
+// ClusterCache caches resources
+type ClusterCache struct {
 	lock       sync.RWMutex
 	cache      map[schema.GroupVersionResource]*resourceCache
 	restMapper meta.RESTMapper
 	client     dynamic.Interface
 }
 
-func NewClusterCache(client dynamic.Interface, restMapper meta.RESTMapper) *Cache {
-	// TODO add controller dynamic add clusterlink crd
-	cache := &Cache{
+// ReadinessCheck implements Store.
+
+func NewClusterCache(client dynamic.Interface, restMapper meta.RESTMapper) *ClusterCache {
+	cache := &ClusterCache{
 		client:     client,
 		restMapper: restMapper,
 		cache:      map[schema.GroupVersionResource]*resourceCache{},
 	}
-	resources := map[schema.GroupVersionResource]struct{}{
-		{Group: "kosmos.io", Version: "v1alpha1", Resource: "clusters"}:     {},
-		{Group: "kosmos.io", Version: "v1alpha1", Resource: "clusternodes"}: {},
-		{Group: "kosmos.io", Version: "v1alpha1", Resource: "nodeconfigs"}:  {},
-	}
-	err := cache.UpdateCache(resources)
-	if err != nil {
-		panic(err)
-	}
 	return cache
 }
 
-func (c *Cache) UpdateCache(resources map[schema.GroupVersionResource]struct{}) error {
+func (c *ClusterCache) UpdateCache(resources map[schema.GroupVersionResource]*utils.MultiNamespace) error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
-	// remove non-exist resources
-	for resource := range c.cache {
-		if _, exist := resources[resource]; !exist {
-			klog.Infof("Remove cache for %s", resource.String())
-			c.cache[resource].stop()
-			delete(c.cache, resource)
+	// remove non-exist resources and namespaces changed resource
+	for gvr, rc := range c.cache {
+		if namespaces, exist := resources[gvr]; !exist || !rc.namespaces.Equal(namespaces) {
+			klog.Infof("Remove cache for %s", gvr.String())
+			c.cache[gvr].stop()
+			delete(c.cache, gvr)
 		}
 	}
 
 	// add resource cache
-	for resource := range resources {
-		_, exist := c.cache[resource]
-		if !exist {
-			kind, err := c.restMapper.KindFor(resource)
+	for gvr, namespaces := range resources {
+		if _, exist := c.cache[gvr]; !exist {
+			kind, err := c.restMapper.KindFor(gvr)
 			if err != nil {
 				return err
 			}
@@ -84,18 +78,18 @@ func (c *Cache) UpdateCache(resources map[schema.GroupVersionResource]struct{}) 
 			}
 			namespaced := mapping.Scope.Name() == meta.RESTScopeNameNamespace
 
-			klog.Infof("Add cache for %s", resource.String())
-			cache, err := newResourceCache(resource, kind, namespaced, c.clientForResourceFunc(resource))
+			klog.Infof("Add cache for %s", gvr.String())
+			cache, err := newResourceCache(gvr, kind, namespaced, namespaces, c.clientForResourceFunc(gvr))
 			if err != nil {
 				return err
 			}
-			c.cache[resource] = cache
+			c.cache[gvr] = cache
 		}
 	}
 	return nil
 }
 
-func (c *Cache) Stop() {
+func (c *ClusterCache) Stop() {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 
@@ -104,11 +98,11 @@ func (c *Cache) Stop() {
 	}
 }
 
-func (c *Cache) GetResourceFromCache(_ context.Context, _ schema.GroupVersionResource, _, _ string) (runtime.Object, string, error) {
+func (c *ClusterCache) GetResourceFromCache(_ context.Context, _ schema.GroupVersionResource, _, _ string) (runtime.Object, string, error) {
 	return nil, "", nil
 }
 
-func (c *Cache) Get(ctx context.Context, gvr schema.GroupVersionResource, name string, options *metav1.GetOptions) (runtime.Object, error) {
+func (c *ClusterCache) Get(ctx context.Context, gvr schema.GroupVersionResource, name string, options *metav1.GetOptions) (runtime.Object, error) {
 	rc := c.cacheForResource(gvr)
 	if rc == nil {
 		return nil, fmt.Errorf("can not find gvr %v", gvr)
@@ -122,7 +116,7 @@ func (c *Cache) Get(ctx context.Context, gvr schema.GroupVersionResource, name s
 	return cloneObj, err
 }
 
-func (c *Cache) Update(ctx context.Context, gvr schema.GroupVersionResource, name string, objInfo rest.UpdatedObjectInfo, createValidation rest.ValidateObjectFunc, updateValidation rest.ValidateObjectUpdateFunc, forceAllowCreate bool, options *metav1.UpdateOptions) (runtime.Object, bool, error) {
+func (c *ClusterCache) Update(ctx context.Context, gvr schema.GroupVersionResource, name string, objInfo rest.UpdatedObjectInfo, createValidation rest.ValidateObjectFunc, updateValidation rest.ValidateObjectUpdateFunc, forceAllowCreate bool, options *metav1.UpdateOptions) (runtime.Object, bool, error) {
 	rc := c.cacheForResource(gvr)
 	if rc == nil {
 		// TODO
@@ -131,11 +125,13 @@ func (c *Cache) Update(ctx context.Context, gvr schema.GroupVersionResource, nam
 	return rc.Update(ctx, name, objInfo, createValidation, updateValidation, forceAllowCreate, options)
 }
 
-func (c *Cache) List(ctx context.Context, gvr schema.GroupVersionResource, options *metainternalversion.ListOptions) (runtime.Object, error) {
+func (c *ClusterCache) List(ctx context.Context, gvr schema.GroupVersionResource, options *metainternalversion.ListOptions) (runtime.Object, error) {
 	rc := c.cacheForResource(gvr)
 	if rc == nil {
-		// TODO
 		return nil, fmt.Errorf("can not find target gvr %v", gvr)
+	}
+	if options.ResourceVersion == "" {
+		options.ResourceVersion = "0"
 	}
 	list, err := rc.List(ctx, options)
 	if err != nil {
@@ -144,7 +140,7 @@ func (c *Cache) List(ctx context.Context, gvr schema.GroupVersionResource, optio
 	return list, nil
 }
 
-func (c *Cache) Watch(ctx context.Context, gvr schema.GroupVersionResource, options *metainternalversion.ListOptions) (watch.Interface, error) {
+func (c *ClusterCache) Watch(ctx context.Context, gvr schema.GroupVersionResource, options *metainternalversion.ListOptions) (watch.Interface, error) {
 	rc := c.cacheForResource(gvr)
 	if rc == nil {
 		return nil, fmt.Errorf("can not find target gvr %v", gvr)
@@ -156,13 +152,25 @@ func (c *Cache) Watch(ctx context.Context, gvr schema.GroupVersionResource, opti
 	return w, nil
 }
 
-func (c *Cache) clientForResourceFunc(resource schema.GroupVersionResource) func() (dynamic.NamespaceableResourceInterface, error) {
+func (c *ClusterCache) HasResource(resource schema.GroupVersionResource) bool {
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+	_, ok := c.cache[resource]
+	return ok
+}
+
+// get the client for the resource
+func (c *ClusterCache) clientForResourceFunc(resource schema.GroupVersionResource) func() (dynamic.NamespaceableResourceInterface, error) {
 	return func() (dynamic.NamespaceableResourceInterface, error) {
+		if c.client == nil {
+			return nil, errors.New("client is nil")
+		}
 		return c.client.Resource(resource), nil
 	}
 }
 
-func (c *Cache) cacheForResource(gvr schema.GroupVersionResource) *resourceCache {
+// get the cache for the resource
+func (c *ClusterCache) cacheForResource(gvr schema.GroupVersionResource) *resourceCache {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 	return c.cache[gvr]
