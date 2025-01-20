@@ -30,6 +30,7 @@ const (
 	LabelValue                       = "apiserver"
 	ComponentBeReadyTimeout          = 300 * time.Second
 	ComponentBeDeletedTimeout        = 300 * time.Second
+	WaitCorePodsRunningTimeout       = 900 * time.Second
 
 	// CertificateBlockType is a possible value for pem.Block.Type.
 	CertificateBlockType           = "CERTIFICATE"
@@ -121,8 +122,6 @@ const (
 	VipKeepalivedComponentName  = "keepalived"
 
 	ManifestComponentsConfigMap = "components-manifest-cm"
-
-	WaitAllPodsRunningTimeoutSeconds = 1800
 
 	// core-dns
 	KubeDNSSVCName = "kube-dns"
