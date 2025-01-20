@@ -16,4 +16,6 @@ type Config struct {
 	KubeconfigStream []byte
 	// LeaderElection is optional.
 	LeaderElection componentbaseconfig.LeaderElectionConfiguration
+	// Core namespaces of KubeNest in vc cluster
+	CoreNamespaces []string
 }

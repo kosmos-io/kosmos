@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -118,6 +119,9 @@ func SetupConfig(opts *options.Options) (*config.Config, error) {
 	c.Client = client
 	c.LeaderElection = opts.LeaderElection
 	c.KubeNestOptions = koc
+	c.CoreNamespaces = strings.FieldsFunc(opts.CoreNamespaces, func(r rune) bool {
+		return r == ',' || r == ' ' // 忽略空格和逗号
+	})
 
 	return c, nil
 }
@@ -269,6 +273,7 @@ func run(ctx context.Context, config *config.Config) error {
 		RootClientSet:   hostKubeClient,
 		KosmosClient:    kosmosClient,
 		KubeNestOptions: &config.KubeNestOptions,
+		CoreNamespaces:  config.CoreNamespaces,
 	}
 	if err = VirtualClusterInitController.SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("error starting %s: %v", constants.InitControllerName, err)
