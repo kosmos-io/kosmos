@@ -115,8 +115,8 @@ func TestGetEndPointInfo(t *testing.T) {
 		port, ipFamilies, err := getEndPointInfo(client)
 		assert.NoError(t, err)
 		assert.Equal(t, int32(6443), port)
-		assert.True(t, ipFamilies.IPv4)
-		assert.False(t, ipFamilies.IPv6)
+		assert.Contains(t, ipFamilies, corev1.IPv4Protocol)
+		assert.NotContains(t, ipFamilies, corev1.IPv6Protocol)
 	})
 
 	t.Run("No subsets in endpoint", func(t *testing.T) {

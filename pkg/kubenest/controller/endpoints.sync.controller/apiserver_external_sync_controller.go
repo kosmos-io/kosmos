@@ -115,8 +115,7 @@ func (e *APIServerExternalSyncController) SyncAPIServerExternalEndpoints(ctx con
 
 	newEndpoint := &v1.Endpoints{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      constants.APIServerExternalService,
-			Namespace: constants.KosmosNs,
+			Name: constants.APIServerExternalService,
 		},
 		Subsets: []v1.EndpointSubset{
 			{
@@ -132,29 +131,60 @@ func (e *APIServerExternalSyncController) SyncAPIServerExternalEndpoints(ctx con
 		},
 	}
 
-	//avoid unnecessary updates
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		currentEndpoint, err := k8sClient.CoreV1().Endpoints(constants.KosmosNs).Get(ctx, constants.APIServerExternalService, metav1.GetOptions{})
-		if apierrors.IsNotFound(err) {
-			_, err := k8sClient.CoreV1().Endpoints(constants.KosmosNs).Create(ctx, newEndpoint, metav1.CreateOptions{})
-			if err != nil {
-				return fmt.Errorf("failed to create api-server-external-service endpoint: %w", err)
+		_, err := k8sClient.CoreV1().Namespaces().Get(ctx, constants.KosmosNs, metav1.GetOptions{})
+		if err != nil {
+			if !apierrors.IsNotFound(err) {
+				return fmt.Errorf("failed to get namespace kosmos-system: %w", err)
 			}
-			klog.V(4).Info("Created api-server-external-service Endpoint")
+
+			currentEndpoint, err := k8sClient.CoreV1().Endpoints(constants.DefaultNs).Get(ctx, constants.APIServerExternalService, metav1.GetOptions{})
+			if err != nil {
+				if apierrors.IsNotFound(err) {
+					klog.V(4).Info("No endpoint found in default namespace, skipping")
+					return nil
+				}
+				return fmt.Errorf("failed to get endpoint in default: %w", err)
+			}
+
+			if !reflect.DeepEqual(currentEndpoint.Subsets, newEndpoint.Subsets) {
+				newEndpoint.ObjectMeta.Namespace = constants.DefaultNs
+				newEndpoint.ObjectMeta.ResourceVersion = currentEndpoint.ResourceVersion
+				_, err = k8sClient.CoreV1().Endpoints(constants.DefaultNs).Update(ctx, newEndpoint, metav1.UpdateOptions{})
+				if err != nil {
+					return fmt.Errorf("failed to update endpoint in default: %w", err)
+				}
+				klog.V(4).Info("Updated api-server-external-service Endpoint in default")
+			} else {
+				klog.V(4).Info("No changes detected in default Endpoint, skipping update")
+			}
 			return nil
-		} else if err != nil {
-			return fmt.Errorf("failed to get existing api-server-external-service endpoint: %w", err)
 		}
 
-		// determine if an update is needed
-		if !reflect.DeepEqual(currentEndpoint.Subsets, newEndpoint.Subsets) {
-			_, err := k8sClient.CoreV1().Endpoints(constants.KosmosNs).Update(ctx, newEndpoint, metav1.UpdateOptions{})
-			if err != nil {
-				return fmt.Errorf("failed to update api-server-external-service endpoint: %w", err)
+		currentEndpoint, err := k8sClient.CoreV1().Endpoints(constants.KosmosNs).Get(ctx, constants.APIServerExternalService, metav1.GetOptions{})
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				newEndpoint.ObjectMeta.Namespace = constants.KosmosNs
+				_, err = k8sClient.CoreV1().Endpoints(constants.KosmosNs).Create(ctx, newEndpoint, metav1.CreateOptions{})
+				if err != nil {
+					return fmt.Errorf("failed to create endpoint in kosmos-system: %w", err)
+				}
+				klog.V(4).Info("Created api-server-external-service Endpoint in kosmos-system")
+				return nil
 			}
-			klog.V(4).Info("Updated api-server-external-service Endpoint")
+			return fmt.Errorf("failed to get endpoint in kosmos-system: %w", err)
+		}
+
+		if !reflect.DeepEqual(currentEndpoint.Subsets, newEndpoint.Subsets) {
+			newEndpoint.ObjectMeta.Namespace = constants.KosmosNs
+			newEndpoint.ObjectMeta.ResourceVersion = currentEndpoint.ResourceVersion
+			_, err = k8sClient.CoreV1().Endpoints(constants.KosmosNs).Update(ctx, newEndpoint, metav1.UpdateOptions{})
+			if err != nil {
+				return fmt.Errorf("failed to update endpoint in kosmos-system: %w", err)
+			}
+			klog.V(4).Info("Updated api-server-external-service Endpoint in kosmos-system")
 		} else {
-			klog.V(4).Info("No changes detected in Endpoint, skipping update")
+			klog.V(4).Info("No changes detected in kosmos-system Endpoint, skipping update")
 		}
 		return nil
 	})
