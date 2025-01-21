@@ -29,7 +29,7 @@ function prepare_test_image() {
     docker pull bitpoke/mysql-operator-orchestrator:v0.6.3
     docker pull bitpoke/mysql-operator:v0.6.3
     docker pull bitpoke/mysql-operator-sidecar-5.7:v0.6.3
-    docker pull nginx
+    docker pull nginx:1.27.3
     docker pull percona:5.7
     docker pull prom/mysqld-exporter:v0.13.0
   else
@@ -37,14 +37,11 @@ function prepare_test_image() {
     docker pull bitpoke/mysql-operator-orchestrator:v0.6.3
     docker pull bitpoke/mysql-operator:v0.6.3
     docker pull bitpoke/mysql-operator-sidecar-5.7:v0.6.3
-    docker pull docker.m.daocloud.io/nginx
+    docker pull docker.m.daocloud.io/nginx:1.27.3
     docker pull docker.m.daocloud.io/percona:5.7
     docker pull docker.m.daocloud.io/prom/mysqld-exporter:v0.13.0
 
-    docker tag docker.m.daocloud.io/bitpoke/mysql-operator-orchestrator:v0.6.3 bitpoke/mysql-operator-orchestrator:v0.6.3
-    docker tag docker.m.daocloud.io/bitpoke/mysql-operator:v0.6.3 bitpoke/mysql-operator:v0.6.3
-    docker tag docker.m.daocloud.io/bitpoke/mysql-operator-sidecar-5.7:v0.6.3 bitpoke/mysql-operator-sidecar-5.7:v0.6.3
-    docker tag docker.m.daocloud.io/nginx nginx
+    docker tag docker.m.daocloud.io/nginx:1.27.3 nginx:1.27.3
     docker tag docker.m.daocloud.io/percona:5.7 percona:5.7
     docker tag docker.m.daocloud.io/prom/mysqld-exporter:v0.13.0 prom/mysqld-exporter:v0.13.0
   fi
@@ -59,30 +56,29 @@ function prepare_e2e_cluster() {
   kind load docker-image bitpoke/mysql-operator-orchestrator:v0.6.3 --name "${clustername}"
   kind load docker-image bitpoke/mysql-operator:v0.6.3 --name "${clustername}"
   kind load docker-image bitpoke/mysql-operator-sidecar-5.7:v0.6.3 --name "${clustername}"
-  kind load docker-image nginx --name "${clustername}"
+  kind load docker-image nginx:1.27.3 --name "${clustername}"
   kind load docker-image percona:5.7 --name "${clustername}"
   kind load docker-image prom/mysqld-exporter:v0.13.0 --name "${clustername}"
 
   kubectl --kubeconfig $CLUSTER_DIR/kubeconfig apply -f "$ROOT"/deploy/crds
+  if [[ "$clustername" == "cluster-host" ]]; then
+    # deploy kosmos-scheduler for e2e test case of mysql-operator
+    sed -e "s|__VERSION__|$VERSION|g" -e "w ${ROOT}/environments/kosmos-scheduler.yml" "$ROOT"/deploy/scheduler/deployment.yaml
+    kubectl --kubeconfig $CLUSTER_DIR/kubeconfig apply -f "${ROOT}/environments/kosmos-scheduler.yml"
+    kubectl --kubeconfig $CLUSTER_DIR/kubeconfig apply -f "$ROOT"/deploy/scheduler/rbac.yaml
+    util::wait_for_condition "kosmos scheduler are ready" \
+      "kubectl --kubeconfig $CLUSTER_DIR/kubeconfig -n kosmos-system get deploy kosmos-scheduler -o jsonpath='{.status.replicas}{\" \"}{.status.readyReplicas}{\"\n\"}' | awk '{if (\$1 == \$2 && \$1 > 0) exit 0; else exit 1}'" \
+      300
+    echo "cluster $clustername deploy kosmos-scheduler success"
 
-  # deploy kosmos-scheduler for e2e test case of mysql-operator
-  sed -e "s|__VERSION__|$VERSION|g" -e "w ${ROOT}/environments/kosmos-scheduler.yml" "$ROOT"/deploy/scheduler/deployment.yaml
-  kubectl --kubeconfig $CLUSTER_DIR/kubeconfig apply -f "${ROOT}/environments/kosmos-scheduler.yml"
-  kubectl --kubeconfig $CLUSTER_DIR/kubeconfig apply -f "$ROOT"/deploy/scheduler/rbac.yaml
+    docker exec ${clustername}-control-plane /bin/sh -c "mv /etc/kubernetes/manifests/kube-scheduler.yaml /etc/kubernetes"
 
-  util::wait_for_condition "kosmos scheduler are ready" \
-    "kubectl --kubeconfig $CLUSTER_DIR/kubeconfig -n kosmos-system get deploy kosmos-scheduler -o jsonpath='{.status.replicas}{\" \"}{.status.readyReplicas}{\"\n\"}' | awk '{if (\$1 == \$2 && \$1 > 0) exit 0; else exit 1}'" \
-    300
-  echo "cluster $clustername deploy kosmos-scheduler success"
-
-  docker exec ${clustername}-control-plane /bin/sh -c "mv /etc/kubernetes/manifests/kube-scheduler.yaml /etc/kubernetes"
-
-  # add the args for e2e test case of mysql-operator
-  kubectl --kubeconfig $CLUSTER_DIR/kubeconfig -n kosmos-system patch deployment clustertree-cluster-manager --type='json' -p='[{"op": "add", "path": "/spec/template/spec/containers/0/command/-", "value": "--auto-mcs-prefix=kosmos-e2e"}]'
-
-  util::wait_for_condition "kosmos ${clustername} clustertree are ready" \
-    "kubectl --kubeconfig $CLUSTER_DIR/kubeconfig -n kosmos-system get deploy clustertree-cluster-manager -o jsonpath='{.status.replicas}{\" \"}{.status.readyReplicas}{\"\n\"}' | awk '{if (\$1 == \$2 && \$1 > 0) exit 0; else exit 1}'" \
-    300
+    # add the args for e2e test case of mysql-operator
+    kubectl --kubeconfig $CLUSTER_DIR/kubeconfig -n kosmos-system patch deployment clustertree-cluster-manager --type='json' -p='[{"op": "add", "path": "/spec/template/spec/containers/0/command/-", "value": "--auto-mcs-prefix=kosmos-e2e"}]'
+    util::wait_for_condition "kosmos ${clustername} clustertree are ready" \
+      "kubectl --kubeconfig $CLUSTER_DIR/kubeconfig -n kosmos-system get deploy clustertree-cluster-manager -o jsonpath='{.status.replicas}{\" \"}{.status.readyReplicas}{\"\n\"}' | awk '{if (\$1 == \$2 && \$1 > 0) exit 0; else exit 1}'" \
+      300
+  fi
 }
 
 # prepare docker image

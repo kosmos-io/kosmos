@@ -21,7 +21,7 @@ const (
 	PollInterval = 15 * time.Second
 
 	// PollTimeout defines the time after which the poll operation times out.
-	PollTimeout = 180 * time.Second
+	PollTimeout = 300 * time.Second
 )
 
 func NewDeployment(namespace, name, schedulerName string, labels map[string]string, replicas *int32, nodes []string, toleration bool) *appsv1.Deployment {
