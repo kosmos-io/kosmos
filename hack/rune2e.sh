@@ -32,6 +32,11 @@ prepare_e2e_cluster "${MEMBER3_CLUSTER_NAME}" &
 
 wait
 
+kubectl --kubeconfig "${REPO_ROOT}/environments/${HOST_CLUSTER_NAME}/kubeconfig" get node
+kubectl --kubeconfig "${REPO_ROOT}/environments/${MEMBER1_CLUSTER_NAME}/kubeconfig" get node
+kubectl --kubeconfig "${REPO_ROOT}/environments/${MEMBER2_CLUSTER_NAME}/kubeconfig" get node
+kubectl --kubeconfig "${REPO_ROOT}/environments/${MEMBER3_CLUSTER_NAME}/kubeconfig" get node
+
 # e2e for nginx and mcs
 kubectl --kubeconfig "${REPO_ROOT}/environments/${HOST_CLUSTER_NAME}/kubeconfig" apply -f "${REPO_ROOT}"/test/e2e/deploy/nginx
 util::wait_for_condition "nginx are ready" \
