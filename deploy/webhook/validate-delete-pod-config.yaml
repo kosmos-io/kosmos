@@ -1,0 +1,26 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: "validate-delete-pod.kosmos.io"
+webhooks:
+  - name: "validate-delete-pod.kosmos.io"
+    rules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["DELETE"]
+        resources: ["pods"]
+        scope: "*"
+    admissionReviewVersions: ["v1"]
+    # FailurePolicy defines how unrecognized errors from the admission endpoint are handled - allowed values are
+    # Ignore or Fail. Defaults to Fail.
+    failurePolicy: Ignore
+    sideEffects: None
+    timeoutSeconds: 3
+    clientConfig:
+      service:
+        namespace: kosmos-system
+        name: kosmos-webhook
+        path: /validate-delete-pod
+        port: 9443
+      caBundle: |
+        __BASE64_CA_CRT__
