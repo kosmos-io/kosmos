@@ -1,11 +1,13 @@
 package blockwatchsyncer
 
 import (
-	"github.com/kosmos.io/kosmos/pkg/utils/lifted"
+	"time"
+
 	"github.com/projectcalico/calico/libcalico-go/lib/backend/api"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
-	"time"
+
+	"github.com/kosmos.io/kosmos/pkg/utils/lifted"
 )
 
 // syncedPollPeriod controls how often you look at the status of your sync funcs
@@ -70,7 +72,7 @@ func (b *BlockEventHandler) OnUpdates(updates []api.Update) {
 }
 
 // todo put etcd's event info AsyncWorker's queue
-func (b *BlockEventHandler) onupdate(event []api.Update) {
+func (b *BlockEventHandler) onupdate(_ []api.Update) {
 
 }
 

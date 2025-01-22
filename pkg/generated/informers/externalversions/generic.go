@@ -58,10 +58,6 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Kosmos().V1alpha1().PodConvertPolicies().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("shadowdaemonsets"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Kosmos().V1alpha1().ShadowDaemonSets().Informer()}, nil
-	case v1alpha1.SchemeGroupVersion.WithResource("virtualclusters"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Kosmos().V1alpha1().VirtualClusters().Informer()}, nil
-	case v1alpha1.SchemeGroupVersion.WithResource("virtualclusterplugins"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Kosmos().V1alpha1().VirtualClusterPlugins().Informer()}, nil
 
 		// Group=multicluster.x-k8s.io, Version=v1alpha1
 	case apisv1alpha1.SchemeGroupVersion.WithResource("serviceexports"):
