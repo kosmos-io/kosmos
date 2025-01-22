@@ -118,6 +118,7 @@ func SetupConfig(opts *options.Options) (*config.Config, error) {
 	c.Client = client
 	c.LeaderElection = opts.LeaderElection
 	c.KubeNestOptions = koc
+	c.CoreNamespaces = opts.CoreNamespaces
 
 	return c, nil
 }
@@ -269,6 +270,7 @@ func run(ctx context.Context, config *config.Config) error {
 		RootClientSet:   hostKubeClient,
 		KosmosClient:    kosmosClient,
 		KubeNestOptions: &config.KubeNestOptions,
+		CoreNamespaces:  config.CoreNamespaces,
 	}
 	if err = VirtualClusterInitController.SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("error starting %s: %v", constants.InitControllerName, err)

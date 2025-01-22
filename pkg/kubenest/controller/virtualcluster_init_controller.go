@@ -52,6 +52,8 @@ type VirtualClusterInitController struct {
 	KosmosClient    versioned.Interface
 	lock            sync.Mutex
 	KubeNestOptions *v1alpha1.KubeNestConfiguration
+	// CoreNamespaces is the namespaces of kubenest's core resources in vc cluster
+	CoreNamespaces []string
 }
 
 type NodePool struct {
@@ -172,7 +174,7 @@ func (c *VirtualClusterInitController) Reconcile(ctx context.Context, request re
 			klog.V(2).Infof("Label %d node for keepalived", reps)
 		}
 
-		err := c.ensureAllPodsRunning(updatedCluster, constants.WaitAllPodsRunningTimeoutSeconds*time.Second)
+		err := c.ensureCorePodsRunning(updatedCluster, constants.WaitCorePodsRunningTimeout)
 		if err != nil {
 			klog.Errorf("Check all pods running err: %s", err.Error())
 			updatedCluster.Status.Reason = err.Error()
@@ -584,7 +586,8 @@ func (c *VirtualClusterInitController) setGlobalNodeUsageStatus(virtualCluster *
 	return retry.RetryOnConflict(retry.DefaultRetry, updateStatusFunc)
 }
 
-func (c *VirtualClusterInitController) ensureAllPodsRunning(virtualCluster *v1alpha1.VirtualCluster, timeout time.Duration) error {
+// ensureCorePodsRunning ensures that the core pods are running.
+func (c *VirtualClusterInitController) ensureCorePodsRunning(virtualCluster *v1alpha1.VirtualCluster, timeout time.Duration) error {
 	secret, err := c.RootClientSet.CoreV1().Secrets(virtualCluster.GetNamespace()).Get(context.TODO(),
 		fmt.Sprintf("%s-%s", virtualCluster.GetName(), constants.AdminConfig), metav1.GetOptions{})
 	if err != nil {
@@ -599,50 +602,46 @@ func (c *VirtualClusterInitController) ensureAllPodsRunning(virtualCluster *v1al
 		return err
 	}
 
-	namespaceList, err := clientset.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return errors.Wrap(err, "List namespaces error")
-	}
 	endTime := time.Now().Second() + int(timeout.Seconds())
-	for _, namespace := range namespaceList.Items {
+	for _, ns := range c.CoreNamespaces {
 		startTime := time.Now().Second()
 		if startTime > endTime {
-			return errors.New("Timeout waiting for all pods running")
+			return errors.New("Timeout waiting for core pods running")
 		}
-		klog.V(2).Infof("Check if all pods ready in namespace %s", namespace.Name)
-		err := wait.PollWithContext(context.TODO(), 5*time.Second, time.Duration(endTime-startTime)*time.Second, func(ctx context.Context) (done bool, err error) {
-			klog.V(2).Infof("Check if virtualcluster %s all deployments ready in namespace %s", virtualCluster.Name, namespace.Name)
-			deployList, err := clientset.AppsV1().Deployments(namespace.Name).List(ctx, metav1.ListOptions{})
+		klog.V(2).Infof("Check if all pods ready in namespace %s", ns)
+		err = wait.PollWithContext(context.TODO(), 5*time.Second, time.Duration(endTime-startTime)*time.Second, func(ctx context.Context) (done bool, err error) {
+			klog.V(2).Infof("Check if virtualcluster %s all deployments ready in namespace %s", virtualCluster.Name, ns)
+			deployList, err := clientset.AppsV1().Deployments(ns).List(ctx, metav1.ListOptions{})
 			if err != nil {
-				return false, errors.Wrapf(err, "Get deployment list in namespace %s error", namespace.Name)
+				return false, errors.Wrapf(err, "Get deployment list in namespace %s error", ns)
 			}
 			for _, deploy := range deployList.Items {
 				if deploy.Status.AvailableReplicas != deploy.Status.Replicas {
-					klog.V(2).Infof("Deployment %s/%s is not ready yet. Available replicas: %d, Desired: %d. Waiting...", deploy.Name, namespace.Name, deploy.Status.AvailableReplicas, deploy.Status.Replicas)
+					klog.V(2).Infof("Deployment %s/%s is not ready yet. Available replicas: %d, Desired: %d. Waiting...", deploy.Name, ns, deploy.Status.AvailableReplicas, deploy.Status.Replicas)
 					return false, nil
 				}
 			}
 
-			klog.V(2).Infof("Check if virtualcluster %s all statefulset ready in namespace %s", virtualCluster.Name, namespace.Name)
-			stsList, err := clientset.AppsV1().StatefulSets(namespace.Name).List(ctx, metav1.ListOptions{})
+			klog.V(2).Infof("Check if virtualcluster %s all statefulset ready in namespace %s", virtualCluster.Name, ns)
+			stsList, err := clientset.AppsV1().StatefulSets(ns).List(ctx, metav1.ListOptions{})
 			if err != nil {
-				return false, errors.Wrapf(err, "Get statefulset list in namespace %s error", namespace.Name)
+				return false, errors.Wrapf(err, "Get statefulset list in namespace %s error", ns)
 			}
 			for _, sts := range stsList.Items {
 				if sts.Status.AvailableReplicas != sts.Status.Replicas {
-					klog.V(2).Infof("Statefulset %s/%s is not ready yet. Available replicas: %d, Desired: %d. Waiting...", sts.Name, namespace.Name, sts.Status.AvailableReplicas, sts.Status.Replicas)
+					klog.V(2).Infof("Statefulset %s/%s is not ready yet. Available replicas: %d, Desired: %d. Waiting...", sts.Name, ns, sts.Status.AvailableReplicas, sts.Status.Replicas)
 					return false, nil
 				}
 			}
 
-			klog.V(2).Infof("Check if virtualcluster %s all daemonset ready in namespace %s", virtualCluster.Name, namespace.Name)
-			damonsetList, err := clientset.AppsV1().DaemonSets(namespace.Name).List(ctx, metav1.ListOptions{})
+			klog.V(2).Infof("Check if virtualcluster %s all daemonset ready in namespace %s", virtualCluster.Name, ns)
+			damonsetList, err := clientset.AppsV1().DaemonSets(ns).List(ctx, metav1.ListOptions{})
 			if err != nil {
-				return false, errors.Wrapf(err, "Get daemonset list in namespace %s error", namespace.Name)
+				return false, errors.Wrapf(err, "Get daemonset list in namespace %s error", ns)
 			}
 			for _, daemonset := range damonsetList.Items {
 				if daemonset.Status.CurrentNumberScheduled != daemonset.Status.NumberReady {
-					klog.V(2).Infof("Daemonset %s/%s is not ready yet. Scheduled replicas: %d, Ready: %d. Waiting...", daemonset.Name, namespace.Name, daemonset.Status.CurrentNumberScheduled, daemonset.Status.NumberReady)
+					klog.V(2).Infof("Daemonset %s/%s is not ready yet. Scheduled replicas: %d, Ready: %d. Waiting...", daemonset.Name, ns, daemonset.Status.CurrentNumberScheduled, daemonset.Status.NumberReady)
 					return false, nil
 				}
 			}
