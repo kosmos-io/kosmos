@@ -1,13 +1,16 @@
 package adaper
 
 import (
+	"github.com/kosmos.io/kosmos/pkg/clusterlink/controllers/nodecidr/adaper/blockwatchsyncer"
 	clusterlister "github.com/kosmos.io/kosmos/pkg/generated/listers/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/utils/lifted"
 	"github.com/projectcalico/calico/libcalico-go/lib/backend/api"
+	"k8s.io/klog/v2"
 )
 
 type CalicoETCDAdapter struct {
 	sync              bool
+	watchSyncer       api.Syncer
 	etcdClient        api.Client
 	clusterNodeLister clusterlister.ClusterNodeLister
 	processor         lifted.AsyncWorker
@@ -25,7 +28,14 @@ func NewCalicoETCDAdapter(etcdClient api.Client,
 }
 
 func (c *CalicoETCDAdapter) Start(stopCh <-chan struct{}) error {
-	// todo use c.etcdClient to list and watch blockaffinity in etcd
+	blockEventHandler := blockwatchsyncer.NewBlockEventHandler(c.processor)
+	c.watchSyncer = blockwatchsyncer.NewBlockWatchSyncer(c.etcdClient, blockEventHandler)
+	c.watchSyncer.Start()
+	blockEventHandler.Run(stopCh)
+
+	blockEventHandler.WaitForCacheSync(stopCh)
+	c.sync = true
+	klog.Info("calico blockaffinities etcd watchsyncer started!")
 	return nil
 }
 
@@ -38,18 +48,4 @@ func (c *CalicoETCDAdapter) GetCIDRByNodeName(nodeName string) ([]string, error)
 
 func (c *CalicoETCDAdapter) Synced() bool {
 	return c.sync
-}
-
-func (c *CalicoETCDAdapter) OnAdd(obj interface{}) {
-	// todo add event info to c.processor
-}
-
-// OnUpdate handles object update event and push the object to queue.
-func (c *CalicoETCDAdapter) OnUpdate(_, newObj interface{}) {
-	// todo add event info to c.processor
-}
-
-// OnDelete handles object delete event and push the object to queue.
-func (c *CalicoETCDAdapter) OnDelete(obj interface{}) {
-	// todo add event info to c.processor
 }
