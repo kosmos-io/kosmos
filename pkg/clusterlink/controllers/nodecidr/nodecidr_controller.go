@@ -18,7 +18,9 @@ import (
 	"k8s.io/klog/v2"
 
 	clusterlinkv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
+	clustercontroller "github.com/kosmos.io/kosmos/pkg/clusterlink/controllers/cluster"
 	nodecontroller "github.com/kosmos.io/kosmos/pkg/clusterlink/controllers/node"
+	"github.com/kosmos.io/kosmos/pkg/clusterlink/controllers/nodecidr/adaper"
 	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	"github.com/kosmos.io/kosmos/pkg/generated/informers/externalversions"
 	clusterinformer "github.com/kosmos.io/kosmos/pkg/generated/informers/externalversions/kosmos/v1alpha1"
@@ -47,7 +49,7 @@ type Controller struct {
 	clusterNodeInformer clusterinformer.ClusterNodeInformer
 	clusterNodeLister   clusterlister.ClusterNodeLister
 
-	cniAdapter cniAdapter
+	cniAdapter adaper.CniAdapter
 	sync.RWMutex
 	ctx context.Context
 }
@@ -67,7 +69,7 @@ func (c *Controller) Start(ctx context.Context) error {
 
 	opt := lifted.WorkerOptions{
 		Name:               "node cidr Controller",
-		KeyFunc:            ClusterWideKeyFunc,
+		KeyFunc:            adaper.ClusterWideKeyFunc,
 		ReconcileFunc:      c.Reconcile,
 		RateLimiterOptions: c.RateLimiterOptions,
 	}
@@ -117,12 +119,19 @@ func (c *Controller) Start(ctx context.Context) error {
 	// third step: init CNI Adapter
 	if cluster.Spec.ClusterLinkOptions.CNI == calicoCNI {
 		klog.Infof("cluster %s's cni is %s", c.clusterName, calicoCNI)
-		c.cniAdapter = NewCalicoAdapter(c.config, c.clusterNodeLister, c.processor)
+		c.cniAdapter = adaper.NewCalicoAdapter(c.config, c.clusterNodeLister, c.processor)
+		if clustercontroller.CheckIsEtcd(cluster) {
+			etcdClient, err := clustercontroller.GetETCDClient(cluster)
+			if err != nil {
+				klog.Errorf("init etcd client err: %v", err)
+			}
+			c.cniAdapter = adaper.NewCalicoETCDAdapter(etcdClient, c.clusterNodeLister, c.processor)
+		}
 	} else {
 		klog.Infof("cluster %s's cni is %s", c.clusterName, cluster.Spec.ClusterLinkOptions.CNI)
-		c.cniAdapter = NewCommonAdapter(c.config, c.clusterNodeLister, c.processor)
+		c.cniAdapter = adaper.NewCommonAdapter(c.config, c.clusterNodeLister, c.processor)
 	}
-	err = c.cniAdapter.start(stopCh)
+	err = c.cniAdapter.Start(stopCh)
 	if err != nil {
 		return err
 	}
@@ -145,7 +154,7 @@ func (c *Controller) Reconcile(key lifted.QueueKey) error {
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.Info("maybe clusterWideKey.Name is k8s node's name instead of clusternode's name,try to get node podCIDRs")
-			nodePodcidr, err := c.cniAdapter.getCIDRByNodeName(clusterWideKey.Name)
+			nodePodcidr, err := c.cniAdapter.GetCIDRByNodeName(clusterWideKey.Name)
 			// get cluster node name by clustername and k8s node's name
 			clusterNodeName := nodecontroller.ClusterNodeName(c.clusterName, clusterWideKey.Name)
 			// if err is no nil, means get node error or list blockAffinities error
@@ -192,12 +201,12 @@ func (c *Controller) Reconcile(key lifted.QueueKey) error {
 		return nil
 	}
 
-	if !c.cniAdapter.synced() {
+	if !c.cniAdapter.Synced() {
 		c.processor.AddAfter(key, requeueTime)
 		return nil
 	}
 
-	podCIDRs, err := c.cniAdapter.getCIDRByNodeName(originNodeName)
+	podCIDRs, err := c.cniAdapter.GetCIDRByNodeName(originNodeName)
 	if err != nil {
 		klog.Errorf("get node %s's podCIDRs err: %v", originNodeName, err)
 		return err
@@ -215,11 +224,6 @@ func (c *Controller) Reconcile(key lifted.QueueKey) error {
 		klog.Infof("update clusternode %s succcessfuly", clusterNodeCopy.Name)
 		return nil
 	})
-}
-
-// ClusterWideKeyFunc generates a ClusterWideKey for object.
-func ClusterWideKeyFunc(obj interface{}) (lifted.QueueKey, error) {
-	return keys.ClusterWideKeyFunc(obj)
 }
 
 // OnAdd handles object add event and push the object to queue.

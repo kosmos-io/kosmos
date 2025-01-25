@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	"github.com/projectcalico/calico/libcalico-go/lib/apiconfig"
+	"github.com/projectcalico/calico/libcalico-go/lib/backend/api"
+	"github.com/projectcalico/calico/libcalico-go/lib/backend/etcdv3"
 	"github.com/projectcalico/calico/libcalico-go/lib/clientv3"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -46,68 +48,93 @@ func CheckIsEtcd(cluster *clusterlinkv1alpha1.Cluster) bool {
 }
 
 func GetCalicoClient(cluster *clusterlinkv1alpha1.Cluster) (clientv3.Interface, error) {
-	var calicoConfig CalicoConfig
-	config, err := ctrl.GetConfig()
+	calicoConfig, err := getCalicoAPIConfig(cluster)
 	if err != nil {
-		klog.Errorf("failed to get k8s config: %v", err)
+		klog.Errorf("Error getting calicAPIConfig: %v", err)
 		return nil, err
 	}
 
-	clientSet, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		klog.Errorf("failed to build k8s kubeClient: %v", err)
-		return nil, err
-	}
-
-	clusterConfigMap, err := clientSet.CoreV1().ConfigMaps(utils.DefaultNamespace).Get(context.Background(), cluster.Name, metav1.GetOptions{})
-	if err != nil {
-		klog.Errorf("failed to get cluster configmap, cluster name is %s.", cluster.Name)
-		return nil, err
-	}
-
-	calicoAPIConfig := apiconfig.NewCalicoAPIConfig()
-	calicoData := clusterConfigMap.Data
-	calicoJSONStr, err := json.Marshal(calicoData)
-	if err != nil {
-		klog.Errorf("failed to marshal cluster configmap %s to json string.", cluster.Name)
-		return nil, err
-	}
-	err = json.Unmarshal(calicoJSONStr, &calicoConfig)
-	if err != nil {
-		klog.Errorf("failed to unmarshal json string to calico config, cluster configmap is %s.", cluster.Name)
-		return nil, err
-	}
-
-	// Decoding etcd config.
-	decodeEtcdKey, err := base64.StdEncoding.DecodeString(calicoConfig.EtcdKey)
-	if err != nil {
-		klog.Errorf("decoding exception, etcd key is invalid, cluster name is %s.", cluster.Name)
-		return nil, err
-	}
-	decodeEtcdCert, err := base64.StdEncoding.DecodeString(calicoConfig.EtcdCert)
-	if err != nil {
-		klog.Errorf("decoding exception, etcd cert is invalid, cluster name is %s.", cluster.Name)
-		return nil, err
-	}
-	decodeEtcdCACert, err := base64.StdEncoding.DecodeString(calicoConfig.EtcdCACert)
-	if err != nil {
-		klog.Errorf("decoding exception, etcd ca.cert is invalid, cluster name is %s.", cluster.Name)
-		return nil, err
-	}
-
-	calicoAPIConfig.Spec.DatastoreType = apiconfig.DatastoreType(calicoConfig.DatastoreType)
-	calicoAPIConfig.Spec.EtcdEndpoints = calicoConfig.EtcdEndpoints
-	calicoAPIConfig.Spec.EtcdKey = string(decodeEtcdKey)
-	calicoAPIConfig.Spec.EtcdCert = string(decodeEtcdCert)
-	calicoAPIConfig.Spec.EtcdCACert = string(decodeEtcdCACert)
-
-	calicoClient, err := clientv3.New(*calicoAPIConfig)
+	calicoClient, err := clientv3.New(*calicoConfig)
 	if err != nil {
 		klog.Errorf("failed to new kubeClient, cluster name is %s.", cluster.Name)
 		return nil, err
 	}
 
 	return calicoClient, nil
+}
+
+func GetETCDClient(cluster *clusterlinkv1alpha1.Cluster) (api.Client, error) {
+	calicoConfig, err := getCalicoAPIConfig(cluster)
+	if err != nil {
+		klog.Errorf("Error getting calicAPIConfig: %v", err)
+		return nil, err
+	}
+
+	etcdV3Client, err := etcdv3.NewEtcdV3Client(&calicoConfig.Spec.EtcdConfig)
+	if err != nil {
+		klog.Errorf("failed to new etcdClient, cluster name is %s.", cluster.Name)
+		return nil, err
+	}
+
+	return etcdV3Client, nil
+}
+
+func getCalicoAPIConfig(cluster *clusterlinkv1alpha1.Cluster) (*apiconfig.CalicoAPIConfig, error) {
+	config, err := ctrl.GetConfig()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get k8s config: %v", err)
+	}
+
+	clientSet, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build k8s kubeClient: %v", err)
+	}
+
+	clusterConfigMap, err := clientSet.CoreV1().ConfigMaps(utils.DefaultNamespace).Get(context.Background(), cluster.Name, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get cluster ConfigMap for cluster %s: %v", cluster.Name, err)
+	}
+
+	var calicoConfig CalicoConfig
+	calicoData := clusterConfigMap.Data
+	calicoJSONStr, err := json.Marshal(calicoData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal ConfigMap data for cluster %s to JSON: %v", cluster.Name, err)
+	}
+
+	if err := json.Unmarshal(calicoJSONStr, &calicoConfig); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal JSON to CalicoConfig for cluster %s: %v", cluster.Name, err)
+	}
+
+	etcdKey, err := decodeBase64(calicoConfig.EtcdKey, "etcd key", cluster.Name)
+	if err != nil {
+		return nil, err
+	}
+	etcdCert, err := decodeBase64(calicoConfig.EtcdCert, "etcd cert", cluster.Name)
+	if err != nil {
+		return nil, err
+	}
+	etcdCACert, err := decodeBase64(calicoConfig.EtcdCACert, "etcd CA cert", cluster.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	calicoAPIConfig := apiconfig.NewCalicoAPIConfig()
+	calicoAPIConfig.Spec.DatastoreType = apiconfig.DatastoreType(calicoConfig.DatastoreType)
+	calicoAPIConfig.Spec.EtcdEndpoints = calicoConfig.EtcdEndpoints
+	calicoAPIConfig.Spec.EtcdKey = etcdKey
+	calicoAPIConfig.Spec.EtcdCert = etcdCert
+	calicoAPIConfig.Spec.EtcdCACert = etcdCACert
+
+	return calicoAPIConfig, nil
+}
+
+func decodeBase64(encoded, fieldName, clusterName string) (string, error) {
+	decoded, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		return "", fmt.Errorf("failed to decode %s for cluster %s: %v", fieldName, clusterName, err)
+	}
+	return string(decoded), nil
 }
 
 func ResolveServiceCIDRs(pod *corev1.Pod) ([]string, error) {
