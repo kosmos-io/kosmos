@@ -546,6 +546,7 @@ github.com/projectcalico/calico/libcalico-go/lib/backend/k8s
 github.com/projectcalico/calico/libcalico-go/lib/backend/k8s/conversion
 github.com/projectcalico/calico/libcalico-go/lib/backend/k8s/resources
 github.com/projectcalico/calico/libcalico-go/lib/backend/model
+github.com/projectcalico/calico/libcalico-go/lib/backend/watchersyncer
 github.com/projectcalico/calico/libcalico-go/lib/clientv3
 github.com/projectcalico/calico/libcalico-go/lib/errors
 github.com/projectcalico/calico/libcalico-go/lib/hash
