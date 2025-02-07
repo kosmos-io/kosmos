@@ -72,6 +72,7 @@ type VipPool struct {
 const (
 	VirtualClusterControllerFinalizer = "kosmos.io/virtualcluster-controller"
 	RequeueTime                       = 10 * time.Second
+	singleCheckTimeout                = 3 * time.Second
 )
 
 var nameMap = map[string]int{
@@ -749,8 +750,11 @@ func CheckPortOnHost(addr string, port int32) (bool, error) {
 
 	var ret *exector.ExectorReturn
 	err := apiclient.TryRunCommand(func() error {
-		ret = hostExectorHelper.DoExector(context.TODO().Done(), checkCmd)
-		if ret.Code != 1000 {
+		ctx, cancel := context.WithTimeout(context.Background(), singleCheckTimeout)
+		defer cancel()
+
+		ret = hostExectorHelper.DoExector(ctx.Done(), checkCmd)
+		if ret.Code != 0 && ret.Code != 1000 {
 			return fmt.Errorf("chekc port failed, err: %s", ret.String())
 		}
 		return nil
@@ -761,7 +765,7 @@ func CheckPortOnHost(addr string, port int32) (bool, error) {
 		return true, err
 	}
 
-	if ret.Status != exector.SUCCESS {
+	if ret.Code != 0 && ret.Status != exector.SUCCESS {
 		return true, fmt.Errorf("pod[%d] is occupied", port)
 	}
 	return false, nil
@@ -911,40 +915,31 @@ func (c *VirtualClusterInitController) GetHostNetworkPorts(virtualCluster *v1alp
 		return nil, err
 	}
 
-	// 检查是否手动指定了 APIServerPortKey 的端口号
 	var specifiedAPIServerPort int32
 	if virtualCluster.Spec.KubeInKubeConfig != nil && virtualCluster.Spec.KubeInKubeConfig.ExternalPort != 0 {
 		specifiedAPIServerPort = virtualCluster.Spec.KubeInKubeConfig.ExternalPort
 		klog.V(4).InfoS("APIServerPortKey specified manually", "port", specifiedAPIServerPort)
 	}
-
-	// 保存最终的分配结果
 	ports := make([]int32, 0)
 
-	// 如果手动指定了 APIServerPortKey 的端口，先检查端口是否可用
 	if specifiedAPIServerPort != 0 {
-		// 检查手动指定的端口是否已经被占用
 		if !c.isPortAllocated(specifiedAPIServerPort, hostAddress) {
 			ports = append(ports, specifiedAPIServerPort) // 使用手动指定的端口
 		} else {
-			// 如果指定的端口已经被占用，则返回错误
 			klog.Errorf("Specified APIServerPortKey port %d is already allocated", specifiedAPIServerPort)
 			return nil, fmt.Errorf("specified APIServerPortKey port %d is already allocated", specifiedAPIServerPort)
 		}
 	}
 
-	// 从端口池中继续分配剩余的端口（确保端口数量满足要求）
 	for p, err := next(); err == nil; p, err = next() {
-		// 检查生成的端口是否被占用
 		if !c.isPortAllocated(p, hostAddress) {
 			ports = append(ports, p)
 			if len(ports) >= constants.VirtualClusterPortNum {
-				break // 分配到足够的端口后退出
+				break
 			}
 		}
 	}
 
-	// 检查分配的端口数量是否足够
 	if len(ports) < constants.VirtualClusterPortNum {
 		klog.Errorf("No available ports to allocate, need %d, got %d", constants.VirtualClusterPortNum, len(ports))
 		return nil, fmt.Errorf("no available ports to allocate, need %d, got %d", constants.VirtualClusterPortNum, len(ports))
