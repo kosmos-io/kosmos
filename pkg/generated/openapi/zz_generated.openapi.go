@@ -18,7 +18,6 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.AdvancedTerm":                       schema_pkg_apis_kosmos_v1alpha1_AdvancedTerm(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.AffinityConverter":                  schema_pkg_apis_kosmos_v1alpha1_AffinityConverter(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Arp":                                schema_pkg_apis_kosmos_v1alpha1_Arp(ref),
-		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Chart":                              schema_pkg_apis_kosmos_v1alpha1_Chart(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Cluster":                            schema_pkg_apis_kosmos_v1alpha1_Cluster(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterDistributionPolicy":          schema_pkg_apis_kosmos_v1alpha1_ClusterDistributionPolicy(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterDistributionPolicyList":      schema_pkg_apis_kosmos_v1alpha1_ClusterDistributionPolicyList(ref),
@@ -52,7 +51,6 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.GlobalNodeSpec":                     schema_pkg_apis_kosmos_v1alpha1_GlobalNodeSpec(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.GlobalNodeStatus":                   schema_pkg_apis_kosmos_v1alpha1_GlobalNodeStatus(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.HostAliasesConverter":               schema_pkg_apis_kosmos_v1alpha1_HostAliasesConverter(ref),
-		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.HostPath":                           schema_pkg_apis_kosmos_v1alpha1_HostPath(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Iptables":                           schema_pkg_apis_kosmos_v1alpha1_Iptables(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.KosmosKubeConfig":                   schema_pkg_apis_kosmos_v1alpha1_KosmosKubeConfig(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.KubeInKubeConfig":                   schema_pkg_apis_kosmos_v1alpha1_KubeInKubeConfig(ref),
@@ -64,39 +62,23 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeConfigList":                     schema_pkg_apis_kosmos_v1alpha1_NodeConfigList(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeConfigSpec":                     schema_pkg_apis_kosmos_v1alpha1_NodeConfigSpec(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeConfigStatus":                   schema_pkg_apis_kosmos_v1alpha1_NodeConfigStatus(ref),
-		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeInfo":                           schema_pkg_apis_kosmos_v1alpha1_NodeInfo(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeNameConverter":                  schema_pkg_apis_kosmos_v1alpha1_NodeNameConverter(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeSelector":                       schema_pkg_apis_kosmos_v1alpha1_NodeSelector(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeSelectorConverter":              schema_pkg_apis_kosmos_v1alpha1_NodeSelectorConverter(ref),
-		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Plugin":                             schema_pkg_apis_kosmos_v1alpha1_Plugin(ref),
-		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PluginOptions":                      schema_pkg_apis_kosmos_v1alpha1_PluginOptions(ref),
-		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PluginSet":                          schema_pkg_apis_kosmos_v1alpha1_PluginSet(ref),
-		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PluginSources":                      schema_pkg_apis_kosmos_v1alpha1_PluginSources(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PodConvertPolicy":                   schema_pkg_apis_kosmos_v1alpha1_PodConvertPolicy(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PodConvertPolicyList":               schema_pkg_apis_kosmos_v1alpha1_PodConvertPolicyList(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PodConvertPolicySpec":               schema_pkg_apis_kosmos_v1alpha1_PodConvertPolicySpec(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PolicyTerm":                         schema_pkg_apis_kosmos_v1alpha1_PolicyTerm(ref),
-		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PromotePolicy":                      schema_pkg_apis_kosmos_v1alpha1_PromotePolicy(ref),
-		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PromoteResources":                   schema_pkg_apis_kosmos_v1alpha1_PromoteResources(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Proxy":                              schema_pkg_apis_kosmos_v1alpha1_Proxy(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ResourceSelector":                   schema_pkg_apis_kosmos_v1alpha1_ResourceSelector(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Route":                              schema_pkg_apis_kosmos_v1alpha1_Route(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.SchedulerNameConverter":             schema_pkg_apis_kosmos_v1alpha1_SchedulerNameConverter(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ShadowDaemonSet":                    schema_pkg_apis_kosmos_v1alpha1_ShadowDaemonSet(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ShadowDaemonSetList":                schema_pkg_apis_kosmos_v1alpha1_ShadowDaemonSetList(ref),
-		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Storage":                            schema_pkg_apis_kosmos_v1alpha1_Storage(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.TenantEntrypoint":                   schema_pkg_apis_kosmos_v1alpha1_TenantEntrypoint(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.TolerationConverter":                schema_pkg_apis_kosmos_v1alpha1_TolerationConverter(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.TopologySpreadConstraintsConverter": schema_pkg_apis_kosmos_v1alpha1_TopologySpreadConstraintsConverter(ref),
-		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.VirtualCluster":                     schema_pkg_apis_kosmos_v1alpha1_VirtualCluster(ref),
-		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.VirtualClusterList":                 schema_pkg_apis_kosmos_v1alpha1_VirtualClusterList(ref),
-		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.VirtualClusterPlugin":               schema_pkg_apis_kosmos_v1alpha1_VirtualClusterPlugin(ref),
-		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.VirtualClusterPluginList":           schema_pkg_apis_kosmos_v1alpha1_VirtualClusterPluginList(ref),
-		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.VirtualClusterPluginSpec":           schema_pkg_apis_kosmos_v1alpha1_VirtualClusterPluginSpec(ref),
-		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.VirtualClusterSpec":                 schema_pkg_apis_kosmos_v1alpha1_VirtualClusterSpec(ref),
-		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.VirtualClusterStatus":               schema_pkg_apis_kosmos_v1alpha1_VirtualClusterStatus(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.VxlanCIDRs":                         schema_pkg_apis_kosmos_v1alpha1_VxlanCIDRs(ref),
-		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Yaml":                               schema_pkg_apis_kosmos_v1alpha1_Yaml(ref),
 		"k8s.io/apimachinery/pkg/apis/meta/v1.APIGroup":                                           schema_pkg_apis_meta_v1_APIGroup(ref),
 		"k8s.io/apimachinery/pkg/apis/meta/v1.APIGroupList":                                       schema_pkg_apis_meta_v1_APIGroupList(ref),
 		"k8s.io/apimachinery/pkg/apis/meta/v1.APIResource":                                        schema_pkg_apis_meta_v1_APIResource(ref),
@@ -267,70 +249,6 @@ func schema_pkg_apis_kosmos_v1alpha1_Arp(ref common.ReferenceCallback) common.Op
 				Required: []string{"ip", "mac", "dev"},
 			},
 		},
-	}
-}
-
-func schema_pkg_apis_kosmos_v1alpha1_Chart(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
-				Properties: map[string]spec.Schema{
-					"name": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
-					"repo": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
-					"storage": {
-						SchemaProps: spec.SchemaProps{
-							Default: map[string]interface{}{},
-							Ref:     ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Storage"),
-						},
-					},
-					"version": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
-					"valuesFile": {
-						SchemaProps: spec.SchemaProps{
-							Default: map[string]interface{}{},
-							Ref:     ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Storage"),
-						},
-					},
-					"values": {
-						SchemaProps: spec.SchemaProps{
-							Type: []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: "",
-										Type:    []string{"string"},
-										Format:  "",
-									},
-								},
-							},
-						},
-					},
-					"wait": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"boolean"},
-							Format: "",
-						},
-					},
-				},
-			},
-		},
-		Dependencies: []string{
-			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Storage"},
 	}
 }
 
@@ -1844,30 +1762,6 @@ func schema_pkg_apis_kosmos_v1alpha1_HostAliasesConverter(ref common.ReferenceCa
 	}
 }
 
-func schema_pkg_apis_kosmos_v1alpha1_HostPath(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
-				Properties: map[string]spec.Schema{
-					"path": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
-					"nodeName": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
-				},
-			},
-		},
-	}
-}
-
 func schema_pkg_apis_kosmos_v1alpha1_Iptables(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -2375,25 +2269,6 @@ func schema_pkg_apis_kosmos_v1alpha1_NodeConfigStatus(ref common.ReferenceCallba
 	}
 }
 
-func schema_pkg_apis_kosmos_v1alpha1_NodeInfo(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
-				Properties: map[string]spec.Schema{
-					"nodeName": {
-						SchemaProps: spec.SchemaProps{
-							Description: "NodeName defines node name",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-				},
-			},
-		},
-	}
-}
-
 func schema_pkg_apis_kosmos_v1alpha1_NodeNameConverter(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -2481,124 +2356,6 @@ func schema_pkg_apis_kosmos_v1alpha1_NodeSelectorConverter(ref common.ReferenceC
 				Required: []string{"convertType"},
 			},
 		},
-	}
-}
-
-func schema_pkg_apis_kosmos_v1alpha1_Plugin(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "Plugin specifies a plugin name",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"name": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Name defines the name of plugin",
-							Default:     "",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-				},
-				Required: []string{"name"},
-			},
-		},
-	}
-}
-
-func schema_pkg_apis_kosmos_v1alpha1_PluginOptions(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
-				Properties: map[string]spec.Schema{
-					"name": {
-						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
-						},
-					},
-					"value": {
-						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
-						},
-					},
-				},
-				Required: []string{"name", "value"},
-			},
-		},
-	}
-}
-
-func schema_pkg_apis_kosmos_v1alpha1_PluginSet(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "PluginSet specifies enabled and disabled plugins . If an array is empty, missing, or nil, all plugins of VirtualClusterPlugin will be used.",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"enabled": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Enabled specifies plugins that should be enabled .",
-							Type:        []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: map[string]interface{}{},
-										Ref:     ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Plugin"),
-									},
-								},
-							},
-						},
-					},
-					"disabled": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Disabled specifies default plugins that should be disabled.",
-							Type:        []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: map[string]interface{}{},
-										Ref:     ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Plugin"),
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-		Dependencies: []string{
-			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Plugin"},
-	}
-}
-
-func schema_pkg_apis_kosmos_v1alpha1_PluginSources(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
-				Properties: map[string]spec.Schema{
-					"chart": {
-						SchemaProps: spec.SchemaProps{
-							Default: map[string]interface{}{},
-							Ref:     ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Chart"),
-						},
-					},
-					"yaml": {
-						SchemaProps: spec.SchemaProps{
-							Default: map[string]interface{}{},
-							Ref:     ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Yaml"),
-						},
-					},
-				},
-			},
-		},
-		Dependencies: []string{
-			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Chart", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Yaml"},
 	}
 }
 
@@ -2759,78 +2516,6 @@ func schema_pkg_apis_kosmos_v1alpha1_PolicyTerm(ref common.ReferenceCallback) co
 		},
 		Dependencies: []string{
 			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.AdvancedTerm"},
-	}
-}
-
-func schema_pkg_apis_kosmos_v1alpha1_PromotePolicy(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
-				Properties: map[string]spec.Schema{
-					"labelSelector": {
-						SchemaProps: spec.SchemaProps{
-							Description: "LabelSelector is used to select nodes that are eligible for promotion to the kubernetes's control plane.",
-							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"),
-						},
-					},
-					"nodeCount": {
-						SchemaProps: spec.SchemaProps{
-							Description: "NodeCount is the number of nodes to promote to the kubernetes's control plane",
-							Default:     0,
-							Type:        []string{"integer"},
-							Format:      "int32",
-						},
-					},
-				},
-				Required: []string{"nodeCount"},
-			},
-		},
-		Dependencies: []string{
-			"k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
-	}
-}
-
-func schema_pkg_apis_kosmos_v1alpha1_PromoteResources(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
-				Properties: map[string]spec.Schema{
-					"nodeInfos": {
-						SchemaProps: spec.SchemaProps{
-							Description: "NodeInfos is the info of nodes to promote to the kubernetes's control plane",
-							Type:        []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: map[string]interface{}{},
-										Ref:     ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeInfo"),
-									},
-								},
-							},
-						},
-					},
-					"resources": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Resources is the resources to promote to the kubernetes's control plane",
-							Type:        []string{"object"},
-							AdditionalProperties: &spec.SchemaOrBool{
-								Allows: true,
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: map[string]interface{}{},
-										Ref:     ref("k8s.io/apimachinery/pkg/api/resource.Quantity"),
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-		Dependencies: []string{
-			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.NodeInfo", "k8s.io/apimachinery/pkg/api/resource.Quantity"},
 	}
 }
 
@@ -3064,38 +2749,6 @@ func schema_pkg_apis_kosmos_v1alpha1_ShadowDaemonSetList(ref common.ReferenceCal
 	}
 }
 
-func schema_pkg_apis_kosmos_v1alpha1_Storage(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
-				Properties: map[string]spec.Schema{
-					"hostPath": {
-						SchemaProps: spec.SchemaProps{
-							Default: map[string]interface{}{},
-							Ref:     ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.HostPath"),
-						},
-					},
-					"pvPath": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
-					"uri": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
-				},
-			},
-		},
-		Dependencies: []string{
-			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.HostPath"},
-	}
-}
-
 func schema_pkg_apis_kosmos_v1alpha1_TenantEntrypoint(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -3212,378 +2865,6 @@ func schema_pkg_apis_kosmos_v1alpha1_TopologySpreadConstraintsConverter(ref comm
 	}
 }
 
-func schema_pkg_apis_kosmos_v1alpha1_VirtualCluster(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
-				Properties: map[string]spec.Schema{
-					"kind": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"apiVersion": {
-						SchemaProps: spec.SchemaProps{
-							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"metadata": {
-						SchemaProps: spec.SchemaProps{
-							Default: map[string]interface{}{},
-							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
-						},
-					},
-					"spec": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Spec is the specification for the behaviour of the VirtualCluster.",
-							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.VirtualClusterSpec"),
-						},
-					},
-					"status": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Status describes the current status of a VirtualCluster.",
-							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.VirtualClusterStatus"),
-						},
-					},
-				},
-				Required: []string{"spec"},
-			},
-		},
-		Dependencies: []string{
-			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.VirtualClusterSpec", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.VirtualClusterStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
-	}
-}
-
-func schema_pkg_apis_kosmos_v1alpha1_VirtualClusterList(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
-				Properties: map[string]spec.Schema{
-					"kind": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"apiVersion": {
-						SchemaProps: spec.SchemaProps{
-							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"metadata": {
-						SchemaProps: spec.SchemaProps{
-							Default: map[string]interface{}{},
-							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
-						},
-					},
-					"items": {
-						SchemaProps: spec.SchemaProps{
-							Type: []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: map[string]interface{}{},
-										Ref:     ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.VirtualCluster"),
-									},
-								},
-							},
-						},
-					},
-				},
-				Required: []string{"metadata", "items"},
-			},
-		},
-		Dependencies: []string{
-			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.VirtualCluster", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
-	}
-}
-
-func schema_pkg_apis_kosmos_v1alpha1_VirtualClusterPlugin(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
-				Properties: map[string]spec.Schema{
-					"kind": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"apiVersion": {
-						SchemaProps: spec.SchemaProps{
-							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"metadata": {
-						SchemaProps: spec.SchemaProps{
-							Default: map[string]interface{}{},
-							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
-						},
-					},
-					"spec": {
-						SchemaProps: spec.SchemaProps{
-							Description: "VirtualClusterPluginSpec is the specification for a VirtualClusterPlugin resource",
-							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.VirtualClusterPluginSpec"),
-						},
-					},
-				},
-				Required: []string{"spec"},
-			},
-		},
-		Dependencies: []string{
-			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.VirtualClusterPluginSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
-	}
-}
-
-func schema_pkg_apis_kosmos_v1alpha1_VirtualClusterPluginList(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
-				Properties: map[string]spec.Schema{
-					"kind": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"apiVersion": {
-						SchemaProps: spec.SchemaProps{
-							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"metadata": {
-						SchemaProps: spec.SchemaProps{
-							Default: map[string]interface{}{},
-							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
-						},
-					},
-					"items": {
-						SchemaProps: spec.SchemaProps{
-							Type: []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: map[string]interface{}{},
-										Ref:     ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.VirtualClusterPlugin"),
-									},
-								},
-							},
-						},
-					},
-				},
-				Required: []string{"metadata", "items"},
-			},
-		},
-		Dependencies: []string{
-			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.VirtualClusterPlugin", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
-	}
-}
-
-func schema_pkg_apis_kosmos_v1alpha1_VirtualClusterPluginSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
-				Properties: map[string]spec.Schema{
-					"pluginSources": {
-						SchemaProps: spec.SchemaProps{
-							Default: map[string]interface{}{},
-							Ref:     ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PluginSources"),
-						},
-					},
-					"successStateCommand": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
-				},
-			},
-		},
-		Dependencies: []string{
-			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PluginSources"},
-	}
-}
-
-func schema_pkg_apis_kosmos_v1alpha1_VirtualClusterSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
-				Properties: map[string]spec.Schema{
-					"kubeconfig": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Kubeconfig is the kubeconfig of the virtual kubernetes's control plane",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"externalIP": {
-						SchemaProps: spec.SchemaProps{
-							Description: "ExternalIP is the external ip of the virtual kubernetes's control plane",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"externalIps": {
-						SchemaProps: spec.SchemaProps{
-							Description: "ExternalIps is the external ips of the virtual kubernetes's control plane",
-							Type:        []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: "",
-										Type:    []string{"string"},
-										Format:  "",
-									},
-								},
-							},
-						},
-					},
-					"kubeInKubeConfig": {
-						SchemaProps: spec.SchemaProps{
-							Description: "KubeInKubeConfig is the external config of virtual cluster",
-							Ref:         ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.KubeInKubeConfig"),
-						},
-					},
-					"promotePolicies": {
-						SchemaProps: spec.SchemaProps{
-							Description: "PromotePolicies definites the policies for promote to the kubernetes's control plane",
-							Type:        []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: map[string]interface{}{},
-										Ref:     ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PromotePolicy"),
-									},
-								},
-							},
-						},
-					},
-					"promoteResources": {
-						SchemaProps: spec.SchemaProps{
-							Description: "PromoteResources definites the resources for promote to the kubernetes's control plane, the resources can be nodes or just cpu,memory or gpu resources",
-							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PromoteResources"),
-						},
-					},
-					"pluginSet": {
-						SchemaProps: spec.SchemaProps{
-							Description: "PluginSet  is the list of plugins that will be used by the virtual kubernetes's control plane If plugins is nil or empty, all default plugins will be used",
-							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PluginSet"),
-						},
-					},
-					"pluginOptions": {
-						SchemaProps: spec.SchemaProps{
-							Description: "datasource for plugin yaml",
-							Type:        []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: map[string]interface{}{},
-										Ref:     ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PluginOptions"),
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-		Dependencies: []string{
-			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.KubeInKubeConfig", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PluginOptions", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PluginSet", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PromotePolicy", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PromoteResources"},
-	}
-}
-
-func schema_pkg_apis_kosmos_v1alpha1_VirtualClusterStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
-				Properties: map[string]spec.Schema{
-					"phase": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Phase is the phase of kosmos-operator handling the VirtualCluster",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"reason": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
-					"updateTime": {
-						SchemaProps: spec.SchemaProps{
-							Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
-						},
-					},
-					"port": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"integer"},
-							Format: "int32",
-						},
-					},
-					"portMap": {
-						SchemaProps: spec.SchemaProps{
-							Type: []string{"object"},
-							AdditionalProperties: &spec.SchemaOrBool{
-								Allows: true,
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: 0,
-										Type:    []string{"integer"},
-										Format:  "int32",
-									},
-								},
-							},
-						},
-					},
-					"vipMap": {
-						SchemaProps: spec.SchemaProps{
-							Type: []string{"object"},
-							AdditionalProperties: &spec.SchemaOrBool{
-								Allows: true,
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: "",
-										Type:    []string{"string"},
-										Format:  "",
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-		Dependencies: []string{
-			"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
-	}
-}
-
 func schema_pkg_apis_kosmos_v1alpha1_VxlanCIDRs(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -3608,27 +2889,6 @@ func schema_pkg_apis_kosmos_v1alpha1_VxlanCIDRs(ref common.ReferenceCallback) co
 				Required: []string{"ip", "ip6"},
 			},
 		},
-	}
-}
-
-func schema_pkg_apis_kosmos_v1alpha1_Yaml(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
-				Properties: map[string]spec.Schema{
-					"path": {
-						SchemaProps: spec.SchemaProps{
-							Default: map[string]interface{}{},
-							Ref:     ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Storage"),
-						},
-					},
-				},
-				Required: []string{"path"},
-			},
-		},
-		Dependencies: []string{
-			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Storage"},
 	}
 }
 

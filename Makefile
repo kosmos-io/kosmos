@@ -15,8 +15,6 @@ MACOS_TARGETS := clusterlink-controller-manager \
 				 clusterlink-network-manager \
 				 clusterlink-proxy \
 				 clustertree-cluster-manager \
-				 virtual-cluster-operator \
-				 node-agent \
 				 scheduler \
 
 # clusterlink-agent and clusterlink-floater only support linux platform
@@ -28,8 +26,6 @@ TARGETS :=  clusterlink-controller-manager \
 			clusterlink-network-manager \
 			clusterlink-proxy \
 			clustertree-cluster-manager \
-			virtual-cluster-operator \
-			node-agent \
 			scheduler \
 
 # If GOOS is macOS, assign the value of MACOS_TARGETS to TARGETS

@@ -28,10 +28,6 @@ type Interface interface {
 	PodConvertPolicies() PodConvertPolicyInformer
 	// ShadowDaemonSets returns a ShadowDaemonSetInformer.
 	ShadowDaemonSets() ShadowDaemonSetInformer
-	// VirtualClusters returns a VirtualClusterInformer.
-	VirtualClusters() VirtualClusterInformer
-	// VirtualClusterPlugins returns a VirtualClusterPluginInformer.
-	VirtualClusterPlugins() VirtualClusterPluginInformer
 }
 
 type version struct {
@@ -93,14 +89,4 @@ func (v *version) PodConvertPolicies() PodConvertPolicyInformer {
 // ShadowDaemonSets returns a ShadowDaemonSetInformer.
 func (v *version) ShadowDaemonSets() ShadowDaemonSetInformer {
 	return &shadowDaemonSetInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
-}
-
-// VirtualClusters returns a VirtualClusterInformer.
-func (v *version) VirtualClusters() VirtualClusterInformer {
-	return &virtualClusterInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
-}
-
-// VirtualClusterPlugins returns a VirtualClusterPluginInformer.
-func (v *version) VirtualClusterPlugins() VirtualClusterPluginInformer {
-	return &virtualClusterPluginInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

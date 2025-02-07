@@ -1,11 +1,12 @@
 package adaper
 
 import (
+	"github.com/projectcalico/calico/libcalico-go/lib/backend/api"
+	"k8s.io/klog/v2"
+
 	"github.com/kosmos.io/kosmos/pkg/clusterlink/controllers/nodecidr/adaper/blockwatchsyncer"
 	clusterlister "github.com/kosmos.io/kosmos/pkg/generated/listers/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/utils/lifted"
-	"github.com/projectcalico/calico/libcalico-go/lib/backend/api"
-	"k8s.io/klog/v2"
 )
 
 type CalicoETCDAdapter struct {
@@ -39,7 +40,7 @@ func (c *CalicoETCDAdapter) Start(stopCh <-chan struct{}) error {
 	return nil
 }
 
-func (c *CalicoETCDAdapter) GetCIDRByNodeName(nodeName string) ([]string, error) {
+func (c *CalicoETCDAdapter) GetCIDRByNodeName(_ string) ([]string, error) {
 	// see calicoctl/calicoctl/commands/datastore/migrate/migrateipam.go
 	// and libcalico-go/lib/backend/model/block_affinity.go
 	// todo use c.etcdClient to get blockaffinity in etcd
