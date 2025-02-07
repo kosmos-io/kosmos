@@ -459,7 +459,7 @@ func (r *RootPodReconciler) createTokenSecretInRootCluster(ctx context.Context, 
 	return tokenSecret, nil
 }
 
-// createConfigMapInLeafCluster create cm in leaf cluster
+// createConfigMapInLeafCluster create cm in leaf cluster1
 func (r *RootPodReconciler) createConfigMapInLeafCluster(ctx context.Context, lr *leafUtils.LeafResource, configMapName string, pod *corev1.Pod) (string, error) {
 	ns := pod.Namespace
 	memberConfigmapKeyName := configMapName
