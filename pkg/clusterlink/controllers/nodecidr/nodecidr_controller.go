@@ -121,6 +121,7 @@ func (c *Controller) Start(ctx context.Context) error {
 		klog.Infof("cluster %s's cni is %s", c.clusterName, calicoCNI)
 		c.cniAdapter = adaper.NewCalicoAdapter(c.config, c.clusterNodeLister, c.processor)
 		if clustercontroller.CheckIsEtcd(cluster) {
+			klog.Infof("calico store type is %s", clustercontroller.EtcdV3)
 			etcdClient, err := clustercontroller.GetETCDClient(cluster)
 			if err != nil {
 				klog.Errorf("init etcd client err: %v", err)

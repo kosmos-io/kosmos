@@ -465,14 +465,14 @@ func syncIPPool(currentClusterName string, globalExtIPPoolSet ExternalIPPoolSet,
 		}
 	}
 
-	klog.V(4).Infof("cluster %s has %d ippools to delete, they are", currentClusterName, len(deleteIPPool), deleteIPPool)
+	klog.V(4).Infof("cluster %s has %d ippools to delete, they are %v", currentClusterName, len(deleteIPPool), deleteIPPool)
 	err = client.DeleteIPPool(deleteIPPool)
 	if err != nil {
 		klog.Errorf("cluster %s delete ippool err: %v", currentClusterName, err)
 		return err
 	}
 
-	klog.V(4).Infof("cluster %s has %d ippools to modify, they are", currentClusterName, len(modifyIPPool), modifyIPPool)
+	klog.V(4).Infof("cluster %s has %d ippools to modify, they are %v", currentClusterName, len(modifyIPPool), modifyIPPool)
 	err = client.CreateOrUpdateCalicoIPPool(modifyIPPool)
 	if err != nil {
 		klog.Errorf("cluster %s modify ippool err: %v", currentClusterName, err)
