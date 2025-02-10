@@ -2,6 +2,7 @@ package networkmanager
 
 import (
 	"fmt"
+	"reflect"
 	"sync"
 
 	"github.com/pkg/errors"
@@ -29,9 +30,9 @@ type NetworkManager struct {
 }
 
 type ConfigDiff struct {
-	deleteConfig *clusterlinkv1alpha1.NodeConfigSpec
+	DeleteConfig *clusterlinkv1alpha1.NodeConfigSpec
 	// updateConfig *clusterlinkv1alpha1.NodeConfigSpec
-	createConfig *clusterlinkv1alpha1.NodeConfigSpec
+	CreateConfig *clusterlinkv1alpha1.NodeConfigSpec
 }
 
 func NewNetworkManager(network network.NetWork) *NetworkManager {
@@ -96,54 +97,60 @@ func (e *NetworkManager) Diff(oldConfig, newConfig *clusterlinkv1alpha1.NodeConf
 	deleteConfig := &clusterlinkv1alpha1.NodeConfigSpec{}
 	createConfig := &clusterlinkv1alpha1.NodeConfigSpec{}
 	isSame := true
-	// devices:
-	if flag, deleteRecord, createRecord := compareFunc(oldConfig.Devices, newConfig.Devices, func(a, b clusterlinkv1alpha1.Device) bool {
-		return a.Compare(b)
-	}); !flag {
-		deleteConfig.Devices = deleteRecord
-		createConfig.Devices = createRecord
-		isSame = false
-	}
-	// routes:
-	if flag, deleteRecord, createRecord := compareFunc(oldConfig.Routes, newConfig.Routes, func(a, b clusterlinkv1alpha1.Route) bool {
-		return a.Compare(b)
-	}); !flag {
-		deleteConfig.Routes = deleteRecord
-		createConfig.Routes = createRecord
-		isSame = false
-	}
-	// iptables:
-	if flag, deleteRecord, createRecord := compareFunc(oldConfig.Iptables, newConfig.Iptables, func(a, b clusterlinkv1alpha1.Iptables) bool {
-		return a.Compare(b)
-	}); !flag {
-		deleteConfig.Iptables = deleteRecord
-		createConfig.Iptables = createRecord
-		isSame = false
-	}
-	// fdbs:
-	if flag, deleteRecord, createRecord := compareFunc(oldConfig.Fdbs, newConfig.Fdbs, func(a, b clusterlinkv1alpha1.Fdb) bool {
-		return a.Compare(b)
-	}); !flag {
-		// filter ff:ff:ff:ff:ff:ff
-		for _, dr := range deleteRecord {
-			if dr.Mac != "ff:ff:ff:ff:ff:ff" {
-				deleteConfig.Fdbs = append(deleteConfig.Fdbs, dr)
+
+	typeOfOldConfig := reflect.TypeOf(*oldConfig)
+	valueOfDeleteConfig := reflect.ValueOf(deleteConfig).Elem()
+
+	for i := 0; i < typeOfOldConfig.NumField(); i++ {
+		fieldName := typeOfOldConfig.Field(i).Name
+		fieldType := typeOfOldConfig.Field(i).Type
+		valueByName := valueOfDeleteConfig.FieldByName(fieldName)
+
+		var flag bool
+		switch fieldName {
+		case clusterlinkv1alpha1.DeviceName:
+			flag, deleteConfig.Devices, createConfig.Devices =
+				compareFunc(oldConfig.Devices, newConfig.Devices, func(a, b clusterlinkv1alpha1.Device) bool {
+					return a.Compare(b)
+				})
+		case clusterlinkv1alpha1.RouteName:
+			flag, deleteConfig.Routes, createConfig.Routes =
+				compareFunc(oldConfig.Routes, newConfig.Routes, func(a, b clusterlinkv1alpha1.Route) bool {
+					return a.Compare(b)
+				})
+		case clusterlinkv1alpha1.IptablesName:
+			flag, deleteConfig.Iptables, createConfig.Iptables =
+				compareFunc(oldConfig.Iptables, newConfig.Iptables, func(a, b clusterlinkv1alpha1.Iptables) bool {
+					return a.Compare(b)
+				})
+		case clusterlinkv1alpha1.FdbName:
+			flag, deleteConfig.Fdbs, createConfig.Fdbs =
+				compareFunc(oldConfig.Fdbs, newConfig.Fdbs, func(a, b clusterlinkv1alpha1.Fdb) bool {
+					return a.Compare(b)
+				})
+		case clusterlinkv1alpha1.ArpName:
+			flag, deleteConfig.Arps, createConfig.Arps =
+				compareFunc(oldConfig.Arps, newConfig.Arps, func(a, b clusterlinkv1alpha1.Arp) bool {
+					return a.Compare(b)
+				})
+		}
+		if !flag {
+			isSame = flag
+			if fieldName == clusterlinkv1alpha1.ArpName || fieldName == clusterlinkv1alpha1.FdbName {
+				len := valueByName.Len()
+				deleteSlice := reflect.MakeSlice(fieldType, len, len)
+				for j := 0; j < len; j++ {
+					fieldByName := valueByName.Index(j).FieldByName("Mac")
+					if fieldByName.IsValid() {
+						if fieldByName.Interface().(string) == "ff:ff:ff:ff:ff:ff" {
+							continue
+						}
+					}
+					deleteSlice.Index(j).Set(valueByName.Index(j))
+				}
+				valueByName.Set(deleteSlice)
 			}
 		}
-		createConfig.Fdbs = createRecord
-		isSame = false
-	}
-	// arps:
-	if flag, deleteRecord, createRecord := compareFunc(oldConfig.Arps, newConfig.Arps, func(a, b clusterlinkv1alpha1.Arp) bool {
-		return a.Compare(b)
-	}); !flag {
-		for _, dr := range deleteRecord {
-			if dr.Mac != "ff:ff:ff:ff:ff:ff" {
-				deleteConfig.Arps = append(deleteConfig.Arps, dr)
-			}
-		}
-		createConfig.Arps = createRecord
-		isSame = false
 	}
 	return isSame, deleteConfig, createConfig
 }
@@ -152,79 +159,77 @@ func (e *NetworkManager) LoadSystemConfig() (*clusterlinkv1alpha1.NodeConfigSpec
 	return e.NetworkInterface.LoadSysConfig()
 }
 
-// nolint:dupl
+func (e *NetworkManager) delete(value reflect.Value, typeName string) error {
+	var err error
+	switch typeName {
+	case clusterlinkv1alpha1.DeviceName:
+		err = e.NetworkInterface.DeleteDevices(value.Interface().([]clusterlinkv1alpha1.Device))
+	case clusterlinkv1alpha1.RouteName:
+		err = e.NetworkInterface.DeleteRoutes(value.Interface().([]clusterlinkv1alpha1.Route))
+	case clusterlinkv1alpha1.IptablesName:
+		err = e.NetworkInterface.DeleteIptables(value.Interface().([]clusterlinkv1alpha1.Iptables))
+	case clusterlinkv1alpha1.FdbName:
+		err = e.NetworkInterface.DeleteFdbs(value.Interface().([]clusterlinkv1alpha1.Fdb))
+	case clusterlinkv1alpha1.ArpName:
+		err = e.NetworkInterface.DeleteArps(value.Interface().([]clusterlinkv1alpha1.Arp))
+	default:
+		err = fmt.Errorf("not found this value, name: %s", typeName)
+	}
+	return err
+}
+
+func (e *NetworkManager) add(value reflect.Value, typeName string) error {
+	var err error
+	switch typeName {
+	case clusterlinkv1alpha1.DeviceName:
+		err = e.NetworkInterface.AddDevices(value.Interface().([]clusterlinkv1alpha1.Device))
+	case clusterlinkv1alpha1.RouteName:
+		err = e.NetworkInterface.AddRoutes(value.Interface().([]clusterlinkv1alpha1.Route))
+	case clusterlinkv1alpha1.IptablesName:
+		err = e.NetworkInterface.AddIptables(value.Interface().([]clusterlinkv1alpha1.Iptables))
+	case clusterlinkv1alpha1.FdbName:
+		err = e.NetworkInterface.AddFdbs(value.Interface().([]clusterlinkv1alpha1.Fdb))
+	case clusterlinkv1alpha1.ArpName:
+		err = e.NetworkInterface.AddArps(value.Interface().([]clusterlinkv1alpha1.Arp))
+	default:
+		err = fmt.Errorf("not found this value, name: %s", typeName)
+	}
+	return err
+}
+
 func (e *NetworkManager) WriteSys(configDiff *ConfigDiff) error {
 	var errs error
-
-	if configDiff.deleteConfig != nil {
-		config := configDiff.deleteConfig
-		if config.Arps != nil {
-			if err := e.NetworkInterface.DeleteArps(config.Arps); err != nil {
-				klog.Warning(err)
-				errs = errors.Wrap(err, fmt.Sprint(errs))
-			}
-		}
-		if config.Fdbs != nil {
-			if err := e.NetworkInterface.DeleteFdbs(config.Fdbs); err != nil {
-				klog.Warning(err)
-				errs = errors.Wrap(err, fmt.Sprint(errs))
-			}
-		}
-		if config.Iptables != nil {
-			if err := e.NetworkInterface.DeleteIptables(config.Iptables); err != nil {
-				klog.Warning(err)
-				errs = errors.Wrap(err, fmt.Sprint(errs))
-			}
-		}
-		if config.Routes != nil {
-			if err := e.NetworkInterface.DeleteRoutes(config.Routes); err != nil {
-				klog.Warning(err)
-				errs = errors.Wrap(err, fmt.Sprint(errs))
-			}
-		}
-		if config.Devices != nil {
-			if err := e.NetworkInterface.DeleteDevices(config.Devices); err != nil {
-				klog.Warning(err)
-				errs = errors.Wrap(err, fmt.Sprint(errs))
+	valueOfDiff := reflect.ValueOf(*configDiff)
+	typeOfDiff := reflect.TypeOf(*configDiff)
+	for i := 0; i < typeOfDiff.NumField(); i++ {
+		valueFieldOfDiff := valueOfDiff.Field(i).Elem()
+		typeNameOfDiff := typeOfDiff.Field(i).Name
+		if !valueFieldOfDiff.IsZero() {
+			config := valueFieldOfDiff.Interface().(clusterlinkv1alpha1.NodeConfigSpec)
+			valueOf := reflect.ValueOf(config)
+			typeOf := reflect.TypeOf(config)
+			for j := 0; j < typeOf.NumField(); j++ {
+				valueField := valueOf.Field(j)
+				typeName := typeOf.Field(j).Name
+				if !valueField.IsZero() {
+					var err error
+					switch typeNameOfDiff {
+					case clusterlinkv1alpha1.DeleteConfigName:
+						err = e.delete(valueField, typeName)
+					case clusterlinkv1alpha1.CreateConfigName:
+						err = e.add(valueField, typeName)
+					default:
+						errs = fmt.Errorf("not found this value, name: %s", typeNameOfDiff)
+						return errs
+					}
+					if err != nil {
+						klog.Warning(err)
+						errs = errors.Wrap(err, fmt.Sprint(errs))
+					}
+				}
 			}
 		}
 	}
-
-	if configDiff.createConfig != nil {
-		config := configDiff.createConfig
-		// must create device first
-		if config.Devices != nil {
-			if err := e.NetworkInterface.AddDevices(config.Devices); err != nil {
-				klog.Warning(err)
-				errs = errors.Wrap(err, fmt.Sprint(errs))
-			}
-		}
-		if config.Arps != nil {
-			if err := e.NetworkInterface.AddArps(config.Arps); err != nil {
-				klog.Warning(err)
-				errs = errors.Wrap(err, fmt.Sprint(errs))
-			}
-		}
-		if config.Fdbs != nil {
-			if err := e.NetworkInterface.AddFdbs(config.Fdbs); err != nil {
-				klog.Warning(err)
-				errs = errors.Wrap(err, fmt.Sprint(errs))
-			}
-		}
-		if config.Iptables != nil {
-			if err := e.NetworkInterface.AddIptables(config.Iptables); err != nil {
-				klog.Warning(err)
-				errs = errors.Wrap(err, fmt.Sprint(errs))
-			}
-		}
-		if config.Routes != nil {
-			if err := e.NetworkInterface.AddRoutes(config.Routes); err != nil {
-				klog.Warning(err)
-				errs = errors.Wrap(err, fmt.Sprint(errs))
-			}
-		}
-	}
-
 	return errs
 }
 
@@ -282,8 +287,8 @@ func (e *NetworkManager) UpdateSync() NodeConfigSyncStatus {
 	}
 
 	err = e.WriteSys(&ConfigDiff{
-		deleteConfig: deleteConfig,
-		createConfig: createConfig,
+		DeleteConfig: deleteConfig,
+		CreateConfig: createConfig,
 	})
 	if err != nil {
 		e.Status = NodeConfigSyncException
