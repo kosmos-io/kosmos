@@ -1,12 +1,15 @@
-package blockwatchsyncer
+package adaper
 
 import (
 	"time"
 
 	"github.com/projectcalico/calico/libcalico-go/lib/backend/api"
+	"github.com/projectcalico/calico/libcalico-go/lib/backend/model"
+	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 
+	clusterlister "github.com/kosmos.io/kosmos/pkg/generated/listers/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/utils/lifted"
 )
 
@@ -17,17 +20,21 @@ type BlockEventHandler struct {
 	// Channel for getting updates and status updates from syncer.
 	syncerC chan interface{}
 
-	processor lifted.AsyncWorker
-	// Channel to indicate node status reporter routine is not needed anymore.
+	processor         lifted.AsyncWorker
+	clusterNodeLister clusterlister.ClusterNodeLister
+	// Channel that notifies the Run method to exit
 	done chan struct{}
 
 	// Flag to show we are in-sync.
 	inSync bool
 }
 
-func NewBlockEventHandler(processor lifted.AsyncWorker) *BlockEventHandler {
+func NewBlockEventHandler(processor lifted.AsyncWorker, clusterNodeLister clusterlister.ClusterNodeLister) *BlockEventHandler {
 	return &BlockEventHandler{
-		processor: processor,
+		processor:         processor,
+		clusterNodeLister: clusterNodeLister,
+		syncerC:           make(chan interface{}, 100),
+		done:              make(chan struct{}),
 	}
 }
 
@@ -71,9 +78,20 @@ func (b *BlockEventHandler) OnUpdates(updates []api.Update) {
 	b.syncerC <- updates
 }
 
-// todo put etcd's event info AsyncWorker's queue
-func (b *BlockEventHandler) onupdate(_ []api.Update) {
+func (b *BlockEventHandler) onupdate(event []api.Update) {
+	klog.V(7).Info("update event")
 
+	for _, update := range event {
+		blockAffinityKey, ok := update.Key.(model.BlockAffinityKey)
+		if !ok {
+			log.Errorf("Failed to cast object to blockAffinityKey: %+v", update.Key)
+			return
+		}
+
+		node := blockAffinityKey.Host
+		requeue(node, b.clusterNodeLister, b.processor)
+		klog.V(4).Infof("Processing blockAffinityKey update: %+v", update.Key)
+	}
 }
 
 func (b *BlockEventHandler) WaitForCacheSync(stopCh <-chan struct{}) bool {
