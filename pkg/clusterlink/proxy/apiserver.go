@@ -1,32 +1,27 @@
 package proxy
 
 import (
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/apiserver/pkg/registry/rest"
 	genericapiserver "k8s.io/apiserver/pkg/server"
-	"k8s.io/client-go/dynamic"
 	clientrest "k8s.io/client-go/rest"
 
-	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
-	"github.com/kosmos.io/kosmos/pkg/scheme"
-)
-
-var (
-	// Scheme defines methods for serializing and deserializing API objects.
-	Scheme = scheme.NewSchema()
-	// Codecs provides methods for retrieving codecs and serializers for specific
-	// versions and content types.
-	Codecs = serializer.NewCodecFactory(Scheme)
-
-	// ParameterCodec handles versioning of objects that are converted to query parameters.
-	ParameterCodec = runtime.NewParameterCodec(Scheme)
+	proxyScheme "github.com/kosmos.io/kosmos/pkg/apis/proxy/scheme"
+	"github.com/kosmos.io/kosmos/pkg/apis/proxy/v1alpha1"
+	"github.com/kosmos.io/kosmos/pkg/clusterlink/proxy/controller"
+	informerfactory "github.com/kosmos.io/kosmos/pkg/generated/informers/externalversions"
+	clusterLinkStorage "github.com/kosmos.io/kosmos/pkg/registry/clusterlink/storage"
 )
 
 // Config defines the config for the APIServer.
 type Config struct {
 	GenericConfig *genericapiserver.RecommendedConfig
+	ExtraConfig   ExtraConfig
+}
+
+type ExtraConfig struct {
+	ProxyController       *controller.ResourceCacheController
+	KosmosInformerFactory informerfactory.SharedInformerFactory
 }
 
 // APIServer defines the api server
@@ -36,6 +31,7 @@ type APIServer struct {
 
 type completedConfig struct {
 	GenericConfig genericapiserver.CompletedConfig
+	ExtraConfig   *ExtraConfig
 	ClientConfig  *clientrest.Config
 }
 
@@ -47,8 +43,8 @@ type CompletedConfig struct {
 // Complete fills in any fields not set that are required to have valid data. It's mutating the receiver.
 func (cfg *Config) Complete() CompletedConfig {
 	c := completedConfig{
-		cfg.GenericConfig.Complete(),
-		cfg.GenericConfig.ClientConfig,
+		GenericConfig: cfg.GenericConfig.Complete(),
+		ExtraConfig:   &cfg.ExtraConfig,
 	}
 
 	c.GenericConfig.Version = &version.Info{
@@ -60,7 +56,7 @@ func (cfg *Config) Complete() CompletedConfig {
 }
 
 func (c completedConfig) New() (*APIServer, error) {
-	genericServer, err := c.GenericConfig.New("clusterlink-proxy", genericapiserver.NewEmptyDelegate())
+	genericServer, err := c.GenericConfig.New("clusterlink-proxy-apiserver", genericapiserver.NewEmptyDelegate())
 	if err != nil {
 		return nil, err
 	}
@@ -69,14 +65,18 @@ func (c completedConfig) New() (*APIServer, error) {
 		GenericAPIServer: genericServer,
 	}
 
+	apiGroupInfo := genericapiserver.NewDefaultAPIGroupInfo(
+		v1alpha1.GroupName,
+		proxyScheme.Scheme,
+		proxyScheme.ParameterCodec,
+		proxyScheme.Codecs,
+	)
+
 	v1alpha1storage := map[string]rest.Storage{}
-	apiGroupInfo := genericapiserver.NewDefaultAPIGroupInfo(v1alpha1.GroupName, Scheme, ParameterCodec, Codecs)
-	client, err := dynamic.NewForConfig(c.ClientConfig)
-	if err != nil {
-		return nil, err
-	}
-	v1alpha1storage["proxying"] = NewREST(c.ClientConfig, client)
+
+	v1alpha1storage["proxying"] = clusterLinkStorage.NewProxyREST(c.ExtraConfig.ProxyController)
 	apiGroupInfo.VersionedResourcesStorageMap["v1alpha1"] = v1alpha1storage
+
 	if err = server.GenericAPIServer.InstallAPIGroup(&apiGroupInfo); err != nil {
 		return nil, err
 	}

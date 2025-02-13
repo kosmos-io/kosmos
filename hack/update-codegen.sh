@@ -45,6 +45,13 @@ deepcopy-gen \
   --output-package="pkg/apis/kosmos/v1alpha1,pkg/apis/config,pkg/apis/config/v1" \
   --output-file-base=zz_generated.deepcopy
 
+deepcopy-gen \
+  --go-header-file hack/boilerplate/boilerplate.go.txt \
+  --input-dirs="github.com/kosmos.io/kosmos/pkg/apis/proxy" \
+  --output-base="${REPO_ROOT}" \
+  --output-package="pkg/apis/proxy" \
+  --output-file-base=zz_generated.deepcopy
+
 echo "Generating with register-gen"
 GO111MODULE=on go install k8s.io/code-generator/cmd/register-gen
 register-gen \
@@ -62,13 +69,19 @@ conversion-gen \
   --output-base="${REPO_ROOT}" \
   --output-package="github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1,pkg/apis/config/v1" \
   --output-file-base=zz_generated.conversion
+conversion-gen \
+  --go-header-file hack/boilerplate/boilerplate.go.txt \
+  --input-dirs="github.com/kosmos.io/kosmos/pkg/apis/proxy/v1alpha1" \
+  --output-base="${REPO_ROOT}" \
+  --output-package="github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1,pkg/apis/config/v1" \
+  --output-file-base=zz_generated.conversion
 
 echo "Generating with client-gen"
 GO111MODULE=on go install k8s.io/code-generator/cmd/client-gen
 client-gen \
   --go-header-file hack/boilerplate/boilerplate.go.txt \
   --input-base="" \
-  --input=github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1,sigs.k8s.io/mcs-api/pkg/apis/v1alpha1 \
+  --input=github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1,sigs.k8s.io/mcs-api/pkg/apis/v1alpha1,github.com/kosmos.io/kosmos/pkg/apis/proxy/v1alpha1 \
   --output-base="${REPO_ROOT}" \
   --output-package=github.com/kosmos.io/kosmos/pkg/generated/clientset \
   --clientset-name=versioned
@@ -89,12 +102,17 @@ lister-gen \
   --input-dirs=github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1,sigs.k8s.io/mcs-api/pkg/apis/v1alpha1 \
   --output-base="${REPO_ROOT}" \
   --output-package=github.com/kosmos.io/kosmos/pkg/generated/listers
+lister-gen \
+  --go-header-file hack/boilerplate/boilerplate.go.txt \
+  --input-dirs=github.com/kosmos.io/kosmos/pkg/apis/proxy/v1alpha1 \
+  --output-base="${REPO_ROOT}" \
+  --output-package=github.com/kosmos.io/kosmos/pkg/generated/listers
 
 echo "Generating with informer-gen"
 GO111MODULE=on go install k8s.io/code-generator/cmd/informer-gen
 informer-gen \
   --go-header-file hack/boilerplate/boilerplate.go.txt \
-  --input-dirs=github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1,sigs.k8s.io/mcs-api/pkg/apis/v1alpha1 \
+  --input-dirs=github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1,sigs.k8s.io/mcs-api/pkg/apis/v1alpha1,github.com/kosmos.io/kosmos/pkg/apis/proxy/v1alpha1 \
   --versioned-clientset-package=github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned \
   --listers-package=github.com/kosmos.io/kosmos/pkg/generated/listers \
   --output-base="${REPO_ROOT}" \
@@ -112,7 +130,7 @@ echo "Generating with openapi-gen"
 GO111MODULE=on go install k8s.io/code-generator/cmd/openapi-gen
 openapi-gen \
   --go-header-file hack/boilerplate/boilerplate.go.txt \
-  --input-dirs "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1" \
+  --input-dirs "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1,github.com/kosmos.io/kosmos/pkg/apis/proxy/v1alpha1" \
   --input-dirs "k8s.io/apimachinery/pkg/apis/meta/v1,k8s.io/apimachinery/pkg/runtime,k8s.io/apimachinery/pkg/version" \
   --output-base="${REPO_ROOT}" \
   --output-package "github.com/kosmos.io/kosmos/pkg/generated/openapi" \

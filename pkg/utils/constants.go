@@ -197,3 +197,11 @@ var GVR_SERVICE = schema.GroupVersionResource{
 	Version:  "v1",
 	Resource: "services",
 }
+
+const (
+	KosmosClusrerLinkRroxyComponentName = "clusterlink-proxy"
+)
+
+const (
+	ClusterLinkOpenAPIVersion = "1.0"
+)

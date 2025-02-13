@@ -9,7 +9,7 @@ import (
 )
 
 // GroupName specifies the group name used to register the objects.
-const GroupName = "kosmos.io"
+const GroupName = "proxy.kosmos.io"
 
 // GroupVersion specifies the group and the version used to register the objects.
 var GroupVersion = v1.GroupVersion{Group: GroupName, Version: "v1alpha1"}
@@ -29,7 +29,6 @@ var (
 	localSchemeBuilder = &SchemeBuilder
 	// Depreciated: use Install instead
 	AddToScheme = localSchemeBuilder.AddToScheme
-	Install     = localSchemeBuilder.AddToScheme
 )
 
 func init() {
@@ -41,34 +40,10 @@ func init() {
 
 // Adds the list of known types to Scheme.
 func addKnownTypes(scheme *runtime.Scheme) error {
-	scheme.AddKnownTypes(SchemeGroupVersion,
-		&Cluster{},
-		&ClusterDistributionPolicy{},
-		&ClusterDistributionPolicyList{},
-		&ClusterList{},
-		&ClusterNode{},
-		&ClusterNodeList{},
-		&ClusterPodConvertPolicy{},
-		&ClusterPodConvertPolicyList{},
-		&DaemonSet{},
-		&DaemonSetList{},
-		&DistributionPolicy{},
-		&DistributionPolicyList{},
-		&GlobalNode{},
-		&GlobalNodeList{},
-		&KubeNestConfiguration{},
-		&NodeConfig{},
-		&NodeConfigList{},
-		&PodConvertPolicy{},
-		&PodConvertPolicyList{},
-		&Proxy{},
+	scheme.AddKnownTypes(
+		SchemeGroupVersion,		
 		&Proxying{},
-		&ResourceCache{},
-		&ResourceCacheList{},
-		&ShadowDaemonSet{},
-		&ShadowDaemonSetList{},
 	)
-	// AddToGroupVersion allows the serialization of client types like ListOptions.
 	v1.AddToGroupVersion(scheme, SchemeGroupVersion)
 	return nil
 }

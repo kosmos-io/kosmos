@@ -69,7 +69,11 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PodConvertPolicyList":               schema_pkg_apis_kosmos_v1alpha1_PodConvertPolicyList(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PodConvertPolicySpec":               schema_pkg_apis_kosmos_v1alpha1_PodConvertPolicySpec(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PolicyTerm":                         schema_pkg_apis_kosmos_v1alpha1_PolicyTerm(ref),
-		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Proxy":                              schema_pkg_apis_kosmos_v1alpha1_Proxy(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ResourceCache":                      schema_pkg_apis_kosmos_v1alpha1_ResourceCache(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ResourceCacheList":                  schema_pkg_apis_kosmos_v1alpha1_ResourceCacheList(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ResourceCacheSelector":              schema_pkg_apis_kosmos_v1alpha1_ResourceCacheSelector(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ResourceCacheSpec":                  schema_pkg_apis_kosmos_v1alpha1_ResourceCacheSpec(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ResourceCacheStatus":                schema_pkg_apis_kosmos_v1alpha1_ResourceCacheStatus(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ResourceSelector":                   schema_pkg_apis_kosmos_v1alpha1_ResourceSelector(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Route":                              schema_pkg_apis_kosmos_v1alpha1_Route(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.SchedulerNameConverter":             schema_pkg_apis_kosmos_v1alpha1_SchedulerNameConverter(ref),
@@ -79,6 +83,8 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.TolerationConverter":                schema_pkg_apis_kosmos_v1alpha1_TolerationConverter(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.TopologySpreadConstraintsConverter": schema_pkg_apis_kosmos_v1alpha1_TopologySpreadConstraintsConverter(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.VxlanCIDRs":                         schema_pkg_apis_kosmos_v1alpha1_VxlanCIDRs(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Yaml":                               schema_pkg_apis_kosmos_v1alpha1_Yaml(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/proxy/v1alpha1.Proxying":                            schema_pkg_apis_proxy_v1alpha1_Proxying(ref),
 		"k8s.io/apimachinery/pkg/apis/meta/v1.APIGroup":                                           schema_pkg_apis_meta_v1_APIGroup(ref),
 		"k8s.io/apimachinery/pkg/apis/meta/v1.APIGroupList":                                       schema_pkg_apis_meta_v1_APIGroupList(ref),
 		"k8s.io/apimachinery/pkg/apis/meta/v1.APIResource":                                        schema_pkg_apis_meta_v1_APIResource(ref),
@@ -2519,24 +2525,204 @@ func schema_pkg_apis_kosmos_v1alpha1_PolicyTerm(ref common.ReferenceCallback) co
 	}
 }
 
-func schema_pkg_apis_kosmos_v1alpha1_Proxy(ref common.ReferenceCallback) common.OpenAPIDefinition {
+
+func schema_pkg_apis_kosmos_v1alpha1_ResourceCache(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
+				Description: "ResourceCache represents the configuration of the cache resource",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"TypeMeta": {
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.TypeMeta"),
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ResourceCacheSpec"),
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ResourceCacheStatus"),
 						},
 					},
 				},
-				Required: []string{"TypeMeta"},
 			},
 		},
 		Dependencies: []string{
-			"k8s.io/apimachinery/pkg/apis/meta/v1.TypeMeta"},
+			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ResourceCacheSpec", "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ResourceCacheStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_pkg_apis_kosmos_v1alpha1_ResourceCacheList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ResourceCacheList contains a list of ResourceCache",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ResourceCache"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ResourceCache", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+	}
+}
+
+func schema_pkg_apis_kosmos_v1alpha1_ResourceCacheSelector(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ResourceSelector specifies the resources type and its scope.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion represents the API version of the target resources.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind represents the kind of the target resources.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"namespace": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Namespace of the target resource. Default is empty, which means all namespaces.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"apiVersion", "kind"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_kosmos_v1alpha1_ResourceCacheSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ResourceCacheSpec defines the desired state of ResourceCache",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"resourceSelectors": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ResourceSelectors specifies the resources type that should be cached by cache system.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ResourceCacheSelector"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"resourceSelectors"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ResourceCacheSelector"},
+	}
+}
+
+func schema_pkg_apis_kosmos_v1alpha1_ResourceCacheStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ResourceCacheStatus defines the observed state of ResourceCache",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"conditions": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Conditions contain the different condition statuses.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.Condition"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.Condition"},
 	}
 }
 
@@ -2887,6 +3073,53 @@ func schema_pkg_apis_kosmos_v1alpha1_VxlanCIDRs(ref common.ReferenceCallback) co
 					},
 				},
 				Required: []string{"ip", "ip6"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_kosmos_v1alpha1_Yaml(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"path": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Storage"),
+						},
+					},
+				},
+				Required: []string{"path"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.Storage"},
+	}
+}
+func schema_pkg_apis_proxy_v1alpha1_Proxying(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "Proxying define a flag for resource proxying that do not have actual resources.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
 			},
 		},
 	}

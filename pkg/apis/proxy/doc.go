@@ -1,5 +1,5 @@
 /*
-Copyright The Kosmos Authors.
+Copyright 2025
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,3 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package proxy is the internal version of the API.
+// +k8s:deepcopy-gen=package
+// +groupName=proxy.kosmos.io
+package proxy
