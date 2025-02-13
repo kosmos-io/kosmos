@@ -17,6 +17,7 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/generated/clientset/versioned"
 	dpInformer "github.com/kosmos.io/kosmos/pkg/generated/informers/externalversions"
 	dpLister "github.com/kosmos.io/kosmos/pkg/generated/listers/kosmos/v1alpha1"
+	"github.com/kosmos.io/kosmos/pkg/scheduler/lifted/helpers"
 )
 
 var _ framework.FilterPlugin = &LeafNodeDistribution{}
@@ -110,16 +111,6 @@ func mapContains(in, out map[string]string) bool {
 		}
 	}
 
-	return false
-}
-
-// isDaemonSetPod judges if this pod belongs to one daemonSet workload.
-func isDaemonSetPod(pod *corev1.Pod) bool {
-	for _, ownerRef := range pod.GetOwnerReferences() {
-		if ownerRef.Kind == "DaemonSet" {
-			return true
-		}
-	}
 	return false
 }
 
@@ -235,7 +226,7 @@ func isToleration(node *corev1.Node, tolerations []*corev1.Toleration) (rs bool)
 // Filter nodes based on distribution policy
 func (lnd *LeafNodeDistribution) Filter(ctx context.Context, state *framework.CycleState, pod *corev1.Pod, nodeInfo *framework.NodeInfo) *framework.Status {
 	// ignore daemonSet pod
-	if isDaemonSetPod(pod) {
+	if helpers.IsDaemonSetPod(pod) {
 		return framework.NewStatus(framework.Success, "")
 	}
 

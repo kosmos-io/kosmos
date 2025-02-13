@@ -1,0 +1,17 @@
+apiVersion: kosmos.io/v1alpha1
+kind: WorkloadPolicy
+metadata:
+  name: workload-policy-test
+  namespace: workload-test
+spec:
+  allocationPolicy:
+    - name: member
+      replicas: 1
+    - name: host
+      replicas: 3
+  labelSelector:
+    matchLabels:
+      app: clusterlink-floater-mix
+  allocationType: "Required"
+  allocationMethod: "Fill"
+  topologyKey: workload-test

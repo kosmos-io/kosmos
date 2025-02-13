@@ -20,6 +20,10 @@ func (c *FakeKosmosV1alpha1) DistributionPolicies(namespace string) v1alpha1.Dis
 	return &FakeDistributionPolicies{c, namespace}
 }
 
+func (c *FakeKosmosV1alpha1) WorkloadPolicies(namespace string) v1alpha1.WorkloadPolicyInterface {
+	return &FakeWorkloadPolicies{c, namespace}
+}
+
 // RESTClient returns a RESTClient that is used to communicate
 // with API server by this client implementation.
 func (c *FakeKosmosV1alpha1) RESTClient() rest.Interface {

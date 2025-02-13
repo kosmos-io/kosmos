@@ -41,3 +41,13 @@ type LeafNodeDistributionArgs struct {
 	// KubeConfigPath is the path of kubeconfig.
 	KubeConfigPath string `json:"kubeConfigPath,omitempty"`
 }
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// LeafNodeWorkloadArgs defines the scheduling parameters for WorkloadPolicy plugin.
+type LeafNodeWorkloadArgs struct {
+	metav1.TypeMeta `json:",inline"`
+
+	// KubeConfigPath is the path of kubeconfig.
+	KubeConfigPath string `json:"kubeConfigPath,omitempty"`
+}

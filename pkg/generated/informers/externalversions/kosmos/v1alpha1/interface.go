@@ -12,6 +12,8 @@ type Interface interface {
 	ClusterDistributionPolicies() ClusterDistributionPolicyInformer
 	// DistributionPolicies returns a DistributionPolicyInformer.
 	DistributionPolicies() DistributionPolicyInformer
+	// WorkloadPolicies returns a WorkloadPolicyInformer.
+	WorkloadPolicies() WorkloadPolicyInformer
 }
 
 type version struct {
@@ -33,4 +35,9 @@ func (v *version) ClusterDistributionPolicies() ClusterDistributionPolicyInforme
 // DistributionPolicies returns a DistributionPolicyInformer.
 func (v *version) DistributionPolicies() DistributionPolicyInformer {
 	return &distributionPolicyInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// WorkloadPolicies returns a WorkloadPolicyInformer.
+func (v *version) WorkloadPolicies() WorkloadPolicyInformer {
+	return &workloadPolicyInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

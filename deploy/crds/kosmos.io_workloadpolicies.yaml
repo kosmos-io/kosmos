@@ -1,0 +1,146 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.11.0
+  creationTimestamp: null
+  name: workloadpolicies.kosmos.io
+spec:
+  group: kosmos.io
+  names:
+    categories:
+    - kosmos-io
+    kind: WorkloadPolicy
+    listKind: WorkloadPolicyList
+    plural: workloadpolicies
+    shortNames:
+    - wlp
+    singular: workloadpolicy
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - description: CreationTimestamp is a timestamp representing the server time when
+        this object was created. It is not guaranteed to be set in happens-before
+        order across separate operations. Clients may not set this value. It is represented
+        in RFC3339 form and is in UTC.
+      jsonPath: .metadata.creationTimestamp
+      name: AGE
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: Spec represents the desired behavior of WorkloadPolicyPolicy.
+            properties:
+              allocationMethod:
+                default: Balance
+                description: AllocationMethod sets the scheduling method to schedule
+                  pods for a WorkloadPolicy. Valid options are Fill or Balance. Fill,
+                  pods with the same label are scheduled in fill mode between nodes
+                  in the same topology. Balance, pods with the same label are scheduled
+                  in balance mode between nodes in the same topology.
+                enum:
+                - Fill
+                - Balance
+                type: string
+              allocationPolicy:
+                description: AllocationPolicy describes the allocation policy when
+                  scheduling pods.
+                items:
+                  description: AllocationPolicy set the topologyValue required replicas
+                  properties:
+                    name:
+                      description: Name is the topology value
+                      type: string
+                    replicas:
+                      description: Replicas is the desired the replicas for the topology
+                        value
+                      format: int32
+                      type: integer
+                  required:
+                  - name
+                  - replicas
+                  type: object
+                type: array
+              allocationType:
+                default: Preferred
+                description: AllocationType sets the scheduling constraint to schedule
+                  pods for a WorkloadPolicy. Valid options are Required or Preferred.
+                  Required means that the pods will get scheduled only on nodes that
+                  has a topologyKey=topologyValue label. Preferred means that the
+                  pods will prefer nodes that has a topologyKey=topologyValue label.
+                enum:
+                - Preferred
+                - Required
+                type: string
+              labelSelector:
+                description: LabelSelector is used to filter matching pods.
+                properties:
+                  matchExpressions:
+                    description: matchExpressions is a list of label selector requirements.
+                      The requirements are ANDed.
+                    items:
+                      description: A label selector requirement is a selector that
+                        contains values, a key, and an operator that relates the key
+                        and values.
+                      properties:
+                        key:
+                          description: key is the label key that the selector applies
+                            to.
+                          type: string
+                        operator:
+                          description: operator represents a key's relationship to
+                            a set of values. Valid operators are In, NotIn, Exists
+                            and DoesNotExist.
+                          type: string
+                        values:
+                          description: values is an array of string values. If the
+                            operator is In or NotIn, the values array must be non-empty.
+                            If the operator is Exists or DoesNotExist, the values
+                            array must be empty. This array is replaced during a strategic
+                            merge patch.
+                          items:
+                            type: string
+                          type: array
+                      required:
+                      - key
+                      - operator
+                      type: object
+                    type: array
+                  matchLabels:
+                    additionalProperties:
+                      type: string
+                    description: matchLabels is a map of {key,value} pairs. A single
+                      {key,value} in the matchLabels map is equivalent to an element
+                      of matchExpressions, whose key field is "key", the operator
+                      is "In", and the values array contains only "value". The requirements
+                      are ANDed.
+                    type: object
+                type: object
+                x-kubernetes-map-type: atomic
+              topologyKey:
+                description: TopologyKey is used when match node topologyKey
+                type: string
+            required:
+            - allocationPolicy
+            - labelSelector
+            - topologyKey
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources: {}

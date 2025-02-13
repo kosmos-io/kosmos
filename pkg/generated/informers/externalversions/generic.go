@@ -41,6 +41,8 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Kosmos().V1alpha1().ClusterDistributionPolicies().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("distributionpolicies"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Kosmos().V1alpha1().DistributionPolicies().Informer()}, nil
+	case v1alpha1.SchemeGroupVersion.WithResource("workloadpolicies"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Kosmos().V1alpha1().WorkloadPolicies().Informer()}, nil
 
 	}
 

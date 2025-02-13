@@ -16,6 +16,7 @@ import (
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.AdvancedTerm":                  schema_pkg_apis_kosmos_v1alpha1_AdvancedTerm(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.AllocationPolicy":              schema_pkg_apis_kosmos_v1alpha1_AllocationPolicy(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterDistributionPolicy":     schema_pkg_apis_kosmos_v1alpha1_ClusterDistributionPolicy(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ClusterDistributionPolicyList": schema_pkg_apis_kosmos_v1alpha1_ClusterDistributionPolicyList(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.DistributionPolicy":            schema_pkg_apis_kosmos_v1alpha1_DistributionPolicy(ref),
@@ -23,6 +24,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.DistributionSpec":              schema_pkg_apis_kosmos_v1alpha1_DistributionSpec(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.PolicyTerm":                    schema_pkg_apis_kosmos_v1alpha1_PolicyTerm(ref),
 		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.ResourceSelector":              schema_pkg_apis_kosmos_v1alpha1_ResourceSelector(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.WorkloadPolicy":                schema_pkg_apis_kosmos_v1alpha1_WorkloadPolicy(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.WorkloadPolicyList":            schema_pkg_apis_kosmos_v1alpha1_WorkloadPolicyList(ref),
+		"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.WorkloadPolicySpec":            schema_pkg_apis_kosmos_v1alpha1_WorkloadPolicySpec(ref),
 		"k8s.io/apimachinery/pkg/apis/meta/v1.APIGroup":                                      schema_pkg_apis_meta_v1_APIGroup(ref),
 		"k8s.io/apimachinery/pkg/apis/meta/v1.APIGroupList":                                  schema_pkg_apis_meta_v1_APIGroupList(ref),
 		"k8s.io/apimachinery/pkg/apis/meta/v1.APIResource":                                   schema_pkg_apis_meta_v1_APIResource(ref),
@@ -131,6 +135,36 @@ func schema_pkg_apis_kosmos_v1alpha1_AdvancedTerm(ref common.ReferenceCallback) 
 		},
 		Dependencies: []string{
 			"k8s.io/api/core/v1.Toleration"},
+	}
+}
+
+func schema_pkg_apis_kosmos_v1alpha1_AllocationPolicy(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "AllocationPolicy set the topologyValue required replicas",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name is the topology value",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"replicas": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Replicas is the desired the replicas for the topology value",
+							Default:     0,
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+				},
+				Required: []string{"name", "replicas"},
+			},
+		},
 	}
 }
 
@@ -435,6 +469,156 @@ func schema_pkg_apis_kosmos_v1alpha1_ResourceSelector(ref common.ReferenceCallba
 		},
 		Dependencies: []string{
 			"k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
+	}
+}
+
+func schema_pkg_apis_kosmos_v1alpha1_WorkloadPolicy(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Standard object's metadata.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Spec represents the desired behavior of WorkloadPolicyPolicy.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.WorkloadPolicySpec"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.WorkloadPolicySpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_pkg_apis_kosmos_v1alpha1_WorkloadPolicyList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.WorkloadPolicy"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"metadata", "items"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.WorkloadPolicy", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+	}
+}
+
+func schema_pkg_apis_kosmos_v1alpha1_WorkloadPolicySpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "WorkloadPolicySpec represents the desired behavior of WorkloadPolicyPolicy.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"topologyKey": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TopologyKey is used when match node topologyKey",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"labelSelector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LabelSelector is used to filter matching pods.",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"),
+						},
+					},
+					"allocationPolicy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AllocationPolicy describes the allocation policy when scheduling pods.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.AllocationPolicy"),
+									},
+								},
+							},
+						},
+					},
+					"allocationType": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AllocationType sets the scheduling constraint to schedule pods for a WorkloadPolicy. Valid options are Required or Preferred. Required means that the pods will get scheduled only on nodes that has a topologyKey=topologyValue label. Preferred means that the pods will prefer nodes that has a topologyKey=topologyValue label.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"allocationMethod": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AllocationMethod sets the scheduling method to schedule pods for a WorkloadPolicy. Valid options are Fill or Balance. Fill, pods with the same label are scheduled in fill mode between nodes in the same topology. Balance, pods with the same label are scheduled in balance mode between nodes in the same topology.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"topologyKey", "labelSelector", "allocationPolicy"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1.AllocationPolicy", "k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
 	}
 }
 
