@@ -1,5 +1,5 @@
 /*
-Copyright The Kosmos Authors.
+Copyright 2025
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,3 +14,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+package install
+
+import (
+	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+
+	"github.com/kosmos.io/kosmos/pkg/apis/proxy"
+	"github.com/kosmos.io/kosmos/pkg/apis/proxy/v1alpha1"
+)
+
+// Install registers the API group and adds types to a scheme.
+func Install(scheme *runtime.Scheme) {
+	utilruntime.Must(proxy.AddToScheme(scheme))
+	utilruntime.Must(v1alpha1.AddToScheme(scheme))
+	utilruntime.Must(scheme.SetVersionPriority(v1alpha1.SchemeGroupVersion))
+}

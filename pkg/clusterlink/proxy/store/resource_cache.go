@@ -22,12 +22,15 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
+
+	"github.com/kosmos.io/kosmos/pkg/utils"
 )
 
-// resourceCache cache one kind resource from single member cluster
+// resourceCache cache one kind resource from cluster
 type resourceCache struct {
 	*genericregistry.Store
-	resource schema.GroupVersionResource
+	resource   schema.GroupVersionResource
+	namespaces *utils.MultiNamespace
 }
 
 func (c *resourceCache) stop() {
@@ -36,7 +39,7 @@ func (c *resourceCache) stop() {
 }
 
 func newResourceCache(gvr schema.GroupVersionResource, gvk schema.GroupVersionKind,
-	namespaced bool, newClientFunc func() (dynamic.NamespaceableResourceInterface, error)) (*resourceCache, error) {
+	namespaced bool, multiNS *utils.MultiNamespace, newClientFunc func() (dynamic.NamespaceableResourceInterface, error)) (*resourceCache, error) {
 	s := &genericregistry.Store{
 		DefaultQualifiedResource: gvr.GroupResource(),
 		NewFunc: func() runtime.Object {
@@ -48,15 +51,11 @@ func newResourceCache(gvr schema.GroupVersionResource, gvk schema.GroupVersionKi
 		NewListFunc: func() runtime.Object {
 			o := &unstructured.UnstructuredList{}
 			o.SetAPIVersion(gvk.GroupVersion().String())
-			// TODO: it's unsafe guesses kind name for resource list
 			o.SetKind(gvk.Kind + "List")
 			return o
 		},
 		TableConvertor: rest.NewDefaultTableConvertor(gvr.GroupResource()),
-		// CreateStrategy tells whether the resource is namespaced.
-		// see: vendor/k8s.io/apiserver/pkg/registry/generic/registry/store.go#L1310-L1318
 		CreateStrategy: restCreateStrategy(namespaced),
-		// Assign `DeleteStrategy` to pass vendor/k8s.io/apiserver/pkg/registry/generic/registry/store.go#L1320-L1322
 		DeleteStrategy: restDeleteStrategy,
 	}
 
@@ -70,7 +69,7 @@ func newResourceCache(gvr schema.GroupVersionResource, gvk schema.GroupVersionKi
 				GroupResource: gvr.GroupResource(),
 			},
 			ResourcePrefix: gvr.Group + "/" + gvr.Resource,
-			Decorator:      storageWithCacher(newClientFunc, defaultVersioner),
+			Decorator:      storageWithCacher(gvr, multiNS, newClientFunc, defaultVersioner),
 		},
 		AttrFunc: getAttrsFunc(namespaced),
 	})
@@ -79,12 +78,13 @@ func newResourceCache(gvr schema.GroupVersionResource, gvk schema.GroupVersionKi
 	}
 
 	return &resourceCache{
-		Store:    s,
-		resource: gvr,
+		Store:      s,
+		resource:   gvr,
+		namespaces: multiNS,
 	}, nil
 }
 
-func storageWithCacher(newClientFunc func() (dynamic.NamespaceableResourceInterface, error), versioner storage.Versioner) generic.StorageDecorator {
+func storageWithCacher(gvr schema.GroupVersionResource, multiNS *utils.MultiNamespace, newClientFunc func() (dynamic.NamespaceableResourceInterface, error), versioner storage.Versioner) generic.StorageDecorator {
 	return func(
 		storageConfig *storagebackend.ConfigForResource,
 		resourcePrefix string,
@@ -95,11 +95,12 @@ func storageWithCacher(newClientFunc func() (dynamic.NamespaceableResourceInterf
 		triggerFuncs storage.IndexerFuncs,
 		indexers *cache.Indexers) (storage.Interface, factory.DestroyFunc, error) {
 		cacherConfig := cacherstorage.Config{
-			Storage:        newStore(newClientFunc, versioner, resourcePrefix),
+			Storage:        newStore(gvr, newClientFunc, multiNS, versioner, resourcePrefix),
 			Versioner:      versioner,
 			ResourcePrefix: resourcePrefix,
 			KeyFunc:        keyFunc,
 			GetAttrsFunc:   getAttrsFunc,
+			IndexerFuncs:   triggerFuncs,
 			Indexers:       indexers,
 			NewFunc:        newFunc,
 			NewListFunc:    newListFunc,

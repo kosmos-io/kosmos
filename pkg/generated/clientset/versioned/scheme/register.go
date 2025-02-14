@@ -4,6 +4,7 @@ package scheme
 
 import (
 	kosmosv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
+	proxyv1alpha1 "github.com/kosmos.io/kosmos/pkg/apis/proxy/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -18,6 +19,7 @@ var ParameterCodec = runtime.NewParameterCodec(Scheme)
 var localSchemeBuilder = runtime.SchemeBuilder{
 	multiclusterv1alpha1.AddToScheme,
 	kosmosv1alpha1.AddToScheme,
+	proxyv1alpha1.AddToScheme,
 }
 
 // AddToScheme adds all types of this clientset into the given scheme. This allows composition

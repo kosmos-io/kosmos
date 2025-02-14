@@ -26,6 +26,8 @@ type Interface interface {
 	NodeConfigs() NodeConfigInformer
 	// PodConvertPolicies returns a PodConvertPolicyInformer.
 	PodConvertPolicies() PodConvertPolicyInformer
+	// ResourceCaches returns a ResourceCacheInformer.
+	ResourceCaches() ResourceCacheInformer
 	// ShadowDaemonSets returns a ShadowDaemonSetInformer.
 	ShadowDaemonSets() ShadowDaemonSetInformer
 	// VirtualClusters returns a VirtualClusterInformer.
@@ -88,6 +90,11 @@ func (v *version) NodeConfigs() NodeConfigInformer {
 // PodConvertPolicies returns a PodConvertPolicyInformer.
 func (v *version) PodConvertPolicies() PodConvertPolicyInformer {
 	return &podConvertPolicyInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// ResourceCaches returns a ResourceCacheInformer.
+func (v *version) ResourceCaches() ResourceCacheInformer {
+	return &resourceCacheInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
 }
 
 // ShadowDaemonSets returns a ShadowDaemonSetInformer.

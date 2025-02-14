@@ -1,0 +1,169 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: clusterlink-proxy
+  namespace: kosmos-system
+spec:
+  ports:
+    - port: 443
+      name: tls
+      protocol: TCP
+      targetPort: 443
+    - name: pprof
+      port: 6060
+      protocol: TCP
+      targetPort: 6060
+  type: NodePort
+  selector:
+    apiserver: "true"
+    app: clusterlink-proxy
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: clusterlink-proxy
+    apiserver: "true"
+  name: clusterlink-proxy
+  namespace: kosmos-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: clusterlink-proxy
+      apiserver: "true"
+  template:
+    metadata:
+      labels:
+        app: clusterlink-proxy
+        apiserver: "true"
+    spec:
+      serviceAccountName: apiserver
+      containers:
+        - name: clusterlink-proxy
+          command:
+            - /bin/clusterlink-proxy
+            - --enable-pprof=true
+          image: ghcr.io/kosmos-io/clusterlink-proxy:__VERSION__
+          imagePullPolicy: IfNotPresent
+          resources:
+            requests:
+              cpu: 2
+              memory: "4Gi"
+            limits:
+              cpu: 2
+              memory: "4Gi"
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /livez
+              port: 443
+              scheme: HTTPS
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            successThreshold: 1
+            timeoutSeconds: 5
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      terminationGracePeriodSeconds: 30
+---
+apiVersion: apiregistration.k8s.io/v1
+kind: APIService
+metadata:
+  labels:
+    app: clusterlink-proxy
+  name: v1alpha1.proxy.kosmos.io
+spec:
+  insecureSkipTLSVerify: true
+  group: proxy.kosmos.io
+  groupPriorityMinimum: 2000
+  service:
+    name: clusterlink-proxy
+    namespace: kosmos-system
+    port: 443
+  version: v1alpha1
+  versionPriority: 10
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: apiserver
+  namespace: kosmos-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: clusterlink-proxy-clusterrole
+rules:
+  - apiGroups:
+      - "*"
+    resources:
+      - "*"
+    verbs:
+      - "*"
+  - nonResourceURLs:
+      - "*"
+    verbs:
+      - "*"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: clusterlink-proxy-clusterrolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: clusterlink-proxy-clusterrole
+subjects:
+  - kind: ServiceAccount
+    name: apiserver
+    namespace: kosmos-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: clusterlink-proxy-auth-reader
+  namespace: kube-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: extension-apiserver-authentication-reader
+subjects:
+  - kind: ServiceAccount
+    name: apiserver
+    namespace: kosmos-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kosmos-system:auth-delegator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:auth-delegator
+subjects:
+  - kind: ServiceAccount
+    name: apiserver
+    namespace: kosmos-system
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: clusterlink-proxy-hpa
+  namespace: kosmos-system
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: clusterlink-proxy
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 85
