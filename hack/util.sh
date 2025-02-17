@@ -514,11 +514,25 @@ function util::wait_for_crd() {
   local crd_names=("$@")
   local timeout=500
   local count=0
+  local kubeconfig=""
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --kubeconfig)
+        kubeconfig="$2"
+        shift 2
+        ;;
+      *)
+        crd_names+=("$1")
+        shift
+        ;;
+    esac
+  done
 
   local end=$((SECONDS+timeout))
   while [ $SECONDS -lt $end ]; do
     for crd_name in "${crd_names[@]}"; do
-      if kubectl get crd "$crd_name"; then
+      if kubectl ${kubeconfig:+--kubeconfig="$kubeconfig"} get crd "$crd_name" >/dev/null 2>&1; then
         echo "CRD $crd_name has been stored successfully."
         # delete crd from waiting list
         count=$(($count+1))
