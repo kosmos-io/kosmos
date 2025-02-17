@@ -184,8 +184,8 @@ function create_cluster() {
   docker exec ${clustername}-control-plane /bin/sh -c "cat /etc/kubernetes/admin.conf" | sed -e "s|${clustername}-control-plane|$dockerip|g" -e "/certificate-authority-data:/d" -e "5s/^/    insecure-skip-tls-verify: true\n/" -e "w ${CLUSTER_DIR}/kubeconfig-nodeIp"
 
   kubectl --kubeconfig $CLUSTER_DIR/kubeconfig create -f "$CURRENT/calicooperator/tigera-operator.yaml" || $("${REUSE}" -eq "true")
-  kind export kubeconfig --name "$clustername"
-  util::wait_for_crd installations.operator.tigera.io
+  #kind export kubeconfig --name "$clustername"
+  util::wait_for_crd --kubeconfig $CLUSTER_DIR/kubeconfig  installations.operator.tigera.io
   kubectl --kubeconfig $CLUSTER_DIR/kubeconfig apply -f "${CLUSTER_DIR}"/calicoconfig
   echo "create cluster ${clustername} success"
   echo "wait all node ready"
