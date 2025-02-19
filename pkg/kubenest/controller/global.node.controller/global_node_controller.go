@@ -81,6 +81,16 @@ var CustomPredicateForGlobalNode = predicate.Funcs{
 	},
 }
 
+func isMasterNode(node *v1.Node) bool {
+	roles := []string{utils.LabelNodeRoleOldControlPlane, utils.LabelNodeRoleControlPlane}
+	for _, role := range roles {
+		if _, exists := node.Labels[role]; exists {
+			return true
+		}
+	}
+	return false
+}
+
 func (r *GlobalNodeController) SetupWithManager(mgr manager.Manager) error {
 	if r.Client == nil {
 		r.Client = mgr.GetClient()
@@ -252,6 +262,10 @@ func (r *GlobalNodeController) Reconcile(ctx context.Context, request reconcile.
 			if rootNode, err = r.RootClientSet.CoreV1().Nodes().Get(ctx, request.Name, metav1.GetOptions{}); err != nil {
 				klog.Errorf("global-node-controller: can not found root node: %s", request.Name)
 				return reconcile.Result{RequeueAfter: utils.DefaultRequeueTime}, nil
+			}
+			if isMasterNode(rootNode) {
+				klog.V(4).Infof("skip the master node: %s", request.Name)
+				return reconcile.Result{}, nil
 			}
 			globalNode.Name = request.Name
 			globalNode.Spec.State = v1alpha1.NodeReserved
