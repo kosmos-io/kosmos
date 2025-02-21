@@ -209,7 +209,7 @@ nodeRegistration:
 
 function GenerateStaticNginxProxy() {
     config_path=/apps/conf/nginx
-    if [ "\$1" == \"true\" ]; then
+    if [ \""\$1"\" == \"true\" ]; then
       config_path=\$PATH_FILE_TMP
     fi
     echo \"apiVersion: v1

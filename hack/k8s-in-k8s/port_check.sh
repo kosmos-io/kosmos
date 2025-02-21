@@ -29,7 +29,7 @@ for node in "${node_array[@]}"; do
     ip=$(echo $node | awk '{print $2}')
     
     if check_port $ip 5678; then
-      echo ""
+      echo "success"
     else
         echo "节点: $name, IP: $ip 端口5678不可访问"
     fi
