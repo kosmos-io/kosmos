@@ -177,6 +177,9 @@ func (rc *ResourceCacheController) getGroupVersionResource(restMapper meta.RESTM
 	return restMapping.Resource, nil
 }
 
+func (rc *ResourceCacheController) Stop() {
+	rc.store.Stop()
+}
 func (rc *ResourceCacheController) Run(stopCh <-chan struct{}, workers int) {
 	defer utilruntime.HandleCrash()
 	defer rc.queue.ShutDown()
