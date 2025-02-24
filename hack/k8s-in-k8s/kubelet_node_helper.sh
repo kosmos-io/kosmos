@@ -307,9 +307,9 @@ function revert() {
 
     while [ $elapsed_time -lt $KUBELET_CONF_TIMEOUT ]; do
         if [ -f "${PATH_KUBERNETES}/${KUBELET_KUBE_CONFIG_NAME}" ]; then
-        rm -f "${PATH_KUBERNETES}/bootstrap-kubelet.conf"
-        echo "Deleted bootstrap-kubelet.conf file as kubelet.conf exists."
-        break
+            rm -f "${PATH_KUBERNETES}/bootstrap-kubelet.conf"
+            echo "Deleted bootstrap-kubelet.conf file as kubelet.conf exists."
+            break
         fi
         sleep 2
         elapsed_time=$((elapsed_time + 2))
