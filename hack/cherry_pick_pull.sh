@@ -19,6 +19,7 @@
 # meta.) Assumes you care about pulls from remote "upstream" and
 # checks them out to a branch named:
 #  automated-cherry-pick-of-<pr>-<target branch>-<timestamp>
+# ex: hack/cherry_pick_pull.sh upstream/release-1.0 1206
 
 set -o errexit
 set -o nounset

@@ -8,6 +8,7 @@ import (
 
 	proxyutil "k8s.io/apimachinery/pkg/util/proxy"
 	restclient "k8s.io/client-go/rest"
+	"k8s.io/klog/v2"
 
 	"github.com/kosmos.io/kosmos/pkg/clusterlink/proxy/delegate"
 )
@@ -43,6 +44,7 @@ func New(dep delegate.Dependency) (delegate.Delegate, error) {
 // Connect implements Delegate.
 func (a *Apiserver) Connect(_ context.Context, request delegate.ProxyRequest) (http.Handler, error) {
 	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		klog.Infof("proxy to apiserver path: %s", request.ProxyPath)
 		location, transport := a.resourceLocation()
 		location.Path = path.Join(location.Path, request.ProxyPath)
 		location.RawQuery = req.URL.RawQuery

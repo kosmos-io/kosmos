@@ -16,6 +16,7 @@ import (
 	"k8s.io/apiserver/pkg/registry/rest"
 	k8srest "k8s.io/apiserver/pkg/registry/rest"
 	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/klog/v2"
 
 	"github.com/kosmos.io/kosmos/pkg/clusterlink/proxy/delegate"
 	"github.com/kosmos.io/kosmos/pkg/clusterlink/proxy/store"
@@ -72,6 +73,7 @@ func (c *Cache) Connect(_ context.Context, request delegate.ProxyRequest) (http.
 		MetaGroupVersion: metav1.SchemeGroupVersion,
 		TableConvertor:   r.tableConvertor,
 	}
+	klog.Infof("get gvk: %v from cache", gvk)
 
 	var h http.Handler
 	if requestInfo.Verb == "watch" || requestInfo.Name == "" {
