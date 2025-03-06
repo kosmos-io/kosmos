@@ -12,6 +12,7 @@ type KosmosV1alpha1Interface interface {
 	RESTClient() rest.Interface
 	ClusterDistributionPoliciesGetter
 	DistributionPoliciesGetter
+	WorkloadPoliciesGetter
 }
 
 // KosmosV1alpha1Client is used to interact with features provided by the kosmos.io group.
@@ -25,6 +26,10 @@ func (c *KosmosV1alpha1Client) ClusterDistributionPolicies() ClusterDistribution
 
 func (c *KosmosV1alpha1Client) DistributionPolicies(namespace string) DistributionPolicyInterface {
 	return newDistributionPolicies(c, namespace)
+}
+
+func (c *KosmosV1alpha1Client) WorkloadPolicies(namespace string) WorkloadPolicyInterface {
+	return newWorkloadPolicies(c, namespace)
 }
 
 // NewForConfig creates a new KosmosV1alpha1Client for the given config.

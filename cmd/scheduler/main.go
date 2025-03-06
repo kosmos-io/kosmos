@@ -12,6 +12,7 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/scheduler/lifted/plugins/leafnodedistribution"
 	"github.com/kosmos.io/kosmos/pkg/scheduler/lifted/plugins/leafnodetainttoleration"
 	"github.com/kosmos.io/kosmos/pkg/scheduler/lifted/plugins/leafnodevolumebinding"
+	"github.com/kosmos.io/kosmos/pkg/scheduler/lifted/plugins/leafnodeworkloadpolicy"
 )
 
 func main() {
@@ -23,6 +24,7 @@ func main() {
 		app.WithPlugin(leafnodedistribution.Name, leafnodedistribution.New),
 		app.WithPlugin(leafnodetainttoleration.Name, leafnodetainttoleration.New),
 		app.WithPlugin(leafnodevolumebinding.Name, leafnodevolumebinding.New),
+		app.WithPlugin(leafnodeworkloadpolicy.Name, leafnodeworkloadpolicy.New),
 	)
 
 	logs.InitLogs()

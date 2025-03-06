@@ -20,7 +20,10 @@ limitations under the License.
 
 package helpers
 
-import v1 "k8s.io/api/core/v1"
+import (
+	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
+)
 
 var LeafNodeTaint = &v1.Taint{
 	Key:    "kosmos.io/node",
@@ -81,4 +84,14 @@ func getFilteredTaints(taints []v1.Taint, inclusionFilter taintsFilterFunc) []v1
 		filteredTaints = append(filteredTaints, localTaint)
 	}
 	return filteredTaints
+}
+
+// IsDaemonSetPod judges if this pod belongs to one daemonSet workload.
+func IsDaemonSetPod(pod *corev1.Pod) bool {
+	for _, ownerRef := range pod.GetOwnerReferences() {
+		if ownerRef.Kind == "DaemonSet" {
+			return true
+		}
+	}
+	return false
 }

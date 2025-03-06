@@ -13,3 +13,11 @@ type DistributionPolicyListerExpansion interface{}
 // DistributionPolicyNamespaceListerExpansion allows custom methods to be added to
 // DistributionPolicyNamespaceLister.
 type DistributionPolicyNamespaceListerExpansion interface{}
+
+// WorkloadPolicyListerExpansion allows custom methods to be added to
+// WorkloadPolicyLister.
+type WorkloadPolicyListerExpansion interface{}
+
+// WorkloadPolicyNamespaceListerExpansion allows custom methods to be added to
+// WorkloadPolicyNamespaceLister.
+type WorkloadPolicyNamespaceListerExpansion interface{}
