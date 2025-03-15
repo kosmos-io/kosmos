@@ -81,6 +81,21 @@ func NewInitPhase(opts *InitOptions) *workflow.Phase {
 	return initPhase
 }
 
+func NewUpdateCertPhase(opts *InitOptions) *workflow.Phase {
+	initPhase := workflow.NewPhase()
+
+	initPhase.AppendTask(tasks.NewBackupCertTask())
+	initPhase.AppendTask(tasks.NewRenewCertTask())
+	initPhase.AppendTask(tasks.NewUploadCertsTask())
+	initPhase.AppendTask(tasks.NewUploadKubeconfigTask())
+	initPhase.AppendTask(tasks.NewRenewCertsTask())
+
+	initPhase.SetDataInitializer(func() (workflow.RunData, error) {
+		return newRunData(opts)
+	})
+	return initPhase
+}
+
 func UninstallPhase(opts *InitOptions) *workflow.Phase {
 	destroyPhase := workflow.NewPhase()
 	destroyPhase.AppendTask(tasks.UninstallCoreDNSTask())
