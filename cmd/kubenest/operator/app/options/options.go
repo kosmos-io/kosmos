@@ -18,6 +18,8 @@ type Options struct {
 
 	// ConfigFile is the location of the kubenest's configuration file.
 	ConfigFile string
+	// CoreNamespaces is the namespaces of kubenest's core resources in vc cluster. Separate with commas if there are multiple.
+	CoreNamespaces string
 }
 
 type KubernetesOptions struct {
@@ -70,4 +72,5 @@ func (o *Options) AddFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&o.DeprecatedOptions.KubeInKubeConfig.ETCDStorageClass, "etcd-storage-class", "openebs-hostpath", "Used to set the etcd storage class.")
 	flags.StringVar(&o.DeprecatedOptions.KubeInKubeConfig.ETCDUnitSize, "etcd-unit-size", "1Gi", "Used to set the etcd unit size, each node is allocated storage of etcd-unit-size.")
 	flags.StringVar(&o.ConfigFile, "config", "", "The path to the configuration file.")
+	flags.StringVar(&o.CoreNamespaces, "core-namespaces", "kube-system", "the namespaces of kubenest's core resources in vc cluster. Separate with commas if there are multiple.")
 }
