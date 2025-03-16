@@ -57,6 +57,7 @@ type VirtualClusterSpec struct {
 	ExternalIps []string `json:"externalIps,omitempty"`
 
 	// KubeInKubeConfig is the external config of virtual cluster
+	// +kubebuilder:default={"apiServerServiceType": "nodePort", "useTenantDNS": true}
 	// +optional
 	KubeInKubeConfig *KubeInKubeConfig `json:"kubeInKubeConfig,omitempty"`
 	// PromotePolicies definites the policies for promote to the kubernetes's control plane

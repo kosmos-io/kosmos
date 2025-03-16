@@ -12,7 +12,7 @@ import (
 // +kubebuilder:subresource:status
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:printcolumn:name="NODE_IP",type=string,JSONPath=`.spec.nodeIP`
-// +kubebuilder:printcolumn:name="Type",type=string,JSONPath=`.status.conditions[0].type`
+// +kubebuilder:printcolumn:name="TYPE",type=string,JSONPath=`.status.conditions[0].type`
 // +kubebuilder:printcolumn:name="STATE",type=string,JSONPath=`.spec.state`
 // +kubebuilder:printcolumn:name="VIRTUAL_CLUSTER",type=string,JSONPath=`.status.virtualCluster`
 

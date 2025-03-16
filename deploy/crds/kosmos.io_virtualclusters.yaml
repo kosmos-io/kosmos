@@ -54,6 +54,9 @@ spec:
                   type: string
                 type: array
               kubeInKubeConfig:
+                default:
+                  apiServerServiceType: nodePort
+                  useTenantDNS: true
                 description: KubeInKubeConfig is the external config of virtual cluster
                 properties:
                   admissionPlugins:

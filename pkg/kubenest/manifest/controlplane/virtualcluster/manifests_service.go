@@ -19,7 +19,6 @@ spec:
       protocol: TCP
       port: {{ .ServicePort }}
       targetPort: {{ .ServicePort }}
-      nodePort: 30443
   sessionAffinity: None
 `
 )

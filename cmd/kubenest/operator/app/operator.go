@@ -120,7 +120,10 @@ func SetupConfig(opts *options.Options) (*config.Config, error) {
 	c.LeaderElection = opts.LeaderElection
 	c.KubeNestOptions = koc
 	c.CoreNamespaces = strings.FieldsFunc(opts.CoreNamespaces, func(r rune) bool {
-		return r == ',' || r == ' ' // 忽略空格和逗号
+		return r == ',' || r == ' '
+	})
+	c.FeatureGates = strings.FieldsFunc(opts.FeatureGates, func(r rune) bool {
+		return r == ',' || r == ' '
 	})
 
 	return c, nil
@@ -290,12 +293,14 @@ func run(ctx context.Context, config *config.Config) error {
 		return fmt.Errorf("error starting %s: %v", constants.GlobalNodeControllerName, err)
 	}
 
-	GlobalNodeConditionController := glnodecontroller.NewGlobalNodeStatusController(
-		mgr.GetClient(),
-		kosmosClient,
-	)
-	if err := mgr.Add(GlobalNodeConditionController); err != nil {
-		return fmt.Errorf("error starting %s: %v", glnodecontroller.GlobalNodeStatusControllerName, err)
+	if strings.Contains(strings.Join(config.FeatureGates, ","), string(options.GlobalNodeCondition)) {
+		GlobalNodeConditionController := glnodecontroller.NewGlobalNodeStatusController(
+			mgr.GetClient(),
+			kosmosClient,
+		)
+		if err := mgr.Add(GlobalNodeConditionController); err != nil {
+			return fmt.Errorf("error starting %s: %v", glnodecontroller.GlobalNodeStatusControllerName, err)
+		}
 	}
 
 	if err := startEndPointsControllers(mgr); err != nil {
