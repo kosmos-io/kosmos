@@ -488,11 +488,12 @@ func (c *ServiceImportController) generateService(service *corev1.Service, servi
 			},
 		},
 		Spec: corev1.ServiceSpec{
-			Type:           service.Spec.Type,
-			ClusterIP:      clusterIP,
-			Ports:          servicePorts(service),
-			IPFamilies:     iPFamilies,
-			IPFamilyPolicy: &iPFamilyPolicy,
+			Type:                  service.Spec.Type,
+			ClusterIP:             clusterIP,
+			Ports:                 servicePorts(service),
+			IPFamilies:            iPFamilies,
+			IPFamilyPolicy:        &iPFamilyPolicy,
+			ExternalTrafficPolicy: service.Spec.ExternalTrafficPolicy,
 		},
 	}
 }
