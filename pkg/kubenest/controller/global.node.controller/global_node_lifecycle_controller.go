@@ -111,7 +111,6 @@ func (c *GlobalNodeStatusController) updateStatusForGlobalNode(
 		}
 
 		if len(currentNode.Status.Conditions) == 0 {
-			klog.Warningf("GlobalNode %s has no conditions, skipping status update", currentNode.Name)
 			return nil
 		}
 
@@ -129,9 +128,6 @@ func (c *GlobalNodeStatusController) updateStatusForGlobalNode(
 
 		if statusType == NodeNotReady {
 			nh.notReadyCount++
-			if condition.Type == NodeReady {
-				klog.V(2).Infof("GlobalNode %s: notReadyCount=%d, newStatus=%s", globalNode.Name, nh.notReadyCount, statusType)
-			}
 		} else {
 			nh.notReadyCount = 0
 		}
