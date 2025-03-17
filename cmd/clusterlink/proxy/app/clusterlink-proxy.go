@@ -78,5 +78,10 @@ func run(ctx context.Context, opts *options.Options) error {
 		return nil
 	})
 
+	server.GenericAPIServer.AddPreShutdownHookOrDie("stop-karmada-proxy-controller", func() error {
+		config.ExtraConfig.ProxyController.Stop()
+		return nil
+	})
+
 	return server.GenericAPIServer.PrepareRun().Run(ctx.Done())
 }
