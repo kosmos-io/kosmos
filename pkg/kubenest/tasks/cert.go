@@ -4,8 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/serializer/json"
 	"k8s.io/klog/v2"
 
 	"github.com/kosmos.io/kosmos/pkg/kubenest/util"
@@ -18,6 +22,16 @@ func NewCertTask() workflow.Task {
 		Name:        "Certs",
 		Run:         runCerts,
 		Skip:        skipCerts,
+		RunSubTasks: true,
+		Tasks:       newCertSubTasks(),
+	}
+}
+
+func NewRenewCertTask() workflow.Task {
+	return workflow.Task{
+		Name: "Certs",
+		Run:  runCerts,
+		// Skip:        skipCerts,
 		RunSubTasks: true,
 		Tasks:       newCertSubTasks(),
 	}
@@ -142,6 +156,91 @@ func mutateCertConfig(data InitData, cc *cert.CertConfig) error {
 		if err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+func NewBackupCertTask() workflow.Task {
+	return workflow.Task{
+		Name: "Certs",
+		Run:  runBackupSecrets,
+	}
+}
+
+func SaveRuntimeObjectToYAML(obj runtime.Object, fileName, dirName string) error {
+	scheme := runtime.NewScheme()
+	serializer := json.NewSerializerWithOptions(json.DefaultMetaFactory, scheme, scheme, json.SerializerOptions{Yaml: true, Pretty: true})
+
+	filePath := filepath.Join(dirName, fmt.Sprintf("%s.yaml", fileName))
+	file, err := os.Create(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to create file: %w", err)
+	}
+	defer file.Close()
+
+	err = serializer.Encode(obj, file)
+	if err != nil {
+		return fmt.Errorf("failed to serialize secret to YAML: %w", err)
+	}
+
+	return nil
+}
+
+// nolint
+func SaveStringToDir(data string, fileName, dirName string) error {
+	backupFilePath := filepath.Join(dirName, fileName)
+	err := os.WriteFile(backupFilePath, []byte(data), 0644)
+	if err != nil {
+		return fmt.Errorf("write backup file failed: %s", err.Error())
+	}
+
+	return err
+}
+
+func runBackupSecrets(r workflow.RunData) error {
+	data, ok := r.(InitData)
+	if !ok {
+		return errors.New("certs task invoked with an invalid data struct")
+	}
+	klog.V(4).InfoS("[certs] Running backup certs task", "virtual cluster", klog.KObj(data))
+
+	//  util.GetEtcdCertName(data.GetName()),    util.GetCertName(data.GetName()
+
+	// create dir
+	vc := data.VirtualCluster()
+	dirName := fmt.Sprintf("backup-%s-%s", vc.GetNamespace(), vc.GetName())
+
+	err := os.Mkdir(dirName, 0755)
+	if err != nil {
+		if !os.IsExist(err) {
+			return fmt.Errorf("create backup dir failed: %s", err.Error())
+		}
+	}
+	klog.V(4).InfoS("create backup dir successed:", dirName)
+
+	// backup certs
+	secrets := []string{
+		util.GetEtcdCertName(data.GetName()),
+		util.GetCertName(data.GetName()),
+		util.GetAdminConfigSecretName(data.GetName()),
+		util.GetAdminConfigClusterIPSecretName(data.GetName()),
+	}
+
+	for _, secret := range secrets {
+		klog.V(4).InfoS("backup secret", "secret", secret)
+		cert, err := data.RemoteClient().CoreV1().Secrets(data.GetNamespace()).Get(context.TODO(), secret, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+
+		err = SaveRuntimeObjectToYAML(cert, secret, dirName)
+
+		if err != nil {
+			return fmt.Errorf("write backup file failed: %s", err.Error())
+		}
+
+		klog.V(4).InfoS("backup secret successed", "file", secret)
 	}
 
 	return nil
