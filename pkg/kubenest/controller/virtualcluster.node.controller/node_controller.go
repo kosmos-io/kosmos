@@ -261,6 +261,11 @@ func (r *NodeController) Reconcile(ctx context.Context, request reconcile.Reques
 		return reconcile.Result{}, nil
 	}
 
+	if virtualCluster.Status.Phase == v1alpha1.Completed {
+		klog.V(4).Infof("virtualcluster is completed, cluster name: %s", virtualCluster.Name)
+		return reconcile.Result{}, nil
+	}
+
 	if len(virtualCluster.Spec.Kubeconfig) == 0 {
 		klog.Warning("virtualcluster.spec.kubeconfig is nil, wait virtualcluster control-plane ready.")
 		return reconcile.Result{}, nil
