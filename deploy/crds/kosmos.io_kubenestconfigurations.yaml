@@ -46,7 +46,7 @@ spec:
               apiServerReplicas:
                 type: integer
               apiServerServiceType:
-                default: hostNetwork
+                default: nodePort
                 enum:
                 - nodePort
                 - hostNetwork
@@ -84,7 +84,7 @@ spec:
                 default: false
                 type: boolean
               useTenantDNS:
-                default: false
+                default: true
                 type: boolean
             type: object
           kubeNestType:
