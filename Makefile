@@ -27,6 +27,7 @@ TARGETS :=  clusterlink-controller-manager \
 			clusterlink-proxy \
 			clustertree-cluster-manager \
 			scheduler \
+			webhook
 
 # If GOOS is macOS, assign the value of MACOS_TARGETS to TARGETS
 ifeq ($(GOOS), darwin)

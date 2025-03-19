@@ -26,6 +26,7 @@ CLUSTERLINK_TARGET_SOURCE=(
   virtual-cluster-operator=cmd/kubenest/operator
   node-agent=cmd/kubenest/node-agent
   kosmosctl=cmd/kosmosctl
+  webhook=cmd/webhook
 )
 
 #https://textkool.com/en/ascii-art-generator?hl=default&vl=default&font=DOS%20Rebel&text=KOSMOS
