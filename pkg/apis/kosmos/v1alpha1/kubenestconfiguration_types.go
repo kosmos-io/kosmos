@@ -82,11 +82,11 @@ type KubeInKubeConfig struct {
 	TenantEntrypoint TenantEntrypoint `yaml:"tenantEntrypoint" json:"tenantEntrypoint,omitempty"`
 
 	// +kubebuilder:validation:Enum=nodePort;hostNetwork
-	// +kubebuilder:default=hostNetwork
+	// +kubebuilder:default=nodePort
 	// +optional
 	APIServerServiceType APIServerServiceType `yaml:"apiServerServiceType" json:"apiServerServiceType,omitempty"`
 
-	// +kubebuilder:default=false
+	// +kubebuilder:default=true
 	// +optional
 	UseTenantDNS bool `yaml:"useTenantDNS" json:"useTenantDNS,omitempty"`
 	// +optional
