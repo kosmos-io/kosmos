@@ -55,7 +55,7 @@ func runCheckApiserver(r workflow.RunData) error {
 
 	checker := apiclient.NewVirtualClusterChecker(data.RemoteClient(), constants.ComponentBeReadyTimeout)
 
-	if err := apiclient.TryRunCommand(checker.WaitForAPI, 3); err != nil {
+	if err := apiclient.TryRunCommand(checker.WaitForAPI, apiclient.DefaultRetryCount); err != nil {
 		return fmt.Errorf("the virtual cluster apiserver is unhealthy, err: %w", err)
 	}
 	klog.V(2).InfoS("[check-apiserver-health] the etcd and virtualCluster-apiserver is healthy", "virtual cluster", klog.KObj(data))
