@@ -757,7 +757,7 @@ func CheckPortOnHost(addr string, port int32) (bool, error) {
 			return fmt.Errorf("chekc port failed, err: %s", ret.String())
 		}
 		return nil
-	}, 3)
+	}, apiclient.DefaultRetryCount)
 
 	if err != nil {
 		klog.Errorf("check port on host error! addr:%s, port %d, err: %s", addr, port, err.Error())
