@@ -160,8 +160,5 @@ func (o *Options) ApplyTo(config *genericserver.RecommendedConfig) error {
 	if err := o.ServerRunOptions.ApplyTo(&config.Config); err != nil {
 		return err
 	}
-	if err := o.Features.ApplyTo(&config.Config); err != nil {
-		return err
-	}
-	return nil
+	return o.Features.ApplyTo(&config.Config)
 }

@@ -229,7 +229,7 @@ func applyTemplatedManifests(component string, dynamicClient dynamic.Interface, 
 		}
 		err = apiclient.TryRunCommand(func() error {
 			return util.ApplyObject(dynamicClient, &obj)
-		}, 3)
+		}, apiclient.DefaultRetryCount)
 		if err != nil {
 			return errors.Wrapf(err, "Create object error")
 		}
