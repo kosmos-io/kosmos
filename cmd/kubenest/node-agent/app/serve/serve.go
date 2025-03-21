@@ -67,13 +67,13 @@ func init() {
 
 func serveCmdRun(_ *cobra.Command, _ []string) error {
 	//start heartbeatCheck Goroutine
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	// ctx, cancel := context.WithCancel(context.Background())
+	// defer cancel()
 
 	if len(nodeName) == 0 {
 		nodeName = viper.GetString("NODE_NAME")
 	}
-	go heartbeatCheck(ctx, nodeName)
+	// go HeartbeatCheck(ctx, nodeName)
 
 	user := viper.GetString("WEB_USER")
 	password := viper.GetString("WEB_PASS")
@@ -89,7 +89,7 @@ func serveCmdRun(_ *cobra.Command, _ []string) error {
 	return Start(addr, certFile, keyFile, user, password)
 }
 
-func heartbeatCheck(ctx context.Context, nodeName string) {
+func HeartbeatCheck(ctx context.Context, nodeName string) {
 	kubeconfigPath := defaultKubeconfig
 	config, err := clientcmd.BuildConfigFromFlags("", kubeconfigPath)
 	if err != nil {
