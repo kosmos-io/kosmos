@@ -13,6 +13,7 @@ import (
 	"k8s.io/kubectl/pkg/util/i18n"
 	"k8s.io/kubectl/pkg/util/templates"
 
+	"github.com/kosmos.io/kosmos/pkg/kosmosctl/cert"
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/floater"
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/get"
 	"github.com/kosmos.io/kosmos/pkg/kosmosctl/image"
@@ -88,6 +89,12 @@ func NewKosmosCtlCommand() *cobra.Command {
 			Message: "Image Pull/Push commands",
 			Commands: []*cobra.Command{
 				image.NewCmdImage(),
+			},
+		},
+		{
+			Message: "Renew certs commands",
+			Commands: []*cobra.Command{
+				cert.NewCmdCert(),
 			},
 		},
 	}

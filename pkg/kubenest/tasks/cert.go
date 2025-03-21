@@ -23,6 +23,16 @@ func NewCertTask() workflow.Task {
 	}
 }
 
+func NewRenewCertTask() workflow.Task {
+	return workflow.Task{
+		Name: "Certs",
+		Run:  runCerts,
+		// Skip:        skipCerts,
+		RunSubTasks: true,
+		Tasks:       newCertSubTasks(),
+	}
+}
+
 func runCerts(r workflow.RunData) error {
 	data, ok := r.(InitData)
 	if !ok {
