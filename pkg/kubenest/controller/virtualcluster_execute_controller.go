@@ -21,6 +21,26 @@ type Executor struct {
 	config         *rest.Config
 }
 
+func UpdateCertPhase(virtualCluster *v1alpha1.VirtualCluster, c client.Client, config *rest.Config, kubeNestOptions *v1alpha1.KubeNestConfiguration) (*Executor, error) {
+	var phase *workflow.Phase
+
+	opts := []kubenest.InitOpt{
+		kubenest.NewInitOptWithVirtualCluster(virtualCluster),
+		kubenest.NewInitOptWithKubeconfig(config),
+		kubenest.NewInitOptWithKubeNestOptions(kubeNestOptions),
+	}
+	options := kubenest.NewPhaseInitOptions(opts...)
+
+	phase = kubenest.NewUpdateCertPhase(options)
+
+	return &Executor{
+		virtualCluster: virtualCluster,
+		Client:         c,
+		phase:          phase,
+		config:         config,
+	}, nil
+}
+
 func NewExecutor(virtualCluster *v1alpha1.VirtualCluster, c client.Client, config *rest.Config, kubeNestOptions *v1alpha1.KubeNestConfiguration) (*Executor, error) {
 	var phase *workflow.Phase
 
