@@ -21,6 +21,9 @@ func NewEndPointTask() workflow.Task {
 		Name:        "endpoint",
 		Run:         runEndpoint,
 		RunSubTasks: true,
+		Skip: func(d workflow.RunData) (bool, error) {
+			return true, nil
+		},
 		Tasks: []workflow.Task{
 			{
 				Name: "deploy-endpoint-in-virtual-cluster",

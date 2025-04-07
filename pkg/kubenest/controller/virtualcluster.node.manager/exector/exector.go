@@ -10,7 +10,7 @@ import (
 	"github.com/gorilla/websocket"
 	"k8s.io/klog/v2"
 
-	env "github.com/kosmos.io/kosmos/pkg/kubenest/controller/virtualcluster.node.controller/env"
+	env "github.com/kosmos.io/kosmos/pkg/kubenest/controller/virtualcluster.node.manager/env"
 	"github.com/kosmos.io/kosmos/pkg/utils"
 )
 
