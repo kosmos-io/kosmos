@@ -28,7 +28,6 @@ import (
 	endpointscontroller "github.com/kosmos.io/kosmos/pkg/kubenest/controller/endpoints.sync.controller"
 	glnodecontroller "github.com/kosmos.io/kosmos/pkg/kubenest/controller/global.node.controller"
 	kosmos "github.com/kosmos.io/kosmos/pkg/kubenest/controller/kosmos"
-	vcnodecontroller "github.com/kosmos.io/kosmos/pkg/kubenest/controller/virtualcluster.node.controller"
 	"github.com/kosmos.io/kosmos/pkg/scheme"
 	"github.com/kosmos.io/kosmos/pkg/sharedcli/klogflag"
 )
@@ -269,15 +268,15 @@ func run(ctx context.Context, config *config.Config) error {
 		return fmt.Errorf("could not create clientset: %v", err)
 	}
 
-	VirtualClusterInitController := controller.VirtualClusterInitController{
-		Client:          mgr.GetClient(),
-		Config:          mgr.GetConfig(),
-		EventRecorder:   mgr.GetEventRecorderFor(constants.InitControllerName),
-		RootClientSet:   hostKubeClient,
-		KosmosClient:    kosmosClient,
-		KubeNestOptions: &config.KubeNestOptions,
-		CoreNamespaces:  config.CoreNamespaces,
-	}
+	VirtualClusterInitController := controller.NewInitController(
+		mgr.GetClient(),
+		mgr.GetConfig(),
+		mgr.GetEventRecorderFor(constants.InitControllerName),
+		hostKubeClient,
+		kosmosClient,
+		&config.KubeNestOptions,
+		config.CoreNamespaces,
+	)
 	if err = VirtualClusterInitController.SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("error starting %s: %v", constants.InitControllerName, err)
 	}
@@ -307,17 +306,17 @@ func run(ctx context.Context, config *config.Config) error {
 		return err
 	}
 
-	VirtualClusterNodeController := vcnodecontroller.NewNodeController(
-		mgr.GetClient(),
-		hostKubeClient,
-		mgr.GetEventRecorderFor(constants.NodeControllerName),
-		kosmosClient,
-		&config.KubeNestOptions,
-	)
+	// VirtualClusterNodeController := vcnodecontroller.NewNodeController(
+	// 	mgr.GetClient(),
+	// 	hostKubeClient,
+	// 	mgr.GetEventRecorderFor(constants.NodeControllerName),
+	// 	kosmosClient,
+	// 	&config.KubeNestOptions,
+	// )
 
-	if err = VirtualClusterNodeController.SetupWithManager(mgr); err != nil {
-		return fmt.Errorf("error starting %s: %v", constants.NodeControllerName, err)
-	}
+	// if err = VirtualClusterNodeController.SetupWithManager(mgr); err != nil {
+	// 	return fmt.Errorf("error starting %s: %v", constants.NodeControllerName, err)
+	// }
 
 	if config.KubeNestOptions.KubeNestType == v1alpha1.KosmosKube {
 		KosmosJoinController := kosmos.KosmosJoinController{

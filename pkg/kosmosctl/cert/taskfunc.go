@@ -14,7 +14,7 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/controller"
-	"github.com/kosmos.io/kosmos/pkg/kubenest/controller/virtualcluster.node.controller/exector"
+	"github.com/kosmos.io/kosmos/pkg/kubenest/controller/virtualcluster.node.manager/exector"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/util"
 )
 
