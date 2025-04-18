@@ -15,7 +15,6 @@ import (
 	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/constants"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/manifest/controlplane/apiserver"
-	"github.com/kosmos.io/kosmos/pkg/kubenest/manifest/controlplane/coredns/host"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/manifest/controlplane/etcd"
 	"github.com/kosmos.io/kosmos/pkg/kubenest/util"
 	"github.com/kosmos.io/kosmos/pkg/utils"
@@ -142,24 +141,24 @@ func createServerService(client clientset.Interface, name, namespace string, por
 		return fmt.Errorf("err when creating etcd client service, err: %w", err)
 	}
 
-	//core-dns service
-	coreDNSServiceBytes, err := util.ParseTemplate(host.CoreDNSService, struct {
-		Namespace string
-	}{
-		Namespace: namespace,
-	})
-	if err != nil {
-		return fmt.Errorf("error when parsing core-dns serive template: %w", err)
-	}
+	// //core-dns service
+	// coreDNSServiceBytes, err := util.ParseTemplate(host.CoreDNSService, struct {
+	// 	Namespace string
+	// }{
+	// 	Namespace: namespace,
+	// })
+	// if err != nil {
+	// 	return fmt.Errorf("error when parsing core-dns serive template: %w", err)
+	// }
 
-	coreDNSService := &corev1.Service{}
-	if err := yaml.Unmarshal([]byte(coreDNSServiceBytes), coreDNSService); err != nil {
-		return fmt.Errorf("err when decoding core-dns service: %w", err)
-	}
+	// coreDNSService := &corev1.Service{}
+	// if err := yaml.Unmarshal([]byte(coreDNSServiceBytes), coreDNSService); err != nil {
+	// 	return fmt.Errorf("err when decoding core-dns service: %w", err)
+	// }
 
-	if err := util.CreateOrUpdateService(client, coreDNSService); err != nil {
-		return fmt.Errorf("err when creating core-dns service, err: %w", err)
-	}
+	// if err := util.CreateOrUpdateService(client, coreDNSService); err != nil {
+	// 	return fmt.Errorf("err when creating core-dns service, err: %w", err)
+	// }
 
 	return nil
 }

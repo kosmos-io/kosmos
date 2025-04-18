@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/kosmos.io/kosmos/pkg/apis/kosmos/v1alpha1"
-	"github.com/kosmos.io/kosmos/pkg/kubenest/controller/virtualcluster.node.controller/workflow/task"
+	"github.com/kosmos.io/kosmos/pkg/kubenest/controller/virtualcluster.node.manager/workflow/task"
 )
 
 const (

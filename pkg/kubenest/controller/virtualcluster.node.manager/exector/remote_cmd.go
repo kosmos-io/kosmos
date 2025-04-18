@@ -6,7 +6,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	env "github.com/kosmos.io/kosmos/pkg/kubenest/controller/virtualcluster.node.controller/env"
+	env "github.com/kosmos.io/kosmos/pkg/kubenest/controller/virtualcluster.node.manager/env"
 )
 
 type CMDExector struct {
