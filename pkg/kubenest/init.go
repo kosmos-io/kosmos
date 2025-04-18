@@ -84,11 +84,9 @@ func NewInitPhase(opts *InitOptions) *workflow.Phase {
 func NewUpdateCertPhase(opts *InitOptions) *workflow.Phase {
 	initPhase := workflow.NewPhase()
 
-	initPhase.AppendTask(tasks.NewBackupCertTask())
 	initPhase.AppendTask(tasks.NewRenewCertTask())
 	initPhase.AppendTask(tasks.NewUploadCertsTask())
 	initPhase.AppendTask(tasks.NewUploadKubeconfigTask())
-	initPhase.AppendTask(tasks.NewRenewCertsTask())
 
 	initPhase.SetDataInitializer(func() (workflow.RunData, error) {
 		return newRunData(opts)
