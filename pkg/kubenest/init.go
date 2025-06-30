@@ -74,6 +74,7 @@ func NewInitPhase(opts *InitOptions) *workflow.Phase {
 	// add server
 	initPhase.AppendTask(tasks.NewComponentsFromManifestsTask())
 	initPhase.AppendTask(tasks.NewEndPointTask())
+	initPhase.AppendTask(tasks.NewFeaturesTask())
 
 	initPhase.SetDataInitializer(func() (workflow.RunData, error) {
 		return newRunData(opts)
@@ -104,6 +105,7 @@ func UninstallPhase(opts *InitOptions) *workflow.Phase {
 	destroyPhase.AppendTask(tasks.UninstallVirtualClusterServiceTask())
 	destroyPhase.AppendTask(tasks.UninstallCertsAndKubeconfigTask())
 	destroyPhase.AppendTask(tasks.DeleteEtcdPvcTask())
+	destroyPhase.AppendTask(tasks.DeleteFeaturesTask())
 	//destroyPhase.AppendTask(tasks.UninstallVirtualClusterProxyTask())
 
 	destroyPhase.SetDataInitializer(func() (workflow.RunData, error) {
