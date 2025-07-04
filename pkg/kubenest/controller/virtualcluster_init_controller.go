@@ -120,7 +120,7 @@ func (c *VirtualClusterInitController) Reconcile(ctx context.Context, request re
 			klog.V(2).InfoS("Virtual Cluster has been deleted", "Virtual Cluster", request)
 			return reconcile.Result{}, nil
 		}
-		return reconcile.Result{RequeueAfter: RequeueTime}, nil
+		return reconcile.Result{}, nil
 	}
 	updatedCluster := originalCluster.DeepCopy()
 	updatedCluster.Status.Reason = ""
@@ -132,30 +132,21 @@ func (c *VirtualClusterInitController) Reconcile(ctx context.Context, request re
 		err := c.Update(updatedCluster)
 		if err != nil {
 			klog.Errorf("Error update virtualcluster %s status to %s", updatedCluster.Name, updatedCluster.Status.Phase)
-			return reconcile.Result{}, errors.Wrapf(err, "Error update virtualcluster %s status", updatedCluster.Name)
+			return reconcile.Result{RequeueAfter: RequeueTime}, errors.Wrapf(err, "Error update virtualcluster %s status", updatedCluster.Name)
 		}
 
-		if err = c.nodeManager.NodeUpdate(ctx, *updatedCluster); err != nil {
+		if len(updatedCluster.Spec.Kubeconfig) == 0 {
+			klog.Warningf("virtualcluster.spec.kubeconfig is nil, but status is deleting. %s %s.", updatedCluster.Name, updatedCluster.Status.Phase)
+		} else if err = c.nodeManager.NodeUpdate(ctx, *updatedCluster); err != nil {
 			updatedCluster.Status.Phase = v1alpha1.Pending
 			updatedCluster.Status.Reason = err.Error()
 			err := c.Update(updatedCluster)
 			if err != nil {
 				klog.Errorf("Error delete virtualcluster %s status to %s", updatedCluster.Name, updatedCluster.Status.Phase)
-				return reconcile.Result{}, errors.Wrapf(err, "Error delete virtualcluster %s status", updatedCluster.Name)
+				return reconcile.Result{RequeueAfter: RequeueTime}, errors.Wrapf(err, "Error delete virtualcluster %s status", updatedCluster.Name)
 			}
-			return reconcile.Result{}, err
+			return reconcile.Result{RequeueAfter: RequeueTime}, err
 		}
-
-		// if err = c.nodeManager.NodeDelete(ctx, *updatedCluster); err != nil {
-		// 	updatedCluster.Status.Phase = v1alpha1.Pending
-		// 	updatedCluster.Status.Reason = err.Error()
-		// 	err := c.Update(updatedCluster)
-		// 	if err != nil {
-		// 		klog.Errorf("Error update virtualcluster %s status to %s", updatedCluster.Name, updatedCluster.Status.Phase)
-		// 		return reconcile.Result{}, errors.Wrapf(err, "Error update virtualcluster %s status", updatedCluster.Name)
-		// 	}
-		// 	return reconcile.Result{}, err
-		// }
 
 		klog.V(2).Infof(" all node is deleted, vc: %s", updatedCluster.Name)
 
@@ -163,13 +154,13 @@ func (c *VirtualClusterInitController) Reconcile(ctx context.Context, request re
 		err = c.Update(updatedCluster)
 		if err != nil {
 			klog.Errorf("Error update virtualcluster %s status to %s", updatedCluster.Name, updatedCluster.Status.Phase)
-			return reconcile.Result{}, errors.Wrapf(err, "Error update virtualcluster %s status", updatedCluster.Name)
+			return reconcile.Result{RequeueAfter: RequeueTime}, errors.Wrapf(err, "Error update virtualcluster %s status", updatedCluster.Name)
 		}
 
 		err = c.destroyVirtualCluster(updatedCluster)
 		if err != nil {
 			klog.Errorf("Destroy virtual cluter %s failed. err: %s", updatedCluster.Name, err.Error())
-			return reconcile.Result{}, errors.Wrapf(err, "Destroy virtual cluter %s failed. err: %s", updatedCluster.Name, err.Error())
+			return reconcile.Result{RequeueAfter: RequeueTime}, errors.Wrapf(err, "Destroy virtual cluter %s failed. err: %s", updatedCluster.Name, err.Error())
 		}
 		return c.removeFinalizer(updatedCluster)
 	}
@@ -192,15 +183,15 @@ func (c *VirtualClusterInitController) Reconcile(ctx context.Context, request re
 			err := c.Update(updatedCluster)
 			if err != nil {
 				klog.Errorf("Error update virtualcluster %s. err: %s", updatedCluster.Name, err.Error())
-				return reconcile.Result{}, errors.Wrapf(err, "Error update virtualcluster %s status", updatedCluster.Name)
+				return reconcile.Result{RequeueAfter: RequeueTime}, errors.Wrapf(err, "Error update virtualcluster %s status", updatedCluster.Name)
 			}
-			return reconcile.Result{}, errors.Wrap(err, "Error createVirtualCluster")
+			return reconcile.Result{RequeueAfter: RequeueTime}, errors.Wrap(err, "Error createVirtualCluster")
 		}
 		updatedCluster.Status.Phase = v1alpha1.Initialized
 		err = c.Update(updatedCluster)
 		if err != nil {
 			klog.Errorf("Error update virtualcluster %s status to %s. %v", updatedCluster.Name, updatedCluster.Status.Phase, err)
-			return reconcile.Result{}, errors.Wrapf(err, "Error update virtualcluster %s status", updatedCluster.Name)
+			return reconcile.Result{RequeueAfter: RequeueTime}, errors.Wrapf(err, "Error update virtualcluster %s status", updatedCluster.Name)
 		}
 		if err = c.nodeManager.NodeUpdate(ctx, *updatedCluster); err != nil {
 			updatedCluster.Status.Phase = v1alpha1.Pending
@@ -208,9 +199,9 @@ func (c *VirtualClusterInitController) Reconcile(ctx context.Context, request re
 			err := c.Update(updatedCluster)
 			if err != nil {
 				klog.Errorf("Error update virtualcluster %s status to %s", updatedCluster.Name, updatedCluster.Status.Phase)
-				return reconcile.Result{}, errors.Wrapf(err, "Error update virtualcluster %s status", updatedCluster.Name)
+				return reconcile.Result{RequeueAfter: RequeueTime}, errors.Wrapf(err, "Error update virtualcluster %s status", updatedCluster.Name)
 			}
-			return reconcile.Result{}, err
+			return reconcile.Result{RequeueAfter: RequeueTime}, err
 		}
 		name, namespace := request.Name, request.Namespace
 		return reconcile.Result{}, c.DoAllNodeReadyCheck(name, namespace, originalCluster, updatedCluster)
@@ -229,13 +220,16 @@ func (c *VirtualClusterInitController) Reconcile(ctx context.Context, request re
 		}
 		err = c.assignWorkNodes(updatedCluster)
 		if err != nil {
+			updatedCluster.Status.Phase = v1alpha1.Pending
+			updatedCluster.Status.Reason = err.Error()
+			err := c.Update(updatedCluster)
 			return reconcile.Result{RequeueAfter: RequeueTime}, errors.Wrapf(err, "Error update virtualcluster %s", updatedCluster.Name)
 		}
 		updatedCluster.Status.Phase = v1alpha1.Updating
 		err = c.Update(updatedCluster)
 		if err != nil {
 			klog.Errorf("Error update virtualcluster %s status to %s", updatedCluster.Name, updatedCluster.Status.Phase)
-			return reconcile.Result{}, errors.Wrapf(err, "Error update virtualcluster %s status", updatedCluster.Name)
+			return reconcile.Result{RequeueAfter: RequeueTime}, errors.Wrapf(err, "Error update virtualcluster %s status", updatedCluster.Name)
 		}
 		if err = c.nodeManager.NodeUpdate(ctx, *updatedCluster); err != nil {
 			updatedCluster.Status.Phase = v1alpha1.Pending
@@ -243,9 +237,9 @@ func (c *VirtualClusterInitController) Reconcile(ctx context.Context, request re
 			err := c.Update(updatedCluster)
 			if err != nil {
 				klog.Errorf("Error update virtualcluster %s status to %s", updatedCluster.Name, updatedCluster.Status.Phase)
-				return reconcile.Result{}, errors.Wrapf(err, "Error update virtualcluster %s status", updatedCluster.Name)
+				return reconcile.Result{RequeueAfter: RequeueTime}, errors.Wrapf(err, "Error update virtualcluster %s status", updatedCluster.Name)
 			}
-			return reconcile.Result{}, err
+			return reconcile.Result{RequeueAfter: RequeueTime}, err
 		}
 		name, namespace := request.Name, request.Namespace
 		return reconcile.Result{}, c.DoAllNodeReadyCheck(name, namespace, originalCluster, updatedCluster)

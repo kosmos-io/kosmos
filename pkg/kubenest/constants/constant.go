@@ -143,6 +143,13 @@ const (
 	NodeLocalDNSIp            = "169.254.20.10"
 	NodeLocalDNSClusterDomain = "cluster.local"
 	NodeLocalDNSService       = "__PILLAR__DNS__SERVER__"
+
+	EnabledFeaturesAnnotation = "kosmos.io/enabled-features"
+	FeatureComponents         = "feature-components"
+)
+
+const (
+	ExposeEtcd = "expose-etcd"
 )
 
 type Action string
