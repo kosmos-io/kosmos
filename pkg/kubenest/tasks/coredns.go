@@ -84,7 +84,7 @@ func UninstallCoreDNSTask() workflow.Task {
 	}
 }
 
-func getCoreDNSHostComponentsConfig(client clientset.Interface, keyName string) ([]ComponentConfig, error) {
+func getManifestComponentsConfig(client clientset.Interface, keyName string) ([]ComponentConfig, error) {
 	cm, err := client.CoreV1().ConfigMaps(constants.KosmosNs).Get(context.Background(), constants.ManifestComponentsConfigMap, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -115,7 +115,7 @@ func runCoreDNSHostTask(r workflow.RunData) error {
 
 	dynamicClient := data.DynamicClient()
 
-	components, err := getCoreDNSHostComponentsConfig(data.RemoteClient(), constants.HostCoreDnsComponents)
+	components, err := getManifestComponentsConfig(data.RemoteClient(), constants.HostCoreDnsComponents)
 	if err != nil {
 		return err
 	}
@@ -149,7 +149,7 @@ func uninstallCorednsHostTask(r workflow.RunData) error {
 
 	dynamicClient := data.DynamicClient()
 
-	components, err := getCoreDNSHostComponentsConfig(data.RemoteClient(), constants.HostCoreDnsComponents)
+	components, err := getManifestComponentsConfig(data.RemoteClient(), constants.HostCoreDnsComponents)
 	if err != nil {
 		return err
 	}
@@ -219,7 +219,7 @@ func runCoreDNSVirtualTask(r workflow.RunData) error {
 		return err
 	}
 
-	components, err := getCoreDNSHostComponentsConfig(data.RemoteClient(), constants.VirtualCoreDNSComponents)
+	components, err := getManifestComponentsConfig(data.RemoteClient(), constants.VirtualCoreDNSComponents)
 	if err != nil {
 		return err
 	}
