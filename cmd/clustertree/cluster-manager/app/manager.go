@@ -262,6 +262,14 @@ func run(ctx context.Context, opts *options.Options) error {
 		}
 	}
 
+	RootPodSyncReconciler := podcontrollers.RootPodSyncReconciler{
+		RootClient:        mgr.GetClient(),
+		GlobalLeafManager: globalleafManager,
+	}
+	if err := RootPodSyncReconciler.SetupWithManager(mgr); err != nil {
+		return fmt.Errorf("error starting root podsync controller %v", err)
+	}
+
 	// init commonController
 	for i, gvr := range controllers.SYNC_GVRS {
 		commonController := controllers.SyncResourcesReconciler{
